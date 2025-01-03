@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -300,13 +300,13 @@
 <img class="company-logo-left" src="DJA-Logo.png" alt="DJA Logo">
 
 <!-- 右上角主要产品 Logo -->
-<img class="main-product-logo-right" src="DJA-main products Logo.png" alt="DJA Main Products Logo">
+<img class="main-product-logo-right" src="DJA-main-products-Logo.png" alt="DJA Main Products Logo">
 
 <header>
     <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang Logo" style="width: 100px; height: auto;">
     <h1>Oliver Fang</h1>
     <p>Sales Consultant at 
-        <a href="./djakji.com" style="color: #004D99; font-weight: bold;">
+        <a href="https://djakeji.com" target="_blank" style="color: #004D99; font-weight: bold;">
             Shen Zhen Dijiean Technology Co., Ltd
         </a>
     </p>
@@ -340,12 +340,12 @@
     </a>
     <!-- Skype (官方Logo) -->
     <a href="https://web.skype.com/?openPstnPage=true" target="_self">
-        <img src="Skype Logo.png" alt="Skype Logo" style="width: 40px; height: 40px;">
+        <img src="Skype-Logo.png" alt="Skype Logo" style="width: 40px; height: 40px;">
         <span>Skype</span>
     </a>
     <!-- WeChat (官方Logo) -->
     <a href="weixin://dl/chat?wxid=wxid_iutal1lhylrv22">
-        <img src="WeChat Logo.png" alt="WeChat Logo" style="width: 40px; height: 40px;">
+        <img src="WeChat-Logo.png" alt="WeChat Logo" style="width: 40px; height: 40px;">
         <span>WeChat</span>
     </a>
 </div>
@@ -479,6 +479,7 @@
         } catch (error) {
             phoneError.textContent = 'Failed to download contact.';
             phoneError.style.display = 'block';
+            phoneSuccess.style.display = 'none';
             setTimeout(() => {
                 phoneError.style.display = 'none';
             }, 3000);
