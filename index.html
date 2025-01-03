@@ -293,14 +293,6 @@
             background: linear-gradient(45deg, #bbb, #888);
         }
     </style>
-    <!-- 客户端重定向脚本 -->
-    <script>
-        // 检查当前网址是否为 GitHub Pages 的 URL
-        if (window.location.hostname === 'forest-fr.github.io' && window.location.pathname === '/oliverfr.com/') {
-            // 重定向到主域名
-            window.location.href = 'https://oliverfr.com/';
-        }
-    </script>
 </head>
 <body>
 
@@ -311,7 +303,7 @@
 <img class="main-product-logo-right" src="DJA-main-products-logo.png" alt="DJA Main Products Logo">
 
 <header>
-    <img class="placeholder-logo" src="https://via.placeholder.com/80" alt="Placeholder Logo">
+    <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang Logo">
     <h1>Oliver Fang</h1>
     <p>I work as a sales consultant at 
         <a href="https://djakji.com" style="color: #004D99; font-weight: bold;">
@@ -322,7 +314,7 @@
 </header>
 
 <!-- 
-    Contact icons 区域，Skype/WeChat 使用官方 Logo，去掉号码，点击可跳转
+    Contact icons 区域，所有联系方式使用链接包装
 -->
 <div class="contact-icons">
     <!-- WhatsApp -->
@@ -424,38 +416,17 @@
     const phoneError = document.getElementById('phone-error');
     const phoneSuccess = document.getElementById('phone-success');
 
-    // Utility function to validate email
-    function validateEmail(email) {
-        const re = /^[^\s@]+@[^\s@]+\.(edu|com|info|gov|net)$/i;
-        return re.test(email);
-    }
-
-    // Check if email has been sent today
-    function hasSentEmailToday(email) {
-        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
-        const today = new Date().toISOString().split('T')[0];
-        return sentEmails[email] === today;
-    }
-
-    // Mark email as sent today
-    function markEmailAsSent(email) {
-        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
-        const today = new Date().toISOString().split('T')[0];
-        sentEmails[email] = today;
-        localStorage.setItem('sentEmails', JSON.stringify(sentEmails));
-    }
-
-    // Open Main Modal
+    // 打开主模态框
     downloadVCard.addEventListener('click', () => {
         mainModal.style.display = 'flex';
     });
 
-    // Close Main Modal
+    // 关闭主模态框
     closeMainModal.addEventListener('click', () => {
         mainModal.style.display = 'none';
     });
 
-    // Open Email Modal
+    // 打开 Email 模态框
     sendEmailButton.addEventListener('click', () => {
         mainModal.style.display = 'none';
         emailModal.style.display = 'flex';
@@ -463,32 +434,32 @@
         emailInput.focus(); // 自动聚焦输入框
     });
 
-    // Close Email Modal
+    // 关闭 Email 模态框
     closeEmailModal.addEventListener('click', () => {
         emailModal.style.display = 'none';
     });
 
-    // Open Phone Modal
+    // 打开 Phone 模态框
     sendPhoneButton.addEventListener('click', () => {
         mainModal.style.display = 'none';
         phoneModal.style.display = 'flex';
         resetPhoneModal();
     });
 
-    // Close Phone Modal
+    // 关闭 Phone 模态框
     closePhoneModal.addEventListener('click', () => {
         phoneModal.style.display = 'none';
     });
 
-    // Cancel Phone Action
+    // 取消 Phone 操作
     cancelPhone.addEventListener('click', () => {
         phoneModal.style.display = 'none';
     });
 
-    // Confirm Phone Action
+    // 确认 Phone 操作
     confirmPhone.addEventListener('click', () => {
         resetPhoneModal();
-        // Simulate download action
+        // 模拟下载 vCard
         try {
             const vCardData = "BEGIN:VCARD\nVERSION:3.0\nFN:Oliver Fang\nORG:Shen Zhen Dijiean Technology Co., Ltd\nEMAIL:sales@oliverfr.com\nEND:VCARD";
             const blob = new Blob([vCardData], { type: 'text/vcard' });
@@ -516,7 +487,7 @@
         }
     });
 
-    // Email Input Validation
+    // 邮箱输入验证
     emailInput.addEventListener('input', () => {
         const email = emailInput.value.trim();
         if (validateEmail(email)) {
@@ -528,7 +499,7 @@
         }
     });
 
-    // Handle Email Form Submission
+    // 处理 Email 表单提交
     emailForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const email = emailInput.value.trim();
@@ -598,6 +569,27 @@
             phoneModal.style.display = 'none';
         }
     });
+
+    // 邮箱验证函数
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.(edu|com|info|gov|net)$/i;
+        return re.test(email);
+    }
+
+    // 检查邮箱当天是否已发送
+    function hasSentEmailToday(email) {
+        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
+        const today = new Date().toISOString().split('T')[0];
+        return sentEmails[email] === today;
+    }
+
+    // 标记邮箱已发送
+    function markEmailAsSent(email) {
+        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
+        const today = new Date().toISOString().split('T')[0];
+        sentEmails[email] = today;
+        localStorage.setItem('sentEmails', JSON.stringify(sentEmails));
+    }
 
     // 初始化时禁用“Send by Email”按钮
     document.addEventListener('DOMContentLoaded', () => {
