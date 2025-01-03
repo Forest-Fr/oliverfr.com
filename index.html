@@ -293,6 +293,14 @@
             background: linear-gradient(45deg, #bbb, #888);
         }
     </style>
+    <!-- 客户端重定向脚本 -->
+    <script>
+        // 检查当前网址是否为 GitHub Pages 的 URL
+        if (window.location.hostname === 'forest-fr.github.io' && window.location.pathname === '/oliverfr.com/') {
+            // 重定向到主域名
+            window.location.href = 'https://oliverfr.com/';
+        }
+    </script>
 </head>
 <body>
 
@@ -300,56 +308,54 @@
 <img class="company-logo-left" src="DJA-Logo.png" alt="DJA Logo">
 
 <!-- 右上角主要产品 Logo -->
-<img class="main-product-logo-right" src="DJA-main products Logo.png" alt="DJA Main Products Logo">
+<img class="main-product-logo-right" src="DJA-main-products-logo.png" alt="DJA Main Products Logo">
 
 <header>
     <img class="placeholder-logo" src="https://via.placeholder.com/80" alt="Placeholder Logo">
     <h1>Oliver Fang</h1>
     <p>I work as a sales consultant at 
-        <a href="./djakji.com" style="color: #004D99; font-weight: bold;">
+        <a href="https://djakji.com" style="color: #004D99; font-weight: bold;">
             Shen Zhen Dijiean Technology Co., Ltd
         </a>
     </p>
     <p class="brand-note">DJA PoE switch brand by Dijiean Tech</p>
 </header>
 
-<!-- Contact icons 区域，Skype/WeChat 使用官方 Logo，去掉号码，点击可跳转 -->
+<!-- 
+    Contact icons 区域，Skype/WeChat 使用官方 Logo，去掉号码，点击可跳转
+-->
 <div class="contact-icons">
     <!-- WhatsApp -->
     <a href="https://wa.me/12817839998" target="_self">
-        <img src="https://cdn-icons-png.flaticon.com/512/124/124034.png" alt="WhatsApp">
+        <img src="WhatsApp-logo.png" alt="WhatsApp">
         <span>WhatsApp</span>
         <span>+1 281 783 9998</span>
     </a>
     <!-- Email -->
     <a href="mailto:sales@oliverfr.com">
-        <img src="https://cdn-icons-png.flaticon.com/512/732/732200.png" alt="Email">
+        <img src="Email-logo.png" alt="Email">
         <span>Email</span>
         <span>sales@oliverfr.com</span>
     </a>
     <!-- Phone -->
     <a href="tel:+12817839998">
-        <img src="https://cdn-icons-png.flaticon.com/512/126/126509.png" alt="Phone">
+        <img src="Phone-logo.png" alt="Phone">
         <span>Phone</span>
         <span>+1 281 783 9998</span>
     </a>
     <!-- LinkedIn -->
     <a href="https://linkedin.com/in/oliver-f-448b8a287" target="_self">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" alt="LinkedIn">
+        <img src="LinkedIn-logo.png" alt="LinkedIn">
         <span>LinkedIn</span>
     </a>
     <!-- Skype (官方Logo) -->
-    <!-- 使用Skype URI，添加target="_blank"，若浏览器/设备支持将会尝试打开Skype -->
     <a href="skype:+12817839998?call" target="_blank">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/e/e2/Skype_logo_2020.png" alt="Skype Logo" 
-             style="width: 40px; height: 40px;">
+        <img src="Skype-logo.png" alt="Skype Logo" style="width: 40px; height: 40px;">
         <span>Skype</span>
     </a>
-    <!-- WeChat (官方Logo, 绿色) -->
-    <!-- 使用WeChat URI，若移动端微信支持将跳转对应ID，PC端多数情况无效 -->
+    <!-- WeChat (官方Logo) -->
     <a href="weixin://dl/chat?wxid=wxid_iutal1lhylrv22">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/WeChat_logo.png" alt="WeChat Logo"
-             style="width: 40px; height: 40px; background: #09b83e; border-radius: 8px;">
+        <img src="WeChat-logo.png" alt="WeChat Logo" style="width: 40px; height: 40px;">
         <span>WeChat</span>
     </a>
 </div>
