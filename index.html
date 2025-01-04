@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -306,7 +306,7 @@
     <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang Logo" style="width: 100px; height: auto;">
     <h1>Oliver Fang</h1>
     <p>Sales Consultant at 
-        <a href="http://www.djakji.com" style="color: #004D99; font-weight: bold;">
+        <a href="http://www.djakeji.com" style="color: #004D99; font-weight: bold;">
             Shen Zhen Dijiean Technology Co., Ltd
         </a>
     </p>
@@ -472,6 +472,7 @@
 
             phoneSuccess.textContent = 'Contact successfully downloaded to your device.';
             phoneSuccess.style.display = 'block';
+            phoneError.style.display = 'none';
             setTimeout(() => {
                 phoneSuccess.style.display = 'none';
                 phoneModal.style.display = 'none';
@@ -479,6 +480,7 @@
         } catch (error) {
             phoneError.textContent = 'Failed to download contact.';
             phoneError.style.display = 'block';
+            phoneSuccess.style.display = 'none';
             setTimeout(() => {
                 phoneError.style.display = 'none';
             }, 3000);
@@ -498,7 +500,7 @@
     });
 
     // 处理 Email 表单提交
-    emailForm.addEventListener('submit', (e) => {
+    emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = emailInput.value.trim();
 
@@ -508,17 +510,45 @@
             return;
         }
 
-        // 模拟发送邮件
-        try {
-            emailSuccess.textContent = 'Contact successfully sent to your email.';
-            emailSuccess.style.display = 'block';
-            emailError.style.display = 'none';
-            submitEmail.disabled = true;
-
+        if (hasSentEmailToday(email)) {
+            emailError.textContent = 'This email has already been sent today.';
+            emailError.style.display = 'block';
+            emailSuccess.style.display = 'none';
             setTimeout(() => {
-                emailSuccess.style.display = 'none';
+                emailError.style.display = 'none';
                 emailModal.style.display = 'none';
             }, 3000);
+            return;
+        }
+
+        // 使用 Fetch API 发送邮件
+        try {
+            const response = await fetch('http://localhost:3000/send-email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    to: email,
+                    subject: 'Contact from Oliver Fang',
+                    text: 'Here is the contact information of Oliver Fang at Shen Zhen Dijiean Technology Co., Ltd.',
+                }),
+            });
+
+            if (response.ok) {
+                markEmailAsSent(email);
+                emailSuccess.textContent = 'Contact successfully sent to your email.';
+                emailSuccess.style.display = 'block';
+                emailError.style.display = 'none';
+                submitEmail.disabled = true;
+
+                setTimeout(() => {
+                    emailSuccess.style.display = 'none';
+                    emailModal.style.display = 'none';
+                }, 3000);
+            } else {
+                throw new Error('Network response was not ok.');
+            }
         } catch (error) {
             emailError.textContent = 'Failed to send contact via email.';
             emailError.style.display = 'block';
@@ -529,11 +559,58 @@
         }
     });
 
+    // 重置 Email 模态提示
+    function resetEmailModal() {
+        emailError.style.display = 'none';
+        emailSuccess.style.display = 'none';
+        emailInput.value = '';
+        submitEmail.disabled = true;
+    }
+
+    // 重置 Phone 模态提示
+    function resetPhoneModal() {
+        phoneError.style.display = 'none';
+        phoneSuccess.style.display = 'none';
+    }
+
+    // 点击模态框外部关闭
+    window.addEventListener('click', (event) => {
+        if (event.target === mainModal) {
+            mainModal.style.display = 'none';
+        }
+        if (event.target === emailModal) {
+            emailModal.style.display = 'none';
+        }
+        if (event.target === phoneModal) {
+            phoneModal.style.display = 'none';
+        }
+    });
+
     // 邮箱验证函数
     function validateEmail(email) {
         const re = /^[^\s@]+@[^\s@]+\.(edu|com|info|gov|net)$/i;
         return re.test(email);
     }
+
+    // 检查邮箱当天是否已发送
+    function hasSentEmailToday(email) {
+        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
+        const today = new Date().toISOString().split('T')[0];
+        return sentEmails[email] === today;
+    }
+
+    // 标记邮箱已发送
+    function markEmailAsSent(email) {
+        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
+        const today = new Date().toISOString().split('T')[0];
+        sentEmails[email] = today;
+        localStorage.setItem('sentEmails', JSON.stringify(sentEmails));
+    }
+
+    // 初始化时禁用“Send by Email”按钮
+    document.addEventListener('DOMContentLoaded', () => {
+        submitEmail.disabled = true;
+    });
 </script>
 
 </body>
