@@ -306,11 +306,11 @@
     <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang Logo" style="width: 100px; height: auto;">
     <h1>Oliver Fang</h1>
     <p>Sales Consultant at 
-        <a href="./djakji.com" style="color: #004D99; font-weight: bold;">
+        <a href="http://www.djakji.com" style="color: #004D99; font-weight: bold;">
             Shen Zhen Dijiean Technology Co., Ltd
         </a>
     </p>
-    <p class="brand-note">Committed to Delivering Reliable DJA PoE Switch Solutions by Dijiean Tech</p>
+    <p class="brand-note">Committed to Delivering Reliable DJA PoE Switch Solutions by Shen Zhen Dijiean Tech</p>
 </header>
 
 <!-- Contact icons 区域，Skype 和 WeChat 去除号码显示，只保留跳转链接 -->
@@ -508,20 +508,8 @@
             return;
         }
 
-        if (hasSentEmailToday(email)) {
-            emailError.textContent = 'This email has already been sent today.';
-            emailError.style.display = 'block';
-            emailSuccess.style.display = 'none';
-            setTimeout(() => {
-                emailError.style.display = 'none';
-                emailModal.style.display = 'none';
-            }, 3000);
-            return;
-        }
-
         // 模拟发送邮件
         try {
-            markEmailAsSent(email);
             emailSuccess.textContent = 'Contact successfully sent to your email.';
             emailSuccess.style.display = 'block';
             emailError.style.display = 'none';
@@ -541,58 +529,11 @@
         }
     });
 
-    // 重置 Email 模态提示
-    function resetEmailModal() {
-        emailError.style.display = 'none';
-        emailSuccess.style.display = 'none';
-        emailInput.value = '';
-        submitEmail.disabled = true;
-    }
-
-    // 重置 Phone 模态提示
-    function resetPhoneModal() {
-        phoneError.style.display = 'none';
-        phoneSuccess.style.display = 'none';
-    }
-
-    // 点击模态框外部关闭
-    window.addEventListener('click', (event) => {
-        if (event.target === mainModal) {
-            mainModal.style.display = 'none';
-        }
-        if (event.target === emailModal) {
-            emailModal.style.display = 'none';
-        }
-        if (event.target === phoneModal) {
-            phoneModal.style.display = 'none';
-        }
-    });
-
     // 邮箱验证函数
     function validateEmail(email) {
         const re = /^[^\s@]+@[^\s@]+\.(edu|com|info|gov|net)$/i;
         return re.test(email);
     }
-
-    // 检查邮箱当天是否已发送
-    function hasSentEmailToday(email) {
-        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
-        const today = new Date().toISOString().split('T')[0];
-        return sentEmails[email] === today;
-    }
-
-    // 标记邮箱已发送
-    function markEmailAsSent(email) {
-        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
-        const today = new Date().toISOString().split('T')[0];
-        sentEmails[email] = today;
-        localStorage.setItem('sentEmails', JSON.stringify(sentEmails));
-    }
-
-    // 初始化时禁用“Send by Email”按钮
-    document.addEventListener('DOMContentLoaded', () => {
-        submitEmail.disabled = true;
-    });
 </script>
 
 </body>
