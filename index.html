@@ -503,15 +503,15 @@
     // 处理 Email 表单提交
     emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = emailInput.value.trim();
+        const userEmail = emailInput.value.trim();
 
-        if (!validateEmail(email)) {
+        if (!validateEmail(userEmail)) {
             emailError.style.display = 'block';
             emailSuccess.style.display = 'none';
             return;
         }
 
-        if (hasSentEmailToday(email)) {
+        if (hasSentEmailToday(userEmail)) {
             emailError.textContent = 'This email has already been sent today.';
             emailError.style.display = 'block';
             emailSuccess.style.display = 'none';
@@ -524,23 +524,23 @@
 
         // 使用 Fetch API 发送邮件到后端
         try {
-            const response = await fetch('https://your-backend-domain.com/api/send-email', { // 替换为您的实际 API URL
+            const response = await fetch('/api/send-email', { // 确保前端和后端在同一域名下，或正确配置了 CORS
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 't36f5jFdyhsS' // 注意：前端不应包含敏感信息，建议通过后端代理处理
+                    // 'Authorization': 't36f5jFdyhsS' // 移除前端的 Authorization 头部，确保后端安全处理
                 },
                 body: JSON.stringify({
-                    to: 'sales@oliverfr.com', // 如果需要发送到固定地址
+                    to: 'sales@oliverfr.com', // 固定发送到 sales@oliverfr.com
                     subject: 'Contact from Oliver Fang',
-                    text: `Here is the contact information of Oliver Fang at Shen Zhen Dijiean Technology Co., Ltd.\nYour Email: ${email}`,
+                    text: `Here is the contact information of Oliver Fang at Shen Zhen Dijiean Technology Co., Ltd.\nUser Email: ${userEmail}`,
                 }),
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                markEmailAsSent(email);
+                markEmailAsSent(userEmail);
                 emailSuccess.textContent = result.message || 'Contact successfully sent to your email.';
                 emailSuccess.style.display = 'block';
                 emailError.style.display = 'none';
