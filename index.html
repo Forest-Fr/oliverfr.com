@@ -550,23 +550,8 @@
         emailSuccess.style.display = 'none';
         emailError.style.display = 'none';
 
-        // 使用 Fetch API 发送邮件到后端
         try {
-            const response = await fetch('https://mail.zoho.com/api/accounts/{ACCOUNT_ID}/messages', {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Zoho-authtoken {np6j4fVv4sWC}',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    fromAddress: "sales@oliverfr.com",
-                    toAddress: userEmail,
-                    subject: "Contact from Oliver Fang",
-                    content: "Here is the contact information of Oliver Fang at Shen Zhen Dijiean Technology Co., Ltd.",
-                }),
-            });
-
-            // 检查是否收到有效的 JSON 响应
+            const response = await sendEmailViaZoho(userEmail);
             const result = await response.json().catch(() => {
                 throw new Error('Invalid JSON response from server.');
             });
@@ -598,25 +583,34 @@
         }
     });
 
-    // 邮箱验证函数
-    function validateEmail(email) {
-        const re = /^[^\s@]+@[^\s@]+\.(edu|com|info|gov|net)$/i;
-        return re.test(email);
-    }
+    // 定义 sendEmailViaZoho 函数
+    async function sendEmailViaZoho(userEmail) {
+        try {
+            const response = await fetch('https://mail.zoho.com/api/accounts/874990421/messages', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer 1000.10f7bf2bf9d475cafb4178226785b24d.d18faa177a43d47c528ecbc9b00e9497', // 替换为动态生成的Access Token
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    fromAddress: "sales@oliverfr.com",
+                    toAddress: userEmail,
+                    subject: "Contact Information - Oliver Fang",
+                    content: "Here is the contact information of Oliver Fang at Shen Zhen Dijiean Technology Co., Ltd.",
+                }),
+            });
 
-    // 检查邮箱当天是否已发送
-    function hasSentEmailToday(email) {
-        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
-        const today = new Date().toISOString().split('T')[0];
-        return sentEmails[email] === today;
-    }
+            if (!response.ok) {
+                throw new Error("Failed to send email. Please check the API credentials.");
+            }
 
-    // 标记邮箱已发送
-    function markEmailAsSent(email) {
-        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
-        const today = new Date().toISOString().split('T')[0];
-        sentEmails[email] = today;
-        localStorage.setItem('sentEmails', JSON.stringify(sentEmails));
+            const result = await response.json();
+            console.log("Email sent successfully:", result);
+            return response;
+        } catch (error) {
+            console.error("Zoho Email Integration Error:", error.message);
+            throw error;
+        }
     }
 
     // 重置 Email 模态提示
@@ -646,6 +640,27 @@
             phoneModal.style.display = 'none';
         }
     });
+
+    // 邮箱验证函数
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.(edu|com|info|gov|net)$/i;
+        return re.test(email);
+    }
+
+    // 检查邮箱当天是否已发送
+    function hasSentEmailToday(email) {
+        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
+        const today = new Date().toISOString().split('T')[0];
+        return sentEmails[email] === today;
+    }
+
+    // 标记邮箱已发送
+    function markEmailAsSent(email) {
+        const sentEmails = JSON.parse(localStorage.getItem('sentEmails')) || {};
+        const today = new Date().toISOString().split('T')[0];
+        sentEmails[email] = today;
+        localStorage.setItem('sentEmails', JSON.stringify(sentEmails));
+    }
 
     // 初始化时禁用“Send by Email”按钮
     document.addEventListener('DOMContentLoaded', () => {
