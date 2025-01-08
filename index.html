@@ -437,28 +437,21 @@
         phoneModal.style.display = 'none';
     });
 
-    // 确认 Phone 操作
+    // 确认 Phone 操作并直接保存 vCard
     confirmPhone.addEventListener('click', () => {
         resetPhoneModal();
         try {
-            // 指向实际的 .vcf 文件链接
-            const link = document.createElement('a');
-            link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf'; // 替换为实际文件的原始链接
-            link.download = 'OliverF.vcf';
+            // 隐藏模态框
+            phoneModal.style.display = 'none';
 
-            // 触发文件下载
-            link.click();
-
-            // 尝试直接打开文件内容
-            window.open(link.href, '_blank');
-            document.body.removeChild(link);
+            // 跳转到 vCard 文件路径
+            window.location.href = 'OliverF.vcf'; // 确保 vCard 文件与 index 在同一目录下
 
             phoneSuccess.textContent = 'Contact successfully saved to your phone.';
             phoneSuccess.style.display = 'block';
             phoneError.style.display = 'none';
             setTimeout(() => {
                 phoneSuccess.style.display = 'none';
-                phoneModal.style.display = 'none';
             }, 3000);
         } catch (error) {
             console.error("Error during file download:", error);
@@ -487,6 +480,7 @@
         }
     });
 </script>
+
 
 
 
