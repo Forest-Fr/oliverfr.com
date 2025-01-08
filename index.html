@@ -441,26 +441,17 @@
     confirmPhone.addEventListener('click', () => {
         resetPhoneModal();
         try {
-            // vCard 数据
-            const vCardData = `BEGIN:VCARD
-VERSION:3.0
-FN:Oliver Fang
-ORG:Shen Zhen Dijiean Technology Co., Ltd
-EMAIL:sales@oliverfr.com
-END:VCARD`;
-
-            // 生成 vCard 数据 URL
-            const dataUrl = `data:text/vcard;charset=utf-8,${encodeURIComponent(vCardData)}`;
-
-            // 创建下载链接
+            // 指向实际的 .vcf 文件链接
             const link = document.createElement('a');
-            link.href = dataUrl;
+            link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf'; // 替换为实际文件的原始链接
             link.download = 'OliverF.vcf';
-            link.style.display = 'none';
             document.body.appendChild(link);
 
-            // 触发点击下载
+            // 触发文件下载
             link.click();
+
+            // 尝试直接打开文件内容
+            window.open(link.href, '_blank');
             document.body.removeChild(link);
 
             phoneSuccess.textContent = 'Contact successfully saved to your phone.';
@@ -497,5 +488,6 @@ END:VCARD`;
         }
     });
 </script>
+
 
 
