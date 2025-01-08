@@ -325,7 +325,7 @@
 <header>
     <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang logo" style="width: 100px; height: auto;">
     <h1>Oliver Fang</h1>
-    <p>Pursuing International Sales Consultant at 
+    <p>International Sales Consultant at 
         <a href="https://mefan-project.web.app/" style="color: #004D99; font-weight: bold;">
            Mefan Solution
         </a>
@@ -447,10 +447,9 @@
         resetPhoneModal();
         // 模拟下载 vCard
        try {
-            const vCardData = "BEGIN:VCARD\nVERSION:3.0\nFN:Oliver Fang\nORG:Shen Zhen Dijiean Technology Co., Ltd\nEMAIL:sales@oliverfr.com\nEND:VCARD";
-            const blob = new Blob([vCardData], { type: 'text/vcard' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
+              btnSaveToPhone.addEventListener('click', () => {
+      closePopup(popup);
+      const link = document.createElement('a');
            link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf';
            link.download = 'OliverF.vcf';
             document.body.appendChild(a);
