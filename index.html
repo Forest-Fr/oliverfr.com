@@ -396,21 +396,16 @@
 <script>
     // 获取 DOM 元素
     const mainModal = document.getElementById('main-modal');
-    // const emailModal = document.getElementById('email-modal'); // 已移除
     const phoneModal = document.getElementById('phone-modal');
 
     const downloadVCard = document.getElementById('download-vcard');
-    // const sendEmailButton = document.getElementById('send-email'); // 已移除
     const sendPhoneButton = document.getElementById('send-phone');
 
     const closeMainModal = document.getElementById('close-main-modal');
-    // const closeEmailModal = document.getElementById('close-email-modal'); // 已移除
     const closePhoneModal = document.getElementById('close-phone-modal');
 
     const confirmPhone = document.getElementById('confirm-phone');
     const cancelPhone = document.getElementById('cancel-phone');
-
-    // 已移除与 Email 相关的元素和代码
 
     const phoneError = document.getElementById('phone-error');
     const phoneSuccess = document.getElementById('phone-success');
@@ -445,17 +440,30 @@
     // 确认 Phone 操作
     confirmPhone.addEventListener('click', () => {
         resetPhoneModal();
-        // 下载 vCard 文件
         try {
+            // vCard 数据
+            const vCardData = `BEGIN:VCARD
+VERSION:3.0
+FN:Oliver Fang
+ORG:Shen Zhen Dijiean Technology Co., Ltd
+EMAIL:sales@oliverfr.com
+END:VCARD`;
+
+            // 生成 vCard 数据 URL
+            const dataUrl = `data:text/vcard;charset=utf-8,${encodeURIComponent(vCardData)}`;
+
+            // 创建下载链接
             const link = document.createElement('a');
-            // 使用 GitHub 原始文件链接，确保直接可下载
-            link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf';
+            link.href = dataUrl;
             link.download = 'OliverF.vcf';
+            link.style.display = 'none';
             document.body.appendChild(link);
+
+            // 触发点击下载
             link.click();
             document.body.removeChild(link);
 
-            phoneSuccess.textContent = 'Contact successfully downloaded to your device.';
+            phoneSuccess.textContent = 'Contact successfully saved to your phone.';
             phoneSuccess.style.display = 'block';
             phoneError.style.display = 'none';
             setTimeout(() => {
@@ -464,7 +472,7 @@
             }, 3000);
         } catch (error) {
             console.error("Error during file download:", error);
-            phoneError.textContent = 'Failed to download contact.';
+            phoneError.textContent = 'Failed to save contact.';
             phoneError.style.display = 'block';
             phoneSuccess.style.display = 'none';
             setTimeout(() => {
@@ -484,12 +492,10 @@
         if (event.target === mainModal) {
             mainModal.style.display = 'none';
         }
-        // if (event.target === emailModal) { // 已移除
-        //     emailModal.style.display = 'none';
-        // }
         if (event.target === phoneModal) {
             phoneModal.style.display = 'none';
         }
     });
 </script>
+
 
