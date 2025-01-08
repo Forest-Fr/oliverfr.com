@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oliver Fang - Dijiean Technology</title>
+    <title>Oliver Fang - Mefan Solution</title>
     <style>
         /* 
          * ==============================
@@ -447,12 +447,15 @@
         resetPhoneModal();
         // 模拟下载 vCard
        try {
-              btnSaveToPhone.addEventListener('click', () => {
-      closePopup(popup);
-      const link = document.createElement('a');
-           link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf';
-           link.download = 'OliverF.vcf';
-            a.click();
+    const link = document.createElement('a');
+    link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf';
+    link.download = 'OliverF.vcf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+} catch (error) {
+    console.error("Error during file download:", error);
+}
          
            
             phoneSuccess.textContent = 'Contact successfully downloaded to your device.';
