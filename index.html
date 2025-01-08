@@ -452,10 +452,8 @@
       const link = document.createElement('a');
            link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf';
            link.download = 'OliverF.vcf';
-            document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+         
            
             phoneSuccess.textContent = 'Contact successfully downloaded to your device.';
             phoneSuccess.style.display = 'block';
