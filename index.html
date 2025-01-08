@@ -446,13 +446,18 @@
     confirmPhone.addEventListener('click', () => {
         resetPhoneModal();
         // 模拟下载 vCard
-        btnSaveToPhone.addEventListener('click', () => {
-      closePopup(popup);
-      const link = document.createElement('a');
-      link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf';
-      link.download = 'OliverF.vcf';
-      link.click();
-           });   
+       try {
+            const vCardData = "BEGIN:VCARD\nVERSION:3.0\nFN:Oliver Fang\nORG:Shen Zhen Dijiean Technology Co., Ltd\nEMAIL:sales@oliverfr.com\nEND:VCARD";
+            const blob = new Blob([vCardData], { type: 'text/vcard' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+           link.href = 'https://github.com/Forest-Fr/oliverfr.com/blob/main/OliverF.vcf';
+           link.download = 'OliverF.vcf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+           
             phoneSuccess.textContent = 'Contact successfully downloaded to your device.';
             phoneSuccess.style.display = 'block';
             phoneError.style.display = 'none';
