@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html>   
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -48,6 +48,13 @@
          *    Left/Right Top Logos
          * ==============================
          */
+        /* 新增 nav 容器，仅包裹左右 Logo，不做其他改动 */
+        nav {
+            position: relative;
+            width: 100%;
+            height: 0; /* 不额外占高度，仅用于容纳Logo */
+        }
+
         /* 左上角公司 Logo */
         .company-logo-left {
             position: absolute;
@@ -316,11 +323,14 @@
 </head>
 <body>
 
-<!-- 左上角公司 Logo -->
-<img class="company-logo-left" src="Mefan-Logo.png" alt="Mefan Logo">
+<!-- 新增 nav 容器，包裹左右Logo -->
+<nav>
+    <!-- 左上角公司 Logo -->
+    <img class="company-logo-left" src="Mefan-Logo.png" alt="Mefan Logo">
 
-<!-- 右上角主要产品 Logo -->
-<img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Mefan main products Logo">
+    <!-- 右上角主要产品 Logo -->
+    <img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Mefan main products Logo">
+</nav>
 
 <header>
     <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang logo" style="width: 100px; height: auto;">
@@ -392,6 +402,11 @@
         <button class="btn-gray" id="cancel-phone">Cancel</button>
     </div>
 </div>
+
+<!-- 页面底部增加“版权所有”栏 -->
+<footer>
+    <p>© 2025 Oliver Fang - All Rights Reserved</p>
+</footer>
 
 <script>
     // 获取 DOM 元素
@@ -479,7 +494,18 @@
             phoneModal.style.display = 'none';
         }
     });
+
+    // =========== 新增6秒轮播 .contact-icons ===========
+    let carouselIndex = 0;
+    function carouselMove() {
+        const icons = document.querySelector('.contact-icons');
+        const items = icons.querySelectorAll('a');
+        carouselIndex = (carouselIndex + 1) % items.length;
+        icons.style.transform = `translateX(${-100 * carouselIndex}%)`;
+    }
+    setInterval(carouselMove, 6000);
+    // 初始化
+    carouselMove();
 </script>
 
-
-
+</html>
