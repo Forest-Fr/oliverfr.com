@@ -1,99 +1,139 @@
-/* ============================== Global Styles ============================== */
+/* 
+ * ==============================
+ *        Global Styles
+ * ==============================
+ */
 html, body {
     margin: 0;
     padding: 0;
 }
 body {
     font-family: Arial, sans-serif;
+    /* 原有线性渐变背景 */
     background: linear-gradient(45deg, #6BAED9, #FFFFFF);
     text-align: center;
+
+    /* 保持 flex 居中布局 */
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+
+    /* 
+     * 强制滚动条出现
+     * 横向滚动条 + 纵向滚动条
+     */
     overflow-x: scroll;  
     overflow-y: scroll;  
+
     min-height: 100vh;
     position: relative;
 }
+
+/* 全局留白与排版 */
 body > * {
     margin: 0 auto;
     box-sizing: border-box;
 }
 
-/* ============================== Header & Navigation ============================== */
+/* 
+ * ==============================
+ *    Left/Right Top Logos
+ * ==============================
+ */
+/* 在此用 .navbar 容器仅包裹左右LOGO，无额外内容 */
+.navbar {
+    position: relative; /* 以便在顶部只显示这两个logo */
+    width: 100%;
+    height: auto;
+}
+
+.company-logo-left {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 70px; 
+    height: auto;
+    cursor: pointer;
+    z-index: 1100;
+}
+
+.main-product-logo-right {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 80px; 
+    height: auto;
+    cursor: pointer;
+    z-index: 1100;
+}
+
+/* 
+ * ==============================
+ *          Header Area
+ * ==============================
+ */
 header {
     margin-bottom: 2rem;
     position: relative;
-    padding-top: 80px;
+    padding-top: 80px; /* 保证顶部不被Logo遮挡 */
 }
+
 header img.placeholder-logo {
     width: 100px;
     margin-bottom: 1rem;
 }
+
 header h1 {
     font-size: 2rem;
+    line-height: 1.3;
     margin: 0.5rem 0;
 }
+
 header p {
     font-size: 1rem;
+    line-height: 1.6;
     margin: 0.5rem 0;
 }
+
 header .brand-note {
     margin-top: 0.5rem;
     font-size: 0.9rem;
     color: #555;
 }
 
-/* Navigation Menu */
-.navbar ul {
-    display: flex;
-    justify-content: center;
-    gap: 2rem;
-    list-style-type: none;
-    padding: 0;
-}
-.navbar li {
-    display: inline;
-}
-.navbar a {
-    color: white;
-    text-decoration: none;
-    font-size: 1.1rem;
-    padding: 10px 20px;
-    border-radius: 4px;
-    transition: background 0.3s;
-}
-.navbar a:hover {
-    background: #004D99;
-}
-
-/* ============================== Contact Icons Section ============================== */
+/* 
+ * ==============================
+ *      Contact Icons Section
+ * ==============================
+ */
 .contact-icons {
     margin-top: 2rem;
-}
-.contact-icons-carousel {
     display: flex;
     justify-content: center;
     gap: 2rem;
     flex-wrap: wrap;
-    animation: slide 10s infinite;
 }
+
 .contact-icons a {
     text-decoration: none;
     color: inherit;
     font-size: 0.9rem;
     text-align: center;
+    transition: transform 0.2s ease;
 }
+
 .contact-icons a:hover {
-    transform: scale(1.05);
+    transform: scale(1.05); /* 微动画 */
 }
+
 .contact-icons img {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     display: block;
     margin: 0 auto;
 }
+
 .contact-icons span {
     display: block;
     margin-top: 0.3rem;
@@ -101,9 +141,14 @@ header .brand-note {
     color: #333;
 }
 
-/* ============================== CTA Button ============================== */
+/* 
+ * ==============================
+ *       CTA Button
+ * ==============================
+ */
 .cta-button {
     margin-top: 2rem;
+    display: inline-block;
     background: linear-gradient(45deg, #ccc, #999);
     color: #fff;
     padding: 0.8rem 2rem;
@@ -112,29 +157,167 @@ header .brand-note {
     border-radius: 8px;
     font-size: 1rem;
     cursor: pointer;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
     transition: all 0.3s ease;
 }
+
 .cta-button:hover {
     background: linear-gradient(45deg, #bbb, #888);
+    box-shadow: 0px 6px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
 }
 
-/* ============================== Footer ============================== */
-footer {
-    margin-top: 2rem;
-    padding: 1rem;
-    background: #333;
-    color: white;
+/* 
+ * ==============================
+ *          Modal Styles
+ * ==============================
+ */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
 }
-footer p {
+.modal-content {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 12px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: fadeIn 0.3s ease-out; /* 弹出动画 */
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-content .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.2s;
+}
+.modal-content .close-btn:hover {
+    background: #eee;
+}
+
+.modal-content p {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+input[type="email"], input[type="tel"] {
+    width: 90%;
+    padding: 0.5rem;
+    margin: 1rem 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
     font-size: 1rem;
 }
 
-/* ============================== Keyframe Animation for Carousel ============================== */
-@keyframes slide {
-    0% { transform: translateX(0); }
-    20% { transform: translateX(-100%); }
-    40% { transform: translateX(-200%); }
-    60% { transform: translateX(-300%); }
-    80% { transform: translateX(-400%); }
-    100% { transform: translateX(0); }
+.error-message {
+    color: red;
+    font-size: 0.9rem;
+    display: none;
+    margin-top: -0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.success-message {
+    color: green;
+    font-size: 0.9rem;
+    display: none;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.modal-content button {
+    margin: 0.5rem;
+    padding: 0.8rem 1.2rem;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+}
+.modal-content button:hover {
+    transform: translateY(-2px);
+}
+
+.btn-blue {
+    background: linear-gradient(45deg, #6BAED9, #004D99);
+    color: white;
+}
+
+.btn-blue:hover {
+    background: linear-gradient(45deg, #5a9cc5, #003366);
+}
+
+.btn-gray {
+    background: linear-gradient(45deg, #ccc, #999);
+    color: white;
+}
+
+.btn-gray:hover {
+    background: linear-gradient(45deg, #bbb, #888);
+}
+
+/* 
+ * ==============================
+ *       Loading Spinner Styles
+ * ==============================
+ */
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border-left-color: #6BAED9;
+    animation: spin 1s linear infinite;
+    display: none;
+    margin: 1rem auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 
+ * ==============================
+ *  底部版权信息区域(已插入Footer)
+ * ==============================
+ */
+footer {
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: #333;
 }
