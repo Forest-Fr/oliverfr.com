@@ -38,26 +38,29 @@ body > * {
 
 /* 
  * ==============================
- *    Left/Right Top Logos
+ *    Nav + Left/Right Logos
  * ==============================
  */
+.navbar {
+    /* 新增的导航容器，保持在顶部，左右Logo不互相重叠 */
+    position: relative; 
+    width: 100%;
+    height: 0; /* 没有额外的高度，仅用来存放两个Logo */
+}
 .company-logo-left {
     position: absolute;
     top: 20px;
     left: 20px;
     width: 70px; 
-    max-width: 70px; /* 避免Logo过大 */
     height: auto;
     cursor: pointer;
     z-index: 1100;
 }
-
 .main-product-logo-right {
     position: absolute;
     top: 20px;
     right: 20px;
     width: 80px; 
-    max-width: 80px; /* 避免Logo过大 */
     height: auto;
     cursor: pointer;
     z-index: 1100;
@@ -103,17 +106,13 @@ header .brand-note {
  * ==============================
  */
 .contact-icons {
-    /* 原来是 margin-top:2rem;display:flex;… 
-       现在改为固定定位到右下角，无删任何属性 */
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
+    margin-top: 2rem;
     display: flex;
-    flex-direction: column; /* 垂直排列 */
     justify-content: center;
-    align-items: center;
-    gap: 1rem; /* 间距 */
-    flex-wrap: nowrap; 
+    gap: 2rem;
+    flex-wrap: wrap;
+    /* 轮播需要overflow隐藏或其他方案，这里保持wrap */
+    overflow: hidden;
 }
 
 .contact-icons a {
