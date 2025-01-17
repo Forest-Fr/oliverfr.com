@@ -4,44 +4,64 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Oliver Fang - Mefan Solution</title>
-  <!-- 引用外部 CSS 文件 -->
-  <link rel="stylesheet" type="text/css" href="./styles.css">
+  <!-- 引入外部 CSS 文件 -->
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <img class="company-logo-left" src="Mefan-Logo.png" alt="Company Logo">
+    <img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Main Product Logo">
+  </nav>
 
-<!-- 导航栏，包含左侧公司 Logo 和右侧产品 Logo -->
-<nav class="navbar">
-  <img class="company-logo-left" src="./Mefan-Logo.png" alt="Company Logo">
-  <img class="main-product-logo-right" src="./Mefan-main products Logo.png" alt="Main Product Logo">
-</nav>
+  <!-- Header 区域 -->
+  <header>
+    <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang logo">
+    <h1>Oliver Fang</h1>
+    <p>International Sales Consultant at 
+      <a href="https://mefan.42web.io/" class="link-highlight">Mefan Solution</a>
+    </p>
+    <p class="brand-note">Committed to Delivering Reliable earpods by Mefan Solution</p>
+  </header>
 
-<!-- Header 内容 -->
-<header>
-  <img class="placeholder-logo" src="./OliverFang-logo.png" alt="Oliver Fang logo">
-  <h1>Oliver Fang</h1>
-  <p>International Sales Consultant at 
-    <a href="https://mefan.42web.io/" class="link-highlight">Mefan Solution</a>
-  </p>
-  <p class="brand-note">Committed to Delivering Reliable earpods by Mefan Solution</p>
-</header>
+  <!-- Carousel 区域 -->
+  <div class="carousel-container">
+    <div class="carousel-track" id="carouselTrack"></div>
+  </div>
 
-<!-- 轮播图容器 -->
-<div class="carousel-container">
-  <div class="carousel-track" id="carouselTrack"></div>
-</div>
+  <!-- vCard 按钮 -->
+  <a class="cta-button" id="download-vcard">Download vCard</a>
 
-<!-- vCard 下载按钮 -->
-<a class="cta-button" id="download-vcard" href="./OliverF.vcf" download="OliverF.vcf">Download vCard</a>
+  <!-- 主 Modal -->
+  <div class="modal" id="main-modal">
+    <div class="modal-content">
+      <button class="close-btn" id="close-main-modal">&times;</button>
+      <p>Would you like to save the contact?</p>
+      <button class="btn-gray" id="send-phone">Send to My Phone</button>
+    </div>
+  </div>
 
-<!-- 页脚 -->
-<footer>
-  <p>© 2025 Oliver Fang - All Rights Reserved</p>
-</footer>
+  <!-- Phone Modal -->
+  <div class="modal" id="phone-modal">
+    <div class="modal-content">
+      <button class="close-btn" id="close-phone-modal">&times;</button>
+      <p>Confirm sending contact to your phone?</p>
+      <div class="error-message" id="phone-error">Failed to download contact.</div>
+      <div class="success-message" id="phone-success">Contact successfully downloaded to your device.</div>
+      <button class="btn-blue" id="confirm-phone">Confirm</button>
+      <button class="btn-gray" id="cancel-phone">Cancel</button>
+    </div>
+  </div>
 
-<!-- 悬浮播放/暂停按钮 -->
-<button class="play-pause-btn" id="playPauseBtn">Pause</button>
+  <!-- 页脚 -->
+  <footer>
+    <p>© 2025 Oliver Fang - All Rights Reserved</p>
+  </footer>
 
-<!-- 引用外部 JavaScript 文件 -->
-<script src="./scripts.js"></script>
+  <!-- 悬浮播放/暂停按钮 -->
+  <button class="play-pause-btn" id="playPauseBtn">Pause</button>
+
+  <!-- 引入外部 JavaScript 文件 -->
+  <script src="scripts.js"></script>
 </body>
 </html>
