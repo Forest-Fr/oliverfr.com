@@ -1,12 +1,107 @@
-// JavaScript for Carousel Slider
-document.addEventListener("DOMContentLoaded", () => {
-    const icons = document.querySelector(".contact-icons-carousel");
-    let index = 0;
-    setInterval(() => {
-        index++;
-        if (index >= icons.children.length) {
-            index = 0;
-        }
-        icons.style.transform = `translateX(-${index * 100}%)`;
-    }, 3000); // Change slide every 3 seconds
+// 以下所有功能原封不动，仅增加“5秒轮播社媒6部分”的逻辑
+
+// 获取 DOM 元素
+const mainModal = document.getElementById('main-modal');
+const phoneModal = document.getElementById('phone-modal');
+
+const downloadVCard = document.getElementById('download-vcard');
+const sendPhoneButton = document.getElementById('send-phone');
+
+const closeMainModal = document.getElementById('close-main-modal');
+const closePhoneModal = document.getElementById('close-phone-modal');
+
+const confirmPhone = document.getElementById('confirm-phone');
+const cancelPhone = document.getElementById('cancel-phone');
+
+const phoneError = document.getElementById('phone-error');
+const phoneSuccess = document.getElementById('phone-success');
+
+// 打开主模态框
+downloadVCard.addEventListener('click', () => {
+    mainModal.style.display = 'flex';
 });
+
+// 关闭主模态框
+closeMainModal.addEventListener('click', () => {
+    mainModal.style.display = 'none';
+});
+
+// 打开 Phone 模态框
+sendPhoneButton.addEventListener('click', () => {
+    mainModal.style.display = 'none';
+    phoneModal.style.display = 'flex';
+    resetPhoneModal();
+});
+
+// 关闭 Phone 模态框
+closePhoneModal.addEventListener('click', () => {
+    phoneModal.style.display = 'none';
+});
+
+// 取消 Phone 操作
+cancelPhone.addEventListener('click', () => {
+    phoneModal.style.display = 'none';
+});
+
+// 确认 Phone 操作并直接保存 vCard
+confirmPhone.addEventListener('click', () => {
+    resetPhoneModal();
+    try {
+        // 隐藏模态框
+        phoneModal.style.display = 'none';
+
+        // 跳转到 vCard 文件路径
+        window.location.href = 'OliverF.vcf'; // 确保 vCard 文件与 index 在同一目录下
+
+        phoneSuccess.textContent = 'Contact successfully saved to your phone.';
+        phoneSuccess.style.display = 'block';
+        phoneError.style.display = 'none';
+        setTimeout(() => {
+            phoneSuccess.style.display = 'none';
+        }, 3000);
+    } catch (error) {
+        console.error("Error during file download:", error);
+        phoneError.textContent = 'Failed to save contact.';
+        phoneError.style.display = 'block';
+        phoneSuccess.style.display = 'none';
+        setTimeout(() => {
+            phoneError.style.display = 'none';
+        }, 3000);
+    }
+});
+
+// 重置 Phone 模态提示
+function resetPhoneModal() {
+    phoneError.style.display = 'none';
+    phoneSuccess.style.display = 'none';
+}
+
+// 点击模态框外部关闭
+window.addEventListener('click', (event) => {
+    if (event.target === mainModal) {
+        mainModal.style.display = 'none';
+    }
+    if (event.target === phoneModal) {
+        phoneModal.style.display = 'none';
+    }
+});
+
+// ======= 新增：5秒轮播6部分社媒功能 =======
+let currentIndex = 0;
+const contactIcons = document.querySelector('.contact-icons');
+const iconItems = contactIcons.querySelectorAll('a');
+
+// 每5秒切换下一个图标(或一次性切换可视方式)
+setInterval(() => {
+    // 如果需要“滑动”效果，可添加transform；如需其他方式也可自行实现
+    currentIndex = (currentIndex + 1) % iconItems.length;
+    // 简易做法：将激活的图标放大或高亮；下方仅做演示
+    iconItems.forEach((item, idx) => {
+        if(idx === currentIndex){
+            item.style.transform = 'scale(1.2)';
+            item.style.transition = 'transform 0.5s';
+        } else {
+            item.style.transform = 'scale(1)';
+        }
+    });
+}, 5000);
