@@ -1,4 +1,4 @@
-<!DOCTYPE html>   
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,9 +6,9 @@
     <title>Oliver Fang - Mefan Solution</title>
     <style>
         /* 
-         * ==============================
-         *        Global Styles
-         * ==============================
+         * ============================
+         *       Global Styles
+         * ============================
          */
         html, body {
             margin: 0;
@@ -16,48 +16,43 @@
         }
         body {
             font-family: Arial, sans-serif;
-            /* 原有线性渐变背景 */
             background: linear-gradient(45deg, #6BAED9, #FFFFFF);
             text-align: center;
-
-            /* 保持 flex 居中布局 */
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
 
-            /*
-             * 强制滚动条出现
-             * 横向滚动条 + 纵向滚动条
-             */
-            overflow-x: scroll;  
-            overflow-y: scroll;  
+            /* Force both horizontal and vertical scrollbars */
+            overflow-x: scroll;
+            overflow-y: scroll;
 
             min-height: 100vh;
             position: relative;
         }
 
-        /* 全局留白与排版 */
+        /* Ensure consistent box-sizing */
         body > * {
             margin: 0 auto;
             box-sizing: border-box;
         }
 
         /*
-         * ==============================
-         *    Navigation + Top Logos
-         * ==============================
+         * ============================
+         *      Navigation + Logos
+         * ============================
+         * Only top-left and top-right logos inside a simple nav
          */
         nav.navbar {
             position: relative;
             width: 100%;
-            height: 0; /* 不额外占用高度，只用于安放Logo */
+            height: 0; /* no extra space, just for logos */
         }
         .company-logo-left {
             position: absolute;
             top: 20px;
             left: 20px;
-            width: 70px; 
+            width: 70px;
             height: auto;
             cursor: pointer;
             z-index: 1100;
@@ -66,21 +61,21 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 80px; 
+            width: 80px;
             height: auto;
             cursor: pointer;
             z-index: 1100;
         }
 
         /*
-         * ==============================
+         * ============================
          *         Header Area
-         * ==============================
+         * ============================
          */
         header {
             margin-bottom: 2rem;
             position: relative;
-            padding-top: 80px; /* 保证顶部不被Logo遮挡 */
+            padding-top: 80px; /* avoid overlapping with logos */
         }
         header img.placeholder-logo {
             width: 100px;
@@ -103,61 +98,53 @@
         }
 
         /*
-         * ==============================
-         *      3D Carousel for 6 Icons
-         * ==============================
-         *  - 所有6个<a>标签呈环状或椭圆形排列
-         *  - 每6秒旋转到下一个图标正对屏幕
+         * ============================
+         *    6 Icons Left-Right Carousel
+         * ============================
+         * All 6 icons appear on the same horizontal plane,
+         * moving slowly from right to left every 6 seconds.
          */
         .carousel-container {
-            /* 包裹 3D 环的容器，为保证居中，可根据需求设置大小 */
-            width: 350px;
-            height: 300px;
-            perspective: 1000px; /* 3D 视角距离 */
             margin-top: 2rem;
-        }
-        .carousel-3d {
-            width: 100%;
-            height: 100%;
+            width: 300px;      /* visible container width */
+            height: 120px;     /* suitable height for icons + text */
+            overflow: hidden;  /* hide overflow while sliding */
             position: relative;
-            transform-style: preserve-3d; /* 保留3D */
-            transition: transform 1s ease; /* 动画 */
         }
-        /* 每个元素(即 a)在环上的基础样式 */
-        .carousel-3d a {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform-style: preserve-3d;
-            text-decoration: none;
-            color: inherit;
-            text-align: center;
-
-            /* 图标和文字的垂直布局 */
+        .carousel-track {
+            display: flex;
+            flex-wrap: nowrap;
+            width: calc(300px * 6); /* 6 items, each 300px wide = total 1800px */
+            transition: transform 2s linear; /* slow movement */
+        }
+        .carousel-track a {
+            flex: 0 0 300px;
+            width: 300px;
+            height: 120px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-
-            /* 默认大小可自定义 */
-            width: 100px;
-            height: 100px;
-            margin: -50px 0 0 -50px; /* 让中心点对齐圆心 */
+            justify-content: center;
+            text-decoration: none;
+            color: #333;
+            font-size: 0.9rem;
         }
-        .carousel-3d a img {
+        .carousel-track a img {
             width: 40px;
             height: 40px;
+            display: block;
+            margin: 0 auto;
         }
-        .carousel-3d a span {
+        .carousel-track a span {
+            display: block;
             margin-top: 0.3rem;
             font-size: 0.8rem;
-            color: #333;
         }
 
         /*
-         * ==============================
-         *       CTA Button
-         * ==============================
+         * ============================
+         *         CTA Button
+         * ============================
          */
         .cta-button {
             margin-top: 2rem;
@@ -180,9 +167,9 @@
         }
 
         /*
-         * ==============================
-         *         Modal Styles
-         * ==============================
+         * ============================
+         *        Modal Styles
+         * ============================
          */
         .modal {
             display: none;
@@ -205,7 +192,7 @@
             max-width: 400px;
             box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.3);
             position: relative;
-            animation: fadeIn 0.3s ease-out; /* 弹出动画 */
+            animation: fadeIn 0.3s ease-out;
         }
         @keyframes fadeIn {
             0% {
@@ -293,9 +280,9 @@
         }
 
         /*
-         * ==============================
-         *   Loading Spinner Styles
-         * ==============================
+         * ============================
+         *       Loading Spinner
+         * ============================
          */
         .spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
@@ -312,9 +299,9 @@
         }
 
         /*
-         * ==============================
-         *        Footer Section
-         * ==============================
+         * ============================
+         *         Footer
+         * ============================
          */
         footer {
             margin-top: 2rem;
@@ -325,13 +312,10 @@
 </head>
 <body>
 
-<!-- 导航栏：仅顶部左右两Logo -->
+<!-- Navigation bar with left and right logos -->
 <nav class="navbar">
-    <!-- 左上角公司 Logo -->
-    <img class="company-logo-left" src="Mefan-Logo.png" alt="Mefan Logo">
-
-    <!-- 右上角主要产品 Logo -->
-    <img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Mefan main products Logo">
+    <img class="company-logo-left" src="Mefan-Logo.png" alt="Company Logo">
+    <img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Main Product Logo">
 </nav>
 
 <header>
@@ -345,33 +329,38 @@
     <p class="brand-note">Committed to Delivering Reliable earpods by Mefan Solution</p>
 </header>
 
-<!-- 3D Carousel容器 -->
+<!-- 6 Icons Carousel (same plane), slowly sliding from right to left -->
 <div class="carousel-container">
-    <div class="carousel-3d" id="carousel-3d">
-        <!-- 6个图标形成圆或椭圆，保持原先图标的链接和文字 -->
+    <div class="carousel-track" id="carouselTrack">
+        <!-- 1: WhatsApp -->
         <a href="https://wa.me/12817839998" target="_self">
             <img src="https://cdn-icons-png.flaticon.com/512/124/124034.png" alt="WhatsApp">
             <span>WhatsApp</span>
             <span>+1 281 783 9998</span>
         </a>
+        <!-- 2: Email -->
         <a href="mailto:sales@oliverfr.com">
             <img src="https://cdn-icons-png.flaticon.com/512/732/732200.png" alt="Email">
             <span>Email</span>
             <span>sales@oliverfr.com</span>
         </a>
+        <!-- 3: Phone -->
         <a href="tel:+12817839998">
             <img src="https://cdn-icons-png.flaticon.com/512/126/126509.png" alt="Phone">
             <span>Phone</span>
             <span>+1 281 783 9998</span>
         </a>
+        <!-- 4: LinkedIn -->
         <a href="https://linkedin.com/in/oliver-f-448b8a287" target="_self">
             <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" alt="LinkedIn">
             <span>LinkedIn</span>
         </a>
+        <!-- 5: Skype -->
         <a href="https://web.skype.com/?openPstnPage=true" target="_self">
             <img src="Skype Logo.png" alt="Skype Logo" style="width: 40px; height: 40px;">
             <span>Skype</span>
         </a>
+        <!-- 6: WeChat -->
         <a href="weixin://dl/chat?wxid=wxid_kesvxwp296ci12">
             <img src="WeChat Logo.png" alt="WeChat Logo" style="width: 40px; height: 40px;">
             <span>WeChat</span>
@@ -402,13 +391,14 @@
     </div>
 </div>
 
-<!-- 页面底部，版权所有信息 -->
 <footer>
     <p>© 2025 Oliver Fang - All Rights Reserved</p>
 </footer>
 
 <script>
-    // ========== 原先Modal相关逻辑不变 ==========
+    // ---------------------------
+    // Modal Logic (unchanged)
+    // ---------------------------
     const mainModal = document.getElementById('main-modal');
     const phoneModal = document.getElementById('phone-modal');
 
@@ -475,35 +465,27 @@
         }
     });
 
-    // =========== 6 个图标 环状/椭圆形 3D 动画，每 6 秒转动到下一个 ===========
-    const carousel3d = document.getElementById('carousel-3d');
-    const icons = carousel3d.querySelectorAll('a');
-    const total = icons.length;
+    // ---------------------------
+    // 6 Icons Left->Right Carousel
+    // Move slowly from right to left
+    // ---------------------------
+    const carouselTrack = document.getElementById('carouselTrack');
+    let currentIndex = 0;
+    const totalItems = 6;  // 6 icons
+    const itemWidth = 300; // each icon block is 300px wide
 
-    /* 
-       环的半径/椭圆距离，可自行调试:
-       - rotateY: 环绕Y轴旋转
-       - translateZ: 决定外扩半径
-    */
-    const radius = 250; 
-    const degStep = 360 / total; // 每个图标的夹角
-
-    // 初始布局：将6个图标均匀分布在Y轴旋转上
-    icons.forEach((icon, i) => {
-        const angle = degStep * i;
-        icon.style.transform = 
-          `rotateY(${angle}deg) translateZ(${radius}px)`;
-    });
-
-    // 播放时旋转容器
-    let index = 0;
-    function rotateRing() {
-        index = (index + 1) % total;
-        /* 让下一个图标转到正面：-index * degStep */
-        carousel3d.style.transform = `rotateY(${-degStep * index}deg)`;
+    function moveCarousel() {
+        // shift by -300 * index
+        currentIndex = (currentIndex + 1) % totalItems;
+        carouselTrack.style.transform = `translateX(${-itemWidth * currentIndex}px)`;
     }
-    // 每 6 秒自动轮播
-    setInterval(rotateRing, 6000);
+
+    // Initial position
+    carouselTrack.style.transform = 'translateX(0)';
+
+    // Move every 6 seconds, with a slow 2s transition
+    setInterval(moveCarousel, 6000);
 </script>
+
 </body>
 </html>
