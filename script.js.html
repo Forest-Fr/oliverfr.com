@@ -1,0 +1,28 @@
+// Hero Slides
+const heroSlides = document.getElementById('hero-slides');
+if (heroSlides) {
+  let index = 0;
+  const slides = heroSlides.children;
+  setInterval(() => {
+    index = (index + 1) % slides.length;
+    heroSlides.style.transform = `translateX(-${index * 100}%)`;
+  }, 5000);
+}
+
+// Modal Logic
+document.getElementById('download-vcard').addEventListener('click', () => {
+  document.getElementById('main-modal').style.display = 'flex';
+});
+
+document.getElementById('close-main-modal').addEventListener('click', () => {
+  document.getElementById('main-modal').style.display = 'none';
+});
+
+document.getElementById('send-phone').addEventListener('click', () => {
+  document.getElementById('main-modal').style.display = 'none';
+  document.getElementById('phone-modal').style.display = 'flex';
+});
+
+document.getElementById('close-phone-modal').addEventListener('click', () => {
+  document.getElementById('phone-modal').style.display = 'none';
+});
