@@ -1,4 +1,4 @@
-// DOM Elements
+// Get DOM elements
 const mainModal = document.getElementById('main-modal');
 const phoneModal = document.getElementById('phone-modal');
 const downloadVCard = document.getElementById('download-vcard');
@@ -10,64 +10,59 @@ const cancelPhone = document.getElementById('cancel-phone');
 const phoneError = document.getElementById('phone-error');
 const phoneSuccess = document.getElementById('phone-success');
 
-// Open Main Modal
+// Open the main modal
 downloadVCard.addEventListener('click', () => {
     mainModal.style.display = 'flex';
 });
 
-// Close Main Modal
+// Close the main modal
 closeMainModal.addEventListener('click', () => {
     mainModal.style.display = 'none';
 });
 
-// Open Phone Modal
+// Open Phone modal
 sendPhoneButton.addEventListener('click', () => {
     mainModal.style.display = 'none';
     phoneModal.style.display = 'flex';
     resetPhoneModal();
 });
 
-// Close Phone Modal
+// Close Phone modal
 closePhoneModal.addEventListener('click', () => {
     phoneModal.style.display = 'none';
 });
 
-// Cancel Phone Modal
+// Cancel Phone operation
 cancelPhone.addEventListener('click', () => {
     phoneModal.style.display = 'none';
 });
 
-// Confirm Phone Modal and Save vCard
+// Confirm Phone operation and download vCard
 confirmPhone.addEventListener('click', () => {
     resetPhoneModal();
     try {
-        // Close Modal and download vCard
         phoneModal.style.display = 'none';
-        window.location.href = 'OliverF.vcf'; // Ensure vCard file is available
+        window.location.href = 'OliverF.vcf';  // Ensure vCard file exists
         phoneSuccess.textContent = 'Contact successfully saved to your phone.';
         phoneSuccess.style.display = 'block';
         phoneError.style.display = 'none';
-        setTimeout(() => {
-            phoneSuccess.style.display = 'none';
-        }, 3000);
+        setTimeout(() => phoneSuccess.style.display = 'none', 3000);
     } catch (error) {
         console.error("Error during file download:", error);
         phoneError.textContent = 'Failed to save contact.';
         phoneError.style.display = 'block';
         phoneSuccess.style.display = 'none';
-        setTimeout(() => {
-            phoneError.style.display = 'none';
-        }, 3000);
+        setTimeout(() => phoneError.style.display = 'none', 3000);
     }
 });
 
-// Reset Phone Modal
+// Reset Phone modal message
 function resetPhoneModal() {
     phoneError.style.display = 'none';
     phoneSuccess.style.display = 'none';
 }
 
-// Close Modals when clicking outside
+// Click outside the modal to close
 window.addEventListener('click', (event) => {
     if (event.target === mainModal) {
         mainModal.style.display = 'none';
