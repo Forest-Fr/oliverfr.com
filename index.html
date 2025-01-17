@@ -26,7 +26,7 @@
             justify-content: center;
             align-items: center;
 
-            /* 
+            /*
              * 强制滚动条出现
              * 横向滚动条 + 纵向滚动条
              */
@@ -43,16 +43,16 @@
             box-sizing: border-box;
         }
 
-        /* 
+        /*
          * ==============================
-         *    Left/Right Top Logos
+         *    Navigation + Top Logos
          * ==============================
          */
-        /* 新增 nav 容器，仅包裹左右 Logo，不做其他改动 */
-        nav {
+        /* 新增导航栏容器，只包裹顶部左右Logo，不做其它改动 */
+        nav.navbar {
             position: relative;
             width: 100%;
-            height: 0; /* 不额外占高度，仅用于容纳Logo */
+            height: 0; /* 不额外占用高度，只用于安放Logo */
         }
 
         /* 左上角公司 Logo */
@@ -77,9 +77,9 @@
             z-index: 1100;
         }
 
-        /* 
+        /*
          * ==============================
-         *          Header Area
+         *         Header Area
          * ==============================
          */
         header {
@@ -111,46 +111,52 @@
             color: #555;
         }
 
-        /* 
+        /*
          * ==============================
          *      Contact Icons Section
          * ==============================
          */
         .contact-icons {
             margin-top: 2rem;
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            flex-wrap: wrap;
+            width: 300px; /* 控制轮播显示区域宽度 */
+            height: 120px; /* 适当高度以容纳单个icon及文字 */
+            position: relative; /* 为内部绝对定位做准备 */
+            overflow: hidden;
         }
-
         .contact-icons a {
+            /* 原样保留文字、链接、注释等 */
             text-decoration: none;
             color: inherit;
             font-size: 0.9rem;
             text-align: center;
-            transition: transform 0.2s ease;
-        }
 
-        .contact-icons a:hover {
-            transform: scale(1.05); /* 微动画 */
+            /* 让每个图标都绝对定位并初始隐藏 */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0;
+            transition: opacity 0.6s ease;
         }
-
-        .contact-icons img {
+        .contact-icons a img {
             width: 40px;
             height: 40px;
             display: block;
             margin: 0 auto;
         }
-
-        .contact-icons span {
+        .contact-icons a span {
             display: block;
             margin-top: 0.3rem;
             font-size: 0.8rem;
             color: #333;
         }
+        /* 激活项显现 */
+        .contact-icons a.active {
+            opacity: 1;
+            z-index: 2;
+        }
 
-        /* 
+        /*
          * ==============================
          *       CTA Button
          * ==============================
@@ -176,9 +182,9 @@
             transform: translateY(-2px);
         }
 
-        /* 
+        /*
          * ==============================
-         *          Modal Styles
+         *         Modal Styles
          * ==============================
          */
         .modal {
@@ -300,9 +306,9 @@
             background: linear-gradient(45deg, #bbb, #888);
         }
 
-        /* 
+        /*
          * ==============================
-         *       Loading Spinner Styles
+         *   Loading Spinner Styles
          * ==============================
          */
         .spinner {
@@ -319,12 +325,23 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /*
+         * ==============================
+         *        Footer Section
+         * ==============================
+         */
+        footer {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: #333;
+        }
     </style>
 </head>
 <body>
 
-<!-- 新增 nav 容器，包裹左右Logo -->
-<nav>
+<!-- 导航栏：仅顶部左右两Logo -->
+<nav class="navbar">
     <!-- 左上角公司 Logo -->
     <img class="company-logo-left" src="Mefan-Logo.png" alt="Mefan Logo">
 
@@ -403,13 +420,13 @@
     </div>
 </div>
 
-<!-- 页面底部增加“版权所有”栏 -->
+<!-- 页面底部，版权所有信息 -->
 <footer>
     <p>© 2025 Oliver Fang - All Rights Reserved</p>
 </footer>
 
 <script>
-    // 获取 DOM 元素
+    // ========== 原先Modal相关逻辑不变 ==========
     const mainModal = document.getElementById('main-modal');
     const phoneModal = document.getElementById('phone-modal');
 
@@ -495,17 +512,26 @@
         }
     });
 
-    // =========== 新增6秒轮播 .contact-icons ===========
-    let carouselIndex = 0;
-    function carouselMove() {
-        const icons = document.querySelector('.contact-icons');
-        const items = icons.querySelectorAll('a');
-        carouselIndex = (carouselIndex + 1) % items.length;
-        icons.style.transform = `translateX(${-100 * carouselIndex}%)`;
-    }
-    setInterval(carouselMove, 6000);
-    // 初始化
-    carouselMove();
+    // =========== 6个图标单独轮播，每6秒轮到下一个 ===========
+    const icons = document.querySelector('.contact-icons');
+    const iconItems = icons.querySelectorAll('a');
+    let activeIndex = 0;
+
+    // 初始化：仅第一个显示
+    iconItems.forEach((item, idx) => {
+        if (idx === 0) item.classList.add('active');
+    });
+
+    // 每6秒切换到下一个
+    setInterval(() => {
+        // 先隐藏当前
+        iconItems[activeIndex].classList.remove('active');
+        // 切换下一个
+        activeIndex = (activeIndex + 1) % iconItems.length;
+        // 显示新的
+        iconItems[activeIndex].classList.add('active');
+    }, 6000);
 </script>
 
+</body>
 </html>
