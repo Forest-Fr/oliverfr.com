@@ -1,36 +1,78 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const mainModal = document.getElementById("main-modal");
-    const phoneModal = document.getElementById("phone-modal");
-    const downloadVCard = document.getElementById("download-vcard");
-    const sendPhoneButton = document.getElementById("send-phone");
-    const closeMainModal = document.getElementById("close-main-modal");
-    const closePhoneModal = document.getElementById("close-phone-modal");
-    const confirmPhone = document.getElementById("confirm-phone");
-    const cancelPhone = document.getElementById("cancel-phone");
+// DOM Elements
+const mainModal = document.getElementById('main-modal');
+const phoneModal = document.getElementById('phone-modal');
+const downloadVCard = document.getElementById('download-vcard');
+const sendPhoneButton = document.getElementById('send-phone');
+const closeMainModal = document.getElementById('close-main-modal');
+const closePhoneModal = document.getElementById('close-phone-modal');
+const confirmPhone = document.getElementById('confirm-phone');
+const cancelPhone = document.getElementById('cancel-phone');
+const phoneError = document.getElementById('phone-error');
+const phoneSuccess = document.getElementById('phone-success');
 
-    downloadVCard.addEventListener("click", () => {
-        mainModal.style.display = "flex";
-    });
+// Open Main Modal
+downloadVCard.addEventListener('click', () => {
+    mainModal.style.display = 'flex';
+});
 
-    closeMainModal.addEventListener("click", () => {
-        mainModal.style.display = "none";
-    });
+// Close Main Modal
+closeMainModal.addEventListener('click', () => {
+    mainModal.style.display = 'none';
+});
 
-    sendPhoneButton.addEventListener("click", () => {
-        mainModal.style.display = "none";
-        phoneModal.style.display = "flex";
-    });
+// Open Phone Modal
+sendPhoneButton.addEventListener('click', () => {
+    mainModal.style.display = 'none';
+    phoneModal.style.display = 'flex';
+    resetPhoneModal();
+});
 
-    closePhoneModal.addEventListener("click", () => {
-        phoneModal.style.display = "none";
-    });
+// Close Phone Modal
+closePhoneModal.addEventListener('click', () => {
+    phoneModal.style.display = 'none';
+});
 
-    cancelPhone.addEventListener("click", () => {
-        phoneModal.style.display = "none";
-    });
+// Cancel Phone Modal
+cancelPhone.addEventListener('click', () => {
+    phoneModal.style.display = 'none';
+});
 
-    confirmPhone.addEventListener("click", () => {
-        phoneModal.style.display = "none";
-        alert("Contact sent to your phone.");
-    });
+// Confirm Phone Modal and Save vCard
+confirmPhone.addEventListener('click', () => {
+    resetPhoneModal();
+    try {
+        // Close Modal and download vCard
+        phoneModal.style.display = 'none';
+        window.location.href = 'OliverF.vcf'; // Ensure vCard file is available
+        phoneSuccess.textContent = 'Contact successfully saved to your phone.';
+        phoneSuccess.style.display = 'block';
+        phoneError.style.display = 'none';
+        setTimeout(() => {
+            phoneSuccess.style.display = 'none';
+        }, 3000);
+    } catch (error) {
+        console.error("Error during file download:", error);
+        phoneError.textContent = 'Failed to save contact.';
+        phoneError.style.display = 'block';
+        phoneSuccess.style.display = 'none';
+        setTimeout(() => {
+            phoneError.style.display = 'none';
+        }, 3000);
+    }
+});
+
+// Reset Phone Modal
+function resetPhoneModal() {
+    phoneError.style.display = 'none';
+    phoneSuccess.style.display = 'none';
+}
+
+// Close Modals when clicking outside
+window.addEventListener('click', (event) => {
+    if (event.target === mainModal) {
+        mainModal.style.display = 'none';
+    }
+    if (event.target === phoneModal) {
+        phoneModal.style.display = 'none';
+    }
 });
