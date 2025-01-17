@@ -85,19 +85,22 @@ window.addEventListener('click', (event) => {
 });
 
 // =============================
-//  保留原先5秒轮播社媒功能
+//   5秒轮播 6部分社媒功能
 // =============================
 let carouselIndex = 0;
+
 function moveCarousel() {
     const icons = document.querySelector('.contact-icons');
-    const items = document.querySelectorAll('.contact-icons a');
+    const items = icons.querySelectorAll('a');
     const totalItems = items.length;
 
     carouselIndex = (carouselIndex + 1) % totalItems;
-    const offset = -carouselIndex * 100; // Move by 100% per step
+    const offset = -carouselIndex * 100; // 每次平移100%
 
     icons.style.transform = `translateX(${offset}%)`;
 }
-// 每5秒执行一次
+
+// 每5秒执行一次滚动
 setInterval(moveCarousel, 5000);
+// 立即初始化一次
 moveCarousel();
