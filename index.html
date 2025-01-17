@@ -1,84 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Oliver Fang - Mefan Solution</title>
     <link rel="stylesheet" href="style.css">
-    <script src="scripts.js" defer></script>
 </head>
-
 <body>
-    <!-- Header -->
+    <!-- Navigation Menu (Top) -->
     <header>
-        <img class="company-logo-left" src="Mefan-Logo.png" alt="Mefan Logo">
-        <img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Mefan main products Logo">
-
+        <nav class="navbar">
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">About</a></li>
+                <li><a href="#">Services</a></li>
+                <li><a href="#">Contact</a></li>
+            </ul>
+        </nav>
         <div class="header-content">
-            <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang logo">
-            <h1>Oliver Fang</h1>
-            <p>International Sales Consultant at 
-                <a href="https://mefan.42web.io/" target="_blank">Mefan Solution</a>
-            </p>
-            <p class="brand-note">Committed to Delivering Reliable earpods by Mefan Solution</p>
+            <img class="placeholder-logo" src="logo.png" alt="Logo">
+            <h1>Oliver Fang - Mefan Solution</h1>
+            <p>Your trusted partner in tech solutions</p>
+            <p class="brand-note">Innovating with excellence in every project.</p>
         </div>
     </header>
 
-    <!-- Contact icons -->
-    <div class="contact-icons">
-        <a href="https://wa.me/12817839998" target="_self">
-            <img src="https://cdn-icons-png.flaticon.com/512/124/124034.png" alt="WhatsApp">
-            <span>WhatsApp</span>
-            <span>+1 281 783 9998</span>
-        </a>
-        <a href="mailto:sales@oliverfr.com">
-            <img src="https://cdn-icons-png.flaticon.com/512/732/732200.png" alt="Email">
-            <span>Email</span>
-            <span>sales@oliverfr.com</span>
-        </a>
-        <a href="tel:+12817839998">
-            <img src="https://cdn-icons-png.flaticon.com/512/126/126509.png" alt="Phone">
-            <span>Phone</span>
-            <span>+1 281 783 9998</span>
-        </a>
-        <a href="https://linkedin.com/in/oliver-f-448b8a287" target="_self">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" alt="LinkedIn">
-            <span>LinkedIn</span>
-        </a>
-        <a href="https://web.skype.com/?openPstnPage=true" target="_self">
-            <img src="Skype Logo.png" alt="Skype">
-            <span>Skype</span>
-        </a>
-        <a href="weixin://dl/chat?wxid=wxid_kesvxwp296ci12">
-            <img src="WeChat Logo.png" alt="WeChat">
-            <span>WeChat</span>
-        </a>
-    </div>
-
-    <a class="cta-button" id="download-vcard">Download vCard</a>
-
-    <!-- Main Modal -->
-    <div class="modal" id="main-modal">
-        <div class="modal-content">
-            <button class="close-btn" id="close-main-modal">&times;</button>
-            <p>Would you like to save the contact?</p>
-            <button class="btn-gray" id="send-phone">Send to My Phone</button>
+    <!-- Contact Icons (WhatsApp, Email, etc.) -->
+    <section class="contact-icons">
+        <div class="contact-icons-carousel">
+            <a href="#"><img src="whatsapp.png" alt="WhatsApp"><span>WhatsApp</span></a>
+            <a href="#"><img src="email.png" alt="Email"><span>Email</span></a>
+            <a href="#"><img src="phone.png" alt="Phone"><span>Phone</span></a>
+            <a href="#"><img src="linkedin.png" alt="LinkedIn"><span>LinkedIn</span></a>
+            <a href="#"><img src="skype.png" alt="Skype"><span>Skype</span></a>
+            <a href="#"><img src="wechat.png" alt="WeChat"><span>WeChat</span></a>
         </div>
-    </div>
+    </section>
 
-    <!-- Phone Modal -->
-    <div class="modal" id="phone-modal">
-        <div class="modal-content">
-            <button class="close-btn" id="close-phone-modal">&times;</button>
-            <p>Confirm sending contact to your phone?</p>
-            <div class="error-message" id="phone-error">Failed to download contact.</div>
-            <div class="success-message" id="phone-success">Contact successfully downloaded to your device.</div>
-            <button class="btn-blue" id="confirm-phone">Confirm</button>
-            <button class="btn-gray" id="cancel-phone">Cancel</button>
-        </div>
-    </div>
+    <!-- CTA Button -->
+    <a href="#" class="cta-button">Download vCard</a>
 
+    <!-- Footer with Copyright Statement -->
+    <footer>
+        <p>&copy; 2025 Oliver Fang. All Rights Reserved.</p>
+    </footer>
+
+    <script src="script.js"></script>
 </body>
-
 </html>
