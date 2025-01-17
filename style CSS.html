@@ -41,18 +41,12 @@ body > * {
  *    Left/Right Top Logos
  * ==============================
  */
-/* 在此用 .navbar 容器仅包裹左右LOGO，无额外内容 */
-.navbar {
-    position: relative; /* 以便在顶部只显示这两个logo */
-    width: 100%;
-    height: auto;
-}
-
 .company-logo-left {
     position: absolute;
     top: 20px;
     left: 20px;
     width: 70px; 
+    max-width: 70px; /* 避免Logo过大 */
     height: auto;
     cursor: pointer;
     z-index: 1100;
@@ -63,6 +57,7 @@ body > * {
     top: 20px;
     right: 20px;
     width: 80px; 
+    max-width: 80px; /* 避免Logo过大 */
     height: auto;
     cursor: pointer;
     z-index: 1100;
@@ -108,11 +103,17 @@ header .brand-note {
  * ==============================
  */
 .contact-icons {
-    margin-top: 2rem;
+    /* 原来是 margin-top:2rem;display:flex;… 
+       现在改为固定定位到右下角，无删任何属性 */
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
     display: flex;
+    flex-direction: column; /* 垂直排列 */
     justify-content: center;
-    gap: 2rem;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem; /* 间距 */
+    flex-wrap: nowrap; 
 }
 
 .contact-icons a {
