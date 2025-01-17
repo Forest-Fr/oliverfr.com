@@ -1,83 +1,105 @@
-/* Global Styles */
+/* ============================== Global Styles ============================== */
 html, body {
     margin: 0;
     padding: 0;
+}
+body {
     font-family: Arial, sans-serif;
     background: linear-gradient(45deg, #6BAED9, #FFFFFF);
+    text-align: center;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    overflow-x: scroll;  
+    overflow-y: scroll;  
     min-height: 100vh;
-    overflow-x: scroll;
-    overflow-y: scroll;
+    position: relative;
+}
+body > * {
+    margin: 0 auto;
+    box-sizing: border-box;
 }
 
-/* Header */
+/* ============================== Header & Navigation ============================== */
 header {
+    margin-bottom: 2rem;
     position: relative;
     padding-top: 80px;
-    margin-bottom: 2rem;
-    text-align: center;
 }
-
-header .header-content {
-    margin-top: 20px;
-}
-
 header img.placeholder-logo {
     width: 100px;
     margin-bottom: 1rem;
 }
-
 header h1 {
     font-size: 2rem;
+    margin: 0.5rem 0;
 }
-
 header p {
     font-size: 1rem;
-    line-height: 1.6;
+    margin: 0.5rem 0;
 }
-
 header .brand-note {
+    margin-top: 0.5rem;
     font-size: 0.9rem;
     color: #555;
 }
+.navbar ul {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    list-style-type: none;
+    padding: 0;
+}
+.navbar li {
+    display: inline;
+}
+.navbar a {
+    color: white;
+    text-decoration: none;
+    font-size: 1.1rem;
+    padding: 10px 20px;
+    border-radius: 4px;
+    transition: background 0.3s;
+}
+.navbar a:hover {
+    background: #004D99;
+}
 
-/* Contact icons */
+/* ============================== Contact Icons Section ============================== */
 .contact-icons {
     margin-top: 2rem;
+}
+.contact-icons-carousel {
     display: flex;
     justify-content: center;
     gap: 2rem;
     flex-wrap: wrap;
+    animation: slide 10s infinite;
 }
-
 .contact-icons a {
     text-decoration: none;
     color: inherit;
     font-size: 0.9rem;
     text-align: center;
 }
-
 .contact-icons a:hover {
     transform: scale(1.05);
 }
-
 .contact-icons img {
     width: 40px;
     height: 40px;
     display: block;
     margin: 0 auto;
 }
-
 .contact-icons span {
     display: block;
     margin-top: 0.3rem;
     font-size: 0.8rem;
+    color: #333;
 }
 
-/* CTA Button */
+/* ============================== CTA Button ============================== */
 .cta-button {
     margin-top: 2rem;
     background: linear-gradient(45deg, #ccc, #999);
@@ -88,72 +110,29 @@ header .brand-note {
     border-radius: 8px;
     font-size: 1rem;
     cursor: pointer;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
 }
-
 .cta-button:hover {
     background: linear-gradient(45deg, #bbb, #888);
-    box-shadow: 0px 6px 8px rgba(0, 0, 0, 0.3);
-    transform: translateY(-2px);
 }
 
-/* Modal Styles */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+/* ============================== Footer ============================== */
+footer {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #333;
+    color: white;
 }
-
-.modal-content {
-    background: #fff;
-    padding: 2rem;
-    border-radius: 12px;
-    text-align: center;
-    width: 90%;
-    max-width: 400px;
-}
-
-.modal-content .close-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: #f0f0f0;
-    border: none;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    cursor: pointer;
-    font-size: 1.5rem;
-}
-
-.modal-content p {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-}
-
-input[type="email"], input[type="tel"] {
-    width: 90%;
-    padding: 0.5rem;
-    margin: 1rem 0;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+footer p {
     font-size: 1rem;
 }
 
-/* Button Styles */
-.btn-blue {
-    background: linear-gradient(45deg, #6BAED9, #004D99);
-    color: white;
-}
-
-.btn-gray {
-    background: linear-gradient(45deg, #ccc, #999);
-    color: white;
+/* ============================== Keyframe Animation for Carousel ============================== */
+@keyframes slide {
+    0% { transform: translateX(0); }
+    20% { transform: translateX(-100%); }
+    40% { transform: translateX(-200%); }
+    60% { transform: translateX(-300%); }
+    80% { transform: translateX(-400%); }
+    100% { transform: translateX(0); }
 }
