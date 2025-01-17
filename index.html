@@ -1,21 +1,326 @@
-<!DOCTYPE html>   
+<!DOCTYPE html>  
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Oliver Fang - Mefan Solution</title>
-    <link rel="stylesheet" href="style css">
+    <style>
+        /* 
+         * ==============================
+         *        Global Styles
+         * ==============================
+         */
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            /* 原有线性渐变背景 */
+            background: linear-gradient(45deg, #6BAED9, #FFFFFF);
+            text-align: center;
+
+            /* 保持 flex 居中布局 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+
+            /* 
+             * 强制滚动条出现
+             * 横向滚动条 + 纵向滚动条
+             */
+            overflow-x: scroll;  
+            overflow-y: scroll;  
+
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* 全局留白与排版 */
+        body > * {
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        /* 
+         * ==============================
+         *    Left/Right Top Logos
+         * ==============================
+         */
+        /* 左上角公司 Logo */
+        .company-logo-left {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 70px; 
+            height: auto;
+            cursor: pointer;
+            z-index: 1100;
+        }
+
+        /* 右上角主要产品 Logo */
+        .main-product-logo-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 80px; 
+            height: auto;
+            cursor: pointer;
+            z-index: 1100;
+        }
+
+        /* 
+         * ==============================
+         *          Header Area
+         * ==============================
+         */
+        header {
+            margin-bottom: 2rem;
+            position: relative;
+            padding-top: 80px; /* 保证顶部不被Logo遮挡 */
+        }
+
+        header img.placeholder-logo {
+            width: 100px;
+            margin-bottom: 1rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            line-height: 1.3;
+            margin: 0.5rem 0;
+        }
+
+        header p {
+            font-size: 1rem;
+            line-height: 1.6;
+            margin: 0.5rem 0;
+        }
+
+        header .brand-note {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        /* 
+         * ==============================
+         *      Contact Icons Section
+         * ==============================
+         */
+        .contact-icons {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .contact-icons a {
+            text-decoration: none;
+            color: inherit;
+            font-size: 0.9rem;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .contact-icons a:hover {
+            transform: scale(1.05); /* 微动画 */
+        }
+
+        .contact-icons img {
+            width: 40px;
+            height: 40px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .contact-icons span {
+            display: block;
+            margin-top: 0.3rem;
+            font-size: 0.8rem;
+            color: #333;
+        }
+
+        /* 
+         * ==============================
+         *       CTA Button
+         * ==============================
+         */
+        .cta-button {
+            margin-top: 2rem;
+            display: inline-block;
+            background: linear-gradient(45deg, #ccc, #999);
+            color: #fff;
+            padding: 0.8rem 2rem;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .cta-button:hover {
+            background: linear-gradient(45deg, #bbb, #888);
+            box-shadow: 0px 6px 8px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* 
+         * ==============================
+         *          Modal Styles
+         * ==============================
+         */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            animation: fadeIn 0.3s ease-out; /* 弹出动画 */
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-content .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.2s;
+        }
+        .modal-content .close-btn:hover {
+            background: #eee;
+        }
+
+        .modal-content p {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        input[type="email"], input[type="tel"] {
+            width: 90%;
+            padding: 0.5rem;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 0.9rem;
+            display: none;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .success-message {
+            color: green;
+            font-size: 0.9rem;
+            display: none;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-content button {
+            margin: 0.5rem;
+            padding: 0.8rem 1.2rem;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content button:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-blue {
+            background: linear-gradient(45deg, #6BAED9, #004D99);
+            color: white;
+        }
+
+        .btn-blue:hover {
+            background: linear-gradient(45deg, #5a9cc5, #003366);
+        }
+
+        .btn-gray {
+            background: linear-gradient(45deg, #ccc, #999);
+            color: white;
+        }
+
+        .btn-gray:hover {
+            background: linear-gradient(45deg, #bbb, #888);
+        }
+
+        /* 
+         * ==============================
+         *       Loading Spinner Styles
+         * ==============================
+         */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #6BAED9;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 1rem auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
 
-<!-- 新增一个导航容器，只包裹左右Logo，无额外内容 -->
-<nav class="navbar">
-    <!-- 左上角公司 Logo -->
-    <img class="company-logo-left" src="Mefan-Logo.png" alt="Mefan Logo">
+<!-- 左上角公司 Logo -->
+<img class="company-logo-left" src="Mefan-Logo.png" alt="Mefan Logo">
 
-    <!-- 右上角主要产品 Logo -->
-    <img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Mefan main products Logo">
-</nav>
+<!-- 右上角主要产品 Logo -->
+<img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Mefan main products Logo">
 
 <header>
     <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang logo" style="width: 100px; height: auto;">
@@ -88,11 +393,93 @@
     </div>
 </div>
 
-<!-- 在页面底端增加版权所有这一栏 -->
-<footer>
-    <p>© 2025 Oliver Fang - All Rights Reserved</p>
-</footer>
+<script>
+    // 获取 DOM 元素
+    const mainModal = document.getElementById('main-modal');
+    const phoneModal = document.getElementById('phone-modal');
 
-<script src="script.js"></script>
-</body>
-</html>
+    const downloadVCard = document.getElementById('download-vcard');
+    const sendPhoneButton = document.getElementById('send-phone');
+
+    const closeMainModal = document.getElementById('close-main-modal');
+    const closePhoneModal = document.getElementById('close-phone-modal');
+
+    const confirmPhone = document.getElementById('confirm-phone');
+    const cancelPhone = document.getElementById('cancel-phone');
+
+    const phoneError = document.getElementById('phone-error');
+    const phoneSuccess = document.getElementById('phone-success');
+
+    // 打开主模态框
+    downloadVCard.addEventListener('click', () => {
+        mainModal.style.display = 'flex';
+    });
+
+    // 关闭主模态框
+    closeMainModal.addEventListener('click', () => {
+        mainModal.style.display = 'none';
+    });
+
+    // 打开 Phone 模态框
+    sendPhoneButton.addEventListener('click', () => {
+        mainModal.style.display = 'none';
+        phoneModal.style.display = 'flex';
+        resetPhoneModal();
+    });
+
+    // 关闭 Phone 模态框
+    closePhoneModal.addEventListener('click', () => {
+        phoneModal.style.display = 'none';
+    });
+
+    // 取消 Phone 操作
+    cancelPhone.addEventListener('click', () => {
+        phoneModal.style.display = 'none';
+    });
+
+    // 确认 Phone 操作并直接保存 vCard
+    confirmPhone.addEventListener('click', () => {
+        resetPhoneModal();
+        try {
+            // 隐藏模态框
+            phoneModal.style.display = 'none';
+
+            // 跳转到 vCard 文件路径
+            window.location.href = 'OliverF.vcf'; // 确保 vCard 文件与 index 在同一目录下
+
+            phoneSuccess.textContent = 'Contact successfully saved to your phone.';
+            phoneSuccess.style.display = 'block';
+            phoneError.style.display = 'none';
+            setTimeout(() => {
+                phoneSuccess.style.display = 'none';
+            }, 3000);
+        } catch (error) {
+            console.error("Error during file download:", error);
+            phoneError.textContent = 'Failed to save contact.';
+            phoneError.style.display = 'block';
+            phoneSuccess.style.display = 'none';
+            setTimeout(() => {
+                phoneError.style.display = 'none';
+            }, 3000);
+        }
+    });
+
+    // 重置 Phone 模态提示
+    function resetPhoneModal() {
+        phoneError.style.display = 'none';
+        phoneSuccess.style.display = 'none';
+    }
+
+    // 点击模态框外部关闭
+    window.addEventListener('click', (event) => {
+        if (event.target === mainModal) {
+            mainModal.style.display = 'none';
+        }
+        if (event.target === phoneModal) {
+            phoneModal.style.display = 'none';
+        }
+    });
+</script>
+
+
+
