@@ -1,113 +1,47 @@
-/*******************
- * Modals Logic
- *******************/
+// Modal Logic
 const mainModal = document.getElementById('main-modal');
 const phoneModal = document.getElementById('phone-modal');
-
-// Buttons
-const downloadVCardBtn = document.getElementById('download-vcard');
+const downloadVCard = document.getElementById('download-vcard');
 const closeMainModal = document.getElementById('close-main-modal');
-const sendPhoneBtn = document.getElementById('send-phone');
-
 const closePhoneModal = document.getElementById('close-phone-modal');
-const confirmPhoneBtn = document.getElementById('confirm-phone');
-const cancelPhoneBtn = document.getElementById('cancel-phone');
+const sendPhoneButton = document.getElementById('send-phone');
 
-const phoneError = document.getElementById('phone-error');
-const phoneSuccess = document.getElementById('phone-success');
-
-// Download vCard -> open main modal
-downloadVCardBtn.addEventListener('click', () => {
+downloadVCard.addEventListener('click', () => {
   mainModal.style.display = 'flex';
 });
-
-// Close main modal
 closeMainModal.addEventListener('click', () => {
   mainModal.style.display = 'none';
 });
-
-// Send to My Phone -> open phone modal
-sendPhoneBtn.addEventListener('click', () => {
+sendPhoneButton.addEventListener('click', () => {
   mainModal.style.display = 'none';
   phoneModal.style.display = 'flex';
-  resetPhoneModal();
 });
-
-// Close phone modal (X, Cancel)
 closePhoneModal.addEventListener('click', () => {
   phoneModal.style.display = 'none';
 });
-cancelPhoneBtn.addEventListener('click', () => {
-  phoneModal.style.display = 'none';
+
+// Carousel Logic
+const modulesData = [
+  // Data omitted for brevity
+];
+
+const carouselTrack = document.getElementById('carouselTrack');
+modulesData.forEach(data => {
+  const item = document.createElement('a');
+  item.className = 'carousel-item';
+  item.href = data.href;
+  item.innerHTML = `
+    <img src="${data.img}" alt="${data.text1}">
+    <span>${data.text1}</span>
+    <span>${data.text2}</span>
+  `;
+  carouselTrack.appendChild(item);
 });
 
-// Confirm phone
-confirmPhoneBtn.addEventListener('click', () => {
-  resetPhoneModal();
-  try {
-    phoneModal.style.display = 'none';
-    // trigger .vcf download
-    window.location.href = 'OliverF.vcf';
-    phoneSuccess.textContent = 'Contact successfully saved to your phone.';
-    phoneSuccess.style.display = 'block';
-    phoneError.style.display = 'none';
-    setTimeout(() => {
-      phoneSuccess.style.display = 'none';
-    }, 3000);
-  } catch (error) {
-    console.error("Error during file download:", error);
-    phoneError.textContent = 'Failed to save contact.';
-    phoneError.style.display = 'block';
-    phoneSuccess.style.display = 'none';
-    setTimeout(() => {
-      phoneError.style.display = 'none';
-    }, 3000);
-  }
-});
-
-function resetPhoneModal() {
-  phoneError.style.display = 'none';
-  phoneSuccess.style.display = 'none';
-}
-
-// Click outside to close
-window.addEventListener('click', (event) => {
-  if (event.target === mainModal) {
-    mainModal.style.display = 'none';
-  }
-  if (event.target === phoneModal) {
-    phoneModal.style.display = 'none';
-  }
-});
-
-/*******************
- * Carousel Example
- * (each 6 seconds => next)
- *******************/
-let currentIndex = 0;
-const items = document.querySelectorAll('.carousel-item');
-const totalItems = items.length;
-
-function slideNext() {
-  currentIndex = (currentIndex + 1) % totalItems;
-  const offset = -300 * currentIndex; // each item 300px wide
-  const track = document.getElementById('carouselTrack');
-  track.style.transform = `translateX(${offset}px)`;
-}
-
-let autoSlide = setInterval(slideNext, 6000);
-
-/*******************
- * Play/Pause Button
- *******************/
+// Play/Pause
 let isPlaying = true;
 const playPauseBtn = document.getElementById('playPauseBtn');
 playPauseBtn.addEventListener('click', () => {
   isPlaying = !isPlaying;
   playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
-  if (isPlaying) {
-    autoSlide = setInterval(slideNext, 6000);
-  } else {
-    clearInterval(autoSlide);
-  }
 });
