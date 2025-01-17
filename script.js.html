@@ -1,28 +1,36 @@
-// Hero Slides
-const heroSlides = document.getElementById('hero-slides');
-if (heroSlides) {
-  let index = 0;
-  const slides = heroSlides.children;
-  setInterval(() => {
-    index = (index + 1) % slides.length;
-    heroSlides.style.transform = `translateX(-${index * 100}%)`;
-  }, 5000);
-}
+document.addEventListener("DOMContentLoaded", () => {
+    const mainModal = document.getElementById("main-modal");
+    const phoneModal = document.getElementById("phone-modal");
+    const downloadVCard = document.getElementById("download-vcard");
+    const sendPhoneButton = document.getElementById("send-phone");
+    const closeMainModal = document.getElementById("close-main-modal");
+    const closePhoneModal = document.getElementById("close-phone-modal");
+    const confirmPhone = document.getElementById("confirm-phone");
+    const cancelPhone = document.getElementById("cancel-phone");
 
-// Modal Logic
-document.getElementById('download-vcard').addEventListener('click', () => {
-  document.getElementById('main-modal').style.display = 'flex';
-});
+    downloadVCard.addEventListener("click", () => {
+        mainModal.style.display = "flex";
+    });
 
-document.getElementById('close-main-modal').addEventListener('click', () => {
-  document.getElementById('main-modal').style.display = 'none';
-});
+    closeMainModal.addEventListener("click", () => {
+        mainModal.style.display = "none";
+    });
 
-document.getElementById('send-phone').addEventListener('click', () => {
-  document.getElementById('main-modal').style.display = 'none';
-  document.getElementById('phone-modal').style.display = 'flex';
-});
+    sendPhoneButton.addEventListener("click", () => {
+        mainModal.style.display = "none";
+        phoneModal.style.display = "flex";
+    });
 
-document.getElementById('close-phone-modal').addEventListener('click', () => {
-  document.getElementById('phone-modal').style.display = 'none';
+    closePhoneModal.addEventListener("click", () => {
+        phoneModal.style.display = "none";
+    });
+
+    cancelPhone.addEventListener("click", () => {
+        phoneModal.style.display = "none";
+    });
+
+    confirmPhone.addEventListener("click", () => {
+        phoneModal.style.display = "none";
+        alert("Contact sent to your phone.");
+    });
 });
