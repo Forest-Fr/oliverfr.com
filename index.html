@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html>   
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,19 +7,92 @@
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
-    <header>
-        <div class="navbar">
-            <a href="#">Home</a>
-            <a href="#">About</a>
-            <a href="#">Contact</a>
-        </div>
-        <img src="company-logo-left.png" class="company-logo-left" alt="Company Logo">
-        <img src="main-product-logo-right.png" class="main-product-logo-right" alt="Product Logo">
-    </header>
 
-    <div class="contact-icons">
-        <a href="https://wa.me/your-phone-number">
-            <img src="whatsapp-icon.png" alt="WhatsApp">
-            <span>WhatsApp</span>
+<!-- 导航区域：仅包裹左右LOGO，无其它新增内容 -->
+<nav class="navbar">
+    <!-- 左上角公司 Logo -->
+    <img class="company-logo-left" src="Mefan-Logo.png" alt="Mefan Logo">
+
+    <!-- 右上角主要产品 Logo -->
+    <img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Mefan main products Logo">
+</nav>
+
+<header>
+    <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang logo" style="width: 100px; height: auto;">
+    <h1>Oliver Fang</h1>
+    <p>International Sales Consultant at 
+        <a href="https://mefan.42web.io/" style="color: #004D99; font-weight: bold;">
+           Mefan Solution
         </a>
-        <a href="mailto:yourem
+    </p>
+    <p class="brand-note">Committed to Delivering Reliable earpods by Mefan Solution</p>
+</header>
+
+<!-- Contact icons 区域，Skype 和 WeChat 去除号码显示，只保留跳转链接 -->
+<div class="contact-icons">
+    <!-- WhatsApp -->
+    <a href="https://wa.me/12817839998" target="_self">
+        <img src="https://cdn-icons-png.flaticon.com/512/124/124034.png" alt="WhatsApp">
+        <span>WhatsApp</span>
+        <span>+1 281 783 9998</span>
+    </a>
+    <!-- Email -->
+    <a href="mailto:sales@oliverfr.com">
+        <img src="https://cdn-icons-png.flaticon.com/512/732/732200.png" alt="Email">
+        <span>Email</span>
+        <span>sales@oliverfr.com</span>
+    </a>
+    <!-- Phone -->
+    <a href="tel:+12817839998">
+        <img src="https://cdn-icons-png.flaticon.com/512/126/126509.png" alt="Phone">
+        <span>Phone</span>
+        <span>+1 281 783 9998</span>
+    </a>
+    <!-- LinkedIn -->
+    <a href="https://linkedin.com/in/oliver-f-448b8a287" target="_self">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" alt="LinkedIn">
+        <span>LinkedIn</span>
+    </a>
+    <!-- Skype (官方Logo) -->
+    <a href="https://web.skype.com/?openPstnPage=true" target="_self">
+        <img src="Skype Logo.png" alt="Skype Logo" style="width: 40px; height: 40px;">
+        <span>Skype</span>
+    </a>
+    <!-- WeChat (官方Logo) -->
+    <a href="weixin://dl/chat?wxid=wxid_kesvxwp296ci12">
+        <img src="WeChat Logo.png" alt="WeChat Logo" style="width: 40px; height: 40px;">
+        <span>WeChat</span>
+    </a>
+</div>
+
+<a class="cta-button" id="download-vcard">Download vCard</a>
+
+<!-- Main Modal -->
+<div class="modal" id="main-modal">
+    <div class="modal-content">
+        <button class="close-btn" id="close-main-modal">&times;</button>
+        <p>Would you like to save the contact?</p>
+        <button class="btn-gray" id="send-phone">Send to My Phone</button>
+    </div>
+</div>
+
+<!-- Phone Modal -->
+<div class="modal" id="phone-modal">
+    <div class="modal-content">
+        <button class="close-btn" id="close-phone-modal">&times;</button>
+        <p>Confirm sending contact to your phone?</p>
+        <div class="error-message" id="phone-error">Failed to download contact.</div>
+        <div class="success-message" id="phone-success">Contact successfully downloaded to your device.</div>
+        <button class="btn-blue" id="confirm-phone">Confirm</button>
+        <button class="btn-gray" id="cancel-phone">Cancel</button>
+    </div>
+</div>
+
+<!-- 在页面底部增加“版权所有”这一栏 -->
+<footer>
+    <p>© 2025 Oliver Fang - All Rights Reserved</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
