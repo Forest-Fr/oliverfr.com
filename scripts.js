@@ -1,4 +1,3 @@
-
 <script>
   // ---------------------------
   // Modal Logic
@@ -18,28 +17,39 @@
   const phoneError = document.getElementById('phone-error');
   const phoneSuccess = document.getElementById('phone-success');
 
+  // Show main modal when "Download vCard" is clicked
   downloadVCard.addEventListener('click', () => {
     mainModal.style.display = 'flex';
   });
+
+  // Close main modal
   closeMainModal.addEventListener('click', () => {
     mainModal.style.display = 'none';
   });
+
+  // Show phone modal when "Send to My Phone" is clicked
   sendPhoneButton.addEventListener('click', () => {
     mainModal.style.display = 'none';
     phoneModal.style.display = 'flex';
     resetPhoneModal();
   });
+
+  // Close phone modal
   closePhoneModal.addEventListener('click', () => {
     phoneModal.style.display = 'none';
   });
+
+  // Cancel phone modal
   cancelPhone.addEventListener('click', () => {
     phoneModal.style.display = 'none';
   });
+
+  // Confirm sending phone contact
   confirmPhone.addEventListener('click', () => {
     resetPhoneModal();
     try {
       phoneModal.style.display = 'none';
-      window.location.href = 'OliverF.vcf'; // Directly link to the vCard file
+      window.location.href = 'OliverF.vcf'; // Download vCard file
       phoneSuccess.textContent = 'Contact successfully saved to your phone.';
       phoneSuccess.style.display = 'block';
       phoneError.style.display = 'none';
