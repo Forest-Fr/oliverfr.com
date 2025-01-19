@@ -4,53 +4,90 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Oliver Fang - Mefan Solution</title>
-  <!-- 外部CSS -->
-  <link rel="stylesheet" href="styles/styles.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- 导航区域 -->
+<!-- Navigation bar with left and right logos -->
 <nav class="navbar">
-  <!-- 左上角公司 Logo -->
-  <img class="company-logo-left" src="images/Mefan-Logo.png" alt="Company Logo">
-  <!-- 右上角主要产品 Logo -->
-  <img class="main-product-logo-right" src="images/Mefan-main products Logo.png" alt="Main Product Logo">
+  <img class="company-logo-left" src="CompanyLogo.png" alt="Company Logo">
+  <img class="main-product-logo-right" src="ProductLogo.png" alt="Main Product Logo">
 </nav>
 
-<!-- 头部信息 -->
 <header>
-  <img class="placeholder-logo" src="images/OliverFang-logo.png" alt="Oliver Fang logo">
+  <img class="placeholder-logo" src="OliverFangLogo.png" alt="Oliver Fang logo" style="width: 100px; height: auto;">
   <h1>Oliver Fang</h1>
-  <p>
-    International Sales Consultant at 
+  <p>International Sales Consultant at 
     <a href="https://mefan.42web.io/" style="color: #004D99; font-weight: bold;">
-      Mefan Solution
+       Mefan Solution
     </a>
   </p>
-  <p class="brand-note">
-    Committed to Delivering Reliable earpods by Mefan Solution
-  </p>
+  <p class="brand-note">Committed to Delivering Reliable earpods by Mefan Solution</p>
 </header>
 
-<!-- 轮播容器 -->
+<!-- Horizontal carousel with contact info -->
 <div class="carousel-container">
   <div class="carousel-track" id="carouselTrack">
-    <!-- 由 scripts/scripts.js 动态生成 6 个模块 -->
+    <div class="carousel-item">
+      <a href="tel:+12817839998">
+        <img src="PhoneIcon.png" alt="Phone">
+        <span>Phone</span>
+        <span>+1 281 783 9998</span>
+      </a>
+    </div>
+    <div class="carousel-item">
+      <a href="https://www.linkedin.com/in/oliver-fang">
+        <img src="LinkedInIcon.png" alt="LinkedIn">
+        <span>LinkedIn</span>
+      </a>
+    </div>
+    <div class="carousel-item">
+      <a href="skype:oliver.fang">
+        <img src="SkypeIcon.png" alt="Skype">
+        <span>Skype</span>
+      </a>
+    </div>
+    <div class="carousel-item">
+      <a href="weixin://dl/chat?wxid=wxid_kesvxwp296ci12">
+        <img src="WeChatIcon.png" alt="WeChat">
+        <span>WeChat</span>
+      </a>
+    </div>
   </div>
 </div>
 
-<!-- CTA按钮 -->
+<!-- "Download vCard" button -->
 <a class="cta-button" id="download-vcard">Download vCard</a>
 
-<!-- 底部版权信息 -->
+<!-- Main Modal (appears after "Download vCard" button is clicked) -->
+<div class="modal" id="main-modal">
+  <div class="modal-content">
+    <button class="close-btn" id="close-main-modal">&times;</button>
+    <p>Would you like to save the contact?</p>
+    <button class="btn-gray" id="send-phone">Send to My Phone</button>
+  </div>
+</div>
+
+<!-- Phone Modal (appears after "Send to My Phone") -->
+<div class="modal" id="phone-modal">
+  <div class="modal-content">
+    <button class="close-btn" id="close-phone-modal">&times;</button>
+    <p>Confirm sending contact to your phone?</p>
+    <div class="error-message" id="phone-error">Failed to download contact.</div>
+    <div class="success-message" id="phone-success">Contact successfully downloaded to your device.</div>
+    <button class="btn-blue" id="confirm-phone">Confirm</button>
+    <button class="btn-gray" id="cancel-phone">Cancel</button>
+  </div>
+</div>
+
 <footer>
   <p>© 2025 Oliver Fang - All Rights Reserved</p>
 </footer>
 
-<!-- 右下角 播放/暂停按钮 -->
+<!-- Pause Button -->
 <button class="play-pause-btn" id="playPauseBtn">Pause</button>
 
-<!-- 外部JS （动态创建 Modal、处理轮播、按钮等逻辑） -->
-<script src="scripts/scripts.js"></script>
+<script src="script.js" defer></script>
+
 </body>
 </html>
