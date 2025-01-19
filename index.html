@@ -4,57 +4,65 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Oliver Fang - Mefan Solution</title>
-  <link rel="stylesheet" href="styles.css"> <!-- Linking the external CSS -->
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Navigation Section -->
-  <nav class="navbar">
-    <img src="company-logo-left.png" alt="Company Logo" class="company-logo-left">
-    <img src="main-product-logo-right.png" alt="Main Product Logo" class="main-product-logo-right">
-  </nav>
 
-  <!-- Header Section -->
-  <header>
-    <img src="placeholder-logo.png" alt="Placeholder Logo" class="placeholder-logo">
-    <h1>Welcome to Mefan Solutions</h1>
-    <p>Your trusted partner in innovative solutions</p>
-    <p class="brand-note">Helping you stay ahead in technology</p>
-  </header>
+<!-- Navigation bar with left and right logos -->
+<nav class="navbar">
+  <img class="company-logo-left" src="Mefan-Logo.png" alt="Company Logo">
+  <img class="main-product-logo-right" src="Mefan-main products Logo.png" alt="Main Product Logo">
+</nav>
 
-  <!-- Carousel Section -->
-  <div class="carousel-container">
-    <div class="carousel-track">
-      <!-- Carousel Items -->
-      <a href="#" class="carousel-item">
-        <img src="icon1.png" alt="Icon 1">
-        <span>Feature 1</span>
-      </a>
-      <a href="#" class="carousel-item">
-        <img src="icon2.png" alt="Icon 2">
-        <span>Feature 2</span>
-      </a>
-      <!-- Add more items as needed -->
-    </div>
+<header>
+  <img class="placeholder-logo" src="OliverFang-logo.png" alt="Oliver Fang logo" style="width: 100px; height: auto;">
+  <h1>Oliver Fang</h1>
+  <p>International Sales Consultant at 
+    <a href="https://mefan.42web.io/" style="color: #004D99; font-weight: bold;">
+       Mefan Solution
+    </a>
+  </p>
+  <p class="brand-note">Committed to Delivering Reliable earpods by Mefan Solution</p>
+</header>
+
+<!-- Carousel container with infinite, non-disappearing items -->
+<div class="carousel-container">
+  <div class="carousel-track" id="carouselTrack">
+    <!-- Initially empty, we'll populate via JS for continuous effect -->
   </div>
+</div>
 
-  <!-- Call to Action Button -->
-  <a href="#" class="cta-button">Learn More</a>
+<a class="cta-button" id="download-vcard">Download vCard</a>
 
-  <!-- Modal Section -->
-  <div class="modal" id="modal">
-    <div class="modal-content">
-      <button class="close-btn" id="closeModal">×</button>
-      <p>Subscribe for updates</p>
-      <input type="email" placeholder="Enter your email">
-      <input type="tel" placeholder="Enter your phone number">
-      <button class="btn-blue">Submit</button>
-      <button class="btn-gray">Cancel</button>
-    </div>
+<!-- Main Modal -->
+<div class="modal" id="main-modal">
+  <div class="modal-content">
+    <button class="close-btn" id="close-main-modal">&times;</button>
+    <p>Would you like to save the contact?</p>
+    <button class="btn-gray" id="send-phone">Send to My Phone</button>
   </div>
+</div>
 
-  <!-- Spinner (for loading state) -->
-  <div class="spinner" id="spinner"></div>
+<!-- Phone Modal -->
+<div class="modal" id="phone-modal">
+  <div class="modal-content">
+    <button class="close-btn" id="close-phone-modal">&times;</button>
+    <p>Confirm sending contact to your phone?</p>
+    <div class="error-message" id="phone-error">Failed to download contact.</div>
+    <div class="success-message" id="phone-success">Contact successfully downloaded to your device.</div>
+    <button class="btn-blue" id="confirm-phone">Confirm</button>
+    <button class="btn-gray" id="cancel-phone">Cancel</button>
+  </div>
+</div>
 
-  <script src="scripts.js" defer></script> <!-- Linking the external JavaScript -->
+<footer>
+  <p>© 2025 Oliver Fang - All Rights Reserved</p>
+</footer>
+
+<!-- A floating Play/Pause button at bottom-right corner -->
+<button class="play-pause-btn" id="playPauseBtn">Pause</button>
+
+<script src="scripts.js"></script>
+
 </body>
 </html>
