@@ -1,6 +1,4 @@
 
-<!-- A floating Play/Pause button at bottom-right corner -->
-<button class="play-pause-btn" id="playPauseBtn">Pause</button>
 
 <script>
   // ---------------------------
