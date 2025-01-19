@@ -15,11 +15,15 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+
+  /* Force both horizontal and vertical scrollbars */
   overflow-x: scroll;
   overflow-y: scroll;
+
   min-height: 100vh;
   position: relative;
 }
+/* Consistent box-sizing */
 body > * {
   margin: 0 auto;
   box-sizing: border-box;
@@ -33,7 +37,7 @@ body > * {
 nav.navbar {
   position: relative;
   width: 100%;
-  height: 0;
+  height: 0; /* no extra space, just for logos */
 }
 .company-logo-left {
   position: absolute;
@@ -62,7 +66,7 @@ nav.navbar {
 header {
   margin-bottom: 2rem;
   position: relative;
-  padding-top: 80px;
+  padding-top: 80px; /* avoid overlapping with logos */
 }
 header img.placeholder-logo {
   width: 100px;
@@ -87,15 +91,17 @@ header .brand-note {
 /*
  * ==================================
  *  6 Icons: Continuous Right->Left
+ *  Each finished icon remains on the left,
+ *  forming a never-ending row of items
  * ==================================
  */
 .carousel-container {
   margin-top: 2rem;
-  width: 100%;
-  overflow-x: auto;
+  width: 100%;   /* allow the row to grow horizontally */
+  overflow-x: auto; /* user can scroll if it goes beyond screen */
   position: relative;
   border: 1px solid #ccc;
-  height: 140px;
+  height: 140px; /* enough room for icons + text */
 }
 .carousel-track {
   display: flex;
@@ -104,7 +110,7 @@ header .brand-note {
   height: 100%;
 }
 .carousel-item {
-  width: 300px;
+  width: 300px; 
   height: 140px;
   display: flex;
   flex-direction: column;
@@ -113,7 +119,7 @@ header .brand-note {
   text-decoration: none;
   color: #333;
   font-size: 0.9rem;
-  position: absolute;
+  position: absolute; /* we position each item manually */
   top: 0;
 }
 .carousel-item img {
@@ -153,20 +159,174 @@ header .brand-note {
   transform: translateY(-2px);
 }
 
-/* Modal Styles */
-/* (No changes, same as in the original CSS) */
+/*
+ * ==================================
+ *         Modal Styles
+ * ==================================
+ */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.3);
+  position: relative;
+  animation: fadeIn 0.3s ease-out;
+}
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.modal-content .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s;
+}
+.modal-content .close-btn:hover {
+  background: #eee;
+}
+.modal-content p {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+input[type="email"], input[type="tel"] {
+  width: 90%;
+  padding: 0.5rem;
+  margin: 1rem 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+.error-message {
+  color: red;
+  font-size: 0.9rem;
+  display: none;
+  margin-top: -0.5rem;
+  margin-bottom: 0.5rem;
+}
+.success-message {
+  color: green;
+  font-size: 0.9rem;
+  display: none;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.modal-content button {
+  margin: 0.5rem;
+  padding: 0.8rem 1.2rem;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+}
+.modal-content button:hover {
+  transform: translateY(-2px);
+}
+.btn-blue {
+  background: linear-gradient(45deg, #6BAED9, #004D99);
+  color: white;
+}
+.btn-blue:hover {
+  background: linear-gradient(45deg, #5a9cc5, #003366);
+}
+.btn-gray {
+  background: linear-gradient(45deg, #ccc, #999);
+  color: white;
+}
+.btn-gray:hover {
+  background: linear-gradient(45deg, #bbb, #888);
+}
 
-/* Loading Spinner */
+/*
+ * ==================================
+ *       Loading Spinner
+ * ==================================
+ */
 .spinner {
   border: 4px solid rgba(0, 0, 0, 0.1);
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border-top: 4px solid #333;
+  border-left-color: #6BAED9;
   animation: spin 1s linear infinite;
+  display: none;
+  margin: 1rem auto;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+/*
+ * ==================================
+ *         Footer Section
+ * ==================================
+ */
+footer {
+  margin-top: 2rem;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+/*
+ * ==================================
+ *     Play/Pause Button in corner
+ * ==================================
+ */
+.play-pause-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #ccc, #999);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  transition: all 0.3s ease;
+}
+.play-pause-btn:hover {
+  background: linear-gradient(45deg, #bbb, #888);
+  transform: translateY(-2px);
 }
