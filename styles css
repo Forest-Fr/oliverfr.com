@@ -1,8 +1,4 @@
-/* 
- * ==================================
- *         Global Styles
- * ==================================
- */
+/* Global Styles */
 html, body {
   margin: 0;
   padding: 0;
@@ -16,28 +12,23 @@ body {
   justify-content: center;
   align-items: center;
 
-  /* Force both horizontal and vertical scrollbars */
   overflow-x: scroll;
   overflow-y: scroll;
 
   min-height: 100vh;
   position: relative;
 }
-/* Consistent box-sizing */
+
 body > * {
   margin: 0 auto;
   box-sizing: border-box;
 }
 
-/*
- * ==================================
- *    Navigation + Top Logos
- * ==================================
- */
+/* Navigation Bar */
 nav.navbar {
   position: relative;
   width: 100%;
-  height: 0; /* no extra space, just for logos */
+  height: 0;
 }
 .company-logo-left {
   position: absolute;
@@ -58,15 +49,11 @@ nav.navbar {
   z-index: 1100;
 }
 
-/*
- * ==================================
- *          Header Area
- * ==================================
- */
+/* Header Area */
 header {
   margin-bottom: 2rem;
   position: relative;
-  padding-top: 80px; /* avoid overlapping with logos */
+  padding-top: 80px;
 }
 header img.placeholder-logo {
   width: 100px;
@@ -88,29 +75,22 @@ header .brand-note {
   color: #555;
 }
 
-/*
- * ==================================
- *  6 Icons: Continuous Right->Left
- *  Each finished icon remains on the left,
- *  forming a never-ending row of items
- * ==================================
- */
+/* Carousel */
 .carousel-container {
   margin-top: 2rem;
-  width: 100%;   /* allow the row to grow horizontally */
-  overflow-x: auto; /* user can scroll if it goes beyond screen */
+  width: 100%;
+  overflow-x: auto;
   position: relative;
   border: 1px solid #ccc;
-  height: 140px; /* enough room for icons + text */
+  height: 140px;
 }
 .carousel-track {
   display: flex;
-  flex-wrap: nowrap;
   position: relative;
   height: 100%;
 }
 .carousel-item {
-  width: 300px; 
+  width: 300px;
   height: 140px;
   display: flex;
   flex-direction: column;
@@ -119,7 +99,7 @@ header .brand-note {
   text-decoration: none;
   color: #333;
   font-size: 0.9rem;
-  position: absolute; /* we position each item manually */
+  position: absolute;
   top: 0;
 }
 .carousel-item img {
@@ -134,11 +114,7 @@ header .brand-note {
   font-size: 0.8rem;
 }
 
-/*
- * ==================================
- *         CTA Button
- * ==================================
- */
+/* CTA Button */
 .cta-button {
   margin-top: 2rem;
   display: inline-block;
@@ -159,11 +135,7 @@ header .brand-note {
   transform: translateY(-2px);
 }
 
-/*
- * ==================================
- *         Modal Styles
- * ==================================
- */
+/* Modal Styles */
 .modal {
   display: none;
   position: fixed;
@@ -272,41 +244,14 @@ input[type="email"], input[type="tel"] {
   background: linear-gradient(45deg, #bbb, #888);
 }
 
-/*
- * ==================================
- *       Loading Spinner
- * ==================================
- */
-.spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border-left-color: #6BAED9;
-  animation: spin 1s linear infinite;
-  display: none;
-  margin: 1rem auto;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/*
- * ==================================
- *         Footer Section
- * ==================================
- */
+/* Footer Section */
 footer {
   margin-top: 2rem;
   font-size: 0.9rem;
   color: #333;
 }
 
-/*
- * ==================================
- *     Play/Pause Button in corner
- * ==================================
- */
+/* Play/Pause Button in corner */
 .play-pause-btn {
   position: fixed;
   bottom: 20px;
