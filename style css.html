@@ -1,88 +1,86 @@
-/* 
- * ======================
- *   Global & Body
- * ======================
- */
+/* 页面整体样式 */
 html, body {
   margin: 0;
   padding: 0;
-  width: 100%;
-  height: 100%;
+  font-family: Arial, sans-serif;
+  background: #e0f7fa;
+  text-align: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(45deg, #6BAED9, #FFFFFF);
-  font-family: Arial, sans-serif;
-  text-align: center;
-  overflow-x: hidden;
-  overflow-y: auto;
+  min-height: 100vh;
+  position: relative;
 }
 
-/* 导航栏样式 */
+/* 导航栏 */
 nav.navbar {
   position: relative;
   width: 100%;
-  height: 100px;
-}
-.company-logo-left {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  width: 70px;
-}
-.main-product-logo-right {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 80px;
+  height: 50px;
 }
 
-/* Header 样式 */
+.company-logo-left,
+.main-product-logo-right {
+  position: absolute;
+  top: 10px;
+  width: 70px;
+  height: auto;
+  cursor: pointer;
+}
+
+.main-product-logo-right {
+  right: 20px;
+}
+
+.company-logo-left {
+  left: 20px;
+}
+
+/* Header样式 */
 header {
-  margin-top: 120px;
-  margin-bottom: 40px;
+  margin-bottom: 2rem;
+  padding-top: 80px;
 }
-header img.placeholder-logo {
-  width: 100px;
-  margin-bottom: 20px;
-}
+
 header h1 {
-  font-size: 2.5rem;
-  font-weight: bold;
+  font-size: 2rem;
+  line-height: 1.3;
+  margin: 0.5rem 0;
 }
+
 header p {
   font-size: 1rem;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin: 0.5rem 0;
 }
-header .link-highlight {
-  color: #004D99;
-  font-weight: bold;
-  text-decoration: none;
-}
+
 header .brand-note {
   margin-top: 0.5rem;
   font-size: 0.9rem;
   color: #555;
 }
 
-/* Carousel 样式 */
+/* 横向滚动条样式 */
 .carousel-container {
-  margin-top: 20px;
-  width: 90%;
+  margin-top: 2rem;
+  width: 100%;
   overflow-x: auto;
+  position: relative;
   border: 1px solid #ccc;
   height: 140px;
-  display: flex;
-  align-items: center;
-  position: relative;
 }
+
 .carousel-track {
   display: flex;
+  flex-wrap: nowrap;
+  position: relative;
   height: 100%;
 }
+
 .carousel-item {
-  width: 300px;
+  width: 200px;
+  height: 140px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -90,36 +88,108 @@ header .brand-note {
   text-decoration: none;
   color: #333;
   font-size: 0.9rem;
+  margin-right: 10px;
 }
+
 .carousel-item img {
   width: 40px;
   height: 40px;
-  margin-bottom: 5px;
+  display: block;
+  margin: 0 auto;
+}
+
+.carousel-item span {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+}
+
+/* "Download vCard"按钮 */
+.cta-button {
+  margin-top: 2rem;
+  display: inline-block;
+  background: linear-gradient(45deg, #ccc, #999);
+  color: #fff;
+  padding: 0.8rem 2rem;
+  text-decoration: none;
+  font-weight: bold;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.cta-button:hover {
+  background: linear-gradient(45deg, #bbb, #888);
+  box-shadow: 0px 6px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+/* 弹窗样式 */
+.modal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.modal-content .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
 }
 
 /* 按钮样式 */
-.cta-button {
-  margin-top: 40px;
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #004D99;
-  color: white;
+.btn-gray, .btn-blue {
+  margin-top: 1rem;
+  padding: 0.8rem 1.2rem;
+  font-size: 0.9rem;
   border: none;
   border-radius: 8px;
-  text-decoration: none;
-}
-.cta-button:hover {
-  background-color: #003366;
+  cursor: pointer;
 }
 
-/* 页脚样式 */
-footer {
-  margin-top: 20px;
-  font-size: 0.9rem;
-  color: #333;
+.btn-gray {
+  background: #ccc;
 }
 
-/* 悬浮播放/暂停按钮 */
+.btn-gray:hover {
+  background: #bbb;
+}
+
+.btn-blue {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-blue:hover {
+  background: #45a049;
+}
+
+/* Play/Pause按钮样式 */
 .play-pause-btn {
   position: fixed;
   bottom: 20px;
@@ -130,62 +200,17 @@ footer {
   border-radius: 50%;
   background: linear-gradient(45deg, #ccc, #999);
   color: #fff;
-  font-size: 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  z-index: 2000;
+  transition: all 0.3s ease;
 }
+
 .play-pause-btn:hover {
   background: linear-gradient(45deg, #bbb, #888);
-}
-
-/* Modal 样式 */
-.modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-.modal-content {
-  background: #fff;
-  padding: 20px;
-  border-radius: 10px;
-  text-align: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  position: relative;
-  animation: fadeIn 0.3s ease;
-}
-.modal-content button {
-  margin: 10px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.btn-gray {
-  background: #ccc;
-  color: #000;
-}
-.btn-blue {
-  background: #004D99;
-  color: white;
-}
-
-/* 动画效果 */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  transform: translateY(-2px);
 }
