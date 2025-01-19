@@ -1,142 +1,174 @@
-// 获取 DOM 元素
-const mainModal = document.getElementById('main-modal');
-const phoneModal = document.getElementById('phone-modal');
-const downloadVCard = document.getElementById('download-vcard');
-const closeMainModal = document.getElementById('close-main-modal');
-const closePhoneModal = document.getElementById('close-phone-modal');
-const sendPhoneButton = document.getElementById('send-phone');
-const confirmPhone = document.getElementById('confirm-phone');
-const cancelPhone = document.getElementById('cancel-phone');
-const phoneError = document.getElementById('phone-error');
-const phoneSuccess = document.getElementById('phone-success');
-
-// vCard 按钮点击事件
-downloadVCard.addEventListener('click', () => {
-  mainModal.style.display = 'flex';
-});
-
-// 主 Modal 关闭逻辑
-closeMainModal.addEventListener('click', () => {
-  mainModal.style.display = 'none';
-});
-
-// 点击发送到手机按钮，打开 Phone Modal
-sendPhoneButton.addEventListener('click', () => {
-  mainModal.style.display = 'none';
-  phoneModal.style.display = 'flex';
-  resetPhoneModal();
-});
-
-// Phone Modal 关闭逻辑
-closePhoneModal.addEventListener('click', () => {
-  phoneModal.style.display = 'none';
-});
-
-// 点击取消按钮，关闭 Phone Modal
-cancelPhone.addEventListener('click', () => {
-  phoneModal.style.display = 'none';
-});
-
-// 确认发送到手机逻辑
-confirmPhone.addEventListener('click', () => {
-  resetPhoneModal();
-  try {
-    // 模拟文件下载成功的逻辑
-    phoneModal.style.display = 'none';
-    window.location.href = 'OliverF.vcf';
-    phoneSuccess.textContent = 'Contact successfully saved to your phone.';
-    phoneSuccess.style.display = 'block';
-    phoneError.style.display = 'none';
-    setTimeout(() => {
-      phoneSuccess.style.display = 'none';
-    }, 3000);
-  } catch (error) {
-    // 模拟文件下载失败的逻辑
-    console.error("Error during file download:", error);
-    phoneError.textContent = 'Failed to save contact.';
-    phoneError.style.display = 'block';
-    phoneSuccess.style.display = 'none';
-    setTimeout(() => {
-      phoneError.style.display = 'none';
-    }, 3000);
-  }
-});
-
-// 重置 Phone Modal
-function resetPhoneModal() {
-  phoneError.style.display = 'none';
-  phoneSuccess.style.display = 'none';
+/* 确保背景色和整体布局正常显示 */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(45deg, #6BAED9, #FFFFFF); /* 背景渐变色 */
+  font-family: Arial, sans-serif;
+  text-align: center;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
-// 点击页面外部区域关闭 Modal
-window.addEventListener('click', (event) => {
-  if (event.target === mainModal) {
-    mainModal.style.display = 'none';
-  }
-  if (event.target === phoneModal) {
-    phoneModal.style.display = 'none';
-  }
-});
-
-// Carousel 数据和逻辑
-const carouselTrack = document.getElementById('carouselTrack');
-const modulesData = [
-  {
-    href: "https://wa.me/12817839998",
-    img: "WeChat Logo.png",
-    text1: "WeChat",
-    text2: "Oliver Fang"
-  },
-  {
-    href: "https://wa.me/12817839998",
-    img: "WhatsApp Logo.png",
-    text1: "WhatsApp",
-    text2: "+1 281 783 9998"
-  },
-  {
-    href: "mailto:sales@oliverfr.com",
-    img: "Email Logo.png",
-    text1: "Email",
-    text2: "sales@oliverfr.com"
-  },
-  {
-    href: "tel:+12817839998",
-    img: "Phone Logo.png",
-    text1: "Phone",
-    text2: "+1 281 783 9998"
-  }
-];
-
-// 动态生成轮播图内容
-modulesData.forEach((data) => {
-  const item = document.createElement('a');
-  item.className = 'carousel-item';
-  item.href = data.href;
-  item.innerHTML = `
-    <img src="${data.img}" alt="${data.text1}">
-    <span>${data.text1}</span>
-    <span>${data.text2}</span>
-  `;
-  carouselTrack.appendChild(item);
-});
-
-// 轮播图自动滚动逻辑
-let isPlaying = true;
-const speed = 1; // 滚动速度，单位：px
-function animateCarousel() {
-  if (isPlaying) {
-    carouselTrack.scrollLeft += speed;
-    if (carouselTrack.scrollLeft >= carouselTrack.scrollWidth - carouselTrack.offsetWidth) {
-      carouselTrack.scrollLeft = 0; // 无限循环滚动
-    }
-  }
-  requestAnimationFrame(animateCarousel);
+/* 导航栏样式 */
+nav.navbar {
+  position: absolute;
+  top: 10px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
 }
-animateCarousel();
+.company-logo-left, .main-product-logo-right {
+  width: 70px;
+}
 
-// 播放/暂停按钮逻辑
-const playPauseBtn = document.getElementById('playPauseBtn');
-playPauseBtn.addEventListener('click', () => {
-  isPlaying = !isPlaying;
-  playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
-});
+/* Header 样式 */
+header {
+  margin-top: 120px;
+  margin-bottom: 40px;
+}
+header img.placeholder-logo {
+  width: 100px;
+  margin-bottom: 20px;
+}
+header h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+header p {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+header .link-highlight {
+  color: #004D99;
+  font-weight: bold;
+  text-decoration: none;
+}
+header .brand-note {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Carousel 样式 */
+.carousel-container {
+  margin-top: 20px;
+  width: 80%;
+  overflow-x: auto;
+  border: 1px solid #ccc;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.carousel-track {
+  display: flex;
+  height: 100%;
+}
+.carousel-item {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #333;
+  font-size: 0.9rem;
+}
+.carousel-item img {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 5px;
+}
+
+/* 按钮样式 */
+.cta-button {
+  margin-top: 40px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #004D99;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.cta-button:hover {
+  background-color: #003366;
+}
+
+/* Modal 样式 */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  position: relative;
+  animation: fadeIn 0.3s ease;
+}
+.modal-content button {
+  margin: 10px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-gray {
+  background: #ccc;
+  color: #000;
+}
+.btn-blue {
+  background: #004D99;
+  color: white;
+}
+
+/* 播放/暂停按钮样式 */
+.play-pause-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #ccc, #999);
+  color: #fff;
+  font-size: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+.play-pause-btn:hover {
+  background: linear-gradient(45deg, #bbb, #888);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
