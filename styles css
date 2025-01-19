@@ -1,8 +1,4 @@
-/* Global Styles */
-html, body {
-  margin: 0;
-  padding: 0;
-}
+/* 设置整体页面布局和样式 */
 body {
   font-family: Arial, sans-serif;
   background: linear-gradient(45deg, #6BAED9, #FFFFFF);
