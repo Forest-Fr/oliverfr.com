@@ -1443,50 +1443,66 @@ opacity: 0;
     }
 }
 /* ========== 移动端响应式覆盖 (max-width: 768px) ========== */
-@media (max-width: 768px) {
-  /* 1) 轮播容器：高度固定 495px，去掉外边框/背景色 */
- /* ========== 适配移动端 ========== */
+/* ========== 适配移动端 ========== */
 @media (max-width: 768px) {
 
-  /* 轮播容器 */
+  /* 🚀 外层包裹容器，确保裁剪效果 */
+  .demo1-carousel-track-wrapper {
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* 🎯 轮播容器 */
   .demo1-carousel-container {
+    width: 100%;
     height: 495px;
     display: flex;
-    flex-direction: column; /* **纵向滚动布局** */
     justify-content: center;
     align-items: center;
     overflow: hidden;
-    scroll-snap-type: y mandatory; /* **确保滚动对齐** */
+    position: relative;
   }
 
-  /* 轮播轨道 */
+  /* 🎯 轮播轨道 */
   .demo1-carousel-track {
     display: flex;
-    flex-direction: column; /* **确保纵向排列** */
-    gap: 0; /* **去掉间隙，确保图片全屏** */
+    flex-direction: row; /* ✅ 横向排列 */
+    gap: 15px;
     transition: transform 0.5s ease-in-out;
-    justify-content: flex-start;
+    justify-content: center;
+    scroll-snap-type: x mandatory; /* ✅ 确保滚动对齐 */
   }
 
-  /* 轮播项 */
+  /* 🎯 轮播项 */
   .demo1-carousel-slide {
-    flex: 0 0 100%; /* **确保每张图片都占满可视区域** */
+    flex: 0 0 80%; /* ✅ 主图片占 80% */
     height: 495px;
     display: flex;
     justify-content: center;
     align-items: center;
-    scroll-snap-align: start; /* **滑动对齐** */
+    scroll-snap-align: center; /* ✅ 滚动时居中 */
   }
 
-  /* 轮播图片 */
+  /* 🎯 左右部分可见 */
+  .demo1-carousel-slide:first-child {
+    margin-left: 10%;
+  }
+
+  .demo1-carousel-slide:last-child {
+    margin-right: 10%;
+  }
+
+  /* 🎯 轮播图片 */
   .demo1-carousel-slide img {
     width: 100%;
-    height: 100%;
-    object-fit: contain; /* **确保图片尺寸适配** */
+    height: 495px;
+    object-fit: contain; /* ✅ 适应不同尺寸，防止拉伸 */
     border-radius: 10px;
   }
 
-  /* 覆盖层 - 按钮 & 文字布局 */
+  /* 🚀 文字 & 按钮布局 */
   .demo1-overlay {
     position: absolute;
     left: 50%;
@@ -1499,7 +1515,7 @@ opacity: 0;
     opacity: 1;
   }
 
-  /* 标题样式 */
+  /* 🎯 标题样式 */
   .demo1-title {
     font-size: 2.2rem;
     font-weight: bold;
@@ -1509,7 +1525,7 @@ opacity: 0;
     opacity: 1;
   }
 
-  /* 按钮 */
+  /* 🎯 按钮 */
   .demo1-explore-btn {
     padding: 8px 16px;
     font-size: 1rem;
@@ -1519,11 +1535,9 @@ opacity: 0;
     border-radius: 4px;
     cursor: pointer;
     opacity: 1;
-    align-self: flex-start; /* **确保按钮左对齐** */
-    margin-left: 20px;
   }
 
-  /* 说明文字 */
+  /* 🎯 说明文字 */
   .demo1-text-bottom {
     font-size: 1rem;
     color: white;
@@ -1531,7 +1545,7 @@ opacity: 0;
     opacity: 1;
   }
 
-  /* ========== 优化翻页按钮 ========== */
+  /* 🚀 优化翻页按钮 */
   .demo1-carousel-prev,
   .demo1-carousel-next {
     display: block;
@@ -1542,7 +1556,7 @@ opacity: 0;
     font-size: 28px;
     font-weight: bold;
     border: none;
-    background: none; /* **移除背景** */
+    background: none; /* ✅ 只显示符号 */
     cursor: pointer;
     z-index: 10;
   }
@@ -1550,7 +1564,7 @@ opacity: 0;
   .demo1-carousel-prev { left: 10px; }
   .demo1-carousel-next { right: 10px; }
 
-  /* ========== 轮播指示器优化 ========== */
+  /* 🚀 轮播指示器优化 */
   .demo1-carousel-dots {
     position: absolute;
     bottom: 15px;
@@ -1572,6 +1586,7 @@ opacity: 0;
     background: #007BFF;
   }
 }
+
 
 
 
