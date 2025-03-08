@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MeFan Lite - Product Detail</title>
+  <!-- Favicon 设置 -->
+  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
+  <link rel="stylesheet" href="styles.css">
+  <script src="scripts.js" defer></script>
+  <style>
+    /* 统一产品图片尺寸 */
+    .product-detail-image {
+      width: 300px;
+      height: 300px;
+      object-fit: cover;
+      display: block;
+      margin: 20px auto;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+<!-- 在所有内容加载完后添加 Tidio Chat 代码 -->
+<script src="//code.tidio.co/bvj4fouj9gfnwxcj7tcdiwstzlpqxbqg.js" async></script>
+
+<!-- 顶部 -->
+<header class="header-gradient">
+  <img src="MeFan Logo.png" alt="MeFan Logo" class="logo-img" />
+
+  <!-- 汉堡菜单 -->
+  <div class="menu-icon" id="menuIcon">
+    <span class="bar"></span>
+    <span class="bar"></span>
+    <span class="bar"></span>
+  </div>
+  
+  <!-- 导航栏 -->
+  <nav id="mobileNav">
+    <div class="close-btn" id="closeBtn">&times;</div>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="products.html">Products</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <!-- MeFan Lite详情 -->
+  <section class="product-detail-section">
+    <h2>MeFan Lite</h2>
+    <!-- 统一图片尺寸 -->
+    <img 
+      src="MeFan Lite.png" 
+      alt="MeFan Lite"
+      class="product-detail-image"
+    >
+    <p style="max-width:600px; margin:20px auto; color:#555; text-align:center;">
+      MeFan Lite 主打<b>轻巧便携</b>，适合日常生活和轻运动场景。<br/>
+      结合舒适的佩戴设计和持久电池续航，让您随时随地享受音乐的乐趣。
+    </p>
+
+    <!-- 技术参数 -->
+    <section class="tech-spec-section">
+      <h2>技术参数（预留）</h2>
+      <ul style="list-style:none; padding:0; text-align:center;">
+        <li>电池续航：约6+18小时</li>
+        <li>蓝牙版本：5.2</li>
+        <li>降噪等级：ENC环境降噪</li>
+        <li>防水等级：IPX4</li>
+      </ul>
+    </section>
+
+    <!-- 用户评价 -->
+    <section class="user-review-section">
+      <h2>用户评价（预留）</h2>
+      <p>可在此显示真实用户评价、星级评分、图片分享等。</p>
+
+      <!-- 修正模态窗口 ID -->
+      <button class="btn gray-gradient-btn" 
+              data-modal-target="#liteReviewModal"
+              style="margin-top:15px;">
+        查看更多评价
+      </button>
+    </section>
+
+    <!-- 返回产品列表按钮 -->
+    <p style="text-align:center; margin:40px 0;">
+      <a href="products.html" class="btn">返回产品列表</a>
+    </p>
+  </section>
+</main>
+
+ <!-- 横线部分 -->
+<div class="divider"></div>
+  <!-- Mefan Value -->
+<!-- Core Values Section with Horizontal Layout -->
+<!-- 核心价值展示部分 -->
+<section class="core-values-section">
+  <div class="core-value-item">
+    <h3>Mefan Value</h3>
+    <ul>
+      <li><a href="accessibility.html">Accessibility</a></li>
+    </ul>
+  </div>
+    <!-- For Business -->
+  <div class="core-value-item">
+    <h3>For Business</h3>
+    <ul>
+      <li><a href="mefan-and-business.html">Mefan and Business</a></li>
+    </ul>
+  </div>
+  <!-- Entertainment -->
+  <div class="core-value-item">
+    <h3>Entertainment</h3>
+    <ul>
+      <li><a href="mefan-one.html">Mefan One</a></li>
+    </ul>
+  </div>
+</section>
+
+ <!-- 横线部分 -->
+  <div class="divider"></div>
+
+  <!-- 公司信息和社交媒体 -->
+  <div class="footer-extend">
+    <p>&copy; 2025 MeFan@Oliver F. All rights reserved.</p>
+  </div>
+
+<!-- ========== 新增：用户评价的模态窗口 ========== -->
+<div class="modal" id="liteReviewModal">
+  <div class="modal-content">
+    <span class="modal-close" data-modal-close>&times;</span>
+    <!-- iframe 加载实际评价页面 -->
+    <iframe
+      src="https://example.com"
+      frameborder="0"
+      class="modal-iframe">
+    </iframe>
+  </div>
+</div>
+
+<!-- JS：菜单逻辑 -->
+<script>
+  const menuIcon = document.getElementById('menuIcon');
+  const closeBtn = document.getElementById('closeBtn');
+  const mobileNav = document.getElementById('mobileNav');
+
+  if (menuIcon && closeBtn && mobileNav) {
+    menuIcon.addEventListener('click', () => {
+      mobileNav.classList.add('active');
+    });
+    closeBtn.addEventListener('click', () => {
+      mobileNav.classList.remove('active');
+    });
+    document.querySelectorAll('#mobileNav ul li a').forEach(link => {
+      link.addEventListener('click', () => {
+        mobileNav.classList.remove('active');
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
