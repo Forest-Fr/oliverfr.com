@@ -1445,104 +1445,48 @@ opacity: 0;
 /* ========== 移动端响应式覆盖 (max-width: 768px) ========== */
 /* ========== 适配移动端 ========== */
 @media (max-width: 768px) {
-
-  /* 🚀 外层包裹容器，确保裁剪效果 */
-  .demo1-carousel-track-wrapper {
-    width: 100%;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-  }
-
-  /* 🎯 轮播容器 */
-  .demo1-carousel-container {
+  /* 1) 轮播容器：固定高度 495px */
+.demo1-carousel-container {
     width: 100%;
     height: 495px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     overflow: hidden;
     position: relative;
+    margin: 0 auto;
   }
 
-  /* 🎯 轮播轨道 */
+  /* 2) 新增包装容器：左右内边距为 (100% - 85%) / 2，即 7.5% */
+ .demo1-carousel-track-wrapper {
+    padding-left: calc((100% - 85%) / 2); /* 左侧空出一定区域 */
+    padding-right: calc((100% - 85%) / 2); /* 右侧同样空出 */
+    overflow: hidden;
+}
+
+
+  /* 3) 轮播轨道：使用 flex 布局，间隔固定为 15px */
   .demo1-carousel-track {
     display: flex;
-    flex-direction: row; /* ✅ 横向排列 */
-    gap: 15px;
-    transition: transform 0.5s ease-in-out;
-    justify-content: center;
-    scroll-snap-type: x mandatory; /* ✅ 确保滚动对齐 */
-  }
-
-  /* 🎯 轮播项 */
-  .demo1-carousel-slide {
-    flex: 0 0 80%; /* ✅ 主图片占 80% */
-    height: 495px;
-    display: flex;
-    justify-content: center;
     align-items: center;
-    scroll-snap-align: center; /* ✅ 滚动时居中 */
+    gap: 15px; /* 图片之间间隔 15px */
+    transition: transform 0.5s ease-in-out;
+    justify-content: flex-start; /* 由 JS 根据当前索引控制 transform */
   }
 
-  /* 🎯 左右部分可见 */
-  .demo1-carousel-slide:first-child {
-    margin-left: 10%;
+  /* 4) 每个轮播项：宽度固定为 85%（相对于容器），高度为 495px */
+  .demo1-carousel-slide {
+    flex: 0 0 85%;
+    width: 85%;  /* 同 flex 设定，确保当前 slide 占 85% */
+    height: 100%;
+    position: relative;
+    /* 不添加额外 margin，避免影响 gap */
   }
 
-  .demo1-carousel-slide:last-child {
-    margin-right: 10%;
-  }
-
-  /* 🎯 轮播图片 */
+  /* 5) 轮播图片：宽度 100%，高度固定 495px，并采用 object-fit: cover 保持裁切 */
   .demo1-carousel-slide img {
     width: 100%;
     height: 495px;
-    object-fit: contain; /* ✅ 适应不同尺寸，防止拉伸 */
-    border-radius: 10px;
-  }
-
-  /* 🚀 文字 & 按钮布局 */
-  .demo1-overlay {
-    position: absolute;
-    left: 50%;
-    bottom: 40px;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    opacity: 1;
-  }
-
-  /* 🎯 标题样式 */
-  .demo1-title {
-    font-size: 2.2rem;
-    font-weight: bold;
-    color: white;
-    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
-    text-align: center;
-    opacity: 1;
-  }
-
-  /* 🎯 按钮 */
-  .demo1-explore-btn {
-    padding: 8px 16px;
-    font-size: 1rem;
-    background-color: #007BFF;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    opacity: 1;
-  }
-
-  /* 🎯 说明文字 */
-  .demo1-text-bottom {
-    font-size: 1rem;
-    color: white;
-    text-align: center;
-    opacity: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
   }
 
   /* 🚀 优化翻页按钮 */
@@ -1564,26 +1508,58 @@ opacity: 0;
   .demo1-carousel-prev { left: 10px; }
   .demo1-carousel-next { right: 10px; }
 
-  /* 🚀 轮播指示器优化 */
-  .demo1-carousel-dots {
-    position: absolute;
-    bottom: 15px;
-    width: 100%;
+  /* 7) 小圆点区域：保持居中显示 */
+  .demo1-carousel-dots-container {
+    height: auto;
+    margin-top: 8px;
     display: flex;
     justify-content: center;
-    gap: 6px;
   }
-
+  .demo1-carousel-dots {
+    position: static;
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+  }
   .demo1-carousel-dot {
     width: 8px;
     height: 8px;
-    background: #ccc;
-    border-radius: 50%;
-    cursor: pointer;
   }
 
-  .demo1-carousel-dot.active {
-    background: #007BFF;
+  /* 8) 覆盖层：放置于轮播区域底部中间 */
+  .demo1-overlay {
+    position: absolute;
+    bottom: 40px;  /* 可根据实际效果微调 */
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    gap: 6px;
+    opacity: 1;
+    padding: 10px 12px;
+    z-index: 1000;
+  }
+
+  /* 9) 标题、按钮、文字等：缩小、紧凑 */
+  .demo1-title {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 6px;
+    text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.3);
+    text-align: center;
+  }
+  .demo1-explore-btn {
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+  .demo1-text-bottom,
+  .demo1-text-top {
+    font-size: 0.85rem;
+    color: #fff;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+    text-align: center;
   }
 }
 
