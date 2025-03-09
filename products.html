@@ -1,84 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MeFan - Products</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
- <link rel="stylesheet" href="styles.css">
-  <script src="scripts.js" defer></script>
-  <script src="scroll.js" defer></script> <!-- 引入优化的滚动脚本 -->
-  <!-- 渐变灰按钮类(同原示例) -->
-  <style>
-    .gray-gradient-btn {
-      background: linear-gradient(to right, #999, #ccc);
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      padding: 10px 20px;
-      cursor: pointer;
-      transition: opacity 0.3s;
-    }
-    .gray-gradient-btn:hover {
-      opacity: 0.8;
-    }
-  </style>
-</head>
-<body>
-<!-- 顶部：淡色背景/渐变（默认示例：浅蓝渐变） -->
-  <header class="header-gradient" id="mainHeader">
-    <!-- 左侧 Logo -->
-    <img src="MeFan Logo.png" alt="MeFan Logo" class="logo-img" />
-
-    <!-- 桌面端导航列表，居中对齐，带 Home / Products / About / Contact / 搜索按钮 -->
-    <nav class="desktop-nav">
-      <ul class="nav-list">
-        <li><a href="index.html" class="active">Home</a></li>
-        <li><a href="products.html">Products</a></li>
-        <li><a href="about.html">About</a></li>
-        <li><a href="contact.html">Contact</a></li>
-        <!-- 桌面搜索图标 -->
-        <li>
-          <div class="search-icon" id="desktopSearchIcon">🔍</div>
-        </li>
-      </ul>
-    </nav>
-
-    <!-- 移动端图标区：搜索 + 汉堡菜单 -->
-    <div class="mobile-icons">
-      <!-- 搜索图标，与汉堡菜单相距 30px -->
-      <span id="mobileSearchIcon" class="mobile-search-icon">🔍</span>
-
-      <!-- 汉堡菜单：三条水平线，竖向堆叠，类似小号“三”字形 -->
-      <div class="vertical-hamburger" id="menuIcon">
-        <div class="v-bar"></div>
-        <div class="v-bar"></div>
-        <div class="v-bar"></div>
-      </div>
-    </div>
-
- <!-- 移动端全屏菜单 -->
-    <nav id="mobileNav">
-      <div class="close-btn" id="closeBtn">&times;</div>
-      <ul>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>MeFan - Products</title><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet"/><link rel="icon" href="MeFan Logo.png" type="image/x-icon"/><link rel="stylesheet" href="styles.css"/><script src="scripts.js" defer></script><script src="scroll.js" defer></script><!-- 引入优化的滚动脚本 --><style>.gray-gradient-btn{background:linear-gradient(to right,#999,#ccc);color:#fff;border:none;border-radius:5px;padding:10px 20px;cursor:pointer;transition:opacity 0.3s;}.gray-gradient-btn:hover{opacity:0.8;}</style></head><body>
+<header class="header-gradient" id="mainHeader">
+  <img src="MeFan Logo.png" alt="MeFan Logo" class="logo-img"/>
+  <nav class="desktop-nav">
+    <ul class="nav-list">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="products.html">Products</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><div class="search-icon" id="desktopSearchIcon">🔍</div></li>
     </ul>
   </nav>
+  <div class="mobile-icons">
+    <span id="mobileSearchIcon" class="mobile-search-icon">🔍</span>
+    <div class="vertical-hamburger" id="menuIcon"><div class="v-bar"></div><div class="v-bar"></div><div class="v-bar"></div></div>
+  </div>
+  <nav id="mobileNav">
+    <div class="close-btn" id="closeBtn">&times;</div>
+    <ul></ul>
+  </nav>
 </header>
-
 <main>
-  <!-- 产品列表 -->
   <section class="product-list-section">
     <h2>我们的产品</h2>
-
-    <!-- Compare按钮：现在可点击弹窗 -->
     <div class="compare-features">
-      <!-- 给按钮加 data-modal-target="#compareModal" -->
       <button class="btn gray-gradient-btn" data-modal-target="#compareModal">
         对比不同型号(预留)
       </button>
     </div>
-
     <div class="product-list">
       <div class="product-item">
         <img src="MeFan X1.png" alt="MeFan X1">
@@ -99,67 +47,36 @@
         <a href="product-lite.html" class="btn">查看详情</a>
       </div>
     </div>
-
-    <!-- 用户评价(预留) -->
     <div class="user-review-section">
       <h2>用户评价（预留）</h2>
       <p>将来可在此显示星级评分或真实用户评价。</p>
-      <!-- 仍保留“查看全部评价”弹窗 -->
-      <button class="btn" data-modal-target="#userReviewModal" style="margin-top:10px;">
-        查看全部评价
-      </button>
+      <button class="btn" data-modal-target="#userReviewModal" style="margin-top:10px;">查看全部评价</button>
     </div>
   </section>
 </main>
-
-  <!-- 横线部分 -->
-  <div class="divider"></div>
-
-  <!-- 公司信息和社交媒体 -->
-  <div class="footer-extend">
-    <p>&copy; 2025 MeFan@Oliver F. All rights reserved.</p>
-  </div>
-
-<!-- ========== Compare功能 Modal ========== -->
+<div class="divider"></div>
+<div class="footer-extend">
+  <p>&copy; 2025 MeFan@Oliver F. All rights reserved.</p>
+</div>
 <div class="modal" id="compareModal">
   <div class="modal-content">
     <span class="modal-close" data-modal-close>&times;</span>
-    <!-- iframe引入 compareModels.html -->
     <iframe src="compareModels.html" class="modal-iframe" frameborder="0"></iframe>
   </div>
 </div>
-
-<!-- ========== 用户评价功能 Modal ========== -->
 <div class="modal" id="userReviewModal">
   <div class="modal-content">
     <span class="modal-close" data-modal-close>&times;</span>
-    <!-- 用iframe引入 userReviews.html -->
     <iframe src="userReviews.html" class="modal-iframe" frameborder="0"></iframe>
   </div>
 </div>
-
-<!-- 内联脚本(与 scripts.js 功能重复时，可酌情删除或注释) -->
 <script>
-  const menuIcon = document.getElementById('menuIcon');
-  const closeBtn = document.getElementById('closeBtn');
-  const mobileNav = document.getElementById('mobileNav');
-
-  if (menuIcon && closeBtn && mobileNav) {
-    menuIcon.addEventListener('click', () => {
-      mobileNav.classList.add('active');
-    });
-
-    closeBtn.addEventListener('click', () => {
-      mobileNav.classList.remove('active');
-    });
-
-    document.querySelectorAll('#mobileNav ul li a').forEach(link => {
-      link.addEventListener('click', () => {
-        mobileNav.classList.remove('active');
-      });
-    });
-  }
+/* ========== 1) 搜索逻辑 ========== */
+(function(){const body=document.body;const mainHeader=document.getElementById('mainHeader');const desktopSearch=document.getElementById('desktopSearchIcon');const mobileSearch=document.getElementById('mobileSearchIcon');const searchPanel=document.getElementById('searchPanel');const searchClose=document.getElementById('searchClose');const searchTitle=document.getElementById('searchTitle');const searchResults=document.getElementById('searchResults');const siteContents=[{text:"About MeFan",url:"about.html"},{text:"MeFan Lite - Wireless Earbuds",url:"product-lite.html"},{text:"MeFan X1 - Noise Canceling Headphones",url:"product-x1.html"},{text:"MeFan Pro - Premium Audio",url:"product-pro.html"},{text:"Earbud Tips & Support",url:"support.html"},{text:"Contact Us",url:"contact.html"},{text:"Products Overview",url:"products.html"}];function openSearch(){body.classList.add('search-open');searchTitle.textContent="";searchResults.innerHTML="";}function closeSearch(){body.classList.remove('search-open');}if(desktopSearch)desktopSearch.addEventListener('click',openSearch);if(mobileSearch)mobileSearch.addEventListener('click',openSearch);if(searchClose)searchClose.addEventListener('click',closeSearch);document.addEventListener('keydown',function(e){if(e.key==="Escape"){closeSearch();}});document.addEventListener('click',function(e){if(!searchPanel.contains(e.target)&&e.target!==desktopSearch&&e.target!==mobileSearch){closeSearch();}});if(searchTitle&&searchResults){searchTitle.addEventListener('input',function(){const query=searchTitle.innerText.trim().toLowerCase();if(!query){searchResults.innerHTML="";return;}const matched=siteContents.filter(item=>item.text.toLowerCase().includes(query));searchResults.innerHTML="";if(matched.length>0){matched.forEach(obj=>{const div=document.createElement('div');div.classList.add('search-item');const link=document.createElement('a');link.href=obj.url;link.textContent=obj.text;link.style.textDecoration="none";link.style.color="#333";link.target="_self";div.appendChild(link);searchResults.appendChild(div);});}else{const noRes=document.createElement('div');noRes.classList.add('no-result');noRes.textContent="Sorry, no results found.";searchResults.appendChild(noRes);}});}})();
+/* ========== 2) 移动端菜单逻辑 (基础版：开关主菜单) ========== */
+(function(){const menuIcon=document.getElementById('menuIcon');const closeBtn=document.getElementById('closeBtn');const mobileNav=document.getElementById('mobileNav');if(menuIcon&&closeBtn&&mobileNav){menuIcon.addEventListener('click',()=>{mobileNav.classList.add('active');});closeBtn.addEventListener('click',()=>{mobileNav.classList.remove('active');});document.querySelectorAll('#mobileNav ul li a').forEach(link=>{link.addEventListener('click',()=>{mobileNav.classList.remove('active');});});}})();
+<!-- ========== 新增：移动端多级菜单逻辑脚本（独立运行，不干扰原有逻辑） ========== -->
+(function(){const mobileNav=document.getElementById('mobileNav');const homePanel=document.getElementById('mobileNavLevel2Home');const productsPanel=document.getElementById('mobileNavLevel2Products');function showSubPanel(panel){mobileNav.classList.remove('active');homePanel.classList.remove('active');productsPanel.classList.remove('active');panel.classList.add('active');}function showMainNav(){homePanel.classList.remove('active');productsPanel.classList.remove('active');mobileNav.classList.add('active');}const navLinks=mobileNav.querySelectorAll('ul li a');navLinks.forEach(link=>{const level=link.getAttribute('data-level');if(level==='home'){link.addEventListener('click',function(e){e.preventDefault();showSubPanel(homePanel);});}else if(level==='products'){link.addEventListener('click',function(e){e.preventDefault();showSubPanel(productsPanel);});}});const backButtons=document.querySelectorAll('.menu-panel__back');backButtons.forEach(btn=>{btn.addEventListener('click',function(e){e.preventDefault();showMainNav();});});const subCloseButtons=document.querySelectorAll('.menu-panel__close');subCloseButtons.forEach(btn=>{btn.addEventListener('click',function(e){e.preventDefault();mobileNav.classList.remove('active');homePanel.classList.remove('active');productsPanel.classList.remove('active');});});})();
+(function(){const mobileNav=document.getElementById('mobileNav');const homePanel=document.getElementById('mobileNavLevel2Home');const productsPanel=document.getElementById('mobileNavLevel2Products');const aboutPanel=document.getElementById('mobileNavLevel2About');const contactPanel=document.getElementById('mobileNavLevel2Contact');if(!mobileNav||!homePanel||!productsPanel||!aboutPanel||!contactPanel){console.log("多级菜单面板未找到，若不需要此功能可删除本脚本。");return;}function showSubPanel(panel){mobileNav.classList.remove('active');homePanel.classList.remove('active');productsPanel.classList.remove('active');aboutPanel.classList.remove('active');contactPanel.classList.remove('active');panel.classList.add('active');}function showMainNav(){homePanel.classList.remove('active');productsPanel.classList.remove('active');aboutPanel.classList.remove('active');contactPanel.classList.remove('active');mobileNav.classList.add('active');}const navLinks=mobileNav.querySelectorAll('ul li a');navLinks.forEach(link=>{const level=link.getAttribute('data-level');if(level==='home'){link.addEventListener('click',function(e){e.preventDefault();showSubPanel(homePanel);});}else if(level==='products'){link.addEventListener('click',function(e){e.preventDefault();showSubPanel(productsPanel);});}else if(level==='about'){link.addEventListener('click',function(e){e.preventDefault();showSubPanel(aboutPanel);});}else if(level==='contact'){link.addEventListener('click',function(e){e.preventDefault();showSubPanel(contactPanel);});}});const backButtons=document.querySelectorAll('.menu-panel__back');backButtons.forEach(btn=>{btn.addEventListener('click',function(e){e.preventDefault();showMainNav();});});const subCloseButtons=document.querySelectorAll('.menu-panel__close');subCloseButtons.forEach(btn=>{btn.addEventListener('click',function(e){e.preventDefault();mobileNav.classList.remove('active');homePanel.classList.remove('active');productsPanel.classList.remove('active');aboutPanel.classList.remove('active');contactPanel.classList.remove('active');});});})();
 </script>
-
-</body>
-</html>
+</body></html>
