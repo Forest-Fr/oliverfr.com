@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MeFan - Products</title>
+  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <script src="scripts.js" defer></script>
+  <script src="scroll.js" defer></script>
+</head>
+<body>
+
+  <header class="header-gradient">
+    <img src="MeFan Logo.png" alt="MeFan Logo" class="logo-img" />
+    <div class="menu-icon" id="menuIcon">
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+    </div>
+
+    <nav id="mobileNav" role="navigation">
+      <div class="close-btn" id="closeBtn">&times;</div>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html" class="active">Products</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- 自定义轮播容器 -->
+  <div class="custom-slider">
+    <div class="slider-content">
+      <div class="slider-images">
+        <img id="slider-image" src="Zhang Duhu Lake.png" alt="Zhang Duhu Lake">
+      </div>
+
+      <div class="slider-controls">
+        <button id="slider-play-btn" class="slider-btn">
+          <span id="btn-icon">▶</span>
+        </button>
+        <div class="slider-progress">
+          <div class="progress-bar"></div>
+          <div class="progress-dots">
+            <span class="dot active" data-index="0"></span>
+            <span class="dot" data-index="1"></span>
+            <span class="dot" data-index="2"></span>
+            <span class="dot" data-index="3"></span>
+            <span class="dot" data-index="4"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ 
+
+  <!-- 横线部分 -->
+<div class="divider"></div>
+    <!-- 公司信息和社交媒体 -->
+  </div>
+  <div class="footer-extend">
+    <p>&copy; 2025 MeFan@Oliver F. All rights reserved.</p>
+
+  </div>
+</footer>
+
+  <script>
+    const images = [
+      "Zhang Duhu Lake.png",
+      "Zhang Duhu Lake view.png",
+      "Xinzhou Shaotanhe Lake.png",
+      "Zhang Duhu wetland park.png",
+      "Zhang Duhu Shuishan.png"
+    ];
+
+    let currentIndex = 0;
+    let sliderImage = document.getElementById("slider-image");
+    let playButton = document.getElementById("slider-play-btn");
+    let btnIcon = document.getElementById("btn-icon");
+    let progressBar = document.querySelector(".progress-bar");
+    let dots = document.querySelectorAll(".dot");
+    let isPlaying = false;
+    let animationFrame;
+    let startTime;
+    const duration = 3000;
+
+    function updateSlide(index) {
+      currentIndex = index;
+      sliderImage.src = images[currentIndex];
+      dots.forEach(dot => dot.classList.remove("active"));
+      dots[currentIndex].classList.add("active");
+      progressBar.style.width = ((currentIndex + 1) / images.length) * 100 + "%";
+    }
+
+    function animateProgressBar(timestamp) {
+      if (!startTime) startTime = timestamp;
+      let elapsed = timestamp - startTime;
+      let percent = Math.min(elapsed / duration, 1) * 100;
+      progressBar.style.width = percent + "%";
+
+      if (elapsed < duration) {
+        animationFrame = requestAnimationFrame(animateProgressBar);
+      } else {
+        nextSlide();
+      }
+    }
+
+    function nextSlide() {
+      currentIndex++;
+
+      if (currentIndex >= images.length) {
+        stopSlider();
+        return;
+      }
+
+      updateSlide(currentIndex);
+      progressBar.style.width = "0%";
+      startTime = null;
+
+      if (isPlaying) {
+        animationFrame = requestAnimationFrame(animateProgressBar);
+      }
+    }
+
+    function startSlider() {
+      isPlaying = true;
+      btnIcon.textContent = "⏸";
+      startTime = null;
+      animationFrame = requestAnimationFrame(animateProgressBar);
+    }
+
+    function stopSlider() {
+      cancelAnimationFrame(animationFrame);
+      isPlaying = false;
+      btnIcon.textContent = "↻";
+      progressBar.style.width = "0%";
+      currentIndex = 0;
+    }
+
+    function togglePlay() {
+      if (isPlaying) {
+        stopSlider();
+        btnIcon.textContent = "▶";
+      } else {
+        startSlider();
+      }
+    }
+
+    dots.forEach(dot => {
+      dot.addEventListener("click", function () {
+        let index = parseInt(this.getAttribute("data-index"));
+        updateSlide(index);
+        stopSlider();
+        btnIcon.textContent = "▶";
+      });
+    });
+
+    playButton.addEventListener("click", togglePlay);
+
+    startSlider();
+  </script>
+</body>
+</html>
