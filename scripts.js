@@ -1,21 +1,608 @@
 /***************************************************
  * scripts.js
+ *
+ * 1. Hero轮播：全屏 100vh (PC端)，自动切换
+ * 2. EmailJS表单提交
+ * 3. 预留更多JS功能(对比按钮、3D旋转、在线聊天)
+ * 4. 汉堡菜单逻辑：支持全屏子窗口显示和关闭
+ * 5. 模态窗口逻辑：点击后可打开/关闭子级界面
+ * 6. (优化) 无限滚动逻辑 + Apple 风格暂停按钮 (使用 CSS 伪元素显示符号)
+ * 7. (新增) 图片点击跳转至产品详情页面
+ * 8. (新增) 翻转卡片功能：正面与反面切换
+ * 9. (优化) 帧动画：滚动触发 + 平滑渐变 + 播放/暂停按钮
+ * 10. (新增) 轮播轨道功能：左右按钮和小点控制（自动轮播）
+ * 11. (可选) 移动端 touch 轮播 track
+ * 12. (新增) spec1 手动无限轮播(仅左右按钮 + 手机触摸滑动)
  ***************************************************/
-const initHeroCarousel=()=>{const hs=document.getElementById("hero-slides"),ds=document.querySelectorAll(".hero-dots .dot");if(!hs||!ds.length)return;let i=0,t=hs.children.length;const up=()=>{i=(i+1)%t;hs.style.transform=`translateX(-${i*100}%)`;ds.forEach((d,j)=>d.classList.toggle("active",j===i))};ds.forEach((d,j)=>{d.addEventListener("click",()=>{i=j;hs.style.transform=`translateX(-${i*100}%)`;ds.forEach((d2,k)=>d2.classList.toggle("active",k===i))})});setInterval(up,5000)};
-const initEmailJS=()=>{if(typeof emailjs==="undefined")return;emailjs.init("HXCThZROMytOt-wyp");const cf=document.getElementById("contactForm");cf&&cf.addEventListener("submit",e=>{e.preventDefault();emailjs.sendForm("service_1ffkva1","template_ypdj9n9",cf).then(()=>{alert("邮件已发送成功，我们将尽快与您联系！");cf.reset()}).catch(err=>{console.error("邮件发送失败：",err);alert("邮件发送失败，请稍后再试。")})})};
-const initCompareFeature=()=>{const b=document.querySelector(".compare-features .btn");b&&b.addEventListener("click",()=>alert("对比功能暂未实现 (预留)！"))};
-const initHamburgerMenu=()=>{const m=document.getElementById("menuIcon"),mn=document.getElementById("mobileNav"),c=document.getElementById("closeBtn");if(!m||!mn||!c)return;m.addEventListener("click",()=>mn.classList.add("active"));c.addEventListener("click",()=>mn.classList.remove("active"));mn.querySelectorAll("ul li a").forEach(l=>l.addEventListener("click",()=>mn.classList.remove("active")))};
-const initModalWindows=()=>{document.querySelectorAll("[data-modal-target]").forEach(t=>{t.addEventListener("click",()=>{const m=document.querySelector(t.getAttribute("data-modal-target"));m&&m.classList.add("active")})});document.querySelectorAll("[data-modal-close]").forEach(b=>{b.addEventListener("click",()=>{const p=b.closest(".modal");p&&p.classList.remove("active")})})};
-const initInfiniteScroller=()=>{const s=document.getElementById("infiniteScroller"),pb=document.querySelector(".pause-btn");if(!s||!pb)return;const imgs=["A peaceful brookside setting.png","A scenic riverside bend.png","A serene coastal shore.png","A shaded forest path.png"];let pFlag=false,spd=0.3,lt=0,its=[],trk=document.createElement("div");trk.className="infinite-scroller-track",trk.style.display="flex",trk.style.position="relative",trk.style.transform="translateX(0)",s.appendChild(trk);for(let j=0;j<2;j++)imgs.forEach(src=>{let ic=document.createElement("div");ic.className="infinite-scroller-item",ic.style.position="absolute",ic.style.width="100%";let im=document.createElement("img");im.src=src,im.alt=src,im.style.width="100%",im.style.objectFit="cover",ic.appendChild(im),trk.appendChild(ic);let ox=its.length===0?0:(its[its.length-1].x+ic.offsetWidth);ic.style.left=`${ox}px`,its.push({el:ic,x:ox,width:ic.offsetWidth})});function an(ts){if(!pFlag){let d=ts-lt;lt=ts;let m=spd*(d/16.67);its.forEach(it=>{it.x-=m, it.el.style.left=`${it.x}px`});let last=its[its.length-1];if(last.x+last.width<window.innerWidth+100)createItem(imgs[its.length%imgs.length])}requestAnimationFrame(an)};function createItem(src){let ic=document.createElement("div");ic.className="infinite-scroller-item",ic.style.position="absolute",ic.style.width="100%";let im=document.createElement("img");im.src=src,im.alt=src,im.style.width="100%",im.style.objectFit="cover",ic.appendChild(im),trk.appendChild(ic);let ox=its.length===0?0:(its[its.length-1].x+ic.offsetWidth);ic.style.left=`${ox}px`,its.push({el:ic,x:ox,width:ic.offsetWidth})}pb.classList.remove("paused"),pb.addEventListener("click",()=>{pFlag=!pFlag,pb.classList.toggle("paused")}),requestAnimationFrame(an)};
-document.addEventListener("DOMContentLoaded",function(){const s=document.getElementById("infiniteScroller"),t=document.querySelector(".infinite-scroller-track");if(s&&t){t.style.transform="translateX(0)",s.innerHTML+=s.innerHTML}const pb=document.getElementById("pauseBtn");let p=false;pb.addEventListener("click",function(){p=!p,s.style.animationPlayState=p?"paused":"running",pb.textContent=p?"▶":"❚❚"}),pb.textContent="❚❚"});
-document.addEventListener("DOMContentLoaded",function(){const t=document.querySelector(".infinite-scroller-track");t&&(t.style.transform="translateX(0)")});
-const initProductImageClick=()=>{document.querySelectorAll(".product-card img").forEach(img=>img.addEventListener("click",()=>{const p=img.alt.toLowerCase().replace(/\s+/g,"-")+".html";window.location.href=p}))};
-const initFlipCards=()=>{document.querySelectorAll(".flip-btn-front").forEach(btn=>btn.addEventListener("click",()=>btn.closest(".card").style.transform="rotateY(180deg)"));document.querySelectorAll(".flip-btn-back").forEach(btn=>btn.addEventListener("click",()=>btn.closest(".card").style.transform="rotateY(0deg)"))};
-const initFrameAnimation=()=>{const c=document.getElementById("animationCanvas"),ctx=c?.getContext("2d");if(!c||!ctx)return;const imgs=["A young man standing in a natural landscape1.png","A young man standing in a natural landscape2.png","A young man standing in a natural landscape3.png"];let imgObjs=[],fi=0,play=true,al=0,fs=0.02,fiInt=1000/24,ltf=0,loaded=0;const ppb=document.getElementById("playPauseButton"),ac=document.getElementById("animationContainer");imgs.forEach((src,i)=>{let im=new Image();im.src=src,im.onload=()=>{imgObjs[i]=im,loaded++,console.log(`✅ 加载成功: ${src}`),loaded===1&&requestAnimationFrame(df)},im.onerror=()=>console.error(`❌ 图片加载失败: ${src}`)});function resizeC(){const d=window.innerWidth>=1024;d?(c.width=window.innerWidth,c.height=window.innerHeight*0.75):(c.width=window.innerWidth,c.height=window.innerHeight*0.6)}window.addEventListener("resize",resizeC),resizeC();function df(ts){if(!play||loaded===0)return;if(ts-ltf>fiInt){ctx.clearRect(0,0,c.width,c.height);let nfi=(fi+1)%imgs.length;imgObjs[fi]&&(ctx.globalAlpha=1-al,drawCover(ctx,imgObjs[fi])),imgObjs[nfi]&&(ctx.globalAlpha=al,drawCover(ctx,imgObjs[nfi])),al+=fs,al>=1&&(al=0,fi=nfi),ltf=ts}requestAnimationFrame(df)}function drawCover(a,b){const c=a.canvas.width/a.canvas.height,d=b.width/b.height;let e,f,g,h;d>c?(f=a.canvas.height*0.9,e=b.width*(f/b.height),g=(a.canvas.width-e)/2,h=(a.canvas.height-f)/2):(e=a.canvas.width,f=b.height*(e/b.width),g=0,h=(a.canvas.height-f)/2),a.drawImage(b,g,h,e,f)}ppb?.addEventListener("click",()=>{play=!play,ppb.textContent=play?"❚❚":"▶",play&&requestAnimationFrame(df)}),document.addEventListener("DOMContentLoaded",()=>{requestAnimationFrame(df)})};
-function initdemo1CarouselTrack(){const cnt=document.querySelector(".demo1-carousel-container"),trk=document.querySelector(".demo1-carousel-track"),sld=Array.from(document.querySelectorAll(".demo1-carousel-slide")),prev=document.querySelector(".demo1-carousel-prev"),next=document.querySelector(".demo1-carousel-next"),dts=Array.from(document.querySelectorAll(".demo1-carousel-dot"));if(!cnt||!trk||sld.length===0||!dts.length){console.warn("Carousel elements not found!");return;}const totReal=6,uni=sld.slice(0,totReal);uni.forEach((s,i)=>s.setAttribute("data-index",i));const fs=uni[0],ls=uni[totReal-1],fc=fs.cloneNode(true),lc=ls.cloneNode(true);fc.setAttribute("data-index",0),lc.setAttribute("data-index",totReal-1),trk.insertBefore(lc,trk.firstChild),trk.appendChild(fc);const all=Array.from(trk.querySelectorAll(".demo1-carousel-slide")),totClones=all.length;let cur=1,anim=false;function getSlideW(){return window.innerWidth<=768?Math.floor(window.innerWidth*0.8)+15:(()=>{const s=cnt.querySelector(".demo1-carousel-slide");let w=s?s.getBoundingClientRect().width:0;return w===0?((cnt.clientWidth||window.innerWidth)+15):(w+15)})()}function upd(){const sw=getSlideW(),off=-cur*sw;trk.style.transform=`translateX(${off}px)`;let di=cur===0?totReal-1:cur===totClones-1?0:cur-1;dts.forEach((d,i)=>d.classList.toggle("active",i===di)),all.forEach(s=>{s.classList.remove("active","prev","next","shadow");const a=s.querySelector("a");a&&(a.style.pointerEvents="none")}),all[cur].classList.add("active"),all[cur].querySelector("a")&&(all[cur].querySelector("a").style.pointerEvents="auto");const ni=(cur+1)%totClones,pi=(cur-1+totClones)%totClones;all[ni].classList.add("next"),all[pi].classList.add("prev"),all.forEach(s=>{!s.classList.contains("active")&&s.classList.add("shadow")})}function ns(){if(anim)return;anim=true,cur++,trk.style.transition="transform 0.5s ease-in-out",upd()}function ps(){if(anim)return;anim=true,cur--,trk.style.transition="transform 0.5s ease-in-out",upd()}function js(i){if(anim)return;anim=true,cur=i+1,trk.style.transition="transform 0.5s ease-in-out",upd()}prev?.addEventListener("click",()=>{ps(),ri()}),next?.addEventListener("click",()=>{ns(),ri()}),dts.forEach((d,i)=>d.addEventListener("click",()=>{js(i),ri()}));let iv=setInterval(ns,5000);function ri(){clearInterval(iv),iv=setInterval(ns,5000)};trk.addEventListener("transitionend",()=>{if(cur===totClones-1){trk.style.transition="none",cur=1,upd(),void trk.offsetWidth,trk.style.transition="transform 0.5s ease-in-out"}if(cur===0){trk.style.transition="none",cur=totReal,upd(),void trk.offsetWidth,trk.style.transition="transform 0.5s ease-in-out"}anim=false}),trk.style.transition="none",upd(),setTimeout(()=>{trk.style.transition="transform 0.5s ease-in-out"},50),all.forEach(sl=>{sl.addEventListener("click",e=>{if(!sl.classList.contains("active")){sl.classList.contains("next")?(e.preventDefault(),ns(),ri()):sl.classList.contains("prev")&&(e.preventDefault(),ps(),ri())}})}),document.querySelectorAll(".demo1-explore-btn").forEach(b=>b.addEventListener("click",e=>{const l=e.target.closest(".demo1-carousel-slide")?.querySelector("a");l&&(window.location.href=l.href)})),window.addEventListener("resize",()=>{anim=false,trk.style.transition="none",upd(),setTimeout(()=>{trk.style.transition="transform 0.5s ease-in-out"},50)});let startX=0,swipe=false;cnt.addEventListener("touchstart",e=>{if(anim)return;swipe=true,startX=e.touches[0].clientX}),cnt.addEventListener("touchmove",e=>{}),cnt.addEventListener("touchend",e=>{if(!swipe)return;let endX=e.changedTouches[0].clientX,dist=endX-startX;swipe=false,Math.abs(dist)>50&&(dist<0?ns():ps(),ri())})}
-window.addEventListener("load",()=>{initdemo1CarouselTrack()});
-const initSpec1CarouselTrack=()=>{const trk=document.querySelector(".spec1-carousel-track"),slds=document.querySelectorAll(".spec1-carousel-slide"),prevBtn=document.querySelector(".spec1-carousel-prev"),nextBtn=document.querySelector(".spec1-carousel-next"),dots=document.querySelectorAll(".spec1-carousel-dot");if(!trk||slds.length===0||!dots.length)return;let cur=1,total=slds.length,sw=slds[0].offsetWidth+15;const fs=slds[0],ls=slds[slds.length-1],fc=fs.cloneNode(true),lc=ls.cloneNode(true);trk.appendChild(fc),trk.insertBefore(lc,trk.firstChild);const tot=total+2;function upd(){const off=-cur*sw;trk.style.transform=`translateX(${off}px)`;slds.forEach((s,i)=>s.classList.toggle("active",i===cur)),dots.forEach((d,i)=>d.classList.toggle("active",i===cur))}function ns(){cur++,cur>=tot?(cur=1,trk.style.transition="none",upd(),setTimeout(()=>{trk.style.transition="transform 0.5s ease-in-out"},50)):upd()}function ps(){cur--,cur<0?(cur=tot-2,trk.style.transition="none",upd(),setTimeout(()=>{trk.style.transition="transform 0.5s ease-in-out"},50)):upd()}function js(i){cur=i,upd()}prevBtn?.addEventListener("click",()=>{ps(),ri()}),nextBtn?.addEventListener("click",()=>{ns(),ri()}),dots.forEach((d,i)=>d.addEventListener("click",()=>{js(i),ri()}));let iv=setInterval(ns,5000);function ri(){clearInterval(iv),iv=setInterval(ns,5000)};setTimeout(()=>{trk.style.transition="none",cur=1,upd(),setTimeout(()=>{trk.style.transition="transform 0.5s ease-in-out"},50)},50);window.innerWidth<=768&&setTimeout(()=>{trk.style.transition="transform 0.3s ease-in-out"},500),upd(),document.querySelectorAll(".spec1-explore-btn").forEach(b=>b.addEventListener("click",e=>{const l=e.target.closest(".spec1-carousel-slide").querySelector("a");l&&(window.location.href=l.href)}))};
-document.addEventListener("DOMContentLoaded",initSpec1CarouselTrack);
-document.addEventListener("DOMContentLoaded",function(){const t=document.querySelector(".touch1-carousel-track"),s=Array.from(document.querySelectorAll(".touch1-carousel-slide")),prevBtn=document.querySelector(".touch1-prev-btn"),nextBtn=document.querySelector(".touch1-next-btn");let cur=0,sw=615+15;function upd(){t.style.transform=`translateX(-${cur*sw}px)`,prevBtn.disabled=(cur===0),nextBtn.disabled=(cur===s.length-1)};prevBtn.addEventListener("click",()=>{if(cur>0){cur--;upd()}});nextBtn.addEventListener("click",()=>{if(cur<s.length-1){cur++;upd()}});upd()});
-document.addEventListener("DOMContentLoaded",()=>{initHeroCarousel();initEmailJS();initCompareFeature();initHamburgerMenu();initModalWindows();initInfiniteScroller();initProductImageClick();initFlipCards();initFrameAnimation();initDemo1CarouselTrack();initSpec1CarouselTrack();initTouch1CarouselTrack()});
-document.addEventListener("DOMContentLoaded",function(){const t=document.querySelector(".touch1-carousel-track"),s=Array.from(t.children),prevBtn=document.querySelector(".touch1-prev-btn"),nextBtn=document.querySelector(".touch1-next-btn");let cur=0,tot=s.length,sw=615+15;function upd(){t.style.transform=`translateX(-${cur*sw}px)`,prevBtn.disabled=(cur===0),nextBtn.disabled=(cur===tot-1)};prevBtn.addEventListener("click",()=>{if(cur>0){cur--;upd()}});nextBtn.addEventListener("click",()=>{if(cur<tot-1){cur++;upd()}});upd()});
+
+/* ========== 0) 工具函数：等待图片加载后再执行 ========== */
+function waitImagesLoaded(images, callback) {
+  let loadedCount = 0;
+  const total = images.length;
+  function checkDone() {
+    loadedCount++;
+    if (loadedCount >= total) {
+      callback();
+    }
+  }
+  images.forEach((img) => {
+    if (img.complete) {
+      checkDone();
+    } else {
+      img.addEventListener("load", checkDone);
+      img.addEventListener("error", checkDone);
+    }
+  });
+  if (total === 0) callback();
+}
+
+/* ========== 1) Hero 轮播(自动) ========== */
+const initHeroCarousel = () => {
+  const heroSlides = document.getElementById('hero-slides');
+  const dots = document.querySelectorAll('.hero-dots .dot');
+  if (!heroSlides || dots.length === 0) return;
+
+  let currentIndex = 0;
+  const totalSlides = heroSlides.children.length;
+
+  const updateSlide = () => {
+    currentIndex = (currentIndex + 1) % totalSlides;
+    heroSlides.style.transform = `translateX(-${currentIndex * 100}%)`;
+    dots.forEach((dot, index) => {
+      dot.classList.toggle('active', index === currentIndex);
+    });
+  };
+
+  dots.forEach((dot, index) => {
+    dot.addEventListener('click', () => {
+      currentIndex = index;
+      heroSlides.style.transform = `translateX(-${currentIndex * 100}%)`;
+      dots.forEach((d, i) => {
+        d.classList.toggle('active', i === currentIndex);
+      });
+    });
+  });
+
+  setInterval(updateSlide, 5000);
+};
+
+/* ========== 2) EmailJS 表单提交 ========== */
+const initEmailJS = () => {
+  if (typeof emailjs === 'undefined') return;
+  emailjs.init("HXCThZROMytOt-wyp");
+
+  const contactForm = document.getElementById("contactForm");
+  if (contactForm) {
+    contactForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      emailjs.sendForm("service_1ffkva1", "template_ypdj9n9", contactForm)
+        .then(() => {
+          alert("邮件已发送成功，我们将尽快与您联系！");
+          contactForm.reset();
+        })
+        .catch((err) => {
+          console.error("邮件发送失败：", err);
+          alert("邮件发送失败，请稍后再试。");
+        });
+    });
+  }
+};
+
+/* ========== 3) 预留对比按钮 ========== */
+const initCompareFeature = () => {
+  const compareBtn = document.querySelector(".compare-features .btn");
+  if (compareBtn) {
+    compareBtn.addEventListener("click", () => {
+      alert("对比功能暂未实现 (预留)！");
+    });
+  }
+};
+
+/* ========== 4) 汉堡菜单 ========== */
+const initHamburgerMenu = () => {
+  const menuIcon  = document.getElementById('menuIcon');
+  const mobileNav = document.getElementById('mobileNav');
+  const closeBtn  = document.getElementById('closeBtn');
+  if (!menuIcon || !mobileNav || !closeBtn) return;
+
+  menuIcon.addEventListener('click', () => {
+    mobileNav.classList.add('active');
+  });
+  closeBtn.addEventListener('click', () => {
+    mobileNav.classList.remove('active');
+  });
+
+  const navLinks = mobileNav.querySelectorAll('ul li a');
+  navLinks.forEach((link) => {
+    link.addEventListener('click', () => {
+      mobileNav.classList.remove('active');
+    });
+  });
+};
+
+/* ========== 5) 模态窗口 ========== */
+const initModalWindows = () => {
+  document.querySelectorAll('[data-modal-target]').forEach(trigger => {
+    trigger.addEventListener('click', () => {
+      const modal = document.querySelector(trigger.getAttribute('data-modal-target'));
+      if (modal) modal.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('[data-modal-close]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const parentModal = btn.closest('.modal');
+      if (parentModal) parentModal.classList.remove('active');
+    });
+  });
+};
+
+/* ========== 6) 无限滚动 + Apple 风格暂停按钮 ========== */
+const initInfiniteScroller = () => {
+  const scroller = document.getElementById('infiniteScroller');
+  const pauseBtn = document.querySelector('.pause-btn');
+  if (!scroller || !pauseBtn) return;
+
+  const images = [
+    "A peaceful brookside setting.png",
+    "A scenic riverside bend.png",
+    "A serene coastal shore.png",
+    "A shaded forest path.png"
+  ];
+
+  let isPaused = false;
+  let speed = 0.3; 
+  let lastTimestamp = 0;
+  let itemsOnScreen = [];
+  let track;
+
+  track = document.createElement('div');
+  track.className = 'infinite-scroller-track';
+  track.style.display = 'flex';
+  track.style.position = 'relative';
+  track.style.transform = 'translateX(0)';
+  scroller.appendChild(track);
+
+  for (let i = 0; i < 2; i++) {
+    images.forEach(createItem);
+  }
+
+  function createItem(imageSrc) {
+    const imgContainer = document.createElement('div');
+    imgContainer.className = 'infinite-scroller-item';
+    imgContainer.style.position = 'absolute';
+    imgContainer.style.width = '100%';
+
+    const img = document.createElement('img');
+    img.src = imageSrc;
+    img.alt = imageSrc;
+    img.style.width = '100%';
+    img.style.objectFit = 'cover';
+
+    imgContainer.appendChild(img);
+    track.appendChild(imgContainer);
+
+    const offsetX = (itemsOnScreen.length === 0) ? 0 :
+      (itemsOnScreen[itemsOnScreen.length - 1].x + imgContainer.offsetWidth);
+    imgContainer.style.left = `${offsetX}px`;
+
+    const itemObj = { el: imgContainer, x: offsetX, width: imgContainer.offsetWidth };
+    itemsOnScreen.push(itemObj);
+  }
+
+  function animate(timestamp) {
+    if (!isPaused) {
+      const delta = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
+      const moveDist = speed * (delta / 16.67);
+
+      for (let i = 0; i < itemsOnScreen.length; i++) {
+        const item = itemsOnScreen[i];
+        item.x -= moveDist;
+        item.el.style.left = `${item.x}px`;
+      }
+
+      const lastItem = itemsOnScreen[itemsOnScreen.length - 1];
+      if (lastItem.x + lastItem.width < window.innerWidth + 100) {
+        createItem(images[itemsOnScreen.length % images.length]);
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  pauseBtn.classList.remove('paused');
+  pauseBtn.addEventListener('click', () => {
+    isPaused = !isPaused;
+    pauseBtn.classList.toggle('paused');
+  });
+
+  requestAnimationFrame(animate);
+};
+
+// 修复滚动左侧空白
+document.addEventListener("DOMContentLoaded", function () {
+  const scroller = document.getElementById("infiniteScroller");
+  const track = document.querySelector(".infinite-scroller-track");
+  if (scroller && track) {
+    track.style.transform = "translateX(0)";
+    scroller.innerHTML += scroller.innerHTML;
+  }
+  const pauseBtn = document.getElementById("pauseBtn");
+  let isPaused = false;
+
+  pauseBtn.addEventListener("click", function () {
+    isPaused = !isPaused;
+    scroller.style.animationPlayState = isPaused ? "paused" : "running";
+    pauseBtn.textContent = isPaused ? "▶" : "❚❚";
+  });
+  pauseBtn.textContent = "❚❚";
+});
+document.addEventListener("DOMContentLoaded", function () {
+  const track = document.querySelector(".infinite-scroller-track");
+  if (track) {
+    track.style.transform = "translateX(0)";
+  }
+});
+
+/* ========== 7) 图片点击跳转 ========== */
+const initProductImageClick = () => {
+  document.querySelectorAll('.product-card img').forEach(image => {
+    image.addEventListener('click', () => {
+      const productPage = image.alt.toLowerCase().replace(/\s+/g, '-') + ".html";
+      window.location.href = productPage;
+    });
+  });
+};
+
+/* ========== 8) 翻转卡片 ========== */
+const initFlipCards = () => {
+  document.querySelectorAll('.flip-btn-front').forEach(flipBtn => {
+    flipBtn.addEventListener('click', () => {
+      flipBtn.closest('.card').style.transform = 'rotateY(180deg)';
+    });
+  });
+  document.querySelectorAll('.flip-btn-back').forEach(closeBtn => {
+    closeBtn.addEventListener('click', () => {
+      closeBtn.closest('.card').style.transform = 'rotateY(0deg)';
+    });
+  });
+};
+
+/* ========== 9) 帧动画(滚动触发+播放/暂停) ========== */
+const initFrameAnimation = () => {
+  const canvas = document.getElementById('animationCanvas');
+  const ctx = canvas?.getContext('2d');
+  if (!canvas || !ctx) return;
+
+  const images = [
+    "A young man standing in a natural landscape1.png",
+    "A young man standing in a natural landscape2.png",
+    "A young man standing in a natural landscape3.png"
+  ];
+
+  let imageObjects = [];
+  let frameIndex = 0;
+  let isPlaying = true;
+  let alpha = 0;
+  let fadeSpeed = 0.02;
+  let frameInterval = 1000 / 24; 
+  let lastFrameTime = 0;
+  let imagesLoaded = 0;
+
+  const playPauseButton = document.getElementById('playPauseButton');
+
+  images.forEach((src, index) => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      imageObjects[index] = img;
+      imagesLoaded++;
+      if (imagesLoaded === 1) {
+        requestAnimationFrame(drawFrame);
+      }
+    };
+    img.onerror = () => console.error(`❌ 图片加载失败: ${src}`);
+  });
+
+  function resizeCanvas() {
+    if (!canvas) return;
+    const isDesktop = window.innerWidth >= 1024;
+    if (isDesktop) {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight * 0.75;
+    } else {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight * 0.6;
+    }
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  function drawFrame(timestamp) {
+    if (!isPlaying || imagesLoaded === 0) return;
+    if (!canvas || !ctx) return;
+
+    if (timestamp - lastFrameTime > frameInterval) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let nextFrameIndex = (frameIndex + 1) % images.length;
+      if (imageObjects[frameIndex]) {
+        ctx.globalAlpha = 1 - alpha;
+        drawImageCover(imageObjects[frameIndex]);
+      }
+      if (imageObjects[nextFrameIndex]) {
+        ctx.globalAlpha = alpha;
+        drawImageCover(imageObjects[nextFrameIndex]);
+      }
+      alpha += fadeSpeed;
+      if (alpha >= 1) {
+        alpha = 0;
+        frameIndex = nextFrameIndex;
+      }
+      lastFrameTime = timestamp;
+    }
+    requestAnimationFrame(drawFrame);
+  }
+
+  function drawImageCover(img) {
+    const canvasRatio = canvas.width / canvas.height;
+    const imgRatio = img.width / img.height;
+    let drawWidth, drawHeight, offsetX, offsetY;
+
+    if (imgRatio > canvasRatio) {
+      drawHeight = canvas.height * 0.9;
+      drawWidth = img.width * (drawHeight / img.height);
+      offsetX = (canvas.width - drawWidth) / 2;
+      offsetY = (canvas.height - drawHeight) / 2;
+    } else {
+      drawWidth = canvas.width;
+      drawHeight = img.height * (drawWidth / img.width);
+      offsetX = 0;
+      offsetY = (canvas.height - drawHeight) / 2;
+    }
+    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+  }
+
+  playPauseButton?.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    playPauseButton.textContent = isPlaying ? "❚❚" : "▶";
+    if (isPlaying) requestAnimationFrame(drawFrame);
+  });
+};
+
+/* ========== 10) 触摸轮播: initTouch1CarouselTrack ========== */
+const initTouch1CarouselTrack = () => {
+  const track = document.querySelector(".touch1-carousel-track");
+  const slides = Array.from(track?.children || []);
+  const prevBtn = document.querySelector(".touch1-prev-btn");
+  const nextBtn = document.querySelector(".touch1-next-btn");
+  if (!track || slides.length === 0 || !prevBtn || !nextBtn) return;
+
+  let currentIndex = 0;
+  const slideWidth = 615 + 15; 
+  function updateCarousel() {
+    track.style.transform = `translateX(-${currentIndex * slideWidth}px)`;
+    prevBtn.disabled = (currentIndex === 0);
+    nextBtn.disabled = (currentIndex === slides.length - 1);
+  }
+  prevBtn.addEventListener("click", () => {
+    if (currentIndex > 0) {
+      currentIndex--;
+      updateCarousel();
+    }
+  });
+  nextBtn.addEventListener("click", () => {
+    if (currentIndex < slides.length - 1) {
+      currentIndex++;
+      updateCarousel();
+    }
+  });
+  updateCarousel();
+};
+
+/* ========== 11) spec1 手动无限轮播(左右按钮 + 手机触摸滑动阈值=20) ========== */
+const initspec1ManualCarouselTrack = () => {
+  const container = document.querySelector(".spec1-carousel-container");
+  const track     = document.querySelector(".spec1-carousel-track");
+  let slides      = Array.from(document.querySelectorAll(".spec1-carousel-slide"));
+  const prevBtn   = document.querySelector(".spec1-carousel-prev");
+  const nextBtn   = document.querySelector(".spec1-carousel-next");
+
+  if (!container || !track || slides.length === 0 || !prevBtn || !nextBtn) {
+    console.warn("spec1 hand-control carousel: elements or arrows not found!");
+    return;
+  }
+
+  const totalReal = slides.length;
+  let currentIndex = 1; 
+  let isAnimating  = false;
+  let slideWidth   = 0;
+  let gapWidth     = 15;
+
+  // 1) 克隆首尾 => 无缝
+  const firstClone = slides[0].cloneNode(true);
+  const lastClone  = slides[totalReal - 1].cloneNode(true);
+  track.appendChild(firstClone);
+  track.insertBefore(lastClone, track.firstChild);
+
+  slides = Array.from(track.querySelectorAll(".spec1-carousel-slide"));
+
+  function updateSlideWidth() {
+    if (window.innerWidth <= 768) {
+      const containerWidth = container.offsetWidth;
+      gapWidth = containerWidth * 0.04; 
+      slides.forEach((slide) => {
+        slide.style.width = `${containerWidth * 0.85}px`; 
+      });
+      slideWidth = containerWidth * 0.85 + gapWidth;
+    } else {
+      slides.forEach((slide) => {
+        slide.style.width = ""; 
+      });
+      gapWidth = 15;
+      const measured = slides[1].getBoundingClientRect().width;
+      slideWidth = measured + gapWidth;
+    }
+  }
+
+  function updateCarousel(animated = true) {
+    updateSlideWidth();
+    track.style.transition = animated ? "transform 0.5s ease-in-out" : "none";
+
+    if (window.innerWidth <= 768) {
+      track.style.transform = `translateX(${-currentIndex * slideWidth + gapWidth/2}px)`;
+    } else {
+      track.style.transform = `translateX(${-currentIndex * slideWidth}px)`;
+    }
+
+    slides.forEach(sl => sl.classList.remove("active","prev","next","shadow"));
+    slides[currentIndex]?.classList.add("active");
+
+    const nextIndex = (currentIndex + 1) % slides.length;
+    const prevIndex = (currentIndex - 1 + slides.length) % slides.length;
+    slides[nextIndex]?.classList.add("next");
+    slides[prevIndex]?.classList.add("prev");
+
+    // 只有 .active 不加阴影
+    slides.forEach(sl => {
+      if (!sl.classList.contains("active")) {
+        sl.classList.add("shadow");
+      }
+    });
+
+    // 内部链接只在 active slide 可点
+    slides.forEach((slide) => {
+      const link = slide.querySelector("a");
+      if (link) {
+        link.style.pointerEvents = slide.classList.contains("active") ? "auto" : "none";
+      }
+    });
+  }
+
+  function nextSlide() {
+    if (isAnimating) return;
+    isAnimating = true;
+    currentIndex++;
+    updateCarousel(true);
+    setTimeout(() => {
+      if (currentIndex === slides.length - 1) {
+        track.style.transition = "none";
+        currentIndex = 1;
+        updateCarousel(false);
+      }
+      isAnimating = false;
+    }, 500);
+  }
+  function prevSlide() {
+    if (isAnimating) return;
+    isAnimating = true;
+    currentIndex--;
+    updateCarousel(true);
+    setTimeout(() => {
+      if (currentIndex === 0) {
+        track.style.transition = "none";
+        currentIndex = slides.length - 2;
+        updateCarousel(false);
+      }
+      isAnimating = false;
+    }, 500);
+  }
+
+  prevBtn.addEventListener("click", () => {
+    if(!isAnimating) prevSlide();
+  });
+  nextBtn.addEventListener("click", () => {
+    if(!isAnimating) nextSlide();
+  });
+
+  // 点击左右图 => 切换
+  slides.forEach((slide) => {
+    slide.addEventListener("click", (e) => {
+      if (slide.classList.contains("active")) {
+        // 不阻止
+      } else if (slide.classList.contains("next")) {
+        e.preventDefault();
+        if(!isAnimating) nextSlide();
+      } else if (slide.classList.contains("prev")) {
+        e.preventDefault();
+        if(!isAnimating) prevSlide();
+      }
+    });
+    const exploreBtn = slide.querySelector(".spec1-explore-btn");
+    if (exploreBtn) {
+      exploreBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+      });
+    }
+  });
+
+  // 手机端触摸滑动: 阈值=20px
+  let startX = 0;
+  let isSwiping = false;
+  track.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1 && !isAnimating) {
+      startX = e.touches[0].clientX;
+      isSwiping = true;
+    }
+  }, { passive: true });
+  track.addEventListener("touchmove", () => {}, { passive: true });
+  track.addEventListener("touchend", (e) => {
+    if (!isSwiping) return;
+    isSwiping = false;
+    const endX = e.changedTouches[0].clientX;
+    const distance = endX - startX;
+    if (Math.abs(distance) > 20) {
+      if (distance < 0) nextSlide();
+      else prevSlide();
+    }
+  }, { passive: true });
+
+  function onResize() {
+    isAnimating = false;
+    track.style.transition = "none";
+    updateCarousel(false);
+    setTimeout(() => {
+      track.style.transition = "transform 0.5s ease-in-out";
+    }, 50);
+  }
+  window.addEventListener("resize", onResize);
+
+  track.style.transition = "none";
+  updateCarousel(false);
+  setTimeout(() => {
+    track.style.transition = "transform 0.5s ease-in-out";
+  }, 50);
+
+  if (window.innerWidth <= 768) {
+    prevBtn.style.display = "block";
+    nextBtn.style.display = "block";
+  } else {
+    prevBtn.style.display = "block";// ✅ 让桌面端按钮也可见
+    nextBtn.style.display = "block";// ✅ 让桌面端按钮也可见
+  }
+};
+
+/* ========== 初始化所有功能 ========== */
+document.addEventListener('DOMContentLoaded', () => {
+  initHeroCarousel();
+  initEmailJS();
+  initCompareFeature();
+  initHamburgerMenu();
+  initModalWindows();
+  initInfiniteScroller();
+  initProductImageClick();
+  initFlipCards();
+  initFrameAnimation();
+
+  // 移动端 触摸轮播(若使用):
+  initTouch1CarouselTrack();
+});
+
+/* ========== 在 window.load 后再初始化 spec1 手动轮播 ========== */
+window.addEventListener('load', () => {
+  const spec1Imgs = document.querySelectorAll(".spec1-carousel-slide img");
+  if (spec1Imgs.length > 0) {
+    waitImagesLoaded(spec1Imgs, () => {
+      initspec1ManualCarouselTrack();
+    });
+  }
+});
