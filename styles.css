@@ -923,14 +923,17 @@ list-style: none;
 .vertical-hamburger {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  width: 24px;  /* 宽度 */
-  height: 18px; /* 高度 */
+  justify-content:center; /* ✅ 让 v-bar 在容器内居中 */原 space-between;
+  width: 32px;  /* 宽度 */原24
+  height: 32px; /* 高度 */原18
   cursor: pointer;
+gap: 4px; /* ✅ 增加竖线之间的间距，让视觉更清晰 */原没有
 }
 .vertical-hamburger .v-bar {
-  height: 2px;
+  height: 4px;  /* ✅ 放宽竖条 */原2
+ height: 12px; /* ✅ 放大竖条 */原没有这一项
   background: #333;
+border-radius: 2px; /* ✅ 让竖条稍微圆润，增强视觉美感 */原没有这一项
 }
 .v-bar {
   width: 2px;
@@ -1133,47 +1136,120 @@ main {
 }
 /* ========== 产品轮播 (products.html) ========== */
 /* ========== 轮播图片样式 (单张播放, 高度减少1/3，留白15px) ========== */
-/* ========== 产品轮播 (products.html) ========== *//* custom-slider.css */
+/* ========== 产品轮播 (products.html) ========== *//* custom-slider1.css */
 
 /* ==============================
     📌 轮播整体样式
 ================================ */
-.custom-slider {
-  position: relative;
-  width: calc(100% - 30px);
-  margin: 15px auto 0px;
+/* ==============================
+    📌 轮播容器（slider1）
+================================ */
+/* 📌 轮播容器 */
+.custom-slider1 {
+ position: relative;
+  width: 100%;
+  height: auto; /* ✅ 高度自适应，不再固定 */
+  min-height: 320px; /* ✅ 确保不会被挤压 */
+  margin: 0px auto 0px; /* ✅ 恢复上间距，避免顶部过于紧凑 */
   text-align: center;
-  background: #f5f5f7;
-  padding: 20px 0;
-  border-radius: 12px;
+  padding: 12px 0;原20
+  padding-bottom: 12px; /* ✅ 增加底部间距，防止下方模块挤压 */原60px
 }
 
-/* 轮播图片 */
-.slider-images img {
+/* 📌 轮播图片区域 */
+.slider1-images {
+
+  display: flex;
+  overflow: hidden;
   width: 100%;
-  height: 495px;
+  position: relative;
+}
+
+/* 📌 让每张图片正确显示 */
+.slider1-slide {
+   height:495px;
+    width: 100%;
+  删除flex-shrink零
+  width: 100%;
+  position: relative;
+  text-align: center;
+  display: none; /* 默认隐藏，由 JS 控制 */
+}
+
+/* 📌 仅当前显示的图片可见 */
+.slider1-slide.active {
+  display: block;
+}
+
+/* 📌 让图片填充轮播区域 */
+.slider1-slide img {
+ width: 100%; /* Ensure the image adapts to the container's width */
+    height: auto; /* Maintain the aspect ratio of the images */
   object-fit: cover;
-  border-radius: 10px;
   transition: opacity 0.5s ease-in-out;
+  cursor: pointer;
+}
+
+/* 📌 按钮 + 文字容器 */
+.view1-container {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 10px 15px;
+  border-radius: 25px;
+white-space: nowrap; /* ✅ 确保文本不会换行 */
+  width: auto; /* ✅ 宽度自适应 */
+  max-width: 90%; /* ✅ 防止过长超出屏幕 */
+}
+
+/* 📌 独立按钮 */
+.view1-btn {
+  background: white;
+  color: black;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px; 
+ transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease-in-out; /*  Yuantransitionbackground 0.3s ease-in-out; */
+ white-space: nowrap; /* ✅ 确保按钮内容不会换行 */
+  flex-shrink: 0; /* ✅ 防止按钮因文本变长而缩小 */
+}
+
+.view1-btn:hover {
+  background: lightgray;
+}
+
+/* 📌 右侧文字 */
+.view1-text {
+  font-size: 14px;
+  color: white;
+  font-weight: bold;
+white-space: nowrap; /* ✅ 确保文本不换行 */
+  flex-shrink: 0; /* ✅ 防止文本因容器变长而缩小 */
 }
 
 /* ==============================
-    📌 控制区域（按钮 & 进度条）
+    📌 独立的 按钮 & 进度条容器
 ================================ */
-.slider-controls {
+.slider1-controls-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  background: #f5f5f7;
-  padding: 12px 25px;
-  border-radius: 40px;
-  display: inline-flex;
-  margin-top: -6.5px; /* ✅ 由原来的 10px，改为 -10px，上移 20px */
+  gap: 15px;
+  margin-top: 0px; /* ✅ 确保在轮播容器下方单独一行 */原
 }
 
-/* 播放/暂停/重播 按钮 */
-.slider-btn {
+/* ==============================
+    📌 播放/暂停/刷新 按钮样式
+================================ */
+.slider1-btn {
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -1184,13 +1260,39 @@ main {
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  transition: background-color 0.3s ease-in-out;
+  transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+
+/* 🎯 播放按钮（▶） */
+.slider1-btn.playing {
+  background-color: #4CAF50; /* 绿色，表示正在播放 */
+  color: white;
+  transform: scale(1.1);
+}
+
+/* 🎯 暂停按钮（⏸） */
+.slider1-btn.paused {
+  background-color: #FF9800; /* 橙色，表示暂停 */
+  color: white;
+  transform: scale(1.1);
+}
+
+/* 🎯 刷新按钮（↻） */
+.slider1-btn.refresh {
+  background-color: #2196F3; /* 蓝色，表示播放完成 */
+  color: white;
+  transform: scale(1.1);
+}
+
+/* 📌 按钮悬停效果 */
+.slider1-btn:hover {
+  opacity: 0.8;
 }
 
 /* ==============================
-    📌 进度条
+    📌 进度条 & 小圆点
 ================================ */
-.slider-progress {
+.slider1-progress {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1200,8 +1302,7 @@ main {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-/* 进度条 */
-.progress-bar {
+.slider1-progress-bar {
   height: 6px;
   width: 0%;
   background-color: black;
@@ -1209,15 +1310,13 @@ main {
   transition: width 0.3s linear;
 }
 
-/* ==============================
-    📌 小圆点进度指示器
-================================ */
-.progress-dots {
+/* 📌 小圆点 */
+.slider1-progress-dots {
   display: flex;
   gap: 5px;
 }
 
-.dot {
+.slider1-dot {
   width: 6px;
   height: 6px;
   background-color: lightgray;
@@ -1226,11 +1325,129 @@ main {
   transition: background-color 0.3s, transform 0.3s ease-in-out;
 }
 
-/* 高亮 */
-.dot.active {
+.slider1-dot.active {
   background-color: black;
   transform: scale(1.2);
 }
+
+
+/* ==============================
+    📌 进度条 & 小圆点
+================================ */
+.slider1-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  padding: 6px 20px;
+  border-radius: 30px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.slider1-progress-bar {
+  height: 6px;
+  width: 0%;
+  background-color: black;
+  border-radius: 3px;
+  transition: width 0.3s linear;
+}
+
+/* 📌 小圆点 */
+.slider1-progress-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.slider1-dot {
+  width: 6px;
+  height: 6px;
+  background-color: lightgray;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s ease-in-out;
+}
+
+.slider1-dot.active {
+  background-color: black;
+  transform: scale(1.2);
+}
+
+/* ==============================
+    📌 📱 移动端优化 (max-width: 768px)
+================================ */
+@media (max-width: 768px) {
+  /* 轮播容器调整 */
+  .custom-slider1 {
+    padding: 12px 0;原12px
+    padding-bottom: 6px;原12
+  }
+
+  /* 轮播图片适配小屏幕 */
+  .slider1-slide {
+    height: 495px; /* ✅ 移动端固定高度 */
+  }
+
+  .slider1-slide img {
+    height: 495px; /* ✅ 适配手机端 */
+  }
+
+  /* 适配小屏幕按钮区域 */
+  .view1-container {
+    bottom: 15px; /* ✅ 按钮位置调整 */
+    padding: 8px 12px;
+    gap: 10px;
+white-space: nowrap; /* ✅ 确保文本不会换行 */
+  width: auto; /* ✅ 宽度自适应 */
+  max-width: 90%; /* ✅ 防止过长超出屏幕 */
+  }
+
+  .view1-btn {
+    padding: 6px 12px;
+    font-size: 12px; /* ✅ 按钮字体缩小 */
+ white-space: nowrap; /* ✅ 确保按钮内容不会换行 */
+  flex-shrink: 0; /* ✅ 防止按钮因文本变长而缩小 */
+ transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease-in-out; /*  Yuantransitionbackground 0.3s ease-in-out; */手机端原没有
+  }
+.view1-btn:hover {
+  background: lightgray;
+  }
+  .view1-text {
+    font-size: 12px; /* ✅ 文字大小缩小 */
+ white-space: nowrap; /* ✅ 确保文本不换行 */
+  flex-shrink: 0; /* ✅ 防止文本因容器变长而缩小 */
+  }
+
+  /* 进度条适配 */
+  .slider1-progress {
+    padding: 4px 15px; /* ✅ 调整间距 */
+    border-radius: 20px;
+  }
+
+  .slider1-progress-bar {
+    height: 4px; /* ✅ 进度条更细 */
+  }
+
+  /* 小圆点调整 */
+  .slider1-progress-dots {
+    gap: 3px;
+  }
+
+  .slider1-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .slider1-controls-container {
+    padding: 8px 12px;原15
+  }
+
+  .slider1-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+}
+
 
 /* ========== 轮播图片样式 (单张播放, 高度减少1/3，留白15px) ========== */
 @media (min-width: 1024px) {
