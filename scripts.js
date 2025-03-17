@@ -33,7 +33,7 @@
     a && a.addEventListener("click",()=>{alert("对比功能暂未实现 (预留)！")})
   };
 
-  /* 4) 汉堡菜单 */
+  /* 4) 菜单 */
   const _0x8=function(){
     var a=_0x1('menuIcon'),b=_0x1('mobileNav'),c=_0x1('closeBtn');
     if(!a||!b||!c)return;
@@ -42,7 +42,7 @@
     b.querySelectorAll('ul li a').forEach(d=>{d.addEventListener('click',()=>{b.classList.remove('active')})})
   };
 
-  /* 5) 模态窗口 */
+  /* 5) 窗口 */
   const _0x9=function(){
     _0x3('[data-modal-target]').forEach(a=>{
       a.addEventListener('click',()=>{
@@ -58,7 +58,7 @@
     })
   };
 
-  /* 6) Apple 风格 */
+  /* 6) Apple风  */
   const _0xa=function(){
     var a=_0x1('infiniteScroller'),b=_0x2('.pause-btn');
     if(!a||!b)return;
@@ -237,7 +237,7 @@
     g();
   };
 
-  /* 修复滚动左侧空白闪现 */
+  /* x左侧空白闪现 */
   document.addEventListener("DOMContentLoaded",function(){
     var a=_0x1("infiniteScroller"), b=_0x2(".infinite-scroller-track");
     if(a&&b){ b.style.transform="translateX(0)"; a.innerHTML+=a.innerHTML }
