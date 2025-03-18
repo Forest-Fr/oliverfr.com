@@ -118,161 +118,157 @@ const initModalWindows = () => {
 
 /* 6) 无限滚动 + Apple 风格暂停按钮 */
 <script>
-/* 
-   保留原有 initInfiniteScroller 的核心逻辑（滚动 + 暂停按钮 等），
-   但在 createItem() 时对图片 onload 再测量 offsetWidth，
-   并在加载完成前先 hidden 避免肉眼看到突然闪动。
-*/
+(function(){
+  "use strict";
 
-const initInfiniteScroller = () => {
-  const scroller = document.getElementById('infiniteScroller');
-  const pauseBtn = document.querySelector('.pause-btn');
-  if (!scroller || !pauseBtn) return;
+  // =============================
+  // 1) 核心：无限滚动逻辑
+  // =============================
+  // 只在 #infiniteScroller 存在时才执行
+  // 并且不会对外部变量造成污染
+  function initInfiniteScroller(){
+    const scroller = document.getElementById('infiniteScroller');
+    const pauseBtn = document.querySelector('.pause-btn'); // 或 .pause-btn
+    if(!scroller || !pauseBtn) return;
 
-  const images = [
-    "A peaceful brookside setting.png",
-    "A scenic riverside bend.png",
-    "A serene coastal shore.png",
-    "A shaded forest path.png"
-  ];
+    const images = [
+      "A peaceful brookside setting.png",
+      "A scenic riverside bend.png",
+      "A serene coastal shore.png",
+      "A shaded forest path.png"
+    ];
 
-  let isPaused = false;
-  let speed = 0.3; // 滚动速度(像素/帧)，可视情况微调
-  let lastTimestamp = 0;
-  let itemsOnScreen = [];
-  let track;
+    let isPaused = false;
+    let speed = 0.3;  // 滚动速度(像素/帧)
+    let lastTimestamp = 0;
+    let itemsOnScreen = [];
+    let track = null;
 
-  // 如果已存在 .infinite-scroller-track，说明已初始化过，直接跳过
-  if (scroller.querySelector('.infinite-scroller-track')) {
-    return;
-  }
-
-  // 创建滚动轨道
-  track = document.createElement('div');
-  track.className = 'infinite-scroller-track';
-  track.style.display = 'flex';
-  track.style.position = 'relative';
-  track.style.transform = 'translateX(0)';
-  scroller.appendChild(track);
-
-  // 先插入两倍内容，保证无缝循环
-  for (let i = 0; i < 2; i++) {
-    images.forEach(src => createItem(src));
-  }
-
-  function createItem(imageSrc) {
-    // 先创建容器
-    const imgContainer = document.createElement('div');
-    imgContainer.className = 'infinite-scroller-item';
-    imgContainer.style.position = 'absolute';
-    // 初始 visibility: hidden，等加载并测量完再显示
-    imgContainer.style.visibility = 'hidden';
-
-    // 创建 <img>
-    const img = new Image();
-    img.src = imageSrc;
-    img.alt = imageSrc;
-    img.style.width = '100%'; 
-    img.style.objectFit = 'cover';
-
-    // 监听图片加载
-    img.onload = () => {
-      // 强制一次 reflow
-      const actualWidth = imgContainer.offsetWidth;
-      // 计算 left 位置
-      //   若 itemsOnScreen 数组为空 => x=0
-      //   否则 => x = (上一个item.x + 上一个item.width)
-      const offsetX = (itemsOnScreen.length === 0)
-        ? 0
-        : (itemsOnScreen[itemsOnScreen.length - 1].x +
-           itemsOnScreen[itemsOnScreen.length - 1].width);
-
-      imgContainer.style.left = offsetX + 'px';
-      imgContainer.style.visibility = 'visible'; // 加载完后再显示
-
-      const itemObj = {
-        el: imgContainer,
-        x: offsetX,
-        width: actualWidth || 300  // 若拿到0，可给个默认300
-      };
-      itemsOnScreen.push(itemObj);
-    };
-
-    // 把 img 加进去
-    imgContainer.appendChild(img);
-    track.appendChild(imgContainer);
-  }
-
-  function animate(timestamp) {
-    if (!isPaused) {
-      const delta = timestamp - lastTimestamp;
-      lastTimestamp = timestamp;
-      // 根据上一帧到这一帧的时间差 delta，计算实际移动距离
-      const moveDist = speed * (delta / 16.67);
-
-      for (let i = 0; i < itemsOnScreen.length; i++) {
-        const item = itemsOnScreen[i];
-        item.x -= moveDist;
-        item.el.style.left = item.x + 'px';
-      }
-
-      // 判断是否要补新图
-      const lastItem = itemsOnScreen[itemsOnScreen.length - 1];
-      if (lastItem.x + lastItem.width < window.innerWidth + 100) {
-        // 数组长度%images.length => 下一个要用的图片
-        createItem(images[itemsOnScreen.length % images.length]);
-      }
+    // 防止与其它脚本重复创建
+    if(scroller.querySelector('.infinite-scroller-track')){
+      return;
     }
+
+    track = document.createElement('div');
+    track.className = 'infinite-scroller-track';
+    track.style.display = 'flex';
+    track.style.position = 'relative';
+    track.style.transform = 'translateX(0)';
+    scroller.appendChild(track);
+
+    // 插入两倍图片，以便无缝循环
+    for(let i=0; i<2; i++){
+      images.forEach(src => createItem(src));
+    }
+
+    function createItem(imageSrc){
+      const imgContainer = document.createElement('div');
+      imgContainer.className = 'infinite-scroller-item';
+      // 初始 visibility: hidden，等图片加载完后再显示
+      imgContainer.style.position = 'absolute';
+      imgContainer.style.visibility = 'hidden';
+
+      const img = new Image();
+      img.src = imageSrc;
+      img.alt = imageSrc;
+      img.style.width = '100%';
+      img.style.objectFit = 'cover';
+
+      img.onload = function(){
+        // 强制一次 reflow，以拿到正确的 offsetWidth
+        const actualWidth = imgContainer.offsetWidth;
+        // 计算 left
+        const offsetX = itemsOnScreen.length === 0
+          ? 0
+          : itemsOnScreen[itemsOnScreen.length - 1].x +
+            itemsOnScreen[itemsOnScreen.length - 1].width;
+
+        imgContainer.style.left = offsetX + 'px';
+        imgContainer.style.visibility = 'visible';
+
+        const itemObj = {
+          el: imgContainer,
+          x: offsetX,
+          width: actualWidth || 300 // 如果0就给默认300
+        };
+        itemsOnScreen.push(itemObj);
+      };
+
+      imgContainer.appendChild(img);
+      track.appendChild(imgContainer);
+    }
+
+    function animate(timestamp){
+      if(!isPaused){
+        const delta = timestamp - lastTimestamp;
+        lastTimestamp = timestamp;
+        // 每16.67ms视为1帧
+        const moveDist = speed * (delta / 16.67);
+
+        itemsOnScreen.forEach(item => {
+          item.x -= moveDist;
+          item.el.style.left = item.x + 'px';
+        });
+
+        const lastItem = itemsOnScreen[itemsOnScreen.length - 1];
+        if(lastItem.x + lastItem.width < window.innerWidth + 100){
+          // 新增下一张图
+          createItem(images[ itemsOnScreen.length % images.length ]);
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    // 绑定暂停/播放按钮
+    pauseBtn.classList.remove('paused');
+    pauseBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      pauseBtn.classList.toggle('paused');
+    });
+
     requestAnimationFrame(animate);
   }
 
-  // 绑定暂停/播放按钮
-  pauseBtn.classList.remove('paused');
-  pauseBtn.addEventListener('click', () => {
-    isPaused = !isPaused;
-    pauseBtn.classList.toggle('paused');
+  // =============================
+  // 2) 额外：若脚本里还有 scroller.innerHTML += ...
+  // =============================
+  // 可做一次判断，防止重复插入
+  function handleExtraDuplicate(){
+    const scroller = document.getElementById("infiniteScroller");
+    const track = scroller ? scroller.querySelector(".infinite-scroller-track") : null;
+    if(scroller && !track){
+      // 原脚本中 “scroller.innerHTML += scroller.innerHTML;”
+      scroller.innerHTML += scroller.innerHTML;
+      scroller.style.overflow = "hidden";
+    }
+    if(track){
+      track.style.transform = "translateX(0)";
+    }
+  }
+
+  // =============================
+  // 3) DOMContentLoaded 事件，统一初始化
+  // =============================
+  document.addEventListener('DOMContentLoaded', function(){
+    // 先处理可能的重复插入
+    handleExtraDuplicate();
+    // 再初始化无限滚动
+    initInfiniteScroller();
+
+    // 如果还有一个 #pauseBtn 供外部控制
+    const scrollerEl = document.getElementById("infiniteScroller");
+    const pauseBtnEl = document.getElementById("pauseBtn");
+    if(pauseBtnEl && scrollerEl){
+      let paused = false;
+      pauseBtnEl.addEventListener("click", function(){
+        paused = !paused;
+        scrollerEl.style.animationPlayState = paused ? "paused" : "running";
+        pauseBtnEl.textContent = paused ? "▶" : "❚❚";
+      });
+      pauseBtnEl.textContent = "❚❚";
+    }
   });
-
-  // 启动动画
-  requestAnimationFrame(animate);
-};
-
-
-/*
-  DOMContentLoaded时，如果还想做 scroller.innerHTML += scroller.innerHTML，
-  可再加一个逻辑判断。若 scroller 内还没 .infinite-scroller-track，
-  才执行 +=。避免重复插入。
-*/
-
-document.addEventListener('DOMContentLoaded', function() {
-  const scroller = document.getElementById('infiniteScroller');
-  const track = document.querySelector('.infinite-scroller-track');
-  if (scroller && !track) {
-    scroller.innerHTML += scroller.innerHTML;
-  }
-
-  // 再次确保 track.transform=0
-  if (track) {
-    track.style.transform = 'translateX(0)';
-  }
-
-  // 如果你的页面里还有 #pauseBtn
-  const pauseBtnEl = document.getElementById('pauseBtn');
-  if (pauseBtnEl && scroller) {
-    let paused = false;
-    pauseBtnEl.addEventListener('click', function() {
-      paused = !paused;
-      scroller.style.animationPlayState = paused ? 'paused' : 'running';
-      pauseBtnEl.textContent = paused ? '▶' : '❚❚';
-    });
-    pauseBtnEl.textContent = '❚❚';
-  }
-});
-
-// 再专门执行 initInfiniteScroller
-document.addEventListener('DOMContentLoaded', function() {
-  initInfiniteScroller();
-});
+})();
 </script>
 
 
