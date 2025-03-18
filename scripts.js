@@ -117,7 +117,6 @@ const initModalWindows = () => {
 };
 
 /* 6) 无限滚动 + Apple 风格暂停按钮 */
-<script>
 (function(){
   "use strict";
 
@@ -269,7 +268,6 @@ const initModalWindows = () => {
     }
   });
 })();
-</script>
 
 
 /* 7) 图片点击跳转 */
