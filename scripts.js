@@ -1,21 +1,23 @@
-/*************************************************** 
- * scripts.js
- * 
- * 1. Hero轮播：全屏 100vh (PC端)，自动切换
+<script>
+/***************************************************
+ * scripts.js (整合版)
+ * -----------------------------------------------
+ * 1. Hero轮播：全屏 100vh (PC端) 自动切换
  * 2. EmailJS表单提交
- * 3. 预留更多JS功能(对比按钮、3D旋转、在线聊天)
- * 4. 汉堡菜单逻辑：支持全屏子窗口显示和关闭
- * 5. 模态窗口逻辑：点击后可打开/关闭子级界面
- * 6. (优化) 无限滚动逻辑 + Apple 风格暂停按钮 (使用 CSS 伪元素显示符号)
- * 7. (新增) 图片点击跳转至产品详情页面
- * 8. (新增) 翻转卡片功能：正面与反面切换
- * 9. (优化) 帧动画：滚动触发 + 平滑渐变 + 播放/暂停按钮
- * 10. **slider1 轮播** (新增, 具有进度条和播放/暂停按钮)
- * 11. touch1轮播
+ * 3. 对比按钮(预留)
+ * 4. 汉堡菜单逻辑
+ * 5. 模态窗口
+ * 6. 无限滚动(独立IIFE) + 暂停按钮
+ * 7. 图片点击跳转
+ * 8. 翻转卡片
+ * 9. 帧动画(滚动触发 + 播放/暂停)
+ * 10. slider1 轮播
+ * 11. touch1 轮播
  ***************************************************/
 
-/* 1) 轮播功能 */
-const initHeroCarousel = () => {
+
+/* ========== 1) Hero轮播功能 ========== */
+function initHeroCarousel() {
   const heroSlides = document.getElementById('hero-slides');
   const dots = document.querySelectorAll('.hero-dots .dot');
   if (!heroSlides || dots.length === 0) return;
@@ -42,10 +44,11 @@ const initHeroCarousel = () => {
   });
 
   setInterval(updateSlide, 5000);
-};
+}
 
-/* 2) EmailJS 表单提交 */
-const initEmailJS = () => {
+
+/* ========== 2) EmailJS 表单提交 ========== */
+function initEmailJS() {
   if (typeof emailjs === 'undefined') return;
   emailjs.init("HXCThZROMytOt-wyp");
 
@@ -64,20 +67,22 @@ const initEmailJS = () => {
         });
     });
   }
-};
+}
 
-/* 3) 预留对比按钮 */
-const initCompareFeature = () => {
+
+/* ========== 3) 预留对比按钮 ========== */
+function initCompareFeature() {
   const compareBtn = document.querySelector(".compare-features .btn");
   if (compareBtn) {
     compareBtn.addEventListener("click", () => {
       alert("对比功能暂未实现 (预留)！");
     });
   }
-};
+}
 
-/* 4) 汉堡菜单 */
-const initHamburgerMenu = () => {
+
+/* ========== 4) 汉堡菜单 ========== */
+function initHamburgerMenu() {
   const menuIcon = document.getElementById('menuIcon');
   const mobileNav = document.getElementById('mobileNav');
   const closeBtn = document.getElementById('closeBtn');
@@ -97,10 +102,11 @@ const initHamburgerMenu = () => {
       mobileNav.classList.remove('active');
     });
   });
-};
+}
 
-/* 5) 模态窗口 */
-const initModalWindows = () => {
+
+/* ========== 5) 模态窗口 ========== */
+function initModalWindows() {
   document.querySelectorAll('[data-modal-target]').forEach(trigger => {
     trigger.addEventListener('click', () => {
       const modal = document.querySelector(trigger.getAttribute('data-modal-target'));
@@ -114,20 +120,22 @@ const initModalWindows = () => {
       if (parentModal) parentModal.classList.remove('active');
     });
   });
-};
+}
 
-/* 6) 无限滚动 + Apple 风格暂停按钮 */
+
+/* 
+  ========== 6) 无限滚动 + Apple 风格暂停按钮 ==========
+
+  用 IIFE 封装, 暴露 initInfiniteScroller() 到 window, 
+  以防止和其它脚本同名冲突
+*/
 (function(){
   "use strict";
 
-  // =============================
-  // 1) 核心：无限滚动逻辑
-  // =============================
-  // 只在 #infiniteScroller 存在时才执行
-  // 并且不会对外部变量造成污染
-  function initInfiniteScroller(){
+  // 对外公开
+  window.initInfiniteScroller = function(){
     const scroller = document.getElementById('infiniteScroller');
-    const pauseBtn = document.querySelector('.pause-btn'); // 或 .pause-btn
+    const pauseBtn = document.querySelector('.pause-btn');
     if(!scroller || !pauseBtn) return;
 
     const images = [
@@ -138,16 +146,17 @@ const initModalWindows = () => {
     ];
 
     let isPaused = false;
-    let speed = 0.3;  // 滚动速度(像素/帧)
+    let speed = 0.3;  
     let lastTimestamp = 0;
     let itemsOnScreen = [];
     let track = null;
 
-    // 防止与其它脚本重复创建
+    // 防止重复
     if(scroller.querySelector('.infinite-scroller-track')){
       return;
     }
 
+    // 创建轨道
     track = document.createElement('div');
     track.className = 'infinite-scroller-track';
     track.style.display = 'flex';
@@ -155,7 +164,7 @@ const initModalWindows = () => {
     track.style.transform = 'translateX(0)';
     scroller.appendChild(track);
 
-    // 插入两倍图片，以便无缝循环
+    // 插入双倍图片
     for(let i=0; i<2; i++){
       images.forEach(src => createItem(src));
     }
@@ -163,7 +172,6 @@ const initModalWindows = () => {
     function createItem(imageSrc){
       const imgContainer = document.createElement('div');
       imgContainer.className = 'infinite-scroller-item';
-      // 初始 visibility: hidden，等图片加载完后再显示
       imgContainer.style.position = 'absolute';
       imgContainer.style.visibility = 'hidden';
 
@@ -174,23 +182,18 @@ const initModalWindows = () => {
       img.style.objectFit = 'cover';
 
       img.onload = function(){
-        // 强制一次 reflow，以拿到正确的 offsetWidth
-        const actualWidth = imgContainer.offsetWidth;
-        // 计算 left
-        const offsetX = itemsOnScreen.length === 0
+        const w = imgContainer.offsetWidth; 
+        const offsetX = (itemsOnScreen.length===0)
           ? 0
-          : itemsOnScreen[itemsOnScreen.length - 1].x +
-            itemsOnScreen[itemsOnScreen.length - 1].width;
-
+          : (itemsOnScreen[itemsOnScreen.length-1].x + 
+             itemsOnScreen[itemsOnScreen.length-1].width);
         imgContainer.style.left = offsetX + 'px';
         imgContainer.style.visibility = 'visible';
-
-        const itemObj = {
+        itemsOnScreen.push({
           el: imgContainer,
           x: offsetX,
-          width: actualWidth || 300 // 如果0就给默认300
-        };
-        itemsOnScreen.push(itemObj);
+          width: w||300
+        });
       };
 
       imgContainer.appendChild(img);
@@ -201,87 +204,61 @@ const initModalWindows = () => {
       if(!isPaused){
         const delta = timestamp - lastTimestamp;
         lastTimestamp = timestamp;
-        // 每16.67ms视为1帧
-        const moveDist = speed * (delta / 16.67);
+        const moveDist = speed * (delta/16.67);
 
-        itemsOnScreen.forEach(item => {
+        itemsOnScreen.forEach(item=>{
           item.x -= moveDist;
           item.el.style.left = item.x + 'px';
         });
 
-        const lastItem = itemsOnScreen[itemsOnScreen.length - 1];
-        if(lastItem.x + lastItem.width < window.innerWidth + 100){
-          // 新增下一张图
+        const lastItem = itemsOnScreen[itemsOnScreen.length-1];
+        if(lastItem.x + lastItem.width < window.innerWidth+100){
           createItem(images[ itemsOnScreen.length % images.length ]);
         }
       }
       requestAnimationFrame(animate);
     }
 
-    // 绑定暂停/播放按钮
+    // 暂停按钮
     pauseBtn.classList.remove('paused');
-    pauseBtn.addEventListener('click', () => {
+    pauseBtn.addEventListener('click', ()=>{
       isPaused = !isPaused;
       pauseBtn.classList.toggle('paused');
     });
 
     requestAnimationFrame(animate);
-  }
+  };
 
-  // =============================
-  // 2) 额外：若脚本里还有 scroller.innerHTML += ...
-  // =============================
-  // 可做一次判断，防止重复插入
-  function handleExtraDuplicate(){
+  // 若原脚本有 scroller.innerHTML += scroller.innerHTML; 
+  // 在这里加个检查
+  window.handleExtraDuplicate = function(){
     const scroller = document.getElementById("infiniteScroller");
-    const track = scroller ? scroller.querySelector(".infinite-scroller-track") : null;
+    const track = scroller? scroller.querySelector(".infinite-scroller-track"): null;
     if(scroller && !track){
-      // 原脚本中 “scroller.innerHTML += scroller.innerHTML;”
       scroller.innerHTML += scroller.innerHTML;
-      scroller.style.overflow = "hidden";
+      scroller.style.overflow="hidden";
     }
     if(track){
-      track.style.transform = "translateX(0)";
+      track.style.transform="translateX(0)";
     }
-  }
+  };
 
-  // =============================
-  // 3) DOMContentLoaded 事件，统一初始化
-  // =============================
-  document.addEventListener('DOMContentLoaded', function(){
-    // 先处理可能的重复插入
-    handleExtraDuplicate();
-    // 再初始化无限滚动
-    initInfiniteScroller();
-
-    // 如果还有一个 #pauseBtn 供外部控制
-    const scrollerEl = document.getElementById("infiniteScroller");
-    const pauseBtnEl = document.getElementById("pauseBtn");
-    if(pauseBtnEl && scrollerEl){
-      let paused = false;
-      pauseBtnEl.addEventListener("click", function(){
-        paused = !paused;
-        scrollerEl.style.animationPlayState = paused ? "paused" : "running";
-        pauseBtnEl.textContent = paused ? "▶" : "❚❚";
-      });
-      pauseBtnEl.textContent = "❚❚";
-    }
-  });
 })();
 
 
-/* 7) 图片点击跳转 */
-const initProductImageClick = () => {
+/* ========== 7) 图片点击跳转 ========== */
+function initProductImageClick() {
   document.querySelectorAll('.product-card img').forEach(image => {
     image.addEventListener('click', () => {
       const productPage = image.alt.toLowerCase().replace(/\s+/g, '-') + ".html";
       window.location.href = productPage;
     });
   });
-};
+}
 
-/* 8) 翻转卡片 */
-const initFlipCards = () => {
+
+/* ========== 8) 翻转卡片功能 ========== */
+function initFlipCards() {
   document.querySelectorAll('.flip-btn-front').forEach(flipBtn => {
     flipBtn.addEventListener('click', () => {
       flipBtn.closest('.card').style.transform = 'rotateY(180deg)';
@@ -293,10 +270,11 @@ const initFlipCards = () => {
       closeBtn.closest('.card').style.transform = 'rotateY(0deg)';
     });
   });
-};
+}
 
-/* 9) 帧动画：滚动触发 + 平滑渐变 + 播放/暂停按钮 */
-const initFrameAnimation = () => {
+
+/* ========== 9) 帧动画 ========== */
+function initFrameAnimation() {
   const canvas = document.getElementById('animationCanvas');
   const ctx = canvas?.getContext('2d');
   if (!canvas || !ctx) return;
@@ -312,7 +290,7 @@ const initFrameAnimation = () => {
   let isPlaying = true;
   let alpha = 0;
   let fadeSpeed = 0.02;
-  let frameInterval = 1000 / 24; // 24 FPS
+  let frameInterval = 1000 / 24; 
   let lastFrameTime = 0;
   let imagesLoaded = 0;
 
@@ -321,24 +299,18 @@ const initFrameAnimation = () => {
 
   let lastScrollTop = 0;
 
-  // 加载图片
   images.forEach((src, index) => {
     const img = new Image();
     img.src = src;
     img.onload = () => {
       imageObjects[index] = img;
       imagesLoaded++;
-      console.log(`✅ 加载成功: ${src}`);
-
-      // 首张加载完后启动
       if (imagesLoaded === 1) {
         requestAnimationFrame(drawFrame);
       }
     };
-    img.onerror = () => console.error(`❌ 图片加载失败: ${src}`);
   });
 
-  // 适配 canvas 尺寸
   function resizeCanvas() {
     const aspectRatio = 16 / 9;
     const isDesktop = window.innerWidth >= 1024;
@@ -354,13 +326,10 @@ const initFrameAnimation = () => {
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 
-  // 核心绘制
   function drawFrame(timestamp) {
-    if (!isPlaying || imagesLoaded === 0) return;
-
+    if (!isPlaying || imagesLoaded===0) return;
     if (timestamp - lastFrameTime > frameInterval) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       let nextFrameIndex = (frameIndex + 1) % images.length;
 
       if (imageObjects[frameIndex]) {
@@ -382,13 +351,11 @@ const initFrameAnimation = () => {
     requestAnimationFrame(drawFrame);
   }
 
-  // cover 适配
   function drawImageCover(ctx, img) {
     const canvasRatio = canvas.width / canvas.height;
     const imgRatio = img.width / img.height;
 
     let drawWidth, drawHeight, offsetX, offsetY;
-
     if (imgRatio > canvasRatio) {
       drawHeight = canvas.height * 0.9;
       drawWidth = img.width * (drawHeight / img.height);
@@ -403,21 +370,20 @@ const initFrameAnimation = () => {
     ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
   }
 
-  // 播放/暂停按钮
   playPauseButton?.addEventListener('click', () => {
     isPlaying = !isPlaying;
     playPauseButton.textContent = isPlaying ? "❚❚" : "▶";
     if (isPlaying) requestAnimationFrame(drawFrame);
   });
 
-  // DOM 加载后，立即开始
   window.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(drawFrame);
   });
-};
-/*10 ========== 9) slider1 轮播功能 ========== */
-document.addEventListener("DOMContentLoaded", () => {
-  // 移除内联 onclick 属性，避免重复触发
+}
+
+
+/* ========== 10) slider1 轮播功能 ========== */
+function initSlider1(){
   document.querySelectorAll(".slider1-slide img, .view1-btn").forEach(el => {
     el.removeAttribute("onclick");
   });
@@ -432,22 +398,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const slideImages = document.querySelectorAll(".slider1-slide img");
 
   let currentIndex = 0;
-  let isPlaying = true; // 初始状态：自动播放
+  let isPlaying = true;
   let animationFrame;
   let startTime;
-  const duration = 3000; // 轮播间隔
+  const duration = 3000;
 
   if (!slides.length || !slider1PlayButton || !slider1BtnIcon || !slider1Dots.length) {
     console.warn("❌ initSlider1: 轮播元素未找到！");
     return;
   }
 
-  // 跳转到预期页面，始终按 "_blank" 在新窗口打开
   function navigateToPage() {
     window.open("example.html", "_blank");
   }
 
-  // 给“Taking in the view”按钮添加事件监听
   viewButtons.forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -456,7 +420,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // 给幻灯片中的图片添加事件监听
   slideImages.forEach(img => {
     img.addEventListener("click", (e) => {
       e.preventDefault();
@@ -465,7 +428,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // 更新幻灯片与控制按钮状态
   function updateSlide(index) {
     currentIndex = index;
     slides.forEach((slide, i) => {
@@ -477,7 +439,6 @@ document.addEventListener("DOMContentLoaded", () => {
     viewText.textContent = slides[currentIndex].querySelector("img").alt;
   }
 
-  // 进度条动画
   function animateProgressBar(timestamp) {
     if (!startTime) startTime = timestamp;
     let elapsed = timestamp - startTime;
@@ -490,7 +451,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 切换到下一张幻灯片
   function nextSlide() {
     if (currentIndex < slides.length - 1) {
       currentIndex++;
@@ -501,18 +461,15 @@ document.addEventListener("DOMContentLoaded", () => {
         animationFrame = requestAnimationFrame(animateProgressBar);
       }
     } else {
-      // 播放结束，切换按钮样式为刷新
       isPlaying = false;
       slider1BtnIcon.textContent = "↻";
-      slider1PlayButton.classList.remove("playing", "paused");
+      slider1PlayButton.classList.remove("playing","paused");
       slider1PlayButton.classList.add("refresh");
     }
   }
 
-  // 切换播放/暂停/刷新状态
   function togglePlayPause() {
     if (!isPlaying) {
-      // 点击刷新后重新播放
       isPlaying = true;
       currentIndex = 0;
       updateSlide(currentIndex);
@@ -522,7 +479,6 @@ document.addEventListener("DOMContentLoaded", () => {
       startTime = null;
       animationFrame = requestAnimationFrame(animateProgressBar);
     } else {
-      // 播放中点击暂停
       isPlaying = false;
       cancelAnimationFrame(animationFrame);
       slider1BtnIcon.textContent = "▶";
@@ -531,127 +487,92 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 监听底部圆点点击
   slider1Dots.forEach((dot, index) => {
     dot.addEventListener("click", () => {
       updateSlide(index);
       isPlaying = false;
       cancelAnimationFrame(animationFrame);
       slider1BtnIcon.textContent = "▶";
-      slider1PlayButton.classList.remove("playing", "refresh");
+      slider1PlayButton.classList.remove("playing","refresh");
       slider1PlayButton.classList.add("paused");
     });
   });
 
-  // 监听播放/暂停按钮点击
   slider1PlayButton.addEventListener("click", togglePlayPause);
 
-  // 启动自动播放
   updateSlide(0);
   requestAnimationFrame(animateProgressBar);
-});
+}
 
 
-
-//*11
-document.addEventListener("DOMContentLoaded", function () {
-    // 获取轮播轨道和所有幻灯片
-    const track = document.querySelector(".touch1-carousel-track");
-    const slides = Array.from(document.querySelectorAll(".touch1-carousel-slide"));
-    // 获取左右控制按钮（单独设置在一个容器内）
-    const prevBtn = document.querySelector(".touch1-prev-btn");
-    const nextBtn = document.querySelector(".touch1-next-btn");
-    
-    // 当前幻灯片索引，从 0 开始
-    let currentIndex = 0;
-    // 每张幻灯片宽度为615px，加上幻灯片之间15px的间隙
-    const slideWidthWithGap = 615+ 15;
-    
-    // 更新轮播显示与按钮状态
-    function updateCarousel() {
-        // 平滑过渡：设置 track 的 transform
-        track.style.transform = `translateX(-${currentIndex * slideWidthWithGap}px)`;
-        
-        // 当在第一张时禁用左按钮，否则启用
-        if (currentIndex === 0) {
-            prevBtn.disabled = true;
-        } else {
-            prevBtn.disabled = false;
-        }
-        
-        // 当在最后一张时禁用右按钮，否则启用
-        if (currentIndex === slides.length - 1) {
-            nextBtn.disabled = true;
-        } else {
-            nextBtn.disabled = false;
-        }
-    }
-    
-    // 左按钮点击事件
-    prevBtn.addEventListener("click", function () {
-        if (currentIndex > 0) {
-            currentIndex--;
-            updateCarousel();
-        }
-    });
-    
-    // 右按钮点击事件
-    nextBtn.addEventListener("click", function () {
-        if (currentIndex < slides.length - 1) {
-            currentIndex++;
-            updateCarousel();
-        }
-    });
-    
-    // 初始化轮播
-    updateCarousel();
-});
-
-/* ========== 初始化所有功能 ========== */
-document.addEventListener('DOMContentLoaded', () => {
-  initHeroCarousel();
-  initEmailJS();
-  initCompareFeature();
-  initHamburgerMenu();
-  initModalWindows();
-  initInfiniteScroller();
-  initProductImageClick();
-  initFlipCards();
-  initFrameAnimation();
-initSlider1(); // **初始化 slider1 轮播**
-  initTouch1CarouselTrack();// 这行保证了轮播图的初始化
-});
-document.addEventListener("DOMContentLoaded", function () {
+/* ========== 11) touch1 轮播 ========== */
+function initTouch1CarouselTrack(){
   const track = document.querySelector(".touch1-carousel-track");
   const slides = Array.from(track.children);
   const prevBtn = document.querySelector(".touch1-prev-btn");
   const nextBtn = document.querySelector(".touch1-next-btn");
+  if(!track || !slides.length || !prevBtn || !nextBtn) return;
 
   let currentIndex = 0;
   const totalSlides = slides.length;
-  // 615px(图片) + 15px(gap) = 630px
-  const slideWidth =615 + 15;
+  const slideWidth = 615 + 15; // 615px(图片) + 15px(gap)
 
   function updateCarousel() {
     track.style.transform = `translateX(-${currentIndex * slideWidth}px)`;
-    prevBtn.disabled = (currentIndex === 0);
-    nextBtn.disabled = (currentIndex === totalSlides - 1);
+    prevBtn.disabled = (currentIndex===0);
+    nextBtn.disabled = (currentIndex=== totalSlides -1);
   }
 
-  prevBtn.addEventListener("click", () => {
-    if (currentIndex > 0) {
+  prevBtn.addEventListener("click", ()=>{
+    if(currentIndex>0){
       currentIndex--;
       updateCarousel();
     }
   });
 
-  nextBtn.addEventListener("click", () => {
-    if (currentIndex < totalSlides - 1) {
+  nextBtn.addEventListener("click", ()=>{
+    if(currentIndex< totalSlides-1){
       currentIndex++;
       updateCarousel();
     }
   });
 
-  // 初始化
   updateCarousel();
+}
+
+
+/* ========== (最后) 在 DOMContentLoaded 时统一初始化 ========== */
+document.addEventListener('DOMContentLoaded', () => {
+  // 1) Hero
+  initHeroCarousel();
+  // 2) EmailJS
+  initEmailJS();
+  // 3) Compare
+  initCompareFeature();
+  // 4) Hamburger
+  initHamburgerMenu();
+  // 5) Modal
+  initModalWindows();
+
+  // (先检查 scroller.innerHTML += scroller.innerHTML)
+  if(typeof window.handleExtraDuplicate === 'function'){
+    window.handleExtraDuplicate();
+  }
+  // 然后执行无限滚动
+  if(typeof window.initInfiniteScroller === 'function'){
+    window.initInfiniteScroller();
+  }
+
+  // 7) 图片点击
+  initProductImageClick();
+  // 8) 翻转卡片
+  initFlipCards();
+  // 9) 帧动画
+  initFrameAnimation();
+  // 10) slider1
+  initSlider1();
+  // 11) touch1
+  initTouch1CarouselTrack();
 });
+
+</script>
