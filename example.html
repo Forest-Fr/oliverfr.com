@@ -387,27 +387,31 @@ backdrop-filter:blur(20px);
 /* === 外部容器，控制整体布局和露出左右部分 === */
 
 .section2-highlights {
-  width: 100%;
-  max-width: 100%;
-  padding: 0 10%; /* 两侧留白 */  /* 上下12px，左右留出空间以露出部分左右图padding12px 60px; */
-  margin: 0 auto;
-  box-sizing: border-box;
-  background: #f9f9f9;
-  overflow: hidden;
-  position: relative;
+ position: relative;
+    width: 100%;
+    height: 520px; /* 固定高度 */
+    overflow: hidden;
+    margin: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 10%; /* 两侧留白 */
 margin-top:5px;
 Margin-bottom:100px;调按钮距离下方位置
 }
 
 /* === 轨道容器：横向滚动布局，图片横排 === */
 .section2-carousel {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+   width: 100%; /* Ensure the image adapts to the container's width */
+    height: auto; /* Maintain the aspect ratio of the images */
+    display: block;
+    border-radius: 10px;
+    filter: none !important;
+    opacity: 1 !important;
 }
 
 .section2-track {
-  display: flex;
+display: flex;
   gap: 15px; /* 每张图之间的间距 */
   transition: transform 0.5s ease-in-out;
   will-change: transform;
@@ -548,46 +552,43 @@ z-index:999;
     }
  @media (max-width: 768px) {
   .section2-highlights {
-    margin-top: 12px;
-    margin-bottom: 13px;
-    position: relative;
-  }
-  .demo1-carousel-container {
     width: 100vw;
-    /* 左右内边距 = (100vw - 85vw)/2 */
     padding-left: calc((100vw - 85vw) / 2);
     padding-right: calc((100vw - 85vw) / 2);
   overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
     margin: 0 auto;
   position: relative !important;
+margin-top:5px;
+Margin-bottom:100px;调按钮距离下方位置
   }
 .section2-highlights::-webkit-scrollbar {
     display: none;
   }
   .section2-carousel {
-     display: flex;
-    gap: 15px;
-    align-items: center;
-    /* 保留 transform 过渡（若脚本依然用 transform 切换） */
-    transition: transform 0.5s ease-in-out;
+    width: 100%; /* Ensure the image adapts to the container's width */
+    height: auto; /* Maintain the aspect ratio of the images */
+    display: block;
+    border-radius: 10px;
+    filter: none !important;
+    opacity: 1 !important;
   }
 
   .section2-track {
+   display: flex;
+  gap: 15px; /* 每张图之间的间距 */
+  transition: transform 0.5s ease-in-out;
+  will-change: transform;
+  justify-content: flex-start;
+  }
+
+  .section2-track img {
     flex: 0 0 auto;
-    width:85vw;
+   width:85vw;
     aspect-ratio: 9 / 16;/* 宽高比例9:16 */
     scroll-snap-align: center;
     overflow: hidden;
     position: relative;
-  }
-
-  .section2-track img {
-   width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    filter: none !important;
-    opacity: 1 !important;
+  border-radius: 16px;
   }
 }
 
@@ -2682,27 +2683,6 @@ window.addEventListener("scroll", function () {
   })();
 
 }); 
-(function () {
-  const mobileNav = document.getElementById("mobileNav");
-  const mobileAirNav = document.getElementById("mobileAirNav");
-
-  // 当新导航出现时强制隐藏原 mobileNav，避免重叠
-  const observer = new MutationObserver(() => {
-    if (mobileAirNav.classList.contains("active")) {
-      mobileNav.classList.remove("active");
-    }
-  });
-
-  if (mobileAirNav) {
-    observer.observe(mobileAirNav, { attributes: true, attributeFilter: ["class"] });
-  }
-})();
-
-
-
-// ← 只保留一次 DOMContentLoaded
-</script>
-
 
 
 </script>
