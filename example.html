@@ -548,45 +548,46 @@ z-index:999;
     }
  @media (max-width: 768px) {
   .section2-highlights {
-    width: 100vw;
-    padding-left: calc((100vw - 1013px) / 2);
-    padding-right: calc((100vw - 1013px) / 2);
-    margin: 60px auto 70px auto; /* ✅ 上下间距 */
-    box-sizing: border-box;
-    background: #f9f9f9;
-    overflow: hidden;
+    margin-top: 12px;
+    margin-bottom: 13px;
     position: relative;
+  }
+  .demo1-carousel-container {
+    width: 100vw;
+    /* 左右内边距 = (100vw - 85vw)/2 */
+    padding-left: calc((100vw - 85vw) / 2);
+    padding-right: calc((100vw - 85vw) / 2);
+  overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
+    margin: 0 auto;
+  position: relative !important;
   }
 .section2-highlights::-webkit-scrollbar {
     display: none;
   }
   .section2-carousel {
-    display: flex;
-    align-items: center;
+     display: flex;
     gap: 15px;
+    align-items: center;
+    /* 保留 transform 过渡（若脚本依然用 transform 切换） */
     transition: transform 0.5s ease-in-out;
-    will-change: transform;
-    height: 520px;   /* ✅ 统一轮播高度 */
-    width: 1013px;   /* ✅ 卡片式宽度 */
   }
 
   .section2-track {
-    display: flex;
-    gap: 15px;
-    justify-content: flex-start;
-    will-change: transform;
-    height: 520px;
-    width: 1013px;
+    flex: 0 0 auto;
+    width:85vw;
+    aspect-ratio: 9 / 16;/* 宽高比例9:16 */
+    scroll-snap-align: center;
+    overflow: hidden;
+    position: relative;
   }
 
   .section2-track img {
-    flex: 0 0 auto;
-    width: 1013px;
-    height: 520px;
+   width: 100%;
+    height: 100%;
     object-fit: cover;
-    border-radius: 16px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    transition: transform 0.4s ease, opacity 0.4s ease;
+    display: block;
+    filter: none !important;
+    opacity: 1 !important;
   }
 }
 
@@ -2332,22 +2333,34 @@ window.addEventListener("scroll", function () {
   // ====================== 模块3：Section2 卡片样式轮播 ======================
 (function(){
   const track = document.querySelector('.section2-track');
-  const slides = track.querySelectorAll('img');
+  const slides = track ? track.querySelectorAll('img') : [];
   const totalSlides = slides.length;
   let currentIndex = 0;
-  let prevIndex = 0;
+  let slideWidth = 0;
+  let gapWidth = 15;
+
+  function updateSlideWidth() {
+    if (window.innerWidth <= 768) {
+      const container = document.querySelector(".section2-carousel");
+      if (container) {
+        const containerWidth = container.offsetWidth;
+        gapWidth = containerWidth * 0.04;
+        slideWidth = containerWidth * 0.85 + gapWidth;
+      }
+    } else {
+      const measured = slides[0]?.getBoundingClientRect().width || 1013;
+      gapWidth = 15;
+      slideWidth = measured + gapWidth;
+    }
+  }
 
   function updateCarousel() {
-    slides.forEach((slide, idx) => {
-      slide.classList.remove('active-slide', 'prev-slide');
-      if (idx === currentIndex) {
-        slide.classList.add('active-slide');
-      } else if (idx === prevIndex) {
-        slide.classList.add('prev-slide');
-      }
-    });
+    updateSlideWidth();
+    const offset = currentIndex * slideWidth;
+    if (track) {
+      track.style.transform = `translateX(-${offset}px)`;
+    }
     updateDots();
-    prevIndex = currentIndex;
   }
 
   const dotElements = document.querySelectorAll('.dot');
@@ -2386,7 +2399,6 @@ window.addEventListener("scroll", function () {
   dotElements.forEach(dot => {
     dot.addEventListener('click', () => {
       pauseAutoPlay();
-      prevIndex = currentIndex;
       currentIndex = parseInt(dot.getAttribute('data-index'));
       progressStartTime = null;
       resetDots();
@@ -2394,6 +2406,30 @@ window.addEventListener("scroll", function () {
       startAutoPlay();
     });
   });
+
+  // 手机端触摸滑动
+  let touchStartX = 0;
+  let touchEndX = 0;
+
+  if (track) {
+    track.addEventListener("touchstart", function(e) {
+      touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+
+    track.addEventListener("touchend", function(e) {
+      touchEndX = e.changedTouches[0].clientX;
+      const deltaX = touchEndX - touchStartX;
+      if (Math.abs(deltaX) > 50) {
+        pauseAutoPlay();
+        if (deltaX < 0) {
+          currentIndex = (currentIndex + 1) % totalSlides;
+        } else {
+          currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+        }
+        updateCarousel();
+      }
+    });
+  }
 
   const rightButton = document.getElementById('section2-rightButton');
   const playIcon = document.getElementById('section2-playIcon');
@@ -2417,7 +2453,6 @@ window.addEventListener("scroll", function () {
 
   function nextSlide() {
     resetDots();
-    prevIndex = currentIndex;
     currentIndex++;
     if (currentIndex < totalSlides) {
       updateCarousel();
@@ -2452,6 +2487,8 @@ window.addEventListener("scroll", function () {
     });
   }
 
+  // 按钮进出动画 + 自适应移动
+  const highlights = document.getElementById('section2-highlights');
   const buttonRow = document.getElementById('section2-buttonRow');
   const leftBtnContainer = document.getElementById('leftBtnContainer');
   const rightBtnContainer = document.getElementById('rightBtnContainer');
@@ -2484,7 +2521,22 @@ window.addEventListener("scroll", function () {
     }, 600);
   }
 
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        triggerButtonEntry();
+      } else {
+        triggerButtonExit();
+      }
+    });
+  }, { threshold: 0 });
+
+  if (highlights) {
+    observer.observe(highlights);
+  }
+
   function adjustButtonRowPosition() {
+    if (!buttonRow) return;
     const brRect = buttonRow.getBoundingClientRect();
     if (brRect.bottom > window.innerHeight) {
       buttonRow.style.transform = "translateY(-90px)";
@@ -2492,59 +2544,13 @@ window.addEventListener("scroll", function () {
       buttonRow.style.transform = "";
     }
   }
-
   window.addEventListener("scroll", adjustButtonRowPosition);
+  window.addEventListener("resize", updateCarousel);
 
-  /********** 手势滑动控制 **********/
-  let touchStartX = 0;
-  let touchEndX = 0;
-  const swipeThreshold = 50;
-
-  track.addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-  }, { passive: true });
-
-  track.addEventListener('touchend', (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-  }, { passive: true });
-
-  function handleSwipe() {
-    const distance = touchEndX - touchStartX;
-    if (Math.abs(distance) < swipeThreshold) return;
-
-    pauseAutoPlay();
-    prevIndex = currentIndex;
-
-    if (distance < 0) {
-      currentIndex = (currentIndex + 1) % totalSlides;
-    } else {
-      currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
-    }
-
-    updateCarousel();
-    startAutoPlay();
-  }
-
-  /********** DOM 完全加载后再启动轮播与观察器 **********/
-  document.addEventListener('DOMContentLoaded', () => {
-    updateCarousel();
-
-    const highlights = document.getElementById('section2-highlights');
-    if (highlights) {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            triggerButtonEntry();
-          } else {
-            triggerButtonExit();
-          }
-        });
-      }, { threshold: 0 });
-      observer.observe(highlights);
-    }
-  });
+  // 初始化执行
+  updateCarousel();
 })();
+
 
 
   // ====================== 模块4：Section3 滑动切换（样式、交互） ======================
