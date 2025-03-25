@@ -385,21 +385,27 @@ backdrop-filter:blur(20px);
 
 
 /* === 外部容器，控制整体布局和露出左右部分 === */
-.section2-carousel {
- position: relative;
-    width: 100%;
-    height: 520px; /* 固定高度 */
-    overflow: hidden;
-    margin: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0 10%; /* 两侧留白 */
-margin-top:5px;
-Margin-bottom:100px;调按钮距离下方位置
+
+.section2-highlights {
+  width: 100%;
+  max-width: 100%;
+  padding: 0 10%; /* 两侧留白 */  /* 上下12px，左右留出空间以露出部分左右图padding12px 60px; */
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: #f9f9f9;
+  overflow: hidden;
+  position: relative;
+margin-top:-10px;
+Margin-bottom:30px;调按钮距离下方位置
 }
 
 /* === 轨道容器：横向滚动布局，图片横排 === */
+.section2-carousel {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
 .section2-track {
   display: flex;
   gap: 15px; /* 每张图之间的间距 */
@@ -408,26 +414,15 @@ Margin-bottom:100px;调按钮距离下方位置
   justify-content: flex-start;
 }
 
-.section2-slide {
-  flex: 0 0 auto;
-    width: 100%;
-    position: relative; /* Relative positioning to position the overlay */
-    opacity: 1 !important;
-    transition: opacity 0.3s ease-in-out;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative; /* 若用 ::before 需要父级 position: relative */ /* 原没有触发去阴影 */
-}
-
 /* === 单张图片样式 === */
-.section2-slide img {
-  width: 100%; /* Ensure the image adapts to the container's width */
-    height: auto; /* Maintain the aspect ratio of the images */
-    display: block;
-    border-radius: 10px;
-    filter: none !important;
-    opacity: 1 !important;
+.section2-track img {
+  flex: 0 0 auto;
+  width: 1013px;
+  height: 520px;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  transition: transform 0.4s ease, opacity 0.4s ease;
 }
 
 /* ✅ 可选：当前图片放大，左右图缩小，可增加视觉引导感 */
@@ -551,45 +546,64 @@ z-index:999
       color: #007aff;
 z-index:999;
     }
-@media (max-width: 768px) {
-  .section2-carousel {
+  @media (max-width: 768px) {
+  .section2-highlights {
     width: 100vw;
-    padding-left: calc((100vw - 85vw) / 2); /* 居中显示图片 */
-    padding-right: calc((100vw - 85vw) / 2);
-    overflow-x: hidden;
+   padding-left: calc((100vw - 90vw) / 2);
+    padding-right: calc((100vw - 90vw) / 2);
+    overflow-x: clip;
+      overflow-y: visible;
     margin: 0 auto;
-    position: relative;
-    margin-top: 60px;
+  position: relative !important;
+ /* ✅ 关键间距设置：和按钮之间拉开 30px，可调 */
+    padding-bottom: 30px;
+
+    /* ✅ 与下一个 section3 保持垂直间距 */
     margin-bottom: 70px;
   }
- .section2-carousel::-webkit-scrollbar {
+  .section2-highlights::-webkit-scrollbar {
     display: none;
   }
 
-  .section2-track {
+  /* 2) 轮播轨道 */
+.section2-carousel {
     display: flex;
     gap: 15px;
     align-items: center;
-    /* 保留 transform 过渡（若脚本依然用 transform 切换） */
+   will-change: transform;
     transition: transform 0.5s ease-in-out;
+height: 520px;
+  width: 1013px; /* 保证 transform 位移准确 */
   }
-
-  .section2-slide {
+  .section2-track {
     flex: 0 0 auto;
-    width: 85vw;
-   aspect-ratio: 3 / 5;
-    border-radius: 16px;
+    width:90vw;
+    aspect-ratio: 9 / 16;/* 宽高比例9:16 */
+will-change: transform;
     overflow: hidden;
-    scroll-snap-align: center;
     position: relative;
+height: 520px;
+  width: 1013px; /* 保证 transform 位移准确 */
   }
-
-  .section2-slide img {
+.section2-track img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-    border-radius: 16px;
+    filter: none !important;
+    opacity: 1 !important;
+ }
+  .section2-buttonRow {
+      width: 90%;
+      max-width: 800px;
+      margin: 20px auto;
+      position: sticky;
+      top: 10px; /* 默认距离视口顶部30px */原30px
+      height: 80px;
+      transition: transform 0.3s ease;
+      /* 可调背景色调试 */
+      /* background: rgba(0,0,0,0.05); */
+z-index:999
   }
 }
 
@@ -1668,7 +1682,82 @@ list-style: none;
     </nav>
   </header>
   
+  <!-- 横幅 Banner -->
+  <div class="banner-promo">
+    Buy now with special offers! <a href="sample.html" target="_blank">Shop &gt;</a>
+  </div>
 
+  <!-- MeFan X1 图片区 -->
+  <section class="section1-hero">
+    <img src="outside1.png" alt="outside1" class="section1-hero-img">
+    <div class="section1-hero-content">
+      <h1 class="section1-title">Experience Next-Gen Sound</h1>
+      <h2 class="section1-subtitle">Unleash the power of wireless audio.</h2>
+      <a href="sample.html" target="_blank" class="section1-buy-btn">Buy</a>
+      <p class="section1-price">From $599 or $49.91/mo. for 12 mo.*</p>
+    </div>
+  </section>
+
+  <h1>Highlights</h1>
+
+
+  <!-- 轮播容器 -->
+  <section id="section2-highlights" class="section2-highlights">
+    <div class="section2-carousel">
+      <div class="section2-track">
+        <img src="nature1.png" alt="nature1">
+        <img src="nature2.png" alt="nature2">
+        <img src="nature3.png" alt="nature3">
+        <img src="nature4.png" alt="nature4">
+      </div>
+    </div>
+  </section>
+
+  <!-- 按钮行容器 -->
+  <div id="section2-buttonRow" class="section2-buttonRow">
+    <!-- 左侧按钮容器 -->
+    <div id="leftBtnContainer" class="btn-container btn-hidden">
+      <div id="section2-leftCapsule">
+        <div class="dots">
+          <div class="dot" data-index="0"></div>
+          <div class="dot" data-index="1"></div>
+          <div class="dot" data-index="2"></div>
+          <div class="dot" data-index="3"></div>
+        </div>
+      </div>
+    </div>
+    <!-- 右侧按钮容器 -->
+    <div id="rightBtnContainer" class="btn-container btn-hidden">
+      <div id="section2-rightButton">
+        <span id="section2-playIcon">►</span>
+      </div>
+    </div>
+  </div>
+<div class="section3-carousel-container" id="section3-container">
+    <div class="section3-carousel-track" id="section3-track">
+      <div class="section3-slide"><img src="imitation1.png" alt="Image 1" /></div>
+      <div class="section3-slide"><img src="imitation2.png" alt="Image 2" /></div>
+      <div class="section3-slide"><img src="imitation3.png" alt="Image 3" /></div>
+      <div class="section3-slide"><img src="tour1.png" alt="Image 4" /></div>
+      <div class="section3-slide"><img src="ai1.png" alt="Image 5" /></div>
+    </div>
+    <div class="section3-nav-fixed-wrapper">
+      <button class="section3-nav-button" id="section3-prev">&#x276E;</button>
+      <button class="section3-nav-button" id="section3-next">&#x276F;</button>
+    </div>
+  </div>
+  <div class="section3-picker-wrapper" id="section3-picker-wrapper">
+    <div class="section3-picker-animate-wrapper" id="section3-animate-wrapper">
+      <div class="section3-style-label" id="section3-style-label">Style 1</div>
+      <div class="section3-color-picker" id="section3-color-picker">
+        <button class="section3-color-button active" data-index="0" style="background-image: radial-gradient(circle, #ccc, #aaa);"></button>
+        <button class="section3-color-button" data-index="1" style="background-color: #555;"></button>
+        <button class="section3-color-button" data-index="2" style="background-color: #cce8e5;"></button>
+        <button class="section3-color-button" data-index="3" style="background-color: #e7dced;"></button>
+        <button class="section3-color-button" data-index="4" style="background-color: #f3e7d8;"></button>
+      </div>
+    </div>
+  </div>
     <!-- 桌面端新导航 (Mefan Air) 包裹容器 -->
   <div class="mefan-air-wrap" id="mefanAirWrap">
     <nav class="mefan-air-nav" id="mefanAirNavDesktop">
@@ -1907,81 +1996,7 @@ list-style: none;
     </div>
   </div>
 </header>
-  <!-- 横幅 Banner -->
-  <div class="banner-promo">
-    Buy now with special offers! <a href="sample.html" target="_blank">Shop &gt;</a>
-  </div>
 
-  <!-- MeFan X1 图片区 -->
-  <section class="section1-hero">
-    <img src="outside1.png" alt="outside1" class="section1-hero-img">
-    <div class="section1-hero-content">
-      <h1 class="section1-title">Experience Next-Gen Sound</h1>
-      <h2 class="section1-subtitle">Unleash the power of wireless audio.</h2>
-      <a href="sample.html" target="_blank" class="section1-buy-btn">Buy</a>
-      <p class="section1-price">From $599 or $49.91/mo. for 12 mo.*</p>
-    </div>
-  </section>
-
-  <h1>Highlights</h1>
-
-
-  <!-- 轮播容器 -->
-  <div class="section2-carousel">
-  <div class="section2-track">
-    <div class="section2-slide"><img src="nature1.png" alt="nature1" /></div>
-    <div class="section2-slide"><img src="nature2.png" alt="nature2" /></div>
-    <div class="section2-slide"><img src="nature3.png" alt="nature3" /></div>
-    <div class="section2-slide"><img src="nature4.png" alt="nature4" /></div>
-  </div>
-</div>
-
-
-  <!-- 按钮行容器 -->
-  <div id="section2-buttonRow" class="section2-buttonRow">
-    <!-- 左侧按钮容器 -->
-    <div id="leftBtnContainer" class="btn-container btn-hidden">
-      <div id="section2-leftCapsule">
-        <div class="dots">
-          <div class="dot" data-index="0"></div>
-          <div class="dot" data-index="1"></div>
-          <div class="dot" data-index="2"></div>
-          <div class="dot" data-index="3"></div>
-        </div>
-      </div>
-    </div>
-    <!-- 右侧按钮容器 -->
-    <div id="rightBtnContainer" class="btn-container btn-hidden">
-      <div id="section2-rightButton">
-        <span id="section2-playIcon">►</span>
-      </div>
-    </div>
-  </div>
-<div class="section3-carousel-container" id="section3-container">
-    <div class="section3-carousel-track" id="section3-track">
-      <div class="section3-slide"><img src="imitation1.png" alt="Image 1" /></div>
-      <div class="section3-slide"><img src="imitation2.png" alt="Image 2" /></div>
-      <div class="section3-slide"><img src="imitation3.png" alt="Image 3" /></div>
-      <div class="section3-slide"><img src="tour1.png" alt="Image 4" /></div>
-      <div class="section3-slide"><img src="ai1.png" alt="Image 5" /></div>
-    </div>
-    <div class="section3-nav-fixed-wrapper">
-      <button class="section3-nav-button" id="section3-prev">&#x276E;</button>
-      <button class="section3-nav-button" id="section3-next">&#x276F;</button>
-    </div>
-  </div>
-  <div class="section3-picker-wrapper" id="section3-picker-wrapper">
-    <div class="section3-picker-animate-wrapper" id="section3-animate-wrapper">
-      <div class="section3-style-label" id="section3-style-label">Style 1</div>
-      <div class="section3-color-picker" id="section3-color-picker">
-        <button class="section3-color-button active" data-index="0" style="background-image: radial-gradient(circle, #ccc, #aaa);"></button>
-        <button class="section3-color-button" data-index="1" style="background-color: #555;"></button>
-        <button class="section3-color-button" data-index="2" style="background-color: #cce8e5;"></button>
-        <button class="section3-color-button" data-index="3" style="background-color: #e7dced;"></button>
-        <button class="section3-color-button" data-index="4" style="background-color: #f3e7d8;"></button>
-      </div>
-    </div>
-  </div>
    <!-- 横线部分 -->
   <div class="divider"></div>
   <div class="footer-extend">
@@ -2334,258 +2349,209 @@ window.addEventListener("scroll", function () {
   })();
 
   // ====================== 模块3：Section2 卡片样式轮播 ======================
-(function () {
-  const container = document.querySelector('.section2-carousel'); // 若你用 .section2-highlights，请改回去
-  const track = document.querySelector('.section2-track');
-  // 这里取所有图片和它们的父级 .section2-slide，用于加 .active / .prev / .next
-  const slides = track ? Array.from(track.querySelectorAll('img')) : [];
-  const slideDivs = Array.from(document.querySelectorAll('.section2-slide'));
+  (function(){
+    const track = document.querySelector('.section2-track');
+    const slides = track ? track.querySelectorAll('img') : [];
+    const totalSlides = slides.length;
+    let currentIndex = 0;
+    const slideWidth = 1013 + 15; // 图片宽度 + 间隔
 
-  const dotElements = document.querySelectorAll('.dot');
-  const totalSlides = slides.length;
-
-  const rightButton = document.getElementById('section2-rightButton');
-  const playIcon = document.getElementById('section2-playIcon');
-  const buttonRow = document.getElementById('section2-buttonRow');
-  const leftBtnContainer = document.getElementById('leftBtnContainer');
-  const rightBtnContainer = document.getElementById('rightBtnContainer');
-
-  let currentIndex = 0;
-  let isPlaying = false;
-  let autoPlayTimer = null;
-  let progressStartTime = null;
-  let progressAnimationId = null;
-  let slideWidth = 0;
-  let gapWidth = 0;
-
-  // =========== 1) 计算容器宽度 & 更新轨道位移 ===========
-  function calculateSection2Dimensions() {
-    if (!container) return;
-    const containerWidth = container.offsetWidth;
-    slideWidth = containerWidth * 0.85;
-    gapWidth = containerWidth * 0.04;
-  }
-
-  // 更新轮播位置、圆点、以及为 .section2-slide 加相应类
-  function updateSection2Carousel() {
-    calculateSection2Dimensions();
-    const offset = currentIndex * (slideWidth + gapWidth);
-    if (track) {
-      track.style.transform = `translateX(-${offset}px)`;
+    function updateCarousel() {
+      // ✅ 卡片样式轮播：滑动式切换
+      const offset = currentIndex * slideWidth;
+      if (track) {
+        track.style.transform = `translateX(-${offset}px)`;
+      }
+      updateDots();
     }
-    updateSection2Dots();
-    updateSlidesClass();
-  }
 
-  // =========== 2) 圆点形状控制 ===========
-  function updateSection2Dots() {
-    dotElements.forEach((dot, idx) => {
-      dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
-      dot.style.width = (idx === currentIndex) ? '40px' : '12px';
-    });
-  }
-  // 重置圆点到初始状态（只有当前 dot 保持高亮）
-  function resetSection2Dots() {
-    dotElements.forEach((dot, idx) => {
-      dot.style.width = '12px';
-      dot.style.backgroundColor = idx === currentIndex ? '#007aff' : '#ccc';
-    });
-  }
-  // 播放完后，全部恢复小圆点灰色
-  function clearAllDots() {
+    const dotElements = document.querySelectorAll('.dot');
+    const slideDuration = 3000;
+    let isPlaying = false;
+    let autoPlayTimer = null;
+    let progressStartTime = null;
+    let progressAnimationId = null;
+
+    function animateActiveDot(timestamp) {
+      if (!progressStartTime) progressStartTime = timestamp;
+      const elapsed = timestamp - progressStartTime;
+      const progress = Math.min(elapsed / slideDuration, 1);
+      const activeDot = dotElements[currentIndex];
+      const newWidth = 12 + (28 * progress);
+      activeDot.style.width = newWidth + 'px';
+      if (progress < 1 && isPlaying) {
+        progressAnimationId = requestAnimationFrame(animateActiveDot);
+      }
+    }
+
+    function resetDots() {
+      dotElements.forEach((dot, idx) => {
+        dot.style.width = '12px';
+        dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
+      });
+    }
+
+    function updateDots() {
+      dotElements.forEach((dot, idx) => {
+        dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
+        if (idx !== currentIndex) dot.style.width = '12px';
+      });
+    }
+
     dotElements.forEach(dot => {
-      dot.style.width = '12px';
-      dot.style.backgroundColor = '#ccc';
+      dot.addEventListener('click', () => {
+        pauseAutoPlay();
+        currentIndex = parseInt(dot.getAttribute('data-index'));
+        progressStartTime = null;
+        resetDots();
+        updateCarousel();
+        startAutoPlay();
+      });
     });
-  }
 
-  // =========== 3) 自动播放时，圆点宽度动画(原逻辑) ===========
-  function animateSection2Dot(timestamp) {
-    if (!progressStartTime) progressStartTime = timestamp;
-    const elapsed = timestamp - progressStartTime;
-    const progress = Math.min(elapsed / 3000, 1);
+    // 手机端触摸滑动
+    let touchStartX = 0;
+    let touchEndX = 0;
 
-    const activeDot = dotElements[currentIndex];
-    const newWidth = 12 + (28 * progress);
-    activeDot.style.width = newWidth + 'px';
+    if (track) {
+      track.addEventListener("touchstart", function(e) {
+        touchStartX = e.touches[0].clientX;
+      }, { passive: true });
 
-    if (progress < 1 && isPlaying) {
-      progressAnimationId = requestAnimationFrame(animateSection2Dot);
+      track.addEventListener("touchend", function(e) {
+        touchEndX = e.changedTouches[0].clientX;
+        const deltaX = touchEndX - touchStartX;
+        if (Math.abs(deltaX) > 50) {
+          pauseAutoPlay(); // 停止自动播放
+          if (deltaX < 0) {
+            currentIndex = (currentIndex + 1) % totalSlides;
+          } else {
+            currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+          }
+          updateCarousel();
+        }
+      });
     }
-  }
 
-  // =========== 4) 自动播放核心 (不再无限循环) ===========
-  function nextSection2Slide() {
-    resetSection2Dots();
-    // 若还没到最后一张，就继续，否则停止
-    if (currentIndex < totalSlides - 1) {
-      currentIndex++;
-      updateSection2Carousel();
+    const rightButton = document.getElementById('section2-rightButton');
+    const playIcon = document.getElementById('section2-playIcon');
 
-      // 继续动画
+    function startAutoPlay() {
+      isPlaying = true;
+      if (playIcon) playIcon.textContent = '❚❚';
       progressStartTime = null;
-      progressAnimationId = requestAnimationFrame(animateSection2Dot);
-      autoPlayTimer = setTimeout(nextSection2Slide, 3000);
-    } else {
-      // 已到最后一张 -> 播放结束 -> 改为刷新图标
-      if (playIcon) {
-        playIcon.textContent = '↻';
-      }
-      pauseSection2AutoPlay();
-      // 问题二：要求播放完后所有圆点恢复小圆点
-      clearAllDots();
+      progressAnimationId = requestAnimationFrame(animateActiveDot);
+      autoPlayTimer = setTimeout(nextSlide, slideDuration);
     }
-  }
 
-  function pauseSection2AutoPlay() {
-    isPlaying = false;
-    if (playIcon && playIcon.textContent !== '↻') {
-      playIcon.textContent = '►';
+    function pauseAutoPlay() {
+      isPlaying = false;
+      if (playIcon) playIcon.textContent = '►';
+      clearTimeout(autoPlayTimer);
+      autoPlayTimer = null;
+      cancelAnimationFrame(progressAnimationId);
+      resetDots();
     }
-    clearTimeout(autoPlayTimer);
-    cancelAnimationFrame(progressAnimationId);
-    resetSection2Dots(); // 这是原逻辑，保留
-  }
 
-  function startSection2AutoPlay() {
-    isPlaying = true;
-    if (playIcon && playIcon.textContent !== '↻') {
-      playIcon.textContent = '❚❚';
-    }
-    progressStartTime = null;
-    progressAnimationId = requestAnimationFrame(animateSection2Dot);
-    autoPlayTimer = setTimeout(nextSection2Slide, 3000);
-  }
-
-  // =========== 5) 给每个 slideDiv 加 .active / .prev / .next ===========
-  function updateSlidesClass() {
-    slideDivs.forEach((slide, idx) => {
-      slide.classList.remove('active', 'prev', 'next');
-      if (idx === currentIndex) {
-        slide.classList.add('active');
-      } else if (idx === currentIndex - 1) {
-        slide.classList.add('prev');
-      } else if (idx === currentIndex + 1) {
-        slide.classList.add('next');
-      }
-    });
-  }
-
-  // =========== 6) 圆点点击：跳到对应索引并继续自动播 ===========
-  dotElements.forEach(dot => {
-    dot.addEventListener('click', () => {
-      pauseSection2AutoPlay();
-      currentIndex = parseInt(dot.getAttribute('data-index'), 10);
-      updateSection2Carousel();
-      startSection2AutoPlay();
-    });
-  });
-
-  // =========== 7) 右侧按钮：控制播放/暂停/刷新 ===========
-  if (rightButton) {
-    rightButton.addEventListener('click', () => {
-      // 如已播完,图标是 ↻ -> 回到第一张 & 显示 ►
-      if (playIcon && playIcon.textContent === '↻') {
-        currentIndex = 0;
-        updateSection2Carousel();
-        resetSection2Dots();
-        playIcon.textContent = '►';
-        return;
-      }
-
-      // 若正在播，则暂停；否则开始播
-      if (isPlaying) {
-        pauseSection2AutoPlay();
+    function nextSlide() {
+      resetDots();
+      currentIndex++;
+      if (currentIndex < totalSlides) {
+        updateCarousel();
+        progressStartTime = null;
+        progressAnimationId = requestAnimationFrame(animateActiveDot);
+        autoPlayTimer = setTimeout(nextSlide, slideDuration);
       } else {
-        // 如果已到最后，也回到第一张重新播
-        if (currentIndex >= totalSlides) {
+        isPlaying = false;
+        if (playIcon) playIcon.textContent = '↻';
+      }
+    }
+
+    if (rightButton) {
+      rightButton.addEventListener('click', () => {
+        if (playIcon && playIcon.textContent === '↻') {
           currentIndex = 0;
-          updateSection2Carousel();
-          resetSection2Dots();
+          updateCarousel();
+          resetDots();
+          playIcon.textContent = '►';
+          return;
         }
-        startSection2AutoPlay();
-      }
-    });
-  }
-
-  // =========== 8) 触摸滑动：左/右切换并暂停自动播放 ===========
-  let touchStartX = 0;
-  let touchEndX = 0;
-  if (track) {
-    track.addEventListener('touchstart', e => {
-      touchStartX = e.touches[0].clientX;
-    }, { passive: true });
-
-    track.addEventListener('touchend', e => {
-      touchEndX = e.changedTouches[0].clientX;
-      const deltaX = touchEndX - touchStartX;
-      if (Math.abs(deltaX) > 50) {
-        pauseSection2AutoPlay();
-        if (deltaX < 0) {
-          // 左划 -> next
-          if (currentIndex < totalSlides - 1) {
-            currentIndex++;
-          }
+        if (isPlaying) {
+          pauseAutoPlay();
         } else {
-          // 右划 -> prev
-          if (currentIndex > 0) {
-            currentIndex--;
+          if (currentIndex >= totalSlides) {
+            currentIndex = 0;
+            updateCarousel();
+            resetDots();
           }
+          startAutoPlay();
         }
-        updateSection2Carousel();
-      }
-    }, { passive: true });
-  }
+      });
+    }
 
-  // =========== 9) IntersectionObserver：按钮出现/隐藏动画 ===========
-  function showSection2Buttons() {
-    leftBtnContainer.classList.remove('btn-hidden');
-    rightBtnContainer.classList.remove('btn-hidden');
-    leftBtnContainer.classList.add('btn-left-animate');
-    rightBtnContainer.classList.add('btn-right-animate');
-    leftBtnContainer.style.pointerEvents = "auto";
-    rightBtnContainer.style.pointerEvents = "auto";
-  }
-  function hideSection2Buttons() {
-    leftBtnContainer.classList.remove('btn-left-animate');
-    rightBtnContainer.classList.remove('btn-right-animate');
-    leftBtnContainer.classList.add('btn-hidden');
-    rightBtnContainer.classList.add('btn-hidden');
-  }
+    // 按钮进出动画 + 自适应移动
+    const highlights = document.getElementById('section2-highlights');
+    const buttonRow = document.getElementById('section2-buttonRow');
+    const leftBtnContainer = document.getElementById('leftBtnContainer');
+    const rightBtnContainer = document.getElementById('rightBtnContainer');
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        showSection2Buttons();
+    function triggerButtonEntry() {
+      leftBtnContainer.classList.remove('btn-hidden');
+      rightBtnContainer.classList.remove('btn-hidden');
+      leftBtnContainer.classList.add('btn-merged');
+      rightBtnContainer.classList.add('btn-merged');
+      setTimeout(() => {
+        leftBtnContainer.classList.remove('btn-merged');
+        rightBtnContainer.classList.remove('btn-merged');
+        leftBtnContainer.classList.add('btn-left-animate');
+        rightBtnContainer.classList.add('btn-right-animate');
+        leftBtnContainer.style.pointerEvents = "auto";
+        rightBtnContainer.style.pointerEvents = "auto";
+      }, 600);
+    }
+
+    function triggerButtonExit() {
+      leftBtnContainer.classList.remove('btn-left-animate');
+      rightBtnContainer.classList.remove('btn-right-animate');
+      leftBtnContainer.classList.add('btn-merged');
+      rightBtnContainer.classList.add('btn-merged');
+      setTimeout(() => {
+        leftBtnContainer.classList.remove('btn-merged');
+        rightBtnContainer.classList.remove('btn-merged');
+        leftBtnContainer.classList.add('btn-hidden');
+        rightBtnContainer.classList.add('btn-hidden');
+      }, 600);
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          triggerButtonEntry();
+        } else {
+          triggerButtonExit();
+        }
+      });
+    }, { threshold: 0 });
+
+    if (highlights) {
+      observer.observe(highlights);
+    }
+
+    function adjustButtonRowPosition() {
+      if (!buttonRow) return;
+      const brRect = buttonRow.getBoundingClientRect();
+      if (brRect.bottom > window.innerHeight) {
+        buttonRow.style.transform = "translateY(-90px)";
       } else {
-        hideSection2Buttons();
+        buttonRow.style.transform = "";
       }
-    });
-  }, { threshold: 0 });
+    }
+    window.addEventListener("scroll", adjustButtonRowPosition);
 
-  if (container) observer.observe(container);
+    // 在 DOMContentLoaded 里已经执行，这里直接调用一次初始化
+    updateCarousel();
 
-  // =========== 10) 页面滚动时，按钮自动上移 ===========
-  window.addEventListener('scroll', () => {
-    if (!buttonRow) return;
-    const br = buttonRow.getBoundingClientRect();
-    buttonRow.style.transform = br.bottom > window.innerHeight ? 'translateY(-180px)' : '';
-  });
-
-  // =========== 11) 监听窗口大小变化，重新计算 ===========
-  window.addEventListener('resize', updateSection2Carousel);
-
-  // =========== 12) 初始化：强制显示第一张，然后等页面加载完后再开始自动播放 ===========
-  currentIndex = 0;
-  updateSection2Carousel();
-
-  // 页面加载完再开播，避免图片未加载导致位置偏移
-  window.addEventListener('load', () => {
-    startSection2AutoPlay();
-  });
-})();
-
-
+  })();
 
   // ====================== 模块4：Section3 滑动切换（样式、交互） ======================
   (function(){
@@ -2716,6 +2682,27 @@ window.addEventListener("scroll", function () {
   })();
 
 }); 
+(function () {
+  const mobileNav = document.getElementById("mobileNav");
+  const mobileAirNav = document.getElementById("mobileAirNav");
+
+  // 当新导航出现时强制隐藏原 mobileNav，避免重叠
+  const observer = new MutationObserver(() => {
+    if (mobileAirNav.classList.contains("active")) {
+      mobileNav.classList.remove("active");
+    }
+  });
+
+  if (mobileAirNav) {
+    observer.observe(mobileAirNav, { attributes: true, attributeFilter: ["class"] });
+  }
+})();
+
+
+
+// ← 只保留一次 DOMContentLoaded
+</script>
+
 
 
 </script>
