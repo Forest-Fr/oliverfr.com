@@ -552,7 +552,7 @@ z-index:999
 z-index:999;
     }
 @media (max-width: 768px) {
-  .section2-highlights {
+  .section2-carousel {
     width: 100vw;
     padding-left: calc((100vw - 85vw) / 2); /* 居中显示图片 */
     padding-right: calc((100vw - 85vw) / 2);
@@ -566,19 +566,12 @@ z-index:999;
     display: none;
   }
 
-  .section2-carousel {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 10px;
-  }
-
   .section2-track {
     display: flex;
     gap: 15px;
+    align-items: center;
+    /* 保留 transform 过渡（若脚本依然用 transform 切换） */
     transition: transform 0.5s ease-in-out;
-    will-change: transform;
-    justify-content: flex-start;
   }
 
   .section2-slide {
@@ -599,6 +592,7 @@ z-index:999;
     border-radius: 16px;
   }
 }
+
 
 
 
@@ -1942,7 +1936,6 @@ list-style: none;
   </div>
 </div>
 
-  </section>
 
   <!-- 按钮行容器 -->
   <div id="section2-buttonRow" class="section2-buttonRow">
@@ -2342,7 +2335,7 @@ window.addEventListener("scroll", function () {
 
   // ====================== 模块3：Section2 卡片样式轮播 ======================
 (function () {
-  // —— 把这里的 .section2-highlights 改为 .section2-carousel
+  // 修改处：用 .section2-carousel 做容器选择器
   const container = document.querySelector('.section2-carousel');
   const track = document.querySelector('.section2-track');
   const slides = track ? Array.from(track.querySelectorAll('img')) : [];
