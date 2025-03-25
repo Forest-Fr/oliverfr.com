@@ -2332,225 +2332,193 @@ window.addEventListener("scroll", function () {
   })();
 
   // ====================== 模块3：Section2 卡片样式轮播 ======================
-(function(){
+<script>
+(function () {
+  const container = document.querySelector('.section2-highlights');
   const track = document.querySelector('.section2-track');
-  const slides = track ? track.querySelectorAll('img') : [];
-  const totalSlides = slides.length;
-  let currentIndex = 0;
-  let slideWidth = 0;
-  let gapWidth = 15;
-
-  function updateSlideWidth() {
-    if (window.innerWidth <= 768) {
-      const container = document.querySelector(".section2-carousel");
-      if (container) {
-        const containerWidth = container.offsetWidth;
-        gapWidth = containerWidth * 0.04;
-        slideWidth = containerWidth * 0.85 + gapWidth;
-      }
-    } else {
-      const measured = slides[0]?.getBoundingClientRect().width || 1013;
-      gapWidth = 15;
-      slideWidth = measured + gapWidth;
-    }
-  }
-
-  function updateCarousel() {
-    updateSlideWidth();
-    const offset = currentIndex * slideWidth;
-    if (track) {
-      track.style.transform = `translateX(-${offset}px)`;
-    }
-    updateDots();
-  }
-
+  const slides = track ? Array.from(track.querySelectorAll('img')) : [];
   const dotElements = document.querySelectorAll('.dot');
-  const slideDuration = 3000;
+  const totalSlides = slides.length;
+  const rightButton = document.getElementById('section2-rightButton');
+  const playIcon = document.getElementById('section2-playIcon');
+  const buttonRow = document.getElementById('section2-buttonRow');
+  const leftBtnContainer = document.getElementById('leftBtnContainer');
+  const rightBtnContainer = document.getElementById('rightBtnContainer');
+
+  let currentIndex = 0;
   let isPlaying = false;
   let autoPlayTimer = null;
   let progressStartTime = null;
   let progressAnimationId = null;
+  let slideWidth = 0;
+  let gapWidth = 0;
 
-  function animateActiveDot(timestamp) {
+  // ✅ 使用 container 宽度计算图片宽度与间距
+  function calculateSection2Dimensions() {
+    if (!container) return;
+    const containerWidth = container.offsetWidth;
+    slideWidth = containerWidth * 0.85;
+    gapWidth = containerWidth * 0.04;
+  }
+
+  // ✅ 正确控制滑动逻辑，结合宽度计算
+  function updateSection2Carousel() {
+    calculateSection2Dimensions();
+    const offset = currentIndex * (slideWidth + gapWidth);
+    if (track) {
+      track.style.transform = `translateX(-${offset}px)`;
+    }
+    updateSection2Dots();
+  }
+
+  function updateSection2Dots() {
+    dotElements.forEach((dot, idx) => {
+      dot.style.backgroundColor = idx === currentIndex ? '#007aff' : '#ccc';
+      dot.style.width = idx === currentIndex ? '40px' : '12px';
+    });
+  }
+
+  function resetSection2Dots() {
+    dotElements.forEach((dot, idx) => {
+      dot.style.width = '12px';
+      dot.style.backgroundColor = idx === currentIndex ? '#007aff' : '#ccc';
+    });
+  }
+
+  function animateSection2Dot(timestamp) {
     if (!progressStartTime) progressStartTime = timestamp;
     const elapsed = timestamp - progressStartTime;
-    const progress = Math.min(elapsed / slideDuration, 1);
+    const progress = Math.min(elapsed / 3000, 1);
     const activeDot = dotElements[currentIndex];
     const newWidth = 12 + (28 * progress);
     activeDot.style.width = newWidth + 'px';
     if (progress < 1 && isPlaying) {
-      progressAnimationId = requestAnimationFrame(animateActiveDot);
+      progressAnimationId = requestAnimationFrame(animateSection2Dot);
     }
   }
 
-  function resetDots() {
-    dotElements.forEach((dot, idx) => {
-      dot.style.width = '12px';
-      dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
-    });
+  function nextSection2Slide() {
+    resetSection2Dots();
+    currentIndex = (currentIndex + 1) % totalSlides;
+    updateSection2Carousel();
+    progressStartTime = null;
+    progressAnimationId = requestAnimationFrame(animateSection2Dot);
+    autoPlayTimer = setTimeout(nextSection2Slide, 3000);
   }
 
-  function updateDots() {
-    dotElements.forEach((dot, idx) => {
-      dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
-      if (idx !== currentIndex) dot.style.width = '12px';
-    });
+  function pauseSection2AutoPlay() {
+    isPlaying = false;
+    if (playIcon) playIcon.textContent = '►';
+    clearTimeout(autoPlayTimer);
+    cancelAnimationFrame(progressAnimationId);
+    resetSection2Dots();
+  }
+
+  function startSection2AutoPlay() {
+    isPlaying = true;
+    if (playIcon) playIcon.textContent = '❚❚';
+    progressStartTime = null;
+    progressAnimationId = requestAnimationFrame(animateSection2Dot);
+    autoPlayTimer = setTimeout(nextSection2Slide, 3000);
   }
 
   dotElements.forEach(dot => {
     dot.addEventListener('click', () => {
-      pauseAutoPlay();
-      currentIndex = parseInt(dot.getAttribute('data-index'));
-      progressStartTime = null;
-      resetDots();
-      updateCarousel();
-      startAutoPlay();
+      pauseSection2AutoPlay();
+      currentIndex = parseInt(dot.getAttribute('data-index'), 10);
+      updateSection2Carousel();
+      startSection2AutoPlay();
     });
   });
-
-  // 手机端触摸滑动
-  let touchStartX = 0;
-  let touchEndX = 0;
-
-  if (track) {
-    track.addEventListener("touchstart", function(e) {
-      touchStartX = e.touches[0].clientX;
-    }, { passive: true });
-
-    track.addEventListener("touchend", function(e) {
-      touchEndX = e.changedTouches[0].clientX;
-      const deltaX = touchEndX - touchStartX;
-      if (Math.abs(deltaX) > 50) {
-        pauseAutoPlay();
-        if (deltaX < 0) {
-          currentIndex = (currentIndex + 1) % totalSlides;
-        } else {
-          currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
-        }
-        updateCarousel();
-      }
-    });
-  }
-
-  const rightButton = document.getElementById('section2-rightButton');
-  const playIcon = document.getElementById('section2-playIcon');
-
-  function startAutoPlay() {
-    isPlaying = true;
-    if (playIcon) playIcon.textContent = '❚❚';
-    progressStartTime = null;
-    progressAnimationId = requestAnimationFrame(animateActiveDot);
-    autoPlayTimer = setTimeout(nextSlide, slideDuration);
-  }
-
-  function pauseAutoPlay() {
-    isPlaying = false;
-    if (playIcon) playIcon.textContent = '►';
-    clearTimeout(autoPlayTimer);
-    autoPlayTimer = null;
-    cancelAnimationFrame(progressAnimationId);
-    resetDots();
-  }
-
-  function nextSlide() {
-    resetDots();
-    currentIndex++;
-    if (currentIndex < totalSlides) {
-      updateCarousel();
-      progressStartTime = null;
-      progressAnimationId = requestAnimationFrame(animateActiveDot);
-      autoPlayTimer = setTimeout(nextSlide, slideDuration);
-    } else {
-      isPlaying = false;
-      if (playIcon) playIcon.textContent = '↻';
-    }
-  }
 
   if (rightButton) {
     rightButton.addEventListener('click', () => {
       if (playIcon && playIcon.textContent === '↻') {
         currentIndex = 0;
-        updateCarousel();
-        resetDots();
+        updateSection2Carousel();
+        resetSection2Dots();
         playIcon.textContent = '►';
         return;
       }
       if (isPlaying) {
-        pauseAutoPlay();
+        pauseSection2AutoPlay();
       } else {
         if (currentIndex >= totalSlides) {
           currentIndex = 0;
-          updateCarousel();
-          resetDots();
+          updateSection2Carousel();
+          resetSection2Dots();
         }
-        startAutoPlay();
+        startSection2AutoPlay();
       }
     });
   }
 
-  // 按钮进出动画 + 自适应移动
-  const highlights = document.getElementById('section2-highlights');
-  const buttonRow = document.getElementById('section2-buttonRow');
-  const leftBtnContainer = document.getElementById('leftBtnContainer');
-  const rightBtnContainer = document.getElementById('rightBtnContainer');
+  // ✅ 触摸滑动控制
+  let touchStartX = 0;
+  let touchEndX = 0;
+  if (track) {
+    track.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+    }, { passive: true });
 
-  function triggerButtonEntry() {
-    leftBtnContainer.classList.remove('btn-hidden');
-    rightBtnContainer.classList.remove('btn-hidden');
-    leftBtnContainer.classList.add('btn-merged');
-    rightBtnContainer.classList.add('btn-merged');
-    setTimeout(() => {
-      leftBtnContainer.classList.remove('btn-merged');
-      rightBtnContainer.classList.remove('btn-merged');
-      leftBtnContainer.classList.add('btn-left-animate');
-      rightBtnContainer.classList.add('btn-right-animate');
-      leftBtnContainer.style.pointerEvents = "auto";
-      rightBtnContainer.style.pointerEvents = "auto";
-    }, 600);
+    track.addEventListener('touchend', e => {
+      touchEndX = e.changedTouches[0].clientX;
+      const deltaX = touchEndX - touchStartX;
+      if (Math.abs(deltaX) > 50) {
+        pauseSection2AutoPlay();
+        if (deltaX < 0) {
+          currentIndex = (currentIndex + 1) % totalSlides;
+        } else {
+          currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+        }
+        updateSection2Carousel();
+      }
+    }, { passive: true });
   }
 
-  function triggerButtonExit() {
+  // ✅ 按钮动画
+  function showSection2Buttons() {
+    leftBtnContainer.classList.remove('btn-hidden');
+    rightBtnContainer.classList.remove('btn-hidden');
+    leftBtnContainer.classList.add('btn-left-animate');
+    rightBtnContainer.classList.add('btn-right-animate');
+    leftBtnContainer.style.pointerEvents = "auto";
+    rightBtnContainer.style.pointerEvents = "auto";
+  }
+
+  function hideSection2Buttons() {
     leftBtnContainer.classList.remove('btn-left-animate');
     rightBtnContainer.classList.remove('btn-right-animate');
-    leftBtnContainer.classList.add('btn-merged');
-    rightBtnContainer.classList.add('btn-merged');
-    setTimeout(() => {
-      leftBtnContainer.classList.remove('btn-merged');
-      rightBtnContainer.classList.remove('btn-merged');
-      leftBtnContainer.classList.add('btn-hidden');
-      rightBtnContainer.classList.add('btn-hidden');
-    }, 600);
+    leftBtnContainer.classList.add('btn-hidden');
+    rightBtnContainer.classList.add('btn-hidden');
   }
 
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        triggerButtonEntry();
+        showSection2Buttons();
       } else {
-        triggerButtonExit();
+        hideSection2Buttons();
       }
     });
   }, { threshold: 0 });
 
-  if (highlights) {
-    observer.observe(highlights);
-  }
+  if (container) observer.observe(container);
 
-  function adjustButtonRowPosition() {
+  // ✅ 滚动时按钮自动上移
+  window.addEventListener('scroll', () => {
     if (!buttonRow) return;
-    const brRect = buttonRow.getBoundingClientRect();
-    if (brRect.bottom > window.innerHeight) {
-      buttonRow.style.transform = "translateY(-90px)";
-    } else {
-      buttonRow.style.transform = "";
-    }
-  }
-  window.addEventListener("scroll", adjustButtonRowPosition);
-  window.addEventListener("resize", updateCarousel);
+    const br = buttonRow.getBoundingClientRect();
+    buttonRow.style.transform = br.bottom > window.innerHeight ? 'translateY(-90px)' : '';
+  });
 
-  // 初始化执行
-  updateCarousel();
+  window.addEventListener('resize', updateSection2Carousel);
+
+  // ✅ 初始化
+  updateSection2Carousel();
 })();
+</script>
+
 
 
 
