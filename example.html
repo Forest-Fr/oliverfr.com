@@ -385,8 +385,7 @@ backdrop-filter:blur(20px);
 
 
 /* === 外部容器，控制整体布局和露出左右部分 === */
-
-.section2-highlights {
+.section2-carousel {
  position: relative;
     width: 100%;
     height: 520px; /* 固定高度 */
@@ -401,32 +400,34 @@ Margin-bottom:100px;调按钮距离下方位置
 }
 
 /* === 轨道容器：横向滚动布局，图片横排 === */
-.section2-carousel {
-   width: 100%; /* Ensure the image adapts to the container's width */
-    height: auto; /* Maintain the aspect ratio of the images */
-    display: block;
-    border-radius: 10px;
-    filter: none !important;
-    opacity: 1 !important;
-}
-
 .section2-track {
-display: flex;
+  display: flex;
   gap: 15px; /* 每张图之间的间距 */
   transition: transform 0.5s ease-in-out;
   will-change: transform;
   justify-content: flex-start;
 }
 
-/* === 单张图片样式 === */
-.section2-track img {
+.section2-slide {
   flex: 0 0 auto;
-  width: 1013px;
-  height: 520px;
-  object-fit: cover;
-  border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-  transition: transform 0.4s ease, opacity 0.4s ease;
+    width: 100%;
+    position: relative; /* Relative positioning to position the overlay */
+    opacity: 1 !important;
+    transition: opacity 0.3s ease-in-out;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative; /* 若用 ::before 需要父级 position: relative */ /* 原没有触发去阴影 */
+}
+
+/* === 单张图片样式 === */
+.section2-slide img {
+  width: 100%; /* Ensure the image adapts to the container's width */
+    height: auto; /* Maintain the aspect ratio of the images */
+    display: block;
+    border-radius: 10px;
+    filter: none !important;
+    opacity: 1 !important;
 }
 
 /* ✅ 可选：当前图片放大，左右图缩小，可增加视觉引导感 */
@@ -560,6 +561,9 @@ z-index:999;
     position: relative;
     margin-top: 60px;
     margin-bottom: 70px;
+  }
+ .section2-carousel::-webkit-scrollbar {
+    display: none;
   }
 
   .section2-carousel {
@@ -2338,7 +2342,8 @@ window.addEventListener("scroll", function () {
 
   // ====================== 模块3：Section2 卡片样式轮播 ======================
 (function () {
-  const container = document.querySelector('.section2-highlights');
+  // —— 把这里的 .section2-highlights 改为 .section2-carousel
+  const container = document.querySelector('.section2-carousel');
   const track = document.querySelector('.section2-track');
   const slides = track ? Array.from(track.querySelectorAll('img')) : [];
   const dotElements = document.querySelectorAll('.dot');
@@ -2357,7 +2362,7 @@ window.addEventListener("scroll", function () {
   let slideWidth = 0;
   let gapWidth = 0;
 
-  // ✅ 使用 container 宽度计算图片宽度与间距
+  // ✅ 计算容器宽度、图片宽度与间距
   function calculateSection2Dimensions() {
     if (!container) return;
     const containerWidth = container.offsetWidth;
@@ -2365,7 +2370,7 @@ window.addEventListener("scroll", function () {
     gapWidth = containerWidth * 0.04;
   }
 
-  // ✅ 正确控制滑动逻辑，结合宽度计算
+  // ✅ 更新轮播位移
   function updateSection2Carousel() {
     calculateSection2Dimensions();
     const offset = currentIndex * (slideWidth + gapWidth);
@@ -2457,7 +2462,7 @@ window.addEventListener("scroll", function () {
     });
   }
 
-  // ✅ 触摸滑动控制
+  // ✅ 触摸滑动
   let touchStartX = 0;
   let touchEndX = 0;
   if (track) {
