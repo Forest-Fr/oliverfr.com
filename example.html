@@ -550,47 +550,52 @@ z-index:999
       color: #007aff;
 z-index:999;
     }
- @media (max-width: 768px) {
+@media (max-width: 768px) {
   .section2-highlights {
     width: 100vw;
-    padding-left: calc((100vw - 85vw) / 2);
+    padding-left: calc((100vw - 85vw) / 2); /* 居中显示图片 */
     padding-right: calc((100vw - 85vw) / 2);
-  overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
+    overflow-x: hidden;
     margin: 0 auto;
-  position: relative !important;
-margin-top:5px;
-Margin-bottom:100px;调按钮距离下方位置
+    position: relative;
+    margin-top: 60px;
+    margin-bottom: 70px;
   }
-.section2-highlights::-webkit-scrollbar {
-    display: none;
-  }
+
   .section2-carousel {
-    width: 100%; /* Ensure the image adapts to the container's width */
-    height: auto; /* Maintain the aspect ratio of the images */
+    width: 100%;
+    height: auto;
     display: block;
     border-radius: 10px;
-    filter: none !important;
-    opacity: 1 !important;
   }
 
   .section2-track {
-   display: flex;
-  gap: 15px; /* 每张图之间的间距 */
-  transition: transform 0.5s ease-in-out;
-  will-change: transform;
-  justify-content: flex-start;
+    display: flex;
+    gap: 15px;
+    transition: transform 0.5s ease-in-out;
+    will-change: transform;
+    justify-content: flex-start;
   }
 
-  .section2-track img {
+  .section2-slide {
     flex: 0 0 auto;
-   width:85vw;
-    aspect-ratio: 9 / 16;/* 宽高比例9:16 */
-    scroll-snap-align: center;
+    width: 85vw;
+    aspect-ratio: 9 / 16;
+    border-radius: 16px;
     overflow: hidden;
+    scroll-snap-align: center;
     position: relative;
-  border-radius: 16px;
+  }
+
+  .section2-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 16px;
   }
 }
+
 
 
 
@@ -2332,7 +2337,6 @@ window.addEventListener("scroll", function () {
   })();
 
   // ====================== 模块3：Section2 卡片样式轮播 ======================
-<script>
 (function () {
   const container = document.querySelector('.section2-highlights');
   const track = document.querySelector('.section2-track');
@@ -2509,7 +2513,7 @@ window.addEventListener("scroll", function () {
   window.addEventListener('scroll', () => {
     if (!buttonRow) return;
     const br = buttonRow.getBoundingClientRect();
-    buttonRow.style.transform = br.bottom > window.innerHeight ? 'translateY(-90px)' : '';
+    buttonRow.style.transform = br.bottom > window.innerHeight ? 'translateY(-180px)' : '';
   });
 
   window.addEventListener('resize', updateSection2Carousel);
@@ -2517,7 +2521,6 @@ window.addEventListener("scroll", function () {
   // ✅ 初始化
   updateSection2Carousel();
 })();
-</script>
 
 
 
