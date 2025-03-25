@@ -2335,10 +2335,10 @@ window.addEventListener("scroll", function () {
 
   // ====================== 模块3：Section2 卡片样式轮播 ======================
 (function () {
-  // 修改处：用 .section2-carousel 做容器选择器
-  const container = document.querySelector('.section2-carousel');
+  const container = document.querySelector('.section2-carousel');  // 如果你还是 .section2-highlights，就改回来
   const track = document.querySelector('.section2-track');
   const slides = track ? Array.from(track.querySelectorAll('img')) : [];
+  const slideDivs = Array.from(document.querySelectorAll('.section2-slide')); 
   const dotElements = document.querySelectorAll('.dot');
   const totalSlides = slides.length;
   const rightButton = document.getElementById('section2-rightButton');
@@ -2355,7 +2355,7 @@ window.addEventListener("scroll", function () {
   let slideWidth = 0;
   let gapWidth = 0;
 
-  // ✅ 计算容器宽度、图片宽度与间距
+  // ========= 1) 计算容器宽度，以便得到每张图位移量 =========
   function calculateSection2Dimensions() {
     if (!container) return;
     const containerWidth = container.offsetWidth;
@@ -2363,54 +2363,76 @@ window.addEventListener("scroll", function () {
     gapWidth = containerWidth * 0.04;
   }
 
-  // ✅ 更新轮播位移
+  // ========= 2) 更新轮播位置 + 更新圆点 + 更新slides类名 =========
   function updateSection2Carousel() {
     calculateSection2Dimensions();
     const offset = currentIndex * (slideWidth + gapWidth);
     if (track) {
       track.style.transform = `translateX(-${offset}px)`;
     }
+    // 更新圆点的形状/颜色
     updateSection2Dots();
+    // 给每张 slide 添加 active / prev / next 类
+    updateSlidesClass();
   }
 
+  // 给圆点上色、变形
   function updateSection2Dots() {
     dotElements.forEach((dot, idx) => {
-      dot.style.backgroundColor = idx === currentIndex ? '#007aff' : '#ccc';
-      dot.style.width = idx === currentIndex ? '40px' : '12px';
+      dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
+      dot.style.width = (idx === currentIndex) ? '40px' : '12px';
     });
   }
 
+  // 重置所有圆点到初始状态
   function resetSection2Dots() {
     dotElements.forEach((dot, idx) => {
       dot.style.width = '12px';
-      dot.style.backgroundColor = idx === currentIndex ? '#007aff' : '#ccc';
+      dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
     });
   }
 
+  // ========= 3) 原有：自动播放时，dot 动画（宽度从12px渐变到40px） =========
   function animateSection2Dot(timestamp) {
     if (!progressStartTime) progressStartTime = timestamp;
     const elapsed = timestamp - progressStartTime;
     const progress = Math.min(elapsed / 3000, 1);
     const activeDot = dotElements[currentIndex];
-    const newWidth = 12 + (28 * progress);
+    const newWidth = 12 + (28 * progress); // 由12px渐变到40px
     activeDot.style.width = newWidth + 'px';
     if (progress < 1 && isPlaying) {
       progressAnimationId = requestAnimationFrame(animateSection2Dot);
     }
   }
 
+  // ========= 4) 原有：自动播放逻辑 (修改：不再无限循环) =========
   function nextSection2Slide() {
     resetSection2Dots();
-    currentIndex = (currentIndex + 1) % totalSlides;
-    updateSection2Carousel();
-    progressStartTime = null;
-    progressAnimationId = requestAnimationFrame(animateSection2Dot);
-    autoPlayTimer = setTimeout(nextSection2Slide, 3000);
+    // [关键改动] 如果还没到最后一张，则继续，否则停止
+    if (currentIndex < totalSlides - 1) {
+      currentIndex++;
+      updateSection2Carousel();
+      // 继续动画
+      progressStartTime = null;
+      progressAnimationId = requestAnimationFrame(animateSection2Dot);
+      // 3秒后自动切下一张
+      autoPlayTimer = setTimeout(nextSection2Slide, 3000);
+    } else {
+      // 已经到最后一张了 -> 停止自动播放
+      // 将播放按钮变为 ↻，表示可以刷新
+      if (playIcon) {
+        playIcon.textContent = '↻';
+      }
+      pauseSection2AutoPlay(); 
+    }
   }
 
   function pauseSection2AutoPlay() {
     isPlaying = false;
-    if (playIcon) playIcon.textContent = '►';
+    // 若不是刷新状态，就显示 ►（播放图标）
+    if (playIcon && playIcon.textContent !== '↻') {
+      playIcon.textContent = '►';
+    }
     clearTimeout(autoPlayTimer);
     cancelAnimationFrame(progressAnimationId);
     resetSection2Dots();
@@ -2418,44 +2440,70 @@ window.addEventListener("scroll", function () {
 
   function startSection2AutoPlay() {
     isPlaying = true;
-    if (playIcon) playIcon.textContent = '❚❚';
+    // 播放按钮图标改为 ❚❚
+    if (playIcon) {
+      playIcon.textContent = '❚❚';
+    }
     progressStartTime = null;
     progressAnimationId = requestAnimationFrame(animateSection2Dot);
     autoPlayTimer = setTimeout(nextSection2Slide, 3000);
   }
 
+  // ========= 5) 【新增】给每个 .section2-slide 添加 active/prev/next 类名 =========
+  function updateSlidesClass() {
+    slideDivs.forEach((slide, index) => {
+      slide.classList.remove('active', 'prev', 'next');
+      if (index === currentIndex) {
+        slide.classList.add('active');
+      } else if (index === currentIndex - 1) {
+        slide.classList.add('prev');
+      } else if (index === currentIndex + 1) {
+        slide.classList.add('next');
+      }
+    });
+  }
+
+  // ========= 6) 点击圆点：从对应图片开始播放 =========
   dotElements.forEach(dot => {
     dot.addEventListener('click', () => {
       pauseSection2AutoPlay();
       currentIndex = parseInt(dot.getAttribute('data-index'), 10);
       updateSection2Carousel();
+      // 再启动自动播放，直到最后一张
       startSection2AutoPlay();
     });
   });
 
+  // ========= 7) 右侧按钮事件（原逻辑：控制播放/暂停/刷新） =========
   if (rightButton) {
     rightButton.addEventListener('click', () => {
+      // 如果当前是 ↻ 状态，说明已经播放完了 -> 点一下回到第一张
       if (playIcon && playIcon.textContent === '↻') {
         currentIndex = 0;
         updateSection2Carousel();
         resetSection2Dots();
+        // 点击后图标变成 ►
         playIcon.textContent = '►';
         return;
       }
+
+      // 如果正在播放，就暂停
       if (isPlaying) {
         pauseSection2AutoPlay();
       } else {
+        // 若已经播到最后一张，也让它回到第一张
         if (currentIndex >= totalSlides) {
           currentIndex = 0;
           updateSection2Carousel();
           resetSection2Dots();
         }
+        // 否则开始播放
         startSection2AutoPlay();
       }
     });
   }
 
-  // ✅ 触摸滑动
+  // ========= 8) 触摸滑动切换 (保留原先逻辑) =========
   let touchStartX = 0;
   let touchEndX = 0;
   if (track) {
@@ -2466,19 +2514,26 @@ window.addEventListener("scroll", function () {
     track.addEventListener('touchend', e => {
       touchEndX = e.changedTouches[0].clientX;
       const deltaX = touchEndX - touchStartX;
+      // 简单判断阈值
       if (Math.abs(deltaX) > 50) {
         pauseSection2AutoPlay();
         if (deltaX < 0) {
-          currentIndex = (currentIndex + 1) % totalSlides;
+          // 往左划 -> next
+          if (currentIndex < totalSlides - 1) {
+            currentIndex++;
+          }
         } else {
-          currentIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+          // 往右划 -> prev
+          if (currentIndex > 0) {
+            currentIndex--;
+          }
         }
         updateSection2Carousel();
       }
     }, { passive: true });
   }
 
-  // ✅ 按钮动画
+  // ========= 9) IntersectionObserver：按钮出现/隐藏动画 =========
   function showSection2Buttons() {
     leftBtnContainer.classList.remove('btn-hidden');
     rightBtnContainer.classList.remove('btn-hidden');
@@ -2487,7 +2542,6 @@ window.addEventListener("scroll", function () {
     leftBtnContainer.style.pointerEvents = "auto";
     rightBtnContainer.style.pointerEvents = "auto";
   }
-
   function hideSection2Buttons() {
     leftBtnContainer.classList.remove('btn-left-animate');
     rightBtnContainer.classList.remove('btn-right-animate');
@@ -2507,19 +2561,23 @@ window.addEventListener("scroll", function () {
 
   if (container) observer.observe(container);
 
-  // ✅ 滚动时按钮自动上移
+  // ========= 10) 滚动时按钮自动上移 =========
   window.addEventListener('scroll', () => {
     if (!buttonRow) return;
     const br = buttonRow.getBoundingClientRect();
     buttonRow.style.transform = br.bottom > window.innerHeight ? 'translateY(-180px)' : '';
   });
 
+  // ========= 11) 监听 resize =========
   window.addEventListener('resize', updateSection2Carousel);
 
-  // ✅ 初始化
+  // ========= 12) 初始化：先更新位置与类名，再开始播放 =========
   updateSection2Carousel();
+  // 等页面加载完毕后(可改为 window.onload / DOMContentLoaded等), 再启动自动播放
+  window.addEventListener('load', () => {
+    startSection2AutoPlay();
+  });
 })();
-
 
 
 
