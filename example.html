@@ -556,7 +556,7 @@ z-index:999;
     overflow-x: hidden;
     margin: 0 auto;
     position: relative;
-    margin-top: 60px;
+    margin-top: 20px;
     margin-bottom: 70px;
   }
  .section2-carousel::-webkit-scrollbar {
@@ -2325,299 +2325,195 @@ window.addEventListener("scroll", function () {
   })();
 
   // ====================== 模块3：Section2 卡片样式轮播 ======================
-(function () {
-  const container = document.querySelector('.section2-carousel');
-  const track = document.querySelector('.section2-track');
-  const slides = track ? Array.from(track.querySelectorAll('img')) : [];
-  const dotElements = document.querySelectorAll('.dot');
-  const totalSlides = slides.length;
-  const rightButton = document.getElementById('section2-rightButton');
-  const playIcon = document.getElementById('section2-playIcon');
-  const buttonRow = document.getElementById('section2-buttonRow');
-  const leftBtnContainer = document.getElementById('leftBtnContainer');
-  const rightBtnContainer = document.getElementById('rightBtnContainer');
-
-  let currentIndex = 0;
-  let isPlaying = false;
-  let autoPlayTimer = null;
-  let progressStartTime = null;
-  let progressAnimationId = null;
-  // 新增或保留的宽度、间距变量
-  let slideWidth = 0;
-  let gapWidth = 0;
-  // 新增：播放是否已完成的标志
-  let playbackFinished = false;
-
-  // =========================
-  // 1) 计算容器宽度，区分移动端/桌面端
-  // =========================
-  function calculateSection2Dimensions() {
-    if (!container || slides.length === 0) return;
-
-    // 区分移动端与桌面端
-    if (window.innerWidth <= 768) {
-      // -- 移动端：用85%容器宽度当作单张宽度，4%容器宽度当作间距
-      const containerWidth = container.offsetWidth;
-      gapWidth = containerWidth * 0.04; // ~4vw
-      slideWidth = containerWidth * 0.85; // ~85vw
-
-      // 给每个slide设置宽度（可根据需要保留或去掉）
-      slides.forEach((slide) => {
-        slide.style.width = `${slideWidth}px`;
-      });
-    } else {
-      // -- 桌面端：固定15px间距，并测量第二张的实际宽度
-      slides.forEach((slide) => {
-        // 去掉移动端设置的宽度，回归CSS原本的宽度
-        slide.style.width = '';
-      });
-      gapWidth = 15;
-
-      // 若只有1张幻灯片则测第一张，否则测第二张更稳定
-      let measuredSlideWidth = 0;
-      if (slides.length > 1) {
-        measuredSlideWidth = slides[1].getBoundingClientRect().width;
-      } else {
-        measuredSlideWidth = slides[0].getBoundingClientRect().width;
+    (function () {
+      const container = document.querySelector('.section2-carousel');
+      const track = document.querySelector('.section2-track');
+      // 注意：这里选择整个幻灯片容器，而非仅图片
+      let slides = track ? Array.from(track.querySelectorAll('.section2-slide')) : [];
+      let totalSlides = slides.length;
+      if (totalSlides > 1) {
+        const firstClone = slides[0].cloneNode(true);
+        const lastClone = slides[totalSlides - 1].cloneNode(true);
+        track.insertBefore(lastClone, slides[0]);
+        track.appendChild(firstClone);
+        slides = Array.from(track.querySelectorAll('.section2-slide'));
+        totalSlides = slides.length;
       }
-      slideWidth = measuredSlideWidth;
-    }
-  }
-
-  // =========================
-  // 2) 更新轮播位置：结合 currentIndex、slideWidth、gapWidth
-  // =========================
-  function updateSection2Carousel() {
-    calculateSection2Dimensions();
-    // 根据当前索引计算偏移量
-    // 这里将“幻灯片宽度 + 间距”作为一个整体移动
-    const offset = currentIndex * (slideWidth + gapWidth);
-    if (track) {
-      track.style.transform = `translateX(-${offset}px)`;
-    }
-    updateSection2Dots();
-  }
-
-  // =========================
-  // 3) 圆点更新
-  // =========================
-  function updateSection2Dots() {
-    dotElements.forEach((dot, idx) => {
-      // 先清除过渡效果
-      dot.style.transition = 'none';
-      dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
-      // 如果正在播放且未结束，则当前圆点显示40px；否则全部显示12px
-      dot.style.width = (idx === currentIndex && isPlaying && !playbackFinished) ? '40px' : '12px';
-    });
-  }
-
-  // 将所有圆点恢复到初始状态（12px），同时确保当前索引的圆点也是12px
-  function resetSection2Dots() {
-    dotElements.forEach((dot, idx) => {
-      dot.style.transition = 'none';
-      dot.style.width = '12px';
-      dot.style.backgroundColor = (idx === currentIndex) ? '#007aff' : '#ccc';
-    });
-  }
-
-  // =========================
-  // 4) 自动播放时，当前圆点动画（由12px宽到40px）
-  // =========================
-  function animateSection2Dot(timestamp) {
-    // 如果播放已结束，则不再更新动画
-    if (playbackFinished) return;
-    if (!progressStartTime) progressStartTime = timestamp;
-    const elapsed = timestamp - progressStartTime;
-    const progress = Math.min(elapsed / 3000, 1);
-    const activeDot = dotElements[currentIndex];
-    activeDot.style.transition = 'none';
-    const newWidth = 12 + (28 * progress);
-    activeDot.style.width = newWidth + 'px';
-
-    if (progress < 1 && isPlaying && !playbackFinished) {
-      progressAnimationId = requestAnimationFrame(animateSection2Dot);
-    }
-  }
-
-  // =========================
-  // 5) 播放完成后，彻底停止所有动画，并恢复圆点初始状态
-  // =========================
-  function finishSection2AutoPlay() {
-    isPlaying = false;
-    playbackFinished = true;
-    clearTimeout(autoPlayTimer);
-    cancelAnimationFrame(progressAnimationId);
-    if (playIcon) {
-      playIcon.textContent = '↻';
-    }
-    // 先重置圆点，再更新一次（确保当前索引的圆点为12px）
-    resetSection2Dots();
-    updateSection2Carousel();
-  }
-
-  // =========================
-  // 6) 下一张：如果到最后一张则结束播放
-  // =========================
-  function nextSection2Slide() {
-    resetSection2Dots();
-    if (currentIndex < totalSlides - 1) {
-      currentIndex++;
-      updateSection2Carousel();
-      progressStartTime = null;
-      progressAnimationId = requestAnimationFrame(animateSection2Dot);
-      autoPlayTimer = setTimeout(nextSection2Slide, 3000);
-    } else {
-      finishSection2AutoPlay();
-    }
-  }
-
-  // =========================
-  // 7) 暂停播放
-  // =========================
-  function pauseSection2AutoPlay() {
-    isPlaying = false;
-    playbackFinished = true;
-    if (playIcon && playIcon.textContent !== '↻') {
-      playIcon.textContent = '►';
-    }
-    clearTimeout(autoPlayTimer);
-    cancelAnimationFrame(progressAnimationId);
-    resetSection2Dots();
-  }
-
-  function startSection2AutoPlay() {
-    // 开始前重置播放完成标志
-    playbackFinished = false;
-    isPlaying = true;
-    if (playIcon && playIcon.textContent !== '↻') {
-      playIcon.textContent = '❚❚';
-    }
-    progressStartTime = null;
-    progressAnimationId = requestAnimationFrame(animateSection2Dot);
-    autoPlayTimer = setTimeout(nextSection2Slide, 3000);
-  }
-
-  // =========================
-  // 8) 点圆点切换到对应索引并继续自动播放
-  // =========================
-  dotElements.forEach(dot => {
-    dot.addEventListener('click', () => {
-      pauseSection2AutoPlay();
-      currentIndex = parseInt(dot.getAttribute('data-index'), 10);
-      updateSection2Carousel();
-      startSection2AutoPlay();
-    });
-  });
-
-  // =========================
-  // 9) 右侧按钮点击：播放/暂停/刷新
-  // =========================
-  if (rightButton) {
-    rightButton.addEventListener('click', () => {
-      // 如果图标显示为刷新（↻），则重置到第一张
-      if (playIcon && playIcon.textContent === '↻') {
-        currentIndex = 0;
-        updateSection2Carousel();
-        resetSection2Dots();
-        playIcon.textContent = '►';
-        return;
-      }
-      // 正在播放则暂停，否则开始播放
-      if (isPlaying) {
-        pauseSection2AutoPlay();
-      } else {
-        if (currentIndex >= totalSlides) {
-          currentIndex = 0;
-          updateSection2Carousel();
-          resetSection2Dots();
-        }
-        startSection2AutoPlay();
-      }
-    });
-  }
-
-  // =========================
-  // 10) 触摸滑动切换
-  // =========================
-  let touchStartX = 0;
-  let touchEndX = 0;
-  if (track) {
-    track.addEventListener('touchstart', e => {
-      touchStartX = e.touches[0].clientX;
-    }, { passive: true });
-
-    track.addEventListener('touchend', e => {
-      touchEndX = e.changedTouches[0].clientX;
-      const deltaX = touchEndX - touchStartX;
-      if (Math.abs(deltaX) > 50) {
-        pauseSection2AutoPlay();
-        if (deltaX < 0) {
-          if (currentIndex < totalSlides - 1) {
-            currentIndex++;
-          }
+      const dotElements = document.querySelectorAll('.dot');
+      const rightButton = document.getElementById('section2-rightButton');
+      const playIcon = document.getElementById('section2-playIcon');
+      const buttonRow = document.getElementById('section2-buttonRow');
+      const leftBtnContainer = document.getElementById('leftBtnContainer');
+      const rightBtnContainer = document.getElementById('rightBtnContainer');
+      let currentIndex = (totalSlides > 1) ? 1 : 0;
+      let isPlaying = false;
+      let autoPlayTimer = null;
+      let progressStartTime = null;
+      let progressAnimationId = null;
+      let slideWidth = 0;
+      let gapWidth = 0;
+      let playbackFinished = false;
+      function calculateSection2Dimensions() {
+        if (!container || slides.length === 0) return;
+        if (window.innerWidth <= 768) {
+          const containerWidth = container.offsetWidth;
+          gapWidth = containerWidth * 0.04;
+          slideWidth = containerWidth * 0.85;
+          slides.forEach((slide) => { slide.style.width = `${slideWidth}px`; });
         } else {
-          if (currentIndex > 0) {
-            currentIndex--;
-          }
+          slides.forEach((slide) => { slide.style.width = ''; });
+          gapWidth = 15;
+          let measuredSlideWidth = (slides.length > 1) ? slides[1].getBoundingClientRect().width : slides[0].getBoundingClientRect().width;
+          slideWidth = measuredSlideWidth;
         }
+      }
+      function updateSection2Carousel() {
+        calculateSection2Dimensions();
+        const offset = currentIndex * (slideWidth + gapWidth);
+        if (track) { track.style.transform = `translateX(-${offset}px)`; }
+        updateSection2Dots();
+      }
+      function updateSection2Dots() {
+        dotElements.forEach((dot, idx) => {
+          dot.style.transition = 'none';
+          dot.style.backgroundColor = (idx === currentIndex - 1) ? '#007aff' : '#ccc';
+          dot.style.width = (idx === currentIndex - 1 && isPlaying && !playbackFinished) ? '40px' : '12px';
+        });
+      }
+      function resetSection2Dots() {
+        dotElements.forEach((dot, idx) => {
+          dot.style.transition = 'none';
+          dot.style.width = '12px';
+          dot.style.backgroundColor = (idx === currentIndex - 1) ? '#007aff' : '#ccc';
+        });
+      }
+      function animateSection2Dot(timestamp) {
+        if (playbackFinished) return;
+        if (!progressStartTime) progressStartTime = timestamp;
+        const elapsed = timestamp - progressStartTime;
+        const progress = Math.min(elapsed / 3000, 1);
+        const activeDotIndex = currentIndex - 1;
+        const activeDot = dotElements[activeDotIndex];
+        if (!activeDot) return;
+        activeDot.style.transition = 'none';
+        const newWidth = 12 + (28 * progress);
+        activeDot.style.width = newWidth + 'px';
+        if (progress < 1 && isPlaying && !playbackFinished) {
+          progressAnimationId = requestAnimationFrame(animateSection2Dot);
+        }
+      }
+      function finishSection2AutoPlay() {
+        isPlaying = false;
+        playbackFinished = true;
+        clearTimeout(autoPlayTimer);
+        cancelAnimationFrame(progressAnimationId);
+        if (playIcon) playIcon.textContent = '↻';
+        resetSection2Dots();
         updateSection2Carousel();
       }
-    }, { passive: true });
-  }
-
-  // =========================
-  // 11) IntersectionObserver：按钮出现/隐藏动画
-  // =========================
-  function showSection2Buttons() {
-    leftBtnContainer.classList.remove('btn-hidden');
-    rightBtnContainer.classList.remove('btn-hidden');
-    leftBtnContainer.classList.add('btn-left-animate');
-    rightBtnContainer.classList.add('btn-right-animate');
-    leftBtnContainer.style.pointerEvents = "auto";
-    rightBtnContainer.style.pointerEvents = "auto";
-  }
-  function hideSection2Buttons() {
-    leftBtnContainer.classList.remove('btn-left-animate');
-    rightBtnContainer.classList.remove('btn-right-animate');
-    leftBtnContainer.classList.add('btn-hidden');
-    rightBtnContainer.classList.add('btn-hidden');
-  }
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        showSection2Buttons();
-      } else {
-        hideSection2Buttons();
+      function nextSection2Slide() {
+        resetSection2Dots();
+        if (currentIndex < (totalSlides - 2)) {
+          currentIndex++;
+          updateSection2Carousel();
+          progressStartTime = null;
+          progressAnimationId = requestAnimationFrame(animateSection2Dot);
+          autoPlayTimer = setTimeout(nextSection2Slide, 3000);
+        } else {
+          finishSection2AutoPlay();
+        }
       }
-    });
-  }, { threshold: 0 });
-
-  if (container) observer.observe(container);
-
-  // =========================
-  // 12) 滚动时按钮自动上移
-  // =========================
-  window.addEventListener('scroll', () => {
-    if (!buttonRow) return;
-    const br = buttonRow.getBoundingClientRect();
-    buttonRow.style.transform = br.bottom > window.innerHeight ? 'translateY(-180px)' : '';
-  });
-
-  // =========================
-  // 13) 监听窗口大小变化，重新计算宽度
-  // =========================
-  window.addEventListener('resize', updateSection2Carousel);
-
-  // =========================
-  // 14) 初始化
-  // =========================
-  updateSection2Carousel();
-  window.addEventListener('load', () => {
-    startSection2AutoPlay();
-  });
-})();
-
+      function pauseSection2AutoPlay() {
+        isPlaying = false;
+        playbackFinished = true;
+        if (playIcon && playIcon.textContent !== '↻') playIcon.textContent = '►';
+        clearTimeout(autoPlayTimer);
+        cancelAnimationFrame(progressAnimationId);
+        resetSection2Dots();
+      }
+      function startSection2AutoPlay() {
+        playbackFinished = false;
+        isPlaying = true;
+        if (playIcon && playIcon.textContent !== '↻') playIcon.textContent = '❚❚';
+        progressStartTime = null;
+        progressAnimationId = requestAnimationFrame(animateSection2Dot);
+        autoPlayTimer = setTimeout(nextSection2Slide, 3000);
+      }
+      dotElements.forEach(dot => {
+        dot.addEventListener('click', () => {
+          pauseSection2AutoPlay();
+          const dotIndex = parseInt(dot.getAttribute('data-index'), 10);
+          currentIndex = dotIndex + 1;
+          updateSection2Carousel();
+          startSection2AutoPlay();
+        });
+      });
+      if (rightButton) {
+        rightButton.addEventListener('click', () => {
+          if (playIcon && playIcon.textContent === '↻') {
+            currentIndex = (totalSlides > 1) ? 1 : 0;
+            updateSection2Carousel();
+            resetSection2Dots();
+            playIcon.textContent = '►';
+            return;
+          }
+          if (isPlaying) {
+            pauseSection2AutoPlay();
+          } else {
+            if (currentIndex >= totalSlides) {
+              currentIndex = (totalSlides > 1) ? 1 : 0;
+              updateSection2Carousel();
+              resetSection2Dots();
+            }
+            startSection2AutoPlay();
+          }
+        });
+      }
+      let touchStartX = 0;
+      let touchEndX = 0;
+      if (track) {
+        track.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+        track.addEventListener('touchend', e => {
+          touchEndX = e.changedTouches[0].clientX;
+          const deltaX = touchEndX - touchStartX;
+          if (Math.abs(deltaX) > 50) {
+            pauseSection2AutoPlay();
+            if (deltaX < 0) {
+              if (currentIndex < (totalSlides - 2)) { currentIndex++; } else { finishSection2AutoPlay(); }
+            } else {
+              if (currentIndex > 1) { currentIndex--; }
+            }
+            updateSection2Carousel();
+          }
+        }, { passive: true });
+      }
+      function showSection2Buttons() {
+        leftBtnContainer.classList.remove('btn-hidden');
+        rightBtnContainer.classList.remove('btn-hidden');
+        leftBtnContainer.classList.add('btn-left-animate');
+        rightBtnContainer.classList.add('btn-right-animate');
+        leftBtnContainer.style.pointerEvents = "auto";
+        rightBtnContainer.style.pointerEvents = "auto";
+      }
+      function hideSection2Buttons() {
+        leftBtnContainer.classList.remove('btn-left-animate');
+        rightBtnContainer.classList.remove('btn-right-animate');
+        leftBtnContainer.classList.add('btn-hidden');
+        rightBtnContainer.classList.add('btn-hidden');
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => { entry.isIntersecting ? showSection2Buttons() : hideSection2Buttons(); });
+      }, { threshold: 0 });
+      if (container) observer.observe(container);
+      window.addEventListener('scroll', () => {
+        if (!buttonRow) return;
+        const br = buttonRow.getBoundingClientRect();
+        buttonRow.style.transform = br.bottom > window.innerHeight ? 'translateY(-180px)' : '';
+      });
+      window.addEventListener('resize', updateSection2Carousel);
+      updateSection2Carousel();
+      window.addEventListener('load', () => { startSection2AutoPlay(); });
+    })();
 
 
 
