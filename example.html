@@ -2327,7 +2327,7 @@ window.addEventListener("scroll", function () {
 (function () {
   const container = document.querySelector('.section2-carousel');
   const track = document.querySelector('.section2-track');
-  const slides = track ? Array.from(track.querySelectorAll('img')) : [];
+  const slides = track ? Array.from(track.querySelectorAll('.section2-slide')) : [];
   const dotElements = document.querySelectorAll('.dot');
   const totalSlides = slides.length;
   const rightButton = document.getElementById('section2-rightButton');
@@ -2343,27 +2343,38 @@ window.addEventListener("scroll", function () {
   let progressAnimationId = null;
   let slideWidth = 0;
   let gapWidth = 0;
-  let playbackFinished = false; // 播放是否结束标志
+  let containerWidth = 0;
+  let playbackFinished = false; // 播放是否结束
 
-  // === 1) 计算容器宽度，更新轨道位移 ===
+  // === 1) 计算尺寸 ===
   function calculateSection2Dimensions() {
-    if (!container) return;
-    // 使用 getBoundingClientRect().width 以确保移动端能正确获取宽度
-    const containerWidth = container.getBoundingClientRect().width;
-    slideWidth = containerWidth * 0.85;
-    gapWidth = containerWidth * 0.04;
+    if (!container || slides.length === 0) return;
+    // 容器宽度
+    containerWidth = container.getBoundingClientRect().width;
+    // 单张slide宽度（假设每张slide宽度相同）
+    slideWidth = slides[0].getBoundingClientRect().width;
+    // 从 track 的CSS gap获取间隔
+    const trackStyle = window.getComputedStyle(track);
+    gapWidth = parseFloat(trackStyle.gap) || 0;
   }
 
+  // === 2) 更新轮播位置：让当前索引的slide居中，左右可见其它slide ===
   function updateSection2Carousel() {
     calculateSection2Dimensions();
-    const offset = currentIndex * (slideWidth + gapWidth);
+
+    // 核心公式：居中 currentIndex 的slide
+    // “原始偏移” = currentIndex * (slideWidth + gapWidth)
+    // 再减去一半的 (containerWidth - slideWidth)，让当前slide中心对齐容器中心
+    const offset = currentIndex * (slideWidth + gapWidth)
+                 - (containerWidth - slideWidth) / 2;
+
     if (track) {
       track.style.transform = `translateX(-${offset}px)`;
     }
     updateSection2Dots();
   }
 
-  // === 2) 圆点更新 ===
+  // === 3) 圆点更新 ===
   function updateSection2Dots() {
     dotElements.forEach((dot, idx) => {
       dot.style.transition = 'none';
@@ -2372,7 +2383,6 @@ window.addEventListener("scroll", function () {
     });
   }
 
-  // 恢复所有圆点为初始状态
   function resetSection2Dots() {
     dotElements.forEach((dot, idx) => {
       dot.style.transition = 'none';
@@ -2381,7 +2391,7 @@ window.addEventListener("scroll", function () {
     });
   }
 
-  // === 3) 自动播放时，当前圆点动画（由12px宽到40px）===
+  // === 4) 自动播放时，当前圆点动画（由12px宽到40px）===
   function animateSection2Dot(timestamp) {
     if (playbackFinished) return;
     if (!progressStartTime) progressStartTime = timestamp;
@@ -2397,7 +2407,7 @@ window.addEventListener("scroll", function () {
     }
   }
 
-  // === 4) 播放完成后，停止所有动画，并恢复圆点初始状态 ===
+  // === 5) 播放完成后，彻底停止所有动画，并恢复圆点初始状态 ===
   function finishSection2AutoPlay() {
     isPlaying = false;
     playbackFinished = true;
@@ -2410,7 +2420,7 @@ window.addEventListener("scroll", function () {
     updateSection2Carousel();
   }
 
-  // === 5) 下一张：如果到最后一张则结束播放 ===
+  // === 6) 切换到下一张 ===
   function nextSection2Slide() {
     resetSection2Dots();
     if (currentIndex < totalSlides - 1) {
@@ -2424,7 +2434,7 @@ window.addEventListener("scroll", function () {
     }
   }
 
-  // === 6) 暂停播放 ===
+  // === 7) 暂停播放 ===
   function pauseSection2AutoPlay() {
     isPlaying = false;
     playbackFinished = true;
@@ -2436,6 +2446,7 @@ window.addEventListener("scroll", function () {
     resetSection2Dots();
   }
 
+  // === 8) 开始播放 ===
   function startSection2AutoPlay() {
     playbackFinished = false;
     isPlaying = true;
@@ -2447,7 +2458,7 @@ window.addEventListener("scroll", function () {
     autoPlayTimer = setTimeout(nextSection2Slide, 3000);
   }
 
-  // === 7) 点击圆点切换并继续自动播放 ===
+  // === 9) 点击圆点切换到对应索引并继续自动播放 ===
   dotElements.forEach(dot => {
     dot.addEventListener('click', () => {
       pauseSection2AutoPlay();
@@ -2457,7 +2468,7 @@ window.addEventListener("scroll", function () {
     });
   });
 
-  // === 8) 右侧按钮点击：播放/暂停/刷新 ===
+  // === 10) 右侧按钮点击：播放/暂停/刷新 ===
   if (rightButton) {
     rightButton.addEventListener('click', () => {
       if (playIcon && playIcon.textContent === '↻') {
@@ -2480,7 +2491,7 @@ window.addEventListener("scroll", function () {
     });
   }
 
-  // === 9) 触摸滑动切换 ===
+  // === 11) 触摸滑动切换（手机端） ===
   let touchStartX = 0;
   let touchEndX = 0;
   if (track) {
@@ -2507,14 +2518,12 @@ window.addEventListener("scroll", function () {
     }, { passive: true });
   }
 
-  // === 10) IntersectionObserver：按钮出现/隐藏动画 ===
+  // === 12) IntersectionObserver：按钮出现/隐藏动画 ===
   function showSection2Buttons() {
     leftBtnContainer.classList.remove('btn-hidden');
     rightBtnContainer.classList.remove('btn-hidden');
     leftBtnContainer.classList.add('btn-left-animate');
     rightBtnContainer.classList.add('btn-right-animate');
-    leftBtnContainer.style.pointerEvents = "auto";
-    rightBtnContainer.style.pointerEvents = "auto";
   }
   function hideSection2Buttons() {
     leftBtnContainer.classList.remove('btn-left-animate');
@@ -2522,7 +2531,6 @@ window.addEventListener("scroll", function () {
     leftBtnContainer.classList.add('btn-hidden');
     rightBtnContainer.classList.add('btn-hidden');
   }
-
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -2532,30 +2540,19 @@ window.addEventListener("scroll", function () {
       }
     });
   }, { threshold: 0 });
-
   if (container) observer.observe(container);
 
-  // === 11) 滚动时按钮自动上移 ===
-  window.addEventListener('scroll', () => {
-    if (!buttonRow) return;
-    const br = buttonRow.getBoundingClientRect();
-    buttonRow.style.transform = br.bottom > window.innerHeight ? 'translateY(-180px)' : '';
-  });
-
-  // === 12) 监听窗口大小变化，重新计算宽度 ===
+  // === 13) 监听窗口大小变化，重新计算宽度 ===
   window.addEventListener('resize', updateSection2Carousel);
   window.addEventListener('orientationchange', updateSection2Carousel);
 
-  // === 13) 初始更新（确保移动端能正确显示第一张）===
-  document.addEventListener('DOMContentLoaded', updateSection2Carousel);
-
   // === 14) 初始化 ===
-  updateSection2Carousel();
+  document.addEventListener('DOMContentLoaded', updateSection2Carousel);
   window.addEventListener('load', () => {
+    updateSection2Carousel();
     startSection2AutoPlay();
   });
 })();
-
 
 
 
