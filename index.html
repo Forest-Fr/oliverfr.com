@@ -2,7 +2,705 @@
 
 
 
+
 <script>
-document.addEventListener("DOMContentLoaded",function(){(function(){var a=document.body,b=document.getElementById("mainHeader"),c=document.getElementById("desktopSearchIcon"),d=document.getElementById("mobileSearchIcon"),e=document.getElementById("searchPanel"),f=document.getElementById("searchClose"),g=document.getElementById("searchTitle"),h=document.getElementById("searchResults"),i=[{text:"About MeFan",url:"about.html"},{text:"MeFan Lite - Wireless Earbuds",url:"product-lite.html"},{text:"MeFan X1 - Noise Canceling Headphones",url:"product-x1.html"},{text:"MeFan Pro - Premium Audio",url:"product-pro.html"},{text:"Earbud Tips & Support",url:"support.html"},{text:"Contact Us",url:"contact.html"},{text:"Products Overview",url:"products.html"}];function j(){a.classList.add("search-open"),g.textContent="",h.innerHTML=""}function k(){a.classList.remove("search-open")}c&&c.addEventListener("click",j),d&&d.addEventListener("click",j),f&&f.addEventListener("click",k),document.addEventListener("keydown",function(l){"Escape"===l.key&&k()}),document.addEventListener("click",function(l){e&&!e.contains(l.target)&&l.target!==c&&l.target!==d&&k()}),g&&h&&g.addEventListener("input",function(){var l=g.innerText.trim().toLowerCase();if(!l){h.innerHTML="";return}var m=i.filter(function(n){return n.text.toLowerCase().includes(l)});if(h.innerHTML="",m.length>0)m.forEach(function(n){var o=document.createElement("div");o.classList.add("search-item");var p=document.createElement("a");p.href=n.url,p.textContent=n.text,p.style.textDecoration="none",p.style.color="#333",p.target="_self",o.appendChild(p),h.appendChild(o)});else{var q=document.createElement("div");q.classList.add("no-result"),q.textContent="Sorry, no results found.",h.appendChild(q)}})})();(function(){var a=document.getElementById("menuIcon"),b=document.getElementById("closeBtn"),c=document.getElementById("mobileNav");a&&b&&c&&(a.addEventListener("click",function(){c.classList.add("active")}),b.addEventListener("click",function(){c.classList.remove("active")}),document.querySelectorAll("#mobileNav ul li a").forEach(function(d){d.addEventListener("click",function(){c.classList.remove("active")})}))})();(function(){var a=document.getElementById("mainHeader"),b=document.querySelectorAll(".desktop-nav .nav-list>li>a"),c=document.getElementById("hover1Overlay"),d=document.getElementById("hover1Content"),e=document.getElementById("blur1Bg"),f={Home:document.getElementById("hover1Home"),Products:document.getElementById("hover1Products"),About:document.getElementById("hover1About"),Contact:document.getElementById("hover1Contact")};function g(){Object.values(f).forEach(function(h){h&&h.classList.remove("active")})}function h(){c&&d&&a&&(c.classList.add("active"),d.classList.add("active"),a.classList.add("nav-white"),e&&e.classList.add("active"))}function i(){c&&d&&a&&(c.classList.remove("active"),d.classList.remove("active"),a.classList.remove("nav-white"),e&&e.classList.remove("active"),g())}b&&c&&d&&(b.forEach(function(j){j.addEventListener("mouseenter",function(){var k=j.textContent.trim();g(),f[k]?(f[k].classList.add("active"),h()):i()})}),d.addEventListener("mouseleave",function(){i()}),c.addEventListener("mousemove",function(){i()}),e&&e.addEventListener("mousemove",function(){i()}))})();(function(){var a=document.getElementById("mobileNav"),b=document.getElementById("mobileNavLevel2Home"),c=document.getElementById("mobileNavLevel2Products"),d=document.getElementById("mobileNavLevel2About"),e=document.getElementById("mobileNavLevel2Contact");if(!a||!b||!c||!d||!e){console.log("多级菜单面板未找到，若不需要此功能可删除本脚本。");return}function f(o){a.classList.remove("active"),b.classList.remove("active"),c.classList.remove("active"),d.classList.remove("active"),e.classList.remove("active"),o.classList.add("active")}function g(){b.classList.remove("active"),c.classList.remove("active"),d.classList.remove("active"),e.classList.remove("active"),a.classList.add("active")}var h=a.querySelectorAll("ul li a");h.forEach(function(o){var p=o.getAttribute("data-level");"home"===p?o.addEventListener("click",function(q){q.preventDefault(),f(b)}):"products"===p?o.addEventListener("click",function(q){q.preventDefault(),f(c)}):"about"===p?o.addEventListener("click",function(q){q.preventDefault(),f(d)}):"contact"===p&&o.addEventListener("click",function(q){q.preventDefault(),f(e)})});document.querySelectorAll(".menu-panel__back").forEach(function(o){o.addEventListener("click",function(){g()})});document.querySelectorAll(".menu-panel__close").forEach(function(o){o.addEventListener("click",function(){a.classList.remove("active"),b.classList.remove("active"),c.classList.remove("active"),d.classList.remove("active"),e.classList.remove("active")})})})();(function(){var a=document.getElementById("mainHeader"),b=document.getElementById("mefanAirWrap"),c=document.getElementById("mobileAirNav");window.addEventListener("scroll",function(){var f=window.scrollY||document.documentElement.scrollTop,g=window.innerWidth<=768;if(!g)f>400?(a&&a.classList.add("hide-header"),b&&b.classList.add("active")):(a&&a.classList.remove("hide-header"),b&&b.classList.remove("active"));else if(f>200){a&&a.classList.add("hide-header"),c&&c.classList.add("active")}else{a&&a.classList.remove("hide-header"),c&&c.classList.remove("active")}});if(window.innerWidth<=768){var d=document.getElementById("mobileAirToggleBtn"),e=document.getElementById("mobileAirPanel"),h=document.getElementById("mobileAirBlur"),i=!1;function j(){i=!0,d&&(d.textContent="⌃"),e&&(e.style.maxHeight=e.scrollHeight+"px"),h&&h.classList.add("active")}function k(){i=!1,d&&(d.textContent="⌄"),e&&(e.style.maxHeight="0"),h&&h.classList.remove("active")}d&&e&&d.addEventListener("click",function(){i?k():j()}),h&&h.addEventListener("click",k)}})();(function(){/* 模块3：Section2 卡片轮播相关逻辑 (如有) */})();(function(){/* 模块4：Section3 交互相关逻辑 (如有) */})();});
-(function(){var a=document.getElementById("mobileNav"),b=document.getElementById("mobileAirNav"),c=new MutationObserver(function(){b.classList.contains("active")&&a.classList.remove("active")});b&&c.observe(b,{attributes:!0,attributeFilter:["class"]})})();
+"use strict";
+
+// -- 图片全局） --
+function waitImagesLoaded(_0x1a, _0x1b) {
+  let _0x1c = 0;
+  const _0x1d = _0x1a.length;
+  function _0x1e() {
+    ++_0x1c >= _0x1d && _0x1b();
+  }
+  _0x1a.forEach(function(_0x1f){
+    if(_0x1f.complete) {
+      _0x1e();
+    } else {
+      _0x1f.addEventListener("load", _0x1e);
+      _0x1f.addEventListener("error", _0x1e);
+    }
+  });
+  0 === _0x1d && _0x1b();
+}
+function _0xD(_0x20){
+  return atob(_0x20);
+}
+
+/* --- 部分1播 --- */
+(function(){
+  (function(){
+    try{
+      for(var _0x21=0;_0x21<0;_0x21++){
+      }
+    }catch(_0x22){}
+  })();
+
+  function _0x23(){
+    const _0x24 = document.querySelector(".spec1-carousel-container"),
+          _0x25 = document.querySelector(".spec1-carousel-track");
+    let _0x26 = Array.from(document.querySelectorAll(".spec1-carousel-slide"));
+    const _0x27 = document.querySelector(".spec1-carousel-prev"),
+          _0x28 = document.querySelector(".spec1-carousel-next");
+
+    if(!_0x24 || !_0x25 || !_0x26.length || !_0x27 || !_0x28){
+      console.warn(_0xD("c3BlYzEgaGFuZC1jb250cm9sIGNhcm91c2VsOiBlbGVtZW50cyBvciBhcnJvdyBub3QgZm91bmQh"));
+      return;
+    }
+
+    const _0x29 = _0x26.length;
+    let _0x2a = 1,
+        _0x2b = !1,
+        _0x2c = 0,
+        _0x2d = 15;
+
+    const _0x2e = _0x26[0].cloneNode(!0),
+          _0x2f = _0x26[_0x29-1].cloneNode(!0);
+    _0x25.appendChild(_0x2e);
+    _0x25.insertBefore(_0x2f, _0x25.firstChild);
+
+    _0x26 = Array.from(_0x25.querySelectorAll(".spec1-carousel-slide"));
+
+    var _0x30 = [
+      function(){
+        if(window.innerWidth <= 768){
+          if(_0x24.offsetWidth){
+            (function(){
+              const _0x31 = _0x24.offsetWidth;
+              _0x2d = .04 * _0x31;
+              _0x26.forEach(function(s){
+                s.style.width = `${.85*_0x31}px`;
+              });
+              _0x2c = .85*_0x31 + _0x2d;
+            })()
+          }
+        } else {
+          _0x26.forEach(s=>s.style.width="");
+          _0x2d = 15;
+          if(_0x26[1]){
+            (function(){
+              const _0x32 = _0x26[1].getBoundingClientRect().width;
+              _0x2c = _0x32 + _0x2d;
+            })()
+          }
+        }
+      },
+      function(_0x33){
+        _0x30[0]();
+        _0x25.style.transition = _0x33 ? "transform 0.5s ease-in-out":"none";
+        if(window.innerWidth<=768){
+          _0x25.style.transform=`translateX(${-_0x2a*_0x2c + _0x2d/2}px)`;
+        } else {
+          _0x25.style.transform=`translateX(${-_0x2a*_0x2c}px)`;
+        }
+        _0x26.forEach(s=>s.classList.remove("active","prev","next","shadow"));
+        _0x26[_0x2a] && _0x26[_0x2a].classList.add("active");
+        (function(){
+          const _0x34 = (_0x2a+1)%_0x26.length,
+                _0x35 = (_0x2a-1+_0x26.length)%_0x26.length;
+          _0x26[_0x34] && _0x26[_0x34].classList.add("next");
+          _0x26[_0x35] && _0x26[_0x35].classList.add("prev");
+        })();
+        _0x26.forEach(s=>{
+          !s.classList.contains("active") && s.classList.add("shadow");
+        });
+        _0x26.forEach(function(sl){
+          const _0x36 = sl.querySelector("a");
+          if(_0x36){
+            _0x36.style.pointerEvents = sl.classList.contains("active") ? "auto":"none";
+          }
+        });
+      }
+    ];
+
+    function _0x37(){
+      if(_0x2b) return;
+      _0x2b = !0;
+      _0x2a++;
+      _0x30[1](!0);
+      setTimeout(function(){
+        if(_0x2a === _0x26.length-1){
+          _0x25.style.transition="none";
+          _0x2a = 1;
+          _0x30[1](!1);
+        }
+        _0x2b = !1;
+      },500);
+    }
+    function _0x38(){
+      if(_0x2b) return;
+      _0x2b = !0;
+      _0x2a--;
+      _0x30[1](!0);
+      setTimeout(function(){
+        if(!_0x2a){
+          _0x25.style.transition="none";
+          _0x2a = _0x26.length-2;
+          _0x30[1](!1);
+        }
+        _0x2b = !1;
+      },500);
+    }
+
+    _0x27.addEventListener("click",function(){
+      !_0x2b && _0x38();
+    });
+    _0x28.addEventListener("click",function(){
+      !_0x2b && _0x37();
+    });
+
+    _0x26.forEach(function(sl){
+      sl.addEventListener("click",function(e){
+        if(sl.classList.contains("active")) return;
+        if(sl.classList.contains("next")){
+          e.preventDefault();
+          !_0x2b && _0x37();
+        } else if(sl.classList.contains("prev")){
+          e.preventDefault();
+          !_0x2b && _0x38();
+        }
+      });
+      var _0x39 = sl.querySelector(".spec1-explore-btn");
+      if(_0x39){
+        _0x39.addEventListener("click",function(ev){
+          ev.stopPropagation();
+        });
+      }
+    });
+
+    let _0x3a = 0,
+        _0x3b = !1;
+    _0x25.addEventListener("touchstart",function(e){
+      if(e.touches.length===1 && !_0x2b){
+        _0x3a = e.touches[0].clientX;
+        _0x3b = !0;
+      }
+    },{passive:true});
+    _0x25.addEventListener("touchmove",function(){},{passive:true});
+    _0x25.addEventListener("touchend",function(e){
+      if(!_0x3b) return;
+      _0x3b = !1;
+      const _0x3c = e.changedTouches[0].clientX,
+            _0x3d = _0x3c - _0x3a;
+      Math.abs(_0x3d)>20 && (_0x3d<0?_0x37():_0x38());
+    },{passive:true});
+
+    function _0x3e(){
+      _0x2b = !1;
+      _0x25.style.transition="none";
+      _0x30[1](!1);
+      setTimeout(function(){
+        _0x25.style.transition="transform 0.5s ease-in-out";
+      },50);
+    }
+
+    window.addEventListener("resize",_0x3e);
+    _0x25.style.transition="none";
+    _0x30[1](!1);
+    setTimeout(function(){
+      _0x25.style.transition="transform 0.5s ease-in-out";
+    },50);
+    _0x27.style.display="block";
+    _0x28.style.display="block";
+  }
+
+  window.addEventListener("load",function(){
+    const _0x3f = document.querySelectorAll(".spec1-carousel-slide img");
+    _0x3f.length && waitImagesLoaded(Array.from(_0x3f),function(){
+      _0x23();
+    });
+  });
+})();
+
+/* --- 部分2：菜单 --- */
+(function(){
+  // 打开/关闭逻辑
+  (function(){
+    const _0x40=document.body,
+          _0x41=document.getElementById("desktopSearchIcon"),
+          _0x42=document.getElementById("mobileSearchIcon"),
+          _0x43=document.getElementById("searchPanel"),
+          _0x44=document.getElementById("searchClose"),
+          _0x45=document.getElementById("searchTitle"),
+          _0x46=document.getElementById("searchResults"),
+          _0x47=[
+            {text:_0xD("QWJvdXQgTWVGYW4="),url:_0xD("YWJvdXQuaHRtbA==")},
+            {text:_0xD("TWVGYW4gTGl0ZSAtIFdpcmVsZXNzIEVhcmJ1ZHM="),url:_0xD("cHJvZHVjdC1saXRlLmh0bWw=")},
+            {text:_0xD("TWVGYW4gWDFcIC0gTm9pc2UgQ2FuY2VsYWluZyBIZWFkcGhvbmVz"),url:_0xD("cHJvZHVjdC14MS5odG1s")},
+            {text:_0xD("TWVGYW4gUHJvIC0gUHJlbWl1bSBBdWRpbyA="),url:_0xD("cHJvZHVjdC1wcm8uaHRtbA==")},
+            {text:_0xD("RWFyYnVkIFRpcHMgJiBTdXBwb3J0"),url:_0xD("c3VwcG9ydC5odG1s")},
+            {text:_0xD("Q29udGFjdCBVcw=="),url:_0xD("Y29udGFjdC5odG1s")},
+            {text:_0xD("UHJvZHVjdHMgT3ZlcnZpZXc="),url:_0xD("cHJvZHVjdHMuaHRtbA==")}
+          ];
+
+    function _0x48(){
+      _0x40.classList.add("search-open");
+      _0x45.textContent="";
+      _0x46.innerHTML="";
+    }
+    function _0x49(){
+      _0x40.classList.remove("search-open");
+    }
+    _0x41 && _0x41.addEventListener("click",_0x48);
+    _0x42 && _0x42.addEventListener("click",_0x48);
+    _0x44 && _0x44.addEventListener("click",_0x49);
+
+    document.addEventListener("keydown",e=>{
+      if("Escape"===e.key)_0x49();
+    });
+
+    document.addEventListener("click",e=>{
+      if(_0x43 && !_0x43.contains(e.target) && e.target!==_0x41 && e.target!==_0x42){
+        _0x49();
+      }
+    });
+
+    if(_0x45 && _0x46){
+      _0x45.addEventListener("input",function(){
+        const _0x4a=_0x45.innerText.trim().toLowerCase();
+        if(!_0x4a){
+          _0x46.innerHTML="";
+          return;
+        }
+        const _0x4b=_0x47.filter(x=>x.text.toLowerCase().includes(_0x4a));
+        _0x46.innerHTML="";
+        if(_0x4b.length>0){
+          _0x4b.forEach(function(obj){
+            const _0x4c=document.createElement("div");
+            _0x4c.classList.add("search-item");
+            const _0x4d=document.createElement("a");
+            _0x4d.href=obj.url;
+            _0x4d.textContent=obj.text;
+            _0x4d.style.textDecoration="none";
+            _0x4d.style.color="#333";
+            _0x4d.target="_self";
+            _0x4c.appendChild(_0x4d);
+            _0x46.appendChild(_0x4c);
+          });
+        }else{
+          const _0x4e=document.createElement("div");
+          _0x4e.classList.add("no-result");
+          _0x4e.textContent=_0xD("U29ycnksIG5vIHJlc3VsdHMgZm91bmQu");
+          _0x46.appendChild(_0x4e);
+        }
+      });
+    }
+  })();
+
+  // 移动
+  (function(){})();
+  (function(){
+    const _0x4f=document.getElementById("menuIcon"),
+          _0x50=document.getElementById("closeBtn"),
+          _0x51=document.getElementById("mobileNav");
+    if(_0x4f && _0x50 && _0x51){
+      _0x4f.addEventListener("click",()=>{
+        _0x51.classList.add("active");
+      });
+      _0x50.addEventListener("click",()=>{
+        _0x51.classList.remove("active");
+      });
+      document.querySelectorAll("#mobileNav ul li a").forEach(a=>{
+        a.addEventListener("click",()=>{
+          _0x51.classList.remove("active");
+        });
+      });
+    }
+  })();
+
+  // Values展开
+  (function(){
+    document.querySelectorAll(".core-value-item h3").forEach(item=>{
+      item.addEventListener("click",function(){
+        let _0x52=this.nextElementSibling,
+            _0x53=this.querySelector(".dropdown-arrow");
+        if(_0x52.style.display==="block"){
+          _0x52.style.display="none";
+          _0x53.textContent="⌄";
+          this.classList.remove("active");
+        } else {
+          _0x52.style.display="block";
+          _0x53.textContent="⌃";
+          this.classList.add("active");
+        }
+        document.querySelectorAll(".core-value-item.active").forEach(o=>{
+          if(o!==this){
+            o.querySelector("ul").style.display="none";
+            let _0x54=o.querySelector(".dropdown-arrow");
+            if(_0x54) _0x54.textContent="⌄";
+            o.classList.remove("active");
+          }
+        });
+      });
+    });
+  })();
+
+  //按钮示例
+  (function(){
+    if("function"==typeof initFrameAnimation) initFrameAnimation();
+    initContactButtons();
+
+    function initContactButtons(){
+      const _0x55=document.getElementById("playPauseButton"),
+            _0x56=document.getElementById("info1-contact-container");
+      if(!_0x55 || !_0x56){
+        console.warn(_0xD("4pyTIMOgIHBsYXlQYXNlIEJ1dHRvbiBvciBpbmZvMS1jb250YWluZXIgdW5vdCBmb3VuZCE="));
+        return;
+      }
+      function _0x57(){
+        const _0x58=_0x55.getBoundingClientRect();
+        _0x56.style.top=`${_0x58.bottom+12}px`;
+        _0x56.style.right=`${window.innerWidth - _0x58.right}px`;
+      }
+      window.addEventListener("resize",_0x57);
+      new MutationObserver(_0x57).observe(_0x55,{attributes:true,childList:true,subtree:true});
+      _0x57();
+    }
+  })();
+
+  // PC停
+  (function(){
+    const _0x59=document.getElementById("mainHeader"),
+          _0x5a=document.querySelectorAll(".desktop-nav .nav-list>li>a"),
+          _0x5b=document.getElementById("hover1Overlay"),
+          _0x5c=document.getElementById("hover1Content"),
+          _0x5d=document.getElementById("blur1Bg"),
+          _0x5e={
+            Home:document.getElementById("hover1Home"),
+            Products:document.getElementById("hover1Products"),
+            About:document.getElementById("hover1About"),
+            Contact:document.getElementById("hover1Contact")
+          };
+
+    function _0x5f(){
+      Object.values(_0x5e).forEach(sec=>sec && sec.classList.remove("active"));
+    }
+    function _0x60(){
+      _0x5b.classList.add("active");
+      _0x5c.classList.add("active");
+      _0x59.classList.add("nav-white");
+      _0x5d && _0x5d.classList.add("active");
+    }
+    function _0x61(){
+      _0x5b.classList.remove("active");
+      _0x5c.classList.remove("active");
+      _0x59.classList.remove("nav-white");
+      _0x5d && _0x5d.classList.remove("active");
+      _0x5f();
+    }
+
+    _0x5a.forEach(link=>{
+      link.addEventListener("mouseenter",()=>{
+        const _0x62=link.textContent.trim();
+        _0x5f();
+        if(_0x5e[_0x62]){
+          _0x5e[_0x62].classList.add("active");
+          _0x60();
+        } else {
+          _0x61();
+        }
+      });
+    });
+    _0x5c.addEventListener("mouseleave",_0x61);
+    _0x5b.addEventListener("mousemove",_0x61);
+    _0x5d && _0x5d.addEventListener("mousemove",_0x61);
+  })();
+
+  // 移动二
+  (function(){
+    const _0x63=document.getElementById("mobileNav"),
+          _0x64=document.getElementById("mobileNavLevel2Home"),
+          _0x65=document.getElementById("mobileNavLevel2Products"),
+          _0x66=document.getElementById("mobileNavLevel2About"),
+          _0x67=document.getElementById("mobileNavLevel2Contact");
+
+    if(!_0x63||!_0x64||!_0x65||!_0x66||!_0x67){
+      console.log(_0xD("5rKh5pyJ5YWz5LqG5a6e5oiQ5Yqf5p2D5LiK5Lyg5paH5Lu257uf"));
+      return;
+    }
+
+    function _0x68(_0x69){
+      _0x63.classList.remove("active");
+      _0x64.classList.remove("active");
+      _0x65.classList.remove("active");
+      _0x66.classList.remove("active");
+      _0x67.classList.remove("active");
+      _0x69.classList.add("active");
+    }
+    function _0x6a(){
+      _0x64.classList.remove("active");
+      _0x65.classList.remove("active");
+      _0x66.classList.remove("active");
+      _0x67.classList.remove("active");
+      _0x63.classList.add("active");
+    }
+    const _0x6b=_0x63.querySelectorAll("ul li a");
+    _0x6b.forEach(link=>{
+      const _0x6c=link.getAttribute("data-level");
+      link.addEventListener("click",function(e){
+        e.preventDefault();
+        if("home"===_0x6c){
+          _0x68(_0x64);
+        } else if("products"===_0x6c){
+          _0x68(_0x65);
+        } else if("about"===_0x6c){
+          _0x68(_0x66);
+        } else if("contact"===_0x6c){
+          _0x68(_0x67);
+        }
+      });
+    });
+    document.querySelectorAll(".menu-panel__back").forEach(btn=>{
+      btn.addEventListener("click",function(e){
+        e.preventDefault();
+        _0x6a();
+      });
+    });
+    document.querySelectorAll(".menu-panel__close").forEach(btn=>{
+      btn.addEventListener("click",function(e){
+        e.preventDefault();
+        _0x63.classList.remove("active");
+        _0x64.classList.remove("active");
+        _0x65.classList.remove("active");
+        _0x66.classList.remove("active");
+        _0x67.classList.remove("active");
+      });
+    });
+  })();
+
+  // --- 4播 ---
+  (function(){
+    function _0x6d(){
+      const _0x6e=document.querySelector(".demo1-carousel-container"),
+            _0x6f=document.querySelector(".demo1-carousel-track");
+      let _0x70=Array.from(document.querySelectorAll(".demo1-carousel-slide"));
+      const _0x71=document.querySelector(".demo1-carousel-prev"),
+            _0x72=document.querySelector(".demo1-carousel-next"),
+            _0x73=Array.from(document.querySelectorAll(".demo1-carousel-dot"));
+
+      if(!_0x6e||!_0x6f||!_0x70.length||!_0x73.length) return;
+
+      const _0x74=_0x70.length;
+      let _0x75=!1,
+          _0x76=1,
+          _0x77=0,
+          _0x78=0;
+
+      // 前后各插入一张clone
+      const _0x79=_0x70[0].cloneNode(!0),
+            _0x7a=_0x70[_0x74-1].cloneNode(!0);
+      _0x6f.appendChild(_0x79);
+      _0x6f.insertBefore(_0x7a,_0x6f.firstChild);
+      _0x70=Array.from(_0x6f.querySelectorAll(".demo1-carousel-slide"));
+
+      // 根据窗口大小计算每张slide的宽度和间距
+      function _0x7b(){
+        if(window.innerWidth<=768){
+          const _0x7c=_0x6e.offsetWidth;
+          _0x78=.04*_0x7c;
+          _0x70.forEach(sl=>{
+            sl.style.width=`${.75*_0x7c}px`;
+          });
+          _0x77=.75*_0x7c+_0x78;
+        } else {
+          _0x70.forEach(sl=>{
+            sl.style.width="";
+          });
+          _0x78=15;
+          _0x77=_0x70[1].getBoundingClientRect().width+15;
+        }
+      }
+
+      // 切换位置与激活态
+      function _0x7d(_0x7e=!0){
+        _0x7b();
+        _0x6f.style.transition=_0x7e?"transform 0.5s ease-in-out":"none";
+        if(window.innerWidth<=768){
+          _0x6f.style.transform=`translateX(${-_0x76*_0x77 + _0x78/2}px)`;
+        } else {
+          _0x6f.style.transform=`translateX(${-_0x76*_0x77}px)`;
+        }
+        // 控制dots
+        (function(){
+          let _0x7f = 0===_0x76 ? _0x74-1 : (_0x76===_0x70.length-1? 0 : _0x76-1);
+          _0x73.forEach((d,i)=>d.classList.toggle("active", i===_0x7f));
+        })();
+        // 前后slide标记
+        _0x70.forEach(s=>s.classList.remove("active","prev","next","shadow"));
+        _0x70[_0x76].classList.add("active");
+        const _0x80=(_0x76+1)%_0x70.length,
+              _0x81=(_0x76-1+_0x70.length)%_0x70.length;
+        _0x70[_0x80].classList.add("next");
+        _0x70[_0x81].classList.add("prev");
+        _0x70.forEach(s=>{
+          !s.classList.contains("active") && s.classList.add("shadow");
+        });
+        // 链接可点性
+        _0x70.forEach(sl=>{
+          const _0x82=sl.querySelector("a");
+          if(_0x82){
+            _0x82.style.pointerEvents=sl.classList.contains("active")?"auto":"none";
+          }
+        });
+        // Explore按钮显隐
+        document.querySelectorAll(".demo1-explore-btn").forEach(b=>{
+          b.style.opacity="0";
+          b.style.pointerEvents="none";
+        });
+        const _0x83=_0x70[_0x76].querySelector(".demo1-explore-btn");
+        if(_0x83){
+          _0x83.style.opacity="1";
+          _0x83.style.pointerEvents="auto";
+        }
+      }
+
+      function _0x84(){
+        if(_0x75) return;
+        _0x75=!0;
+        _0x76++;
+        _0x7d();
+        setTimeout(function(){
+          if(_0x76===_0x70.length-1){
+            _0x6f.style.transition="none";
+            _0x76=1;
+            _0x7d(!1);
+          }
+          _0x75=!1;
+        },500);
+      }
+      function _0x85(){
+        if(_0x75) return;
+        _0x75=!0;
+        _0x76--;
+        _0x7d();
+        setTimeout(function(){
+          if(!_0x76){
+            _0x6f.style.transition="none";
+            _0x76=_0x70.length-2;
+            _0x7d(!1);
+          }
+          _0x75=!1;
+        },500);
+      }
+      function _0x86(i){
+        if(_0x75) return;
+        _0x75=!0;
+        _0x76=i+1;
+        _0x7d();
+        setTimeout(function(){
+          _0x75=!1;
+        },500);
+      }
+
+      // 自动轮播定时器
+      let _0x87 = setInterval(_0x84,5000);
+      function _0x88(){
+        clearInterval(_0x87);
+        _0x87=setInterval(_0x84,5000);
+      }
+
+      // 前后按钮
+      if(_0x71){
+        _0x71.addEventListener("click",e=>{
+          e.stopPropagation();
+          _0x85();
+          _0x88();
+        });
+      }
+      if(_0x72){
+        _0x72.addEventListener("click",e=>{
+          e.stopPropagation();
+          _0x84();
+          _0x88();
+        });
+      }
+
+      // dots
+      _0x73.forEach((dot,i)=>{
+        dot.addEventListener("click",e=>{
+          e.stopPropagation();
+          _0x86(i);
+          _0x88();
+        });
+      });
+
+      // 点击slide
+      _0x70.forEach(sl=>{
+        sl.addEventListener("click",e=>{
+          if(sl.classList.contains("active")) return;
+          if(sl.classList.contains("next")){
+            e.preventDefault();
+            _0x84();
+            _0x88();
+          } else if(sl.classList.contains("prev")){
+            e.preventDefault();
+            _0x85();
+            _0x88();
+          }
+        });
+        const _0x89=sl.querySelector(".demo1-explore-btn");
+        if(_0x89){
+          _0x89.addEventListener("click",ev=>{
+            ev.stopPropagation();
+          });
+        }
+      });
+
+      // 触动
+      let _0x8a=0,
+          _0x8b=!1;
+      _0x6f.addEventListener("touchstart",e=>{
+        if(e.touches.length===1){
+          _0x8a=e.touches[0].clientX;
+          _0x8b=!0;
+        }
+      },{passive:true});
+      _0x6f.addEventListener("touchmove",()=>{},{passive:true});
+      _0x6f.addEventListener("touchend",e=>{
+        if(!_0x8b) return;
+        _0x8b=!1;
+        const diff=e.changedTouches[0].clientX - _0x8a;
+        if(Math.abs(diff)>20){
+          diff<0?_0x84():_0x85();
+          _0x88();
+        }
+      },{passive:true});
+
+      // 窗口
+      window.addEventListener("resize",()=>{
+        _0x7d();
+      });
+
+      // 首次进
+      _0x6f.style.transition="none";
+      _0x7d(!1);
+      setTimeout(()=>{
+        _0x6f.style.transition="transform 0.5s ease-in-out";
+      },50);
+
+      // 小屏时
+      if(window.innerWidth<=768){
+        _0x71 && (_0x71.style.display="block");
+        _0x72 && (_0x72.style.display="block");
+      } else {
+        _0x71 && (_0x71.style.display="none");
+        _0x72 && (_0x72.style.display="none");
+      }
+
+      _0x6f.addEventListener("transitionend",()=>{
+        _0x75=!1;
+      });
+    }
+
+    // 修复
+    window.addEventListener("load",function(){
+      const _0x8c = document.querySelectorAll(".demo1-carousel-slide img");
+      if(_0x8c.length){
+        waitImagesLoaded(Array.from(_0x8c), function(){
+          _0x6d();
+        });
+      }
+    });
+  })();
+})();
 </script>
