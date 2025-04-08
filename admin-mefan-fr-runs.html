@@ -49,14 +49,14 @@
     const messagesTable = document.querySelector("#messagesTable tbody");
 
     loginBtn.onclick = async () => {
-      await client.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"
+  await supabase.auth.signInWithOAuth({
+    provider: "github",
+    options: {
+      redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"
+    }
+  });
+};
 
-        }
-      });
-    };
 
     logoutBtn.onclick = async () => {
       await client.auth.signOut();
