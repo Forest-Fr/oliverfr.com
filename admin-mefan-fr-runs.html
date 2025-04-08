@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - 查看留言</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; background: #f9f9f9; }
+    h1 { font-size: 24px; margin-bottom: 1rem; }
+    .btn { padding: 10px 16px; background: #333; color: white; border: none; cursor: pointer; }
+    .btn:hover { background: #555; }
+    #logoutBtn { margin-left: 1rem; }
+    table { border-collapse: collapse; width: 100%; background: white; margin-top: 20px; }
+    th, td { padding: 12px; border: 1px solid #ccc; text-align: left; }
+    th { background-color: #f0f0f0; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <h1>留言后台管理</h1>
+  <div id="authArea">
+    <button id="loginBtn" class="btn">登录查看留言</button>
+  </div>
+  <div id="adminArea" style="display: none;">
+    <span id="adminEmail"></span>
+    <button id="logoutBtn" class="btn">退出登录</button>
+    <table id="messagesTable">
+      <thead>
+        <tr><th>姓名</th><th>邮箱</th><th>留言内容</th><th>时间</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg"; // 推荐用 service_role 仅用于后台
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const authArea = document.getElementById("authArea");
+    const adminArea = document.getElementById("adminArea");
+    const adminEmail = document.getElementById("adminEmail");
+    const messagesTable = document.querySelector("#messagesTable tbody");
+
+    loginBtn.onclick = async () => {
+      await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: { redirectTo: location.href }
+      });
+    };
+
+    logoutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    async function loadMessages() {
+      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false });
+      if (error) {
+        alert("获取留言失败：" + error.message);
+        return;
+      }
+
+      messagesTable.innerHTML = "";
+      data.forEach(msg => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${msg.name || ""}</td>
+          <td>${msg.email || ""}</td>
+          <td>${msg.content || ""}</td>
+          <td>${new Date(msg.created_at).toLocaleString()}</td>
+        `;
+        messagesTable.appendChild(row);
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        authArea.style.display = "none";
+        adminArea.style.display = "block";
+        adminEmail.textContent = "当前账号：" + session.user.email;
+        loadMessages();
+      }
+    });
+  </script>
+</body>
+</html>
