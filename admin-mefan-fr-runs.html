@@ -1,29 +1,37 @@
+
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>留言后台管理</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f5f5f5;
       padding: 20px;
+      margin: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-    h1 { font-size: 24px; margin-bottom: 10px; }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
     .btn {
       padding: 8px 16px;
       background: #333;
       color: #fff;
       border: none;
       cursor: pointer;
-      margin-top: 10px;
     }
-    .btn:hover { background: #555; }
-    #logoutBtn { margin-left: 1rem; }
+    .btn:hover {
+      background: #555;
+    }
+    #logoutBtn {
+      margin-left: 1rem;
+    }
     table {
       width: 100%;
       max-width: 900px;
@@ -36,11 +44,12 @@
       border: 1px solid #ddd;
       text-align: left;
     }
-    th { background: #eee; }
+    th {
+      background: #eee;
+    }
     #searchInput {
       padding: 8px;
       width: 250px;
-      margin-top: 10px;
     }
     .pagination {
       margin-top: 20px;
@@ -49,8 +58,9 @@
       margin-right: 5px;
       padding: 6px 10px;
     }
-    .hidden { display: none; }
-    .centered { text-align: center; }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -61,51 +71,64 @@
   </div>
 
   <div id="adminArea" class="hidden">
-    <div class="centered">
-      <span id="adminEmail"></span>
-      <button id="logoutBtn" class="btn">退出登录</button>
-    </div>
+    <span id="adminEmail"></span>
+    <button id="logoutBtn" class="btn">退出登录</button>
 
     <div style="margin-top: 20px;">
-      <input type="text" id="searchInput" placeholder="搜索姓名 / 邮箱 / 内容">
+      <input type="text" id="searchInput" placeholder="搜索姓名 / 邮箱 / 内容" />
       <button id="searchBtn" class="btn">搜索</button>
     </div>
 
-    <table>
+    <table id="messagesTable">
       <thead>
         <tr>
           <th>姓名</th>
           <th>邮箱</th>
           <th>留言内容</th>
           <th>时间</th>
-          <th>操作</th>
         </tr>
       </thead>
-      <tbody id="messagesTable"></tbody>
+      <tbody></tbody>
     </table>
 
     <div class="pagination" id="pagination"></div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
-  <script>
-    const SUPABASE_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-    const ADMIN_EMAIL = 'oliveroogle@gmail.com';
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <!-- 加载非模块版 Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
 
+<script>
+  const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg";
+  const ADMIN_EMAIL = "oliveroogle@gmail.com";
+
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  document.addEventListener("DOMContentLoaded", async () => {
     const loginBtn = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
     const authArea = document.getElementById("authArea");
     const adminArea = document.getElementById("adminArea");
     const adminEmail = document.getElementById("adminEmail");
-    const messagesTable = document.getElementById("messagesTable");
-    const searchInput = document.getElementById("searchInput");
-    const searchBtn = document.getElementById("searchBtn");
-    const pagination = document.getElementById("pagination");
+    const messagesTable = document.querySelector("#messagesTable tbody");
+
+    // 新增：分页和搜索
+    const searchInput = document.createElement("input");
+    searchInput.placeholder = "搜索姓名 / 邮箱 / 内容";
+    searchInput.style = "margin-top:10px;padding:6px;";
+    const searchBtn = document.createElement("button");
+    searchBtn.textContent = "搜索";
+    searchBtn.className = "btn";
+    searchBtn.style.marginLeft = "10px";
+
+    const paginationDiv = document.createElement("div");
+    paginationDiv.style = "margin-top: 10px;";
+    adminArea.appendChild(searchInput);
+    adminArea.appendChild(searchBtn);
+    adminArea.appendChild(paginationDiv);
 
     let currentPage = 1;
-    const limit = 10;
+    const limit = 5;
 
     loginBtn.onclick = async () => {
       await client.auth.signInWithOAuth({
@@ -121,79 +144,92 @@
       location.reload();
     };
 
+    async function loadMessages(page = 1, keyword = "") {
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+
+      let query = client.from("messages")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (keyword) {
+        query = query.or(`name.ilike.%${keyword}%,email.ilike.%${keyword}%,content.ilike.%${keyword}%`);
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        alert("加载失败：" + error.message);
+        return;
+      }
+
+      messagesTable.innerHTML = "";
+      data.forEach(msg => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${msg.name || ""}</td>
+          <td>${msg.email || ""}</td>
+          <td>${msg.content || ""}</td>
+          <td>${new Date(msg.created_at).toLocaleString()}</td>
+        `;
+
+        // 删除按钮（仅管理员）
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "删除";
+        deleteBtn.className = "btn";
+        deleteBtn.style = "margin-left:10px;background:#a00;";
+        deleteBtn.onclick = async () => {
+          const yes = confirm("确认删除该留言？");
+          if (!yes) return;
+          const { error } = await client.from("messages").delete().eq("id", msg.id);
+          if (error) return alert("删除失败：" + error.message);
+          loadMessages(currentPage, searchInput.value.trim());
+        };
+
+        const td = document.createElement("td");
+        td.appendChild(deleteBtn);
+        row.appendChild(td);
+        messagesTable.appendChild(row);
+      });
+
+      renderPagination(count || 0, page);
+    }
+
+    function renderPagination(total, activePage) {
+      const totalPages = Math.ceil(total / limit);
+      paginationDiv.innerHTML = "";
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        btn.className = "btn";
+        if (i === activePage) btn.style.background = "#888";
+        btn.onclick = () => {
+          currentPage = i;
+          loadMessages(currentPage, searchInput.value.trim());
+        };
+        paginationDiv.appendChild(btn);
+      }
+    }
+
     searchBtn.onclick = () => {
       currentPage = 1;
       loadMessages(currentPage, searchInput.value.trim());
     };
 
-    function renderPagination(totalPages, activePage) {
-      pagination.innerHTML = '';
-      for (let i = 1; i <= totalPages; i++) {
-        const btn = document.createElement('button');
-        btn.textContent = i;
-        btn.className = (i === activePage) ? 'btn' : '';
-        btn.onclick = () => {
-          currentPage = i;
-          loadMessages(currentPage, searchInput.value.trim());
-        };
-        pagination.appendChild(btn);
-      }
+    const { data: { session } } = await client.auth.getSession();
+    const user = session?.user;
+
+    if (user && user.email === ADMIN_EMAIL) {
+      authArea.style.display = "none";
+      adminArea.style.display = "block";
+      adminEmail.textContent = "当前账号：" + user.email;
+      loadMessages(currentPage);
+    } else {
+      adminEmail.textContent = "非管理员账号禁止访问。";
     }
+  });
 
-    async function deleteMessage(id) {
-      if (!confirm("确认删除该留言？")) return;
-      try {
-        const res = await fetch(`https://messages-oliverfr.mefans.workers.dev?id=${id}`, {
-          method: "DELETE"
-        });
-        if (!res.ok) throw new Error("删除失败");
-        alert("删除成功！");
-        loadMessages(currentPage, searchInput.value.trim());
-      } catch (err) {
-        alert("错误：" + err.message);
-      }
-    }
-
-    async function loadMessages(page = 1, keyword = '') {
-      try {
-        const url = `https://messages-oliverfr.mefans.workers.dev?page=${page}&limit=${limit}&q=${encodeURIComponent(keyword)}`;
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || "加载失败");
-
-        messagesTable.innerHTML = '';
-        data.messages.forEach(msg => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${msg.name}</td>
-            <td>${msg.email}</td>
-            <td>${msg.content}</td>
-            <td>${new Date(msg.created_at).toLocaleString()}</td>
-            <td><button class="btn" onclick="deleteMessage('${msg.id}')">删除</button></td>
-          `;
-          messagesTable.appendChild(row);
-        });
-
-        renderPagination(data.totalPages, page);
-      } catch (err) {
-        alert("加载错误：" + err.message);
-      }
-    }
-
-    document.addEventListener("DOMContentLoaded", async () => {
-      const { data: { session } } = await client.auth.getSession();
-      const user = session?.user;
-
-      if (user && user.email === ADMIN_EMAIL) {
-        authArea.classList.add("hidden");
-        adminArea.classList.remove("hidden");
-        adminEmail.textContent = "当前账号：" + user.email;
-        loadMessages(currentPage);
-      } else {
-        adminEmail.textContent = "非管理员账号禁止访问。";
-      }
-    });
   </script>
 </body>
 </html>
