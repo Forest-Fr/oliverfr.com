@@ -2,24 +2,23 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>留言后台管理</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: Arial, sans-serif;
+      padding: 2rem;
       background: #f5f5f5;
-      padding: 20px;
-      margin: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
     h1 {
-      font-size: 22px;
-      margin-bottom: 10px;
+      font-size: 24px;
+      margin-bottom: 1rem;
     }
     .btn {
-      padding: 8px 16px;
+      padding: 10px 20px;
       background: #333;
       color: #fff;
       border: none;
@@ -32,35 +31,22 @@
       margin-left: 1rem;
     }
     table {
+      margin-top: 20px;
       width: 100%;
       max-width: 900px;
+      background: white;
       border-collapse: collapse;
-      margin-top: 20px;
-      background: #fff;
     }
     th, td {
       padding: 12px;
-      border: 1px solid #ddd;
+      border: 1px solid #ccc;
       text-align: left;
     }
     th {
-      background: #eee;
-    }
-    #searchInput {
-      padding: 8px;
-      width: 250px;
-    }
-    .pagination {
-      margin-top: 20px;
-    }
-    .pagination button {
-      margin-right: 5px;
-      padding: 6px 10px;
-    }
-    .hidden {
-      display: none;
+      background-color: #eee;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
 </head>
 <body>
   <h1>留言后台管理</h1>
@@ -69,122 +55,78 @@
     <button id="loginBtn" class="btn">登录查看留言</button>
   </div>
 
-  <div id="adminArea" class="hidden">
+  <div id="adminArea" style="display: none;">
     <span id="adminEmail"></span>
     <button id="logoutBtn" class="btn">退出登录</button>
-
-    <div style="margin-top: 20px;">
-      <input type="text" id="searchInput" placeholder="搜索姓名 / 邮箱 / 内容" />
-      <button id="searchBtn" class="btn">搜索</button>
-    </div>
-
     <table id="messagesTable">
       <thead>
-        <tr>
-          <th>姓名</th>
-          <th>邮箱</th>
-          <th>留言内容</th>
-          <th>时间</th>
-        </tr>
+        <tr><th>姓名</th><th>邮箱</th><th>留言内容</th><th>时间</th></tr>
       </thead>
       <tbody></tbody>
     </table>
-
-    <div class="pagination" id="pagination"></div>
   </div>
 
-  <!-- Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/+esm"></script>
-  <script type="module">
-    const SUPABASE_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-    const ADMIN_EMAIL = 'oliveroogle@gmail.com';
+  <script>
+    const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg";
+    const ADMIN_EMAIL = "oliveroogle@gmail.com";
 
-    const { createClient } = supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const authArea = document.getElementById("authArea");
-    const adminArea = document.getElementById("adminArea");
-    const adminEmail = document.getElementById("adminEmail");
-    const messagesTable = document.querySelector("#messagesTable tbody");
-    const searchInput = document.getElementById("searchInput");
-    const searchBtn = document.getElementById("searchBtn");
-    const pagination = document.getElementById("pagination");
+    document.addEventListener("DOMContentLoaded", async () => {
+      const loginBtn = document.getElementById("loginBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const authArea = document.getElementById("authArea");
+      const adminArea = document.getElementById("adminArea");
+      const adminEmail = document.getElementById("adminEmail");
+      const messagesTable = document.querySelector("#messagesTable tbody");
 
-    let currentPage = 1;
-    const limit = 10;
+      loginBtn.onclick = async () => {
+        await client.auth.signInWithOAuth({
+          provider: "github",
+          options: {
+            redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"
+          }
+        });
+      };
 
-    loginBtn.onclick = async () => {
-      const { error } = await supabaseClient.auth.signInWithOAuth({
-    provider: "github",
-    options: {
-      redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"  // ✅ 必须写死成正式站点回调地址
-    }
-  });
-      if (error) alert("登录失败：" + error.message);
-    };
+      logoutBtn.onclick = async () => {
+        await client.auth.signOut();
+        location.reload();
+      };
 
-    logoutBtn.onclick = async () => {
-      await supabaseClient.auth.signOut();
-      location.reload();
-    };
+      async function loadMessages() {
+        const { data, error } = await client
+          .from("messages")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-    async function loadMessages(page = 1, keyword = '') {
-      const workerUrl = `https://messages-oliverfr.mefans.workers.dev/?page=${page}&limit=${limit}&q=${encodeURIComponent(keyword)}`;
-      try {
-        const res = await fetch(workerUrl);
-        const data = await res.json();
+        if (error) {
+          alert("获取留言失败：" + error.message);
+          return;
+        }
 
-        if (!res.ok) throw new Error(data.error || '加载失败');
-
-        messagesTable.innerHTML = '';
-        data.messages.forEach(msg => {
+        messagesTable.innerHTML = "";
+        data.forEach(msg => {
           const row = document.createElement("tr");
           row.innerHTML = `
-            <td>${msg.name}</td>
-            <td>${msg.email}</td>
-            <td>${msg.content}</td>
+            <td>${msg.name || ""}</td>
+            <td>${msg.email || ""}</td>
+            <td>${msg.content || ""}</td>
             <td>${new Date(msg.created_at).toLocaleString()}</td>
           `;
           messagesTable.appendChild(row);
         });
-
-        renderPagination(data.totalPages, page);
-      } catch (err) {
-        alert("加载错误：" + err.message);
       }
-    }
 
-    function renderPagination(totalPages, activePage) {
-      pagination.innerHTML = '';
-      for (let i = 1; i <= totalPages; i++) {
-        const btn = document.createElement('button');
-        btn.textContent = i;
-        btn.className = (i === activePage) ? 'btn' : '';
-        btn.onclick = () => {
-          currentPage = i;
-          loadMessages(currentPage, searchInput.value.trim());
-        };
-        pagination.appendChild(btn);
-      }
-    }
-
-    searchBtn.onclick = () => {
-      currentPage = 1;
-      loadMessages(currentPage, searchInput.value.trim());
-    };
-
-    document.addEventListener("DOMContentLoaded", async () => {
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      const { data: { session } } = await client.auth.getSession();
       const user = session?.user;
 
       if (user && user.email === ADMIN_EMAIL) {
-        authArea.classList.add("hidden");
-        adminArea.classList.remove("hidden");
+        authArea.style.display = "none";
+        adminArea.style.display = "block";
         adminEmail.textContent = "当前账号：" + user.email;
-        loadMessages(currentPage);
+        loadMessages();
       } else {
         adminEmail.textContent = "非管理员账号禁止访问。";
       }
