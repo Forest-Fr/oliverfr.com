@@ -1,21 +1,66 @@
+
 <!DOCTYPE html>
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>留言后台管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 40px; text-align: center; }
-    h1 { font-size: 28px; margin-bottom: 20px; }
-    .btn { background: #222; color: #fff; padding: 10px 18px; border: none; cursor: pointer; }
-    .btn:hover { background: #444; }
-    #searchInput { padding: 10px; width: 300px; margin: 20px auto; }
-    table { width: 100%; margin-top: 20px; border-collapse: collapse; background: white; }
-    th, td { padding: 12px; border: 1px solid #ddd; }
-    th { background-color: #f0f0f0; }
-    .pagination { margin-top: 20px; }
-    .pagination button { margin: 0 5px; padding: 6px 12px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 40px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      background: #222;
+      color: #fff;
+      padding: 10px 18px;
+      border: none;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .btn:hover {
+      background: #444;
+    }
+    input {
+      padding: 10px;
+      width: 300px;
+      margin: 20px 0;
+    }
+    table {
+      width: 90%;
+      max-width: 900px;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    th {
+      background: #eee;
+    }
+    .pagination {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .pagination button {
+      padding: 6px 12px;
+      margin: 0 5px;
+      cursor: pointer;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
+  <!-- 使用 UMD 版本加载 Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
 </head>
 <body>
@@ -25,7 +70,7 @@
     <button id="loginBtn" class="btn">登录查看留言</button>
   </div>
 
-  <div id="adminArea" style="display:none;">
+  <div id="adminArea" class="hidden">
     <div>
       当前账号：<span id="adminEmail"></span>
       <button id="logoutBtn" class="btn">退出登录</button>
@@ -36,37 +81,47 @@
       <button id="searchBtn" class="btn">搜索</button>
     </div>
 
-    <table>
+    <table id="messagesTable">
       <thead>
-        <tr><th>姓名</th><th>邮箱</th><th>留言内容</th><th>时间</th><th>操作</th></tr>
+        <tr>
+          <th>姓名</th>
+          <th>邮箱</th>
+          <th>留言内容</th>
+          <th>时间</th>
+          <th>操作</th>
+        </tr>
       </thead>
-      <tbody id="messagesTable"></tbody>
+      <tbody></tbody>
     </table>
 
     <div class="pagination" id="pagination"></div>
   </div>
 
   <script>
+    // 配置项：请替换为你的实际值
     const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg";
     const ADMIN_EMAIL = "oliveroogle@gmail.com";
     const WORKER_URL = "https://messages-oliverfr.mefans.workers.dev";
 
+    // 初始化 Supabase 客户端
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // DOM 元素
     const loginBtn = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
     const authArea = document.getElementById("authArea");
     const adminArea = document.getElementById("adminArea");
     const adminEmail = document.getElementById("adminEmail");
-    const messagesTable = document.getElementById("messagesTable");
+    const messagesTableBody = document.querySelector("#messagesTable tbody");
     const searchInput = document.getElementById("searchInput");
     const searchBtn = document.getElementById("searchBtn");
-    const pagination = document.getElementById("pagination");
+    const paginationDiv = document.getElementById("pagination");
 
     let currentPage = 1;
     const limit = 5;
 
+    // 登录处理：直接使用完整的 redirectTo 地址
     loginBtn.onclick = async () => {
       const { error } = await client.auth.signInWithOAuth({
         provider: "github",
@@ -74,80 +129,107 @@
           redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"
         }
       });
-      if (error) alert("登录失败: " + error.message);
+      if (error) {
+        alert("登录失败: " + error.message);
+      }
     };
 
+    // 登出处理
     logoutBtn.onclick = async () => {
       await client.auth.signOut();
       location.reload();
     };
 
+    // 加载留言数据，支持分页与搜索
     async function loadMessages(page = 1, keyword = "") {
       const url = `${WORKER_URL}/?page=${page}&limit=${limit}&q=${encodeURIComponent(keyword)}`;
+      console.log("请求 Worker URL:", url);
       try {
         const res = await fetch(url);
-        const data = await res.json();
-        const messages = data.messages || [];
-        const totalPages = data.totalPages || 1;
-
-        messagesTable.innerHTML = "";
-        messages.forEach(msg => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${msg.name || ""}</td>
-            <td>${msg.email || ""}</td>
-            <td>${msg.content || ""}</td>
-            <td>${new Date(msg.created_at).toLocaleString()}</td>
-            <td><button onclick="deleteMessage(${msg.id})">删除</button></td>
-          `;
-          messagesTable.appendChild(row);
-        });
-
-        pagination.innerHTML = "";
-        for (let i = 1; i <= totalPages; i++) {
-          const btn = document.createElement("button");
-          btn.textContent = i;
-          if (i === page) btn.disabled = true;
-          btn.onclick = () => {
-            currentPage = i;
-            loadMessages(i, searchInput.value.trim());
-          };
-          pagination.appendChild(btn);
+        if (!res.ok) {
+          throw new Error("Worker 返回错误状态");
         }
+        const data = await res.json();
+        console.log("Worker 返回数据:", data);
+        renderMessages(data.messages || []);
+        renderPagination(data.totalPages || 1, page);
       } catch (err) {
-        alert("加载失败：" + err.message);
+        alert("加载错误: " + err.message);
       }
     }
 
-    searchBtn.onclick = () => {
-      currentPage = 1;
-      loadMessages(1, searchInput.value.trim());
-    };
+    // 渲染留言列表
+    function renderMessages(messages) {
+      messagesTableBody.innerHTML = "";
+      messages.forEach(msg => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${msg.name || ""}</td>
+          <td>${msg.email || ""}</td>
+          <td>${msg.content || ""}</td>
+          <td>${new Date(msg.created_at).toLocaleString()}</td>
+          <td><button class="btn" onclick="deleteMessage(${msg.id})">删除</button></td>
+        `;
+        messagesTableBody.appendChild(row);
+      });
+    }
 
+    // 渲染分页按钮
+    function renderPagination(totalPages, current) {
+      paginationDiv.innerHTML = "";
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        btn.className = "btn";
+        if (i === current) {
+          btn.disabled = true;
+          btn.style.background = "#666";
+        }
+        btn.onclick = () => {
+          currentPage = i;
+          loadMessages(i, searchInput.value.trim());
+        };
+        paginationDiv.appendChild(btn);
+      }
+    }
+
+    // 删除留言
     async function deleteMessage(id) {
-      const ok = confirm("确定删除该留言吗？");
-      if (!ok) return;
+      if (!confirm("确定删除该留言？")) return;
       try {
-        await client.from("messages").delete().eq("id", id);
+        // 此处我们采用 Supabase 删除接口直接操作
+        const { error } = await client.from("messages").delete().eq("id", id);
+        if (error) {
+          throw error;
+        }
+        alert("删除成功");
         loadMessages(currentPage, searchInput.value.trim());
       } catch (err) {
-        alert("删除失败：" + err.message);
+        alert("删除失败: " + err.message);
       }
     }
+    // 将 deleteMessage 暴露为全局函数（因为在 HTML 字符串中使用）
+    window.deleteMessage = deleteMessage;
 
-    window.onload = async () => {
+    // 搜索按钮处理
+    searchBtn.onclick = () => {
+      currentPage = 1;
+      loadMessages(currentPage, searchInput.value.trim());
+    };
+
+    // 页面加载后检测登录状态
+    document.addEventListener("DOMContentLoaded", async () => {
       const { data: { session } } = await client.auth.getSession();
       const user = session?.user;
-
       if (user && user.email === ADMIN_EMAIL) {
         authArea.style.display = "none";
         adminArea.style.display = "block";
-        adminEmail.textContent = user.email;
+        adminEmail.textContent = "当前账号：" + user.email;
         loadMessages(currentPage, "");
       } else {
-        adminEmail.textContent = "非管理员账号禁止访问";
+        adminEmail.textContent = "非管理员账号禁止访问。";
       }
-    };
+    });
   </script>
 </body>
 </html>
