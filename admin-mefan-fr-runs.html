@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel - 查看留言</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>留言后台管理</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 2rem; background: #f9f9f9; }
     h1 { font-size: 24px; margin-bottom: 1rem; }
@@ -19,9 +18,11 @@
 </head>
 <body>
   <h1>留言后台管理</h1>
+
   <div id="authArea">
     <button id="loginBtn" class="btn">登录查看留言</button>
   </div>
+
   <div id="adminArea" style="display: none;">
     <span id="adminEmail"></span>
     <button id="logoutBtn" class="btn">退出登录</button>
@@ -35,8 +36,10 @@
 
   <script>
     const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg"; // 推荐用 service_role 仅用于后台
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg"; // ❶ 使用 anon 公钥，不是 service_role
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const ADMIN_EMAIL = "oliveroogle@gmail.com"; // ❷ 只允许此账号访问数据
 
     const loginBtn = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
@@ -46,24 +49,25 @@
     const messagesTable = document.querySelector("#messagesTable tbody");
 
     loginBtn.onclick = async () => {
-      await supabase.auth.signInWithOAuth({
+      await client.auth.signInWithOAuth({
         provider: "github",
-        options: { redirectTo: location.href }
+        options: {
+          redirectTo: location.href
+        }
       });
     };
 
     logoutBtn.onclick = async () => {
-      await supabase.auth.signOut();
+      await client.auth.signOut();
       location.reload();
     };
 
     async function loadMessages() {
-      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false });
+      const { data, error } = await client.from("messages").select("*").order("created_at", { ascending: false });
       if (error) {
         alert("获取留言失败：" + error.message);
         return;
       }
-
       messagesTable.innerHTML = "";
       data.forEach(msg => {
         const row = document.createElement("tr");
@@ -78,12 +82,16 @@
     }
 
     document.addEventListener("DOMContentLoaded", async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      const { data: { session } } = await client.auth.getSession();
+      const user = session?.user;
+
+      if (user && user.email === ADMIN_EMAIL) {
         authArea.style.display = "none";
         adminArea.style.display = "block";
-        adminEmail.textContent = "当前账号：" + session.user.email;
+        adminEmail.textContent = "当前账号：" + user.email;
         loadMessages();
+      } else {
+        adminEmail.textContent = "非管理员账号禁止访问。";
       }
     });
   </script>
