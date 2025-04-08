@@ -1,4 +1,5 @@
 User-agent: *
+Disallow: /admin-mefan-fr-runs.html
 Allow: /
 
 Sitemap: https://oliverfr.com/sitemap.xml
