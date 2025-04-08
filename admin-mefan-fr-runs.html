@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>留言后台管理</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -14,13 +13,10 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
     }
     h1 {
       font-size: 22px;
       margin-bottom: 10px;
-      text-align: center;
     }
     .btn {
       padding: 8px 16px;
@@ -37,7 +33,7 @@
     }
     table {
       width: 100%;
-      max-width: 800px;
+      max-width: 900px;
       border-collapse: collapse;
       margin-top: 20px;
       background: #fff;
@@ -97,14 +93,16 @@
     <div class="pagination" id="pagination"></div>
   </div>
 
-  <!-- 修复版 Supabase SDK -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
-  <script>
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/+esm"></script>
+  <script type="module">
     const SUPABASE_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
     const ADMIN_EMAIL = 'oliveroogle@gmail.com';
 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
     const loginBtn = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
     const authArea = document.getElementById("authArea");
@@ -119,19 +117,15 @@
     const limit = 10;
 
     loginBtn.onclick = async () => {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "github",
-          options: { redirectTo: location.href }
-        });
-        if (error) throw error;
-      } catch (err) {
-        alert("登录失败：" + err.message);
-      }
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: "github",
+        options: { redirectTo: https://oliverfr.com/admin-mefan-fr-runs.html }
+      });
+      if (error) alert("登录失败：" + error.message);
     };
 
     logoutBtn.onclick = async () => {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       location.reload();
     };
 
@@ -181,7 +175,7 @@
     };
 
     document.addEventListener("DOMContentLoaded", async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       const user = session?.user;
 
       if (user && user.email === ADMIN_EMAIL) {
