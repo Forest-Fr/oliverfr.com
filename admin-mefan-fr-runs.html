@@ -5,7 +5,18 @@
   <title>留言后台管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      max-width: 960px;
+      width: 100%;
+    }
     h1 { font-size: 22px; margin-bottom: 10px; }
     .btn { padding: 8px 16px; background: #333; color: #fff; border: none; cursor: pointer; }
     .btn:hover { background: #555; }
@@ -20,41 +31,43 @@
   </style>
 </head>
 <body>
-  <h1>留言后台管理</h1>
+  <div class="container">
+    <h1>留言后台管理</h1>
 
-  <div id="authArea">
-    <button id="loginBtn" class="btn">登录查看留言</button>
-  </div>
-
-  <div id="adminArea" class="hidden">
-    <span id="adminEmail"></span>
-    <button id="logoutBtn" class="btn">退出登录</button>
-
-    <div style="margin-top: 20px;">
-      <input type="text" id="searchInput" placeholder="搜索姓名 / 邮箱 / 内容" />
-      <button id="searchBtn" class="btn">搜索</button>
+    <div id="authArea">
+      <button id="loginBtn" class="btn">登录查看留言</button>
     </div>
 
-    <table id="messagesTable">
-      <thead>
-        <tr>
-          <th>姓名</th>
-          <th>邮箱</th>
-          <th>留言内容</th>
-          <th>时间</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div id="adminArea" class="hidden">
+      <span id="adminEmail"></span>
+      <button id="logoutBtn" class="btn">退出登录</button>
 
-    <div class="pagination" id="pagination"></div>
+      <div style="margin-top: 20px;">
+        <input type="text" id="searchInput" placeholder="搜索姓名 / 邮箱 / 内容" />
+        <button id="searchBtn" class="btn">搜索</button>
+      </div>
+
+      <table id="messagesTable">
+        <thead>
+          <tr>
+            <th>姓名</th>
+            <th>邮箱</th>
+            <th>留言内容</th>
+            <th>时间</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="pagination" id="pagination"></div>
+    </div>
   </div>
 
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'; // ⚠️ 替换为你的 Supabase anon key
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const ADMIN_EMAIL = 'oliveroogle@gmail.com';
 
