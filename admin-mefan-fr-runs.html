@@ -1,33 +1,20 @@
-
 <!DOCTYPE html>
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>留言后台管理</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 40px; }
-    h1 { text-align: center; }
-    .btn { background: #222; color: white; padding: 10px 18px; border: none; cursor: pointer; }
+    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 40px; text-align: center; }
+    h1 { font-size: 28px; margin-bottom: 20px; }
+    .btn { background: #222; color: #fff; padding: 10px 18px; border: none; cursor: pointer; }
     .btn:hover { background: #444; }
-    #adminEmail { display: inline-block; margin-right: 10px; }
-    #searchInput { padding: 8px; width: 300px; margin-top: 20px; }
-    #searchBtn { padding: 9px 14px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-    th { background: #f2f2f2; }
-    .pagination { margin-top: 20px; text-align: center; }
-    .pagination button {
-      margin: 0 5px;
-      padding: 6px 12px;
-      border: none;
-      background-color: #eee;
-      cursor: pointer;
-    }
-    .pagination button.active {
-      background-color: #333;
-      color: white;
-    }
+    #searchInput { padding: 10px; width: 300px; margin: 20px auto; }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; background: white; }
+    th, td { padding: 12px; border: 1px solid #ddd; }
+    th { background-color: #f0f0f0; }
+    .pagination { margin-top: 20px; }
+    .pagination button { margin: 0 5px; padding: 6px 12px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
 </head>
@@ -38,20 +25,22 @@
     <button id="loginBtn" class="btn">登录查看留言</button>
   </div>
 
-  <div id="adminArea" style="display: none;">
-    <span id="adminEmail"></span>
-    <button id="logoutBtn" class="btn">退出登录</button><br />
+  <div id="adminArea" style="display:none;">
+    <div>
+      当前账号：<span id="adminEmail"></span>
+      <button id="logoutBtn" class="btn">退出登录</button>
+    </div>
 
-    <input type="text" id="searchInput" placeholder="搜索姓名 / 邮箱 / 内容" />
-    <button id="searchBtn" class="btn">搜索</button>
+    <div>
+      <input type="text" id="searchInput" placeholder="搜索姓名 / 邮箱 / 内容" />
+      <button id="searchBtn" class="btn">搜索</button>
+    </div>
 
-    <table id="messagesTable">
+    <table>
       <thead>
-        <tr>
-          <th>姓名</th><th>邮箱</th><th>留言内容</th><th>时间</th><th>操作</th>
-        </tr>
+        <tr><th>姓名</th><th>邮箱</th><th>留言内容</th><th>时间</th><th>操作</th></tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="messagesTable"></tbody>
     </table>
 
     <div class="pagination" id="pagination"></div>
@@ -70,7 +59,7 @@
     const authArea = document.getElementById("authArea");
     const adminArea = document.getElementById("adminArea");
     const adminEmail = document.getElementById("adminEmail");
-    const messagesTable = document.querySelector("#messagesTable tbody");
+    const messagesTable = document.getElementById("messagesTable");
     const searchInput = document.getElementById("searchInput");
     const searchBtn = document.getElementById("searchBtn");
     const pagination = document.getElementById("pagination");
@@ -94,65 +83,71 @@
     };
 
     async function loadMessages(page = 1, keyword = "") {
-      const res = await fetch(`${WORKER_URL}/?page=${page}&limit=${limit}&q=${encodeURIComponent(keyword)}`);
-      const { messages, totalPages } = await res.json();
+      const url = `${WORKER_URL}/?page=${page}&limit=${limit}&q=${encodeURIComponent(keyword)}`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const messages = data.messages || [];
+        const totalPages = data.totalPages || 1;
 
-      messagesTable.innerHTML = "";
-      messages.forEach(msg => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${msg.name || ""}</td>
-          <td>${msg.email || ""}</td>
-          <td>${msg.content || ""}</td>
-          <td>${new Date(msg.created_at).toLocaleString()}</td>
-          <td><button onclick="deleteMessage(${msg.id})">删除</button></td>
-        `;
-        messagesTable.appendChild(row);
-      });
+        messagesTable.innerHTML = "";
+        messages.forEach(msg => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${msg.name || ""}</td>
+            <td>${msg.email || ""}</td>
+            <td>${msg.content || ""}</td>
+            <td>${new Date(msg.created_at).toLocaleString()}</td>
+            <td><button onclick="deleteMessage(${msg.id})">删除</button></td>
+          `;
+          messagesTable.appendChild(row);
+        });
 
-      renderPagination(totalPages, page);
-    }
-
-    function renderPagination(totalPages, currentPage) {
-      pagination.innerHTML = "";
-      for (let i = 1; i <= totalPages; i++) {
-        const btn = document.createElement("button");
-        btn.textContent = i;
-        if (i === currentPage) btn.classList.add("active");
-        btn.onclick = () => {
-          loadMessages(i, searchInput.value.trim());
-        };
-        pagination.appendChild(btn);
-      }
-    }
-
-    async function deleteMessage(id) {
-      const confirmed = confirm("确定要删除这条留言吗？");
-      if (!confirmed) return;
-      const { error } = await client.from("messages").delete().eq("id", id);
-      if (error) {
-        alert("删除失败：" + error.message);
-      } else {
-        loadMessages(currentPage, searchInput.value.trim());
+        pagination.innerHTML = "";
+        for (let i = 1; i <= totalPages; i++) {
+          const btn = document.createElement("button");
+          btn.textContent = i;
+          if (i === page) btn.disabled = true;
+          btn.onclick = () => {
+            currentPage = i;
+            loadMessages(i, searchInput.value.trim());
+          };
+          pagination.appendChild(btn);
+        }
+      } catch (err) {
+        alert("加载失败：" + err.message);
       }
     }
 
     searchBtn.onclick = () => {
       currentPage = 1;
-      loadMessages(currentPage, searchInput.value.trim());
+      loadMessages(1, searchInput.value.trim());
     };
 
-    document.addEventListener("DOMContentLoaded", async () => {
+    async function deleteMessage(id) {
+      const ok = confirm("确定删除该留言吗？");
+      if (!ok) return;
+      try {
+        await client.from("messages").delete().eq("id", id);
+        loadMessages(currentPage, searchInput.value.trim());
+      } catch (err) {
+        alert("删除失败：" + err.message);
+      }
+    }
+
+    window.onload = async () => {
       const { data: { session } } = await client.auth.getSession();
       const user = session?.user;
 
       if (user && user.email === ADMIN_EMAIL) {
         authArea.style.display = "none";
         adminArea.style.display = "block";
-        adminEmail.textContent = "当前账号： " + user.email;
-        loadMessages();
+        adminEmail.textContent = user.email;
+        loadMessages(currentPage, "");
+      } else {
+        adminEmail.textContent = "非管理员账号禁止访问";
       }
-    });
+    };
   </script>
 </body>
 </html>
