@@ -118,9 +118,11 @@
 
     loginBtn.onclick = async () => {
       const { error } = await supabaseClient.auth.signInWithOAuth({
-        provider: "github",
-        options: { redirectTo: https://oliverfr.com/admin-mefan-fr-runs.html }
-      });
+    provider: "github",
+    options: {
+      redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"  // ✅ 必须写死成正式站点回调地址
+    }
+  });
       if (error) alert("登录失败：" + error.message);
     };
 
