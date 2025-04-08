@@ -106,16 +106,14 @@
     const pagination = document.getElementById("pagination");
 
     let currentPage = 1;
-    const limit = 5;
-  loginBtn.onclick = async () => {
+    const limit = 10;
+   loginBtn.onclick = async () => {
       await client.auth.signInWithOAuth({
         provider: "github",
         options: {
           redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"
         }
       });
-    };
-      if (error) alert("登录失败: " + error.message);
     };
 
     logoutBtn.onclick = async () => {
