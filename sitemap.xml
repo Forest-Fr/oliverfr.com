@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset 
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  <!-- 首页 -->
+  <url>
+    <loc>https://oliverfr.com/</loc>
+    <lastmod>2025-04-09</lastmod>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- 留言页 -->
+  <url>
+    <loc>https://oliverfr.com/contact.html</loc>
+    <lastmod>2025-04-09</lastmod>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- 管理员后台页面（如需被索引） -->
+  <url>
+    <loc>https://oliverfr.com/admin-mefan-fr-runs.html</loc>
+    <lastmod>2025-04-09</lastmod>
+    <priority>0.5</priority>
+  </url>
+
+</urlset>
