@@ -36,54 +36,57 @@
 
   <script>
     const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg"; // ❶ 使用 anon 公钥，不是 service_role
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg";
+    const ADMIN_EMAIL = "oliveroogle@gmail.com";
+
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const ADMIN_EMAIL = "oliveroogle@gmail.com"; // ❷ 只允许此账号访问数据
-
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const authArea = document.getElementById("authArea");
-    const adminArea = document.getElementById("adminArea");
-    const adminEmail = document.getElementById("adminEmail");
-    const messagesTable = document.querySelector("#messagesTable tbody");
-
- loginBtn.onclick = async () => {
-  await supabaseClient.auth.signInWithOAuth({
-    provider: "github",
-    options: {
-      redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"
-    }
-  });
-};
-
-
-
-    logoutBtn.onclick = async () => {
-      await client.auth.signOut();
-      location.reload();
-    };
-
-    async function loadMessages() {
-      const { data, error } = await client.from("messages").select("*").order("created_at", { ascending: false });
-      if (error) {
-        alert("获取留言失败：" + error.message);
-        return;
-      }
-      messagesTable.innerHTML = "";
-      data.forEach(msg => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${msg.name || ""}</td>
-          <td>${msg.email || ""}</td>
-          <td>${msg.content || ""}</td>
-          <td>${new Date(msg.created_at).toLocaleString()}</td>
-        `;
-        messagesTable.appendChild(row);
-      });
-    }
-
     document.addEventListener("DOMContentLoaded", async () => {
+      const loginBtn = document.getElementById("loginBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const authArea = document.getElementById("authArea");
+      const adminArea = document.getElementById("adminArea");
+      const adminEmail = document.getElementById("adminEmail");
+      const messagesTable = document.querySelector("#messagesTable tbody");
+
+      loginBtn.onclick = async () => {
+        await client.auth.signInWithOAuth({
+          provider: "github",
+          options: {
+            redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"
+          }
+        });
+      };
+
+      logoutBtn.onclick = async () => {
+        await client.auth.signOut();
+        location.reload();
+      };
+
+      async function loadMessages() {
+        const { data, error } = await client
+          .from("messages")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          alert("获取留言失败：" + error.message);
+          return;
+        }
+
+        messagesTable.innerHTML = "";
+        data.forEach(msg => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${msg.name || ""}</td>
+            <td>${msg.email || ""}</td>
+            <td>${msg.content || ""}</td>
+            <td>${new Date(msg.created_at).toLocaleString()}</td>
+          `;
+          messagesTable.appendChild(row);
+        });
+      }
+
       const { data: { session } } = await client.auth.getSession();
       const user = session?.user;
 
