@@ -2,65 +2,56 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>留言后台管理</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f5f5f5;
-      padding: 40px;
-      text-align: center;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    h1 {
-      font-size: 26px;
-      margin-bottom: 20px;
-    }
+    h1 { font-size: 24px; margin-bottom: 10px; }
     .btn {
       padding: 8px 16px;
       background: #333;
-      color: white;
+      color: #fff;
       border: none;
       cursor: pointer;
     }
-    .btn:hover {
-      background: #555;
-    }
-    #logoutBtn {
-      margin-left: 1rem;
-    }
-    #searchInput {
-      padding: 8px;
-      width: 260px;
-      margin-right: 10px;
-    }
+    .btn:hover { background: #555; }
+    #logoutBtn { margin-left: 1rem; }
     table {
-      width: 90%;
-      margin: 30px auto;
+      width: 100%;
+      max-width: 900px;
       border-collapse: collapse;
-      background: white;
+      margin-top: 20px;
+      background: #fff;
     }
     th, td {
       padding: 12px;
       border: 1px solid #ddd;
-      text-align: center;
+      text-align: left;
     }
-    th {
-      background: #eee;
+    th { background: #eee; }
+    #searchInput {
+      padding: 8px;
+      width: 300px;
     }
     .pagination {
       margin-top: 20px;
     }
     .pagination button {
-      padding: 6px 12px;
-      margin: 0 5px;
+      margin-right: 5px;
+      padding: 6px 10px;
     }
-    .hidden {
-      display: none;
-    }
+    .hidden { display: none; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+
   <h1>留言后台管理</h1>
 
   <div id="authArea">
@@ -68,15 +59,17 @@
   </div>
 
   <div id="adminArea" class="hidden">
-    <span id="adminEmail"></span>
-    <button id="logoutBtn" class="btn">退出登录</button>
+    <div style="margin-bottom: 12px;">
+      <span id="adminEmail"></span>
+      <button id="logoutBtn" class="btn">退出登录</button>
+    </div>
 
-    <div style="margin-top: 20px;">
+    <div style="margin-bottom: 16px;">
       <input type="text" id="searchInput" placeholder="搜索姓名 / 邮箱 / 内容" />
       <button id="searchBtn" class="btn">搜索</button>
     </div>
 
-    <table>
+    <table id="messagesTable">
       <thead>
         <tr>
           <th>姓名</th>
@@ -86,61 +79,63 @@
           <th>操作</th>
         </tr>
       </thead>
-      <tbody id="messagesTable"></tbody>
+      <tbody></tbody>
     </table>
 
     <div class="pagination" id="pagination"></div>
   </div>
 
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
   <script>
-    const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg";
-    const ADMIN_EMAIL = "oliveroogle@gmail.com";
-    const WORKER_URL = "https://message-oliverfr.mefans.workers.dev";
+    const SUPABASE_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+    const ADMIN_EMAIL = 'oliveroogle@gmail.com';
+    const WORKER_URL = 'https://messages-oliverfr.mefans.workers.dev';
 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const loginBtn = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
     const authArea = document.getElementById("authArea");
     const adminArea = document.getElementById("adminArea");
     const adminEmail = document.getElementById("adminEmail");
+    const messagesTable = document.querySelector("#messagesTable tbody");
     const searchInput = document.getElementById("searchInput");
     const searchBtn = document.getElementById("searchBtn");
-    const messagesTable = document.getElementById("messagesTable");
     const pagination = document.getElementById("pagination");
 
     let currentPage = 1;
-    const limit = 10;
-
-    loginBtn.onclick = async () => {
-      await supabase.auth.signInWithOAuth({
+    const limit = 5;
+  loginBtn.onclick = async () => {
+      await client.auth.signInWithOAuth({
         provider: "github",
         options: {
           redirectTo: "https://oliverfr.com/admin-mefan-fr-runs.html"
         }
       });
     };
+      if (error) alert("登录失败: " + error.message);
+    };
 
     logoutBtn.onclick = async () => {
-      await supabase.auth.signOut();
+      await client.auth.signOut();
       location.reload();
     };
 
-    async function loadMessages(page = 1, keyword = "") {
+    async function loadMessages(page = 1, keyword = '') {
       try {
         const res = await fetch(`${WORKER_URL}/?page=${page}&limit=${limit}&q=${encodeURIComponent(keyword)}`);
         const data = await res.json();
-
         if (!res.ok) throw new Error(data.error || "加载失败");
 
         messagesTable.innerHTML = "";
         data.messages.forEach(msg => {
           const row = document.createElement("tr");
           row.innerHTML = `
-            <td>${msg.name}</td>
-            <td>${msg.email}</td>
-            <td>${msg.content}</td>
+            <td>${msg.name || ''}</td>
+            <td>${msg.email || ''}</td>
+            <td>${msg.content || ''}</td>
             <td>${new Date(msg.created_at).toLocaleString()}</td>
             <td><button class="btn" onclick="deleteMessage(${msg.id})">删除</button></td>
           `;
@@ -154,27 +149,27 @@
     }
 
     async function deleteMessage(id) {
-      if (!confirm("确定要删除这条留言吗？")) return;
+      if (!confirm("确认删除该留言？")) return;
       try {
         const res = await fetch(`${WORKER_URL}/delete`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id })
         });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || "删除失败");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "删除失败");
         loadMessages(currentPage, searchInput.value.trim());
       } catch (err) {
-        alert("删除失败: " + err.message);
+        alert("删除失败：" + err.message);
       }
     }
 
     function renderPagination(totalPages, activePage) {
-      pagination.innerHTML = "";
+      pagination.innerHTML = '';
       for (let i = 1; i <= totalPages; i++) {
         const btn = document.createElement("button");
         btn.textContent = i;
-        if (i === activePage) btn.style.fontWeight = "bold";
+        btn.className = (i === activePage) ? 'btn' : '';
         btn.onclick = () => {
           currentPage = i;
           loadMessages(currentPage, searchInput.value.trim());
@@ -189,7 +184,7 @@
     };
 
     document.addEventListener("DOMContentLoaded", async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await client.auth.getSession();
       const user = session?.user;
 
       if (user && user.email === ADMIN_EMAIL) {
