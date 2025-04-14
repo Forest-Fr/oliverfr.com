@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>文章后台管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
@@ -15,30 +16,9 @@
     th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
     th { background: #f0f0f0; }
 
-    .admin-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      max-width: 960px;
-      width: 100%;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .admin-bar > input {
-      flex: 1;
-      min-width: 200px;
-      margin: 5px;
-    }
-
-    .admin-bar > div {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      min-width: 200px;
-      margin: 5px;
-    }
+    .admin-bar { display: flex; justify-content: space-between; align-items: center; max-width: 960px; width: 100%; margin-bottom: 20px; flex-wrap: wrap; }
+    .admin-bar > input { flex: 1; min-width: 200px; margin: 5px; }
+    .admin-bar > div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; min-width: 200px; margin: 5px; }
 
     #previewModal { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border: 1px solid #ccc; max-width: 700px; width: 90%; z-index: 999; overflow-y: auto; max-height: 80vh; }
     #previewModal h3 { margin-top: 0; }
@@ -122,22 +102,19 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
 const ADMIN_EMAIL = 'oliveroogle@gmail.com';
 const WORKER_ENDPOINT = 'https://oliverfr-articles-proxy.mefans.workers.dev';
 
 function formatBeijingTime(dateString) {
   const date = new Date(dateString);
-  const beijingOffset = 8 * 60;
-  const localTime = new Date(date.getTime() + beijingOffset * 60000);
-  return localTime.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+  return new Date(date.getTime() + 8 * 60 * 60000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
 }
 function getWeekday(dateString) {
   return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(dateString).getDay()];
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
   const loginBtn = document.getElementById("loginBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const submitBtn = document.getElementById("submitBtn");
@@ -167,7 +144,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       updated_at: new Date().toISOString()
     };
     if (!currentEditId) payload.created_at = new Date().toISOString();
-    if (coverInput.files[0]) payload.cover_url = '[封面上传需前端配合 Storage]';
+    if (coverInput.files[0]) payload.cover_url = '[封面上传需配合 Supabase Storage 使用]';
 
     const res = await fetch(WORKER_ENDPOINT, {
       method: 'POST',
