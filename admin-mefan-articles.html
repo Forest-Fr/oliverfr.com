@@ -169,11 +169,20 @@
         const content = newContent.value.trim();
         if (!title || !content) return alert("标题或内容不能为空");
         const { data: { user } } = await client.auth.getUser();
-        const { error } = await client.from("articles").insert([{ title, content, author_email: user.email }]);
-        if (error) return alert("提交失败: " + error.message);
-        newTitle.value = "";
-        newContent.value = "";
-        loadArticles(currentPage);
+        try {
+          const res = await fetch("https://oliverfr-api.vercel.app/api/articles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, content, email: user.email })
+          });
+          const text = await res.text();
+          if (!res.ok) return alert("提交失败：" + text);
+          newTitle.value = "";
+          newContent.value = "";
+          loadArticles(currentPage);
+        } catch (err) {
+          alert("提交错误：" + err.message);
+        }
       };
 
       async function loadArticles(page = 1, keyword = "") {
@@ -200,9 +209,16 @@
           del.style.background = "#a00";
           del.onclick = async () => {
             if (!confirm("确认删除该文章？")) return;
-            const { error } = await client.from("articles").delete().eq("id", row.id);
-            if (error) return alert("删除失败: " + error.message);
-            loadArticles(currentPage);
+            try {
+              const res = await fetch(`https://oliverfr-api.vercel.app/api/articles?id=${row.id}`, {
+                method: "DELETE"
+              });
+              const txt = await res.text();
+              if (!res.ok) return alert("删除失败：" + txt);
+              loadArticles(currentPage);
+            } catch (err) {
+              alert("删除失败：" + err.message);
+            }
           };
           const td = document.createElement("td");
           td.appendChild(del);
