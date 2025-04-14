@@ -86,9 +86,10 @@
 
   <table id="articlesTable">
     <thead>
-      <tr>
-        <th>标题</th><th>作者</th><th>封面</th><th>操作</th>
-      </tr>
+     <tr>
+  <th>标题</th><th>作者</th><th>创建时间</th><th>封面</th><th>操作</th>
+</tr>
+
     </thead>
     <tbody></tbody>
   </table>
@@ -175,15 +176,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (reset) articlesTable.innerHTML = "";
     data.forEach(row => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.title}</td>
-        <td>${row.author_email}</td>
-        <td>${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
-        <td>
-          <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
-          <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
-          <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-        </td>`;
+     tr.innerHTML = `
+  <td>${row.title}</td>
+  <td>${row.author_email}</td>
+  <td>${row.created_at ? new Date(row.created_at).toLocaleString() : ''}</td>
+  <td>${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
+  <td>
+    <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
+    <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
+    <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
+  </td>`;
+
       articlesTable.appendChild(tr);
     });
     loading = false;
