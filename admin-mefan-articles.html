@@ -157,7 +157,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let result = currentEditId
       ? await client.from("articles").update(payload).eq("id", currentEditId)
-      : await client.from("articles").insert([{ ...payload, created_at: new Date().toISOString() }]);
+      : await client.from("articles").insert([{ ...payload, created_at: new Date().toISOString(),updated_at: new Date().toISOString() }]);
 
     if (result.error) return alert("提交失败: " + result.error.message);
     newTitle.value = newContent.value = "";
