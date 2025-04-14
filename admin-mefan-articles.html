@@ -91,6 +91,7 @@
     <th>作者</th>
     <th>创建时间</th>
     <th>更新时间</th>
+    <th>星期</th>
     <th>封面</th>
     <th>操作</th>
   </tr>
@@ -182,17 +183,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     data.forEach(row => {
       const tr = document.createElement("tr");
    tr.innerHTML = `
-  <td>${row.title}</td>
-  <td>${row.author_email}</td>
-  <td>${new Date(row.created_at).toLocaleString()}</td>
-  <td>${new Date(row.updated_at).toLocaleString()}</td>
-  <td>${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
-  <td>
-    <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
-    <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
-    <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-  </td>
-`;
+ const formatDateToBeijing = (iso) => {
+  const date = new Date(iso);
+  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+  const beijingTime = new Date(utc + (8 * 60 * 60 * 1000));
+  const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  const weekday = days[beijingTime.getDay()];
+  const dateStr = beijingTime.toLocaleString('zh-CN', { hour12: false });
+  return { dateStr, weekday };
+};
+
+...
+
+data.forEach(row => {
+  const created = formatDateToBeijing(row.created_at);
+  const updated = formatDateToBeijing(row.updated_at);
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${row.title}</td>
+    <td>${row.author_email}</td>
+    <td>${created.dateStr}</td>
+    <td>${updated.dateStr}</td>
+    <td>${updated.weekday}</td>
+    <td>${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
+    <td>
+      <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
+      <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
+      <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
+    </td>
+  `;
+  articlesTable.appendChild(tr);
+});
+
 
 
       articlesTable.appendChild(tr);
