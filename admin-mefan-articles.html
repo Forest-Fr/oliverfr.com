@@ -178,16 +178,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (reset) articlesTable.innerHTML = "";
     data.forEach(row => {
       const tr = document.createElement("tr");
-     tr.innerHTML = `
+   tr.innerHTML = `
   <td>${row.title}</td>
   <td>${row.author_email}</td>
-  <td>${row.created_at ? new Date(row.created_at).toLocaleString() : ''}</td>
+  <td>${new Date(row.created_at).toLocaleString()}</td>
+  <td>${new Date(row.updated_at).toLocaleString()}</td>
   <td>${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
   <td>
     <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
     <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
     <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-  </td>`;
+  </td>
+`;
+
 
       articlesTable.appendChild(tr);
     });
