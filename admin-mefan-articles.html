@@ -168,12 +168,19 @@
         const title = newTitle.value.trim();
         const content = newContent.value.trim();
         if (!title || !content) return alert("标题或内容不能为空");
-        const { data: { user } } = await client.auth.getUser();
+
+        const { data: { session } } = await client.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return alert("登录信息失效，请重新登录");
+
         try {
           const res = await fetch("https://oliverfr-api.vercel.app/api/articles", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title, content, email: user.email })
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({ title, content })
           });
           const text = await res.text();
           if (!res.ok) return alert("提交失败：" + text);
@@ -209,9 +216,19 @@
           del.style.background = "#a00";
           del.onclick = async () => {
             if (!confirm("确认删除该文章？")) return;
+
+            const { data: { session } } = await client.auth.getSession();
+            const token = session?.access_token;
+            if (!token) return alert("登录信息失效，请重新登录");
+
             try {
-              const res = await fetch(`https://oliverfr-api.vercel.app/api/articles?id=${row.id}`, {
-                method: "DELETE"
+              const res = await fetch("https://oliverfr-api.vercel.app/api/articles", {
+                method: "DELETE",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ id: row.id })
               });
               const txt = await res.text();
               if (!res.ok) return alert("删除失败：" + txt);
