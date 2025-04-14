@@ -1,4 +1,4 @@
-<!-- admin-mefan-articles.html -->
+<!-- admin-mefan-articles.html --> 
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -78,7 +78,7 @@
       <tr>
         <th>标题</th>
         <th>作者</th>
-         <th>内容</th>
+        <th>内容</th> 
         <th>创建时间</th>
         <th>更新时间</th>
         <th>星期</th>
@@ -154,7 +154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let coverUrl = "";
     if (coverInput.files[0]) {
       const file = coverInput.files[0];
-      const { data, error } = await client.storage.from("articles").upload(`covers/${Date.now()}_${file.name}`, file, { upsert: true });
+      const { data, error } = await client.storage.from("articles").upload(covers/${Date.now()}_${file.name}, file, { upsert: true });
       if (error) return alert("封面上传失败: " + error.message);
       coverUrl = client.storage.from("articles").getPublicUrl(data.path).data.publicUrl;
     }
@@ -179,27 +179,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     const from = (currentPage - 1) * limit;
     const to = from + limit - 1;
     let query = client.from("articles").select("*").order("created_at", { ascending: false }).range(from, to);
-    if (keyword) query = query.ilike("title", `%${keyword}%`);
+    if (keyword) query = query.ilike("title", %${keyword}%);
     const { data, error } = await query;
     if (error) return alert("加载失败：" + error.message);
     if (reset) articlesTable.innerHTML = "";
     data.forEach(row => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-    <tr>
   <td>${row.title}</td>
   <td>${row.author_email}</td>
-  <td>${new Date(row.created_at).toLocaleString()}</td>
-  <td>${new Date(row.updated_at).toLocaleString()}</td>
+  <td>${row.content ? row.content.slice(0, 60) + "..." : ""}</td> <!-- ✅ 新增：显示前 60 字 -->
+  <td>${formatBeijingTime(row.created_at)}</td>
+  <td>${formatBeijingTime(row.updated_at)}</td>
   <td>${getWeekday(row.created_at)}</td>
-  <td><pre>${row.content || ''}</pre></td>
   <td>${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
   <td>
     <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
     <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
     <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-  </td>
-
+  </td>`;
 
       articlesTable.appendChild(tr);
     });
@@ -250,3 +248,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 </script>
 </body>
 </html>
+
+
