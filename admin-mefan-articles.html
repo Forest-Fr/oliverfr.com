@@ -71,7 +71,10 @@
   <input type="text" id="newTitle" placeholder="标题" />
   <textarea id="newContent" placeholder="支持 Markdown 格式的内容"></textarea>
   <input type="file" id="coverInput" accept="image/*" />
+ <div style="display: flex; gap: 10px; margin-bottom: 10px;">
   <button id="submitBtn" class="btn">提交</button>
+  <button id="cancelEditBtn" class="btn hidden">取消编辑</button>
+</div>
 
   <table id="articlesTable">
     <thead>
@@ -124,6 +127,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const loginBtn = document.getElementById("loginBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const submitBtn = document.getElementById("submitBtn");
+  const cancelEditBtn = document.getElementById("cancelEditBtn");
   const authArea = document.getElementById("authArea");
   const adminArea = document.getElementById("adminArea");
   const newTitle = document.getElementById("newTitle");
@@ -216,8 +220,16 @@ submitBtn.onclick = async () => {
     newTitle.value = row.title;
     newContent.value = row.content;
     currentEditId = row.id;
+     cancelEditBtn.classList.remove("hidden"); // 显示取消按钮
     window.scrollTo(0, 0);
   };
+cancelEditBtn.onclick = () => {
+  newTitle.value = "";
+  newContent.value = "";
+  coverInput.value = "";
+  currentEditId = null;
+  cancelEditBtn.classList.add("hidden");
+};
 
   window.deleteArticle = async (id) => {
     if (!confirm("确定要删除该文章？")) return;
