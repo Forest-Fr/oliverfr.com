@@ -186,17 +186,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     data.forEach(row => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${row.title}</td>
-        <td>${row.author_email}</td>
-        <td>${formatBeijingTime(row.created_at)}</td>
-        <td>${formatBeijingTime(row.updated_at)}</td>
-        <td>${getWeekday(row.created_at)}</td>
-        <td>${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
-        <td>
-          <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
-          <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
-          <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-        </td>`;
+    <tr>
+  <td>${row.title}</td>
+  <td>${row.author_email}</td>
+  <td>${new Date(row.created_at).toLocaleString()}</td>
+  <td>${new Date(row.updated_at).toLocaleString()}</td>
+  <td>${getWeekday(row.created_at)}</td>
+  <td><pre>${row.content || ''}</pre></td>
+  <td>${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
+  <td>
+    <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
+    <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
+    <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
+  </td>
+</tr>
+
       articlesTable.appendChild(tr);
     });
     loading = false;
