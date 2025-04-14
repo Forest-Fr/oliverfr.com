@@ -14,10 +14,12 @@
       flex-direction: column;
       align-items: center;
     }
+
     h1 {
       font-size: 22px;
       margin-bottom: 10px;
     }
+
     .btn {
       padding: 8px 16px;
       background: #333;
@@ -25,12 +27,15 @@
       border: none;
       cursor: pointer;
     }
+
     .btn:hover {
       background: #555;
     }
+
     #logoutBtn {
       margin-left: 1rem;
     }
+
     table {
       width: 100%;
       max-width: 900px;
@@ -38,28 +43,35 @@
       margin-top: 20px;
       background: #fff;
     }
+
     th, td {
       padding: 12px;
       border: 1px solid #ddd;
       text-align: left;
     }
+
     th {
       background: #eee;
     }
+
     #searchInput {
       padding: 8px;
       width: 250px;
     }
+
     .pagination {
       margin-top: 20px;
     }
+
     .pagination button {
       margin-right: 5px;
       padding: 6px 10px;
     }
+
     .hidden {
       display: none;
     }
+
     *, *::before, *::after {
       box-sizing: border-box;
     }
@@ -227,7 +239,6 @@
             <td data-label="时间">${new Date(msg.created_at).toLocaleString()}</td>
           `;
 
-          // 删除按钮
           const deleteBtn = document.createElement("button");
           deleteBtn.textContent = "删除";
           deleteBtn.className = "btn";
