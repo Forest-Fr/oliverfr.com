@@ -130,10 +130,15 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
+  
+const WORKER_ENDPOINT = 'https://oliverfr-articles-proxy.mefans.workers.dev';
+const ADMIN_EMAIL = 'oliveroogle@gmail.com'; // 保留
 
+
+  
 function formatBeijingTime(dateString) {
   const date = new Date(dateString);
   const beijingOffset = 8 * 60;
