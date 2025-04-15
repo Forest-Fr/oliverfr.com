@@ -150,24 +150,23 @@
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const submitBtn = document.getElementById("submitBtn");
+    const loginBtn      = document.getElementById("loginBtn");
+    const logoutBtn     = document.getElementById("logoutBtn");
+    const submitBtn     = document.getElementById("submitBtn");
     const cancelEditBtn = document.getElementById("cancelEditBtn");
-    const authArea = document.getElementById("authArea");
-    const adminArea = document.getElementById("adminArea");
-    const newTitle = document.getElementById("newTitle");
-    const newContent = document.getElementById("newContent");
-    const coverInput = document.getElementById("coverInput");
-    const searchBtn = document.getElementById("searchBtn");
-    const searchInput = document.getElementById("searchInput");
+    const authArea      = document.getElementById("authArea");
+    const adminArea     = document.getElementById("adminArea");
+    const newTitle      = document.getElementById("newTitle");
+    const newContent    = document.getElementById("newContent");
+    const coverInput    = document.getElementById("coverInput");
+    const searchBtn     = document.getElementById("searchBtn");
+    const searchInput   = document.getElementById("searchInput");
     const articlesTable = document.querySelector("#articlesTable tbody");
 
     let currentEditId = null;
 
     // —— 登录 & 退出 —— 
     loginBtn.onclick = () => {
-      // Worker 需实现 /auth/github 重定向到 Supabase OAuth
       window.location.href = apiBase + 'auth/github?redirect=' + encodeURIComponent(location.href);
     };
     logoutBtn.onclick = async () => {
@@ -177,7 +176,7 @@
 
     // —— 会话检查 —— 
     const sessionRes = await fetch(apiBase + 'session', { credentials: 'include' });
-    const { user } = await sessionRes.json();
+    const { user }   = await sessionRes.json();
     if (user?.email === ADMIN_EMAIL) {
       authArea.classList.add("hidden");
       adminArea.classList.remove("hidden");
@@ -186,7 +185,7 @@
 
     // —— 提交新增/编辑 —— 
     submitBtn.onclick = async () => {
-      const title = newTitle.value.trim();
+      const title   = newTitle.value.trim();
       const content = newContent.value.trim();
       if (!title || !content) return alert("标题或内容不能为空");
 
@@ -206,21 +205,23 @@
 
       // —— 写入文章表 —— 
       const payload = {
-        title, content,
+        title,
+        content,
         author_email: user.email,
-        created_at: currentEditId ? undefined : new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        cover_url: coverUrl || undefined,
-        id: currentEditId
+        created_at:   currentEditId ? undefined : new Date().toISOString(),
+        updated_at:   new Date().toISOString(),
+        cover_url:    coverUrl || undefined,
+        id:           currentEditId
       };
       const res = await fetch(apiBase, {
-        method: 'POST',
+        method:      'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        headers:     { 'Content-Type': 'application/json' },
+        body:        JSON.stringify(payload)
       });
       const { success } = await res.json();
       if (!success) return alert("提交失败");
+
       // 重置表单
       newTitle.value = '';
       newContent.value = '';
@@ -247,7 +248,7 @@
         currentPage = 1;
       }
       const url = new URL(apiBase);
-      url.searchParams.set('page', currentPage);
+      url.searchParams.set('page',  currentPage);
       url.searchParams.set('limit', limit);
       if (keyword) url.searchParams.set('q', keyword);
 
@@ -273,21 +274,20 @@
       });
 
       loading = false;
-      // 如果还有下一页，当前页++
       if (currentPage < totalPages) currentPage++;
     }
 
     // —— 预览 / 编辑 / 删除 —— 
     window.previewArticle = row => {
       document.getElementById("previewTitle").textContent = row.title;
-      document.getElementById("previewCover").src = row.cover_url || '';
+      document.getElementById("previewCover").src         = row.cover_url || '';
       document.getElementById("markdownContent").innerHTML = marked.parse(row.content || '');
       document.getElementById("previewModal").classList.remove("hidden");
     };
     window.editArticle = row => {
-      newTitle.value = row.title;
-      newContent.value = row.content;
-      currentEditId = row.id;
+      newTitle.value      = row.title;
+      newContent.value    = row.content;
+      currentEditId       = row.id;
       cancelEditBtn.classList.remove("hidden");
       window.scrollTo(0,0);
     };
