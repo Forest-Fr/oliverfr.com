@@ -156,43 +156,67 @@
       location.reload();
     };
 
-    // 4. 提交文章
-    submitBtn.onclick = async () => {
-      const title   = document.getElementById('newTitle').value.trim();
-      const content = document.getElementById('newContent').value.trim();
-      if (!title || !content) return alert('标题或内容不能为空');
+  // 4. 提交文章
+submitBtn.onclick = async () => {
+  const title   = document.getElementById('newTitle').value.trim();
+  const content = document.getElementById('newContent').value.trim();
+  if (!title || !content) return alert('标题或内容不能为空');
 
-      // 上传封面
-      let coverUrl = '';
-      const file = document.getElementById('coverInput').files[0];
-      if (file) {
-        const { data, error } = await client.storage
-          .from('articles')
-          .upload(`covers/${Date.now()}_${file.name}`, file);
-        if (error) return alert('封面上传失败：' + error.message);
-        coverUrl = client.storage.from('articles').getPublicUrl(data.path).data.publicUrl;
-      }
+  // —— 取当前用户 —— 
+  const { data: { session } } = await client.auth.getSession();
+  const user = session?.user;
+  if (!user) return alert('请先登录');
 
-      // upsert
-      const payload = {
-        title, content,
-        author_email: user.email,
-        updated_at:   new Date().toISOString(),
-        cover_url:    coverUrl || undefined,
-        id:           currentEditId
-      };
-      const { error } = await client
-        .from('articles')
-        .upsert(
-          currentEditId
-            ? { ...payload, id: undefined }
-            : { ...payload, created_at: new Date().toISOString() }
-        );
-      if (error) return alert('提交失败：' + error.message);
+  // —— 上传封面（可选） —— 
+  let coverUrl = '';
+  const file = document.getElementById('coverInput').files[0];
+  if (file) {
+    const { data, error } = await client.storage
+      .from('articles')
+      .upload(`covers/${Date.now()}_${file.name}`, file);
+    if (error) return alert('封面上传失败：' + error.message);
+    coverUrl = client
+      .storage
+      .from('articles')
+      .getPublicUrl(data.path)
+      .data
+      .publicUrl;
+  }
 
-      cancelEdit();
-      loadArticles(true);
-    };
+  // —— 构造要写入的字段 —— 
+  const row = {
+    title,
+    content,
+    author_email: user.email,
+    updated_at:   new Date().toISOString(),
+    cover_url:    coverUrl || undefined
+  };
+
+  let res;
+  if (currentEditId) {
+    // —— 编辑模式：用 update —— 
+    res = await client
+      .from('articles')
+      .update(row)
+      .eq('id', currentEditId);
+  } else {
+    // —— 新增模式：用 insert —— 
+    res = await client
+      .from('articles')
+      .insert([{
+        ...row,
+        created_at: new Date().toISOString()
+      }]);
+  }
+
+  if (res.error) {
+    return alert('提交失败：' + res.error.message);
+  }
+
+  // —— 重置 & 刷新列表 —— 
+  cancelBtn.click();
+  loadArticles(true);
+};
 
     // 5. 取消编辑
     cancelBtn.onclick = cancelEdit;
