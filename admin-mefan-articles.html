@@ -15,6 +15,7 @@
     table { width: 100%; max-width: 960px; border-collapse: collapse; margin-top: 20px; background: #fff; }
     th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
     th { background: #f0f0f0; }
+
     .admin-bar { display: flex; justify-content: space-between; align-items: center; max-width: 960px; width: 100%; margin-bottom: 20px; flex-wrap: wrap; }
     .admin-bar > input { flex: 1; min-width: 200px; margin: 5px; }
     .admin-bar > div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; min-width: 200px; margin: 5px; }
@@ -37,17 +38,16 @@
   </style>
 </head>
 <body>
-
 <h1>📰 文章后台管理</h1>
 
-<div id="authArea"><button class="btn" onclick="alert('已通过 Worker 中转，无需登录')">使用 GitHub 登录</button></div>
+<div id="authArea"><button id="loginBtn" class="btn">使用 GitHub 登录</button></div>
 
-<div id="adminArea">
+<div id="adminArea" class="hidden">
   <div class="admin-bar">
     <input type="text" id="searchInput" placeholder="搜索标题关键词…" />
     <div>
       <button id="searchBtn" class="btn">🔍 搜索</button>
-      <button id="logoutBtn" class="btn" onclick="location.reload()">退出登录</button>
+      <button id="logoutBtn" class="btn">退出登录</button>
     </div>
   </div>
 
@@ -63,7 +63,9 @@
   <div style="overflow-x: auto; width: 100%;">
     <table id="articlesTable">
       <thead>
-        <tr><th>标题</th><th>作者</th><th>内容</th><th>创建时间</th><th>更新时间</th><th>星期</th><th>封面</th><th>操作</th></tr>
+        <tr>
+          <th>标题</th><th>作者</th><th>内容</th><th>创建时间</th><th>更新时间</th><th>星期</th><th>封面</th><th>操作</th>
+        </tr>
       </thead>
       <tbody></tbody>
     </table>
@@ -80,116 +82,133 @@
 <script>
 const WORKER_ENDPOINT = 'https://oliverfr-articles-proxy.mefans.workers.dev';
 const ADMIN_EMAIL = 'oliveroogle@gmail.com';
-let currentEditId = null, currentPage = 1, loading = false;
-const limit = 5;
 
-function formatBeijingTime(date) {
-  return new Date(date).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+function formatBeijingTime(dateString) {
+  const date = new Date(dateString);
+  return new Date(date.getTime() + 8 * 60 * 60000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
 }
-function getWeekday(date) {
-  return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(date).getDay()];
+function getWeekday(dateString) {
+  return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(dateString).getDay()];
 }
-
-document.getElementById("submitBtn").onclick = async () => {
-  const title = newTitle.value.trim(), content = newContent.value.trim();
-  if (!title || !content) return alert("标题或内容不能为空");
-
-  const payload = {
-    title, content,
-    author_email: ADMIN_EMAIL,
-    updated_at: new Date().toISOString()
-  };
-  if (!currentEditId) payload.created_at = new Date().toISOString();
-
-  const res = await fetch(WORKER_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(currentEditId ? { ...payload, id: currentEditId } : payload)
-  });
-
-  if (!res.ok) return alert("提交失败");
-  newTitle.value = newContent.value = "";
-  coverInput.value = "";
-  currentEditId = null;
-  cancelEditBtn.classList.add("hidden");
-  loadArticles(true);
-};
-
-document.getElementById("cancelEditBtn").onclick = () => {
-  newTitle.value = newContent.value = "";
-  coverInput.value = "";
-  currentEditId = null;
-  cancelEditBtn.classList.add("hidden");
-};
-
-document.getElementById("searchBtn").onclick = () => {
-  currentPage = 1;
-  loadArticles(true, searchInput.value.trim());
-};
-
-window.addEventListener("scroll", () => {
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 10) {
-    currentPage++;
-    loadArticles();
-  }
-});
-
-function renderRow(row) {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td data-label="标题">${row.title}</td>
-    <td data-label="作者">${row.author_email}</td>
-    <td data-label="内容">${row.content?.slice(0, 60)}...</td>
-    <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
-    <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
-    <td data-label="星期">${getWeekday(row.created_at)}</td>
-    <td data-label="封面">${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
-    <td data-label="操作">
-      <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
-      <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
-      <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-    </td>`;
-  articlesTable.appendChild(tr);
-}
-
-async function loadArticles(reset = false, keyword = "") {
-  if (loading) return;
-  loading = true;
-  const params = new URLSearchParams({ page: currentPage, limit, q: keyword });
-  const res = await fetch(`${WORKER_ENDPOINT}?${params}`);
-  const json = await res.json();
-  const articles = json.articles || json.messages || [];
-
-  if (reset) articlesTable.innerHTML = "";
-  articles.forEach(renderRow);
-  loading = false;
-}
-
-window.previewArticle = (row) => {
-  document.getElementById("previewTitle").textContent = row.title;
-  document.getElementById("previewCover").src = row.cover_url || '';
-  document.getElementById("markdownContent").innerHTML = marked.parse(row.content || '');
-  document.getElementById("previewModal").classList.remove("hidden");
-};
-
-window.editArticle = (row) => {
-  newTitle.value = row.title;
-  newContent.value = row.content;
-  currentEditId = row.id;
-  cancelEditBtn.classList.remove("hidden");
-  window.scrollTo(0, 0);
-};
-
-window.deleteArticle = async (id) => {
-  if (!confirm("确定要删除该文章？")) return;
-  const res = await fetch(`${WORKER_ENDPOINT}?id=${id}`, { method: 'DELETE' });
-  if (!res.ok) return alert("删除失败");
-  loadArticles(true);
-};
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("authArea").classList.add("hidden");
-  document.getElementById("adminArea").classList.remove("hidden");
+  const loginBtn = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const submitBtn = document.getElementById("submitBtn");
+  const cancelEditBtn = document.getElementById("cancelEditBtn");
+  const newTitle = document.getElementById("newTitle");
+  const newContent = document.getElementById("newContent");
+  const coverInput = document.getElementById("coverInput");
+  const searchBtn = document.getElementById("searchBtn");
+  const searchInput = document.getElementById("searchInput");
+  const articlesTable = document.querySelector("#articlesTable tbody");
+  const authArea = document.getElementById("authArea");
+  const adminArea = document.getElementById("adminArea");
+
+  let currentEditId = null;
+  let currentPage = 1;
+  let loading = false;
+  const limit = 5;
+
+  loginBtn.onclick = () => alert("Cloudflare Worker 中转已启用，无需登录");
+  logoutBtn.onclick = () => location.reload();
+
+  submitBtn.onclick = async () => {
+    const title = newTitle.value.trim(), content = newContent.value.trim();
+    if (!title || !content) return alert("标题或内容不能为空");
+
+    const payload = {
+      title, content,
+      author_email: ADMIN_EMAIL,
+      updated_at: new Date().toISOString()
+    };
+    if (!currentEditId) payload.created_at = new Date().toISOString();
+    if (coverInput.files[0]) payload.cover_url = '[上传略]';
+
+    const res = await fetch(WORKER_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentEditId ? { ...payload, id: currentEditId } : payload)
+    });
+
+    if (!res.ok) return alert("提交失败");
+    newTitle.value = newContent.value = "";
+    coverInput.value = "";
+    currentEditId = null;
+    cancelEditBtn.classList.add("hidden");
+    loadArticles(true);
+  };
+
+  cancelEditBtn.onclick = () => {
+    newTitle.value = newContent.value = "";
+    coverInput.value = "";
+    currentEditId = null;
+    cancelEditBtn.classList.add("hidden");
+  };
+
+  async function loadArticles(reset = false, keyword = "") {
+    if (loading) return;
+    loading = true;
+    const params = new URLSearchParams({ page: currentPage, limit, q: keyword });
+    const res = await fetch(`${WORKER_ENDPOINT}?${params}`);
+    const { articles, total, totalPages } = await res.json();
+    if (reset) articlesTable.innerHTML = "";
+    articles.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td data-label="标题">${row.title}</td>
+        <td data-label="作者">${row.author_email}</td>
+        <td data-label="内容">${row.content?.slice(0, 60)}...</td>
+        <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
+        <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
+        <td data-label="星期">${getWeekday(row.created_at)}</td>
+        <td data-label="封面">${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
+        <td data-label="操作">
+          <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
+          <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
+          <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
+        </td>`;
+      articlesTable.appendChild(tr);
+    });
+    loading = false;
+  }
+
+  window.previewArticle = (row) => {
+    document.getElementById("previewTitle").textContent = row.title;
+    document.getElementById("previewCover").src = row.cover_url || '';
+    document.getElementById("markdownContent").innerHTML = marked.parse(row.content || '');
+    document.getElementById("previewModal").classList.remove("hidden");
+  };
+
+  window.editArticle = (row) => {
+    newTitle.value = row.title;
+    newContent.value = row.content;
+    currentEditId = row.id;
+    cancelEditBtn.classList.remove("hidden");
+    window.scrollTo(0, 0);
+  };
+
+  window.deleteArticle = async (id) => {
+    if (!confirm("确定要删除该文章？")) return;
+    const res = await fetch(`${WORKER_ENDPOINT}?id=${id}`, { method: 'DELETE' });
+    if (!res.ok) return alert("删除失败");
+    loadArticles(true);
+  };
+
+  searchBtn.onclick = () => {
+    currentPage = 1;
+    loadArticles(true, searchInput.value.trim());
+  };
+
+  window.addEventListener("scroll", () => {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 10) {
+      currentPage++;
+      loadArticles();
+    }
+  });
+
+  authArea.classList.add("hidden");
+  adminArea.classList.remove("hidden");
   loadArticles();
 });
 </script>
