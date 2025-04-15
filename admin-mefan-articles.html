@@ -171,8 +171,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (loading) return;
     loading = true;
     const params = new URLSearchParams({ page: currentPage, limit, q: keyword || '' });
-    const res = await fetch(`${WORKER_ENDPOINT}?${params}`);
-   const { messages: articles } = await res.json();
+   const res = await fetch(`${WORKER_ENDPOINT}?${params}`);
+const json = await res.json();
+
+// 兼容实际字段结构
+const articles = json.messages || json.articles || [];
 
     if (reset) articlesTable.innerHTML = "";
     articles.forEach(row => {
