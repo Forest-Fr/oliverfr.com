@@ -96,11 +96,13 @@
       return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(d).getDay()];
     }
 
-    // —— 登录 —— 
-    document.getElementById('loginBtn').onclick = () => {
-      // 直接跳到 Worker 的 OAuth 授权端点
-      window.location.href = `${WORKER_BASE}/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(location.href)}`;
-    };
+   // 只改这段：loginBtn 的跳转
+document.getElementById('loginBtn').onclick = () => {
+  // 跳到我们在 Worker 里实现的 /auth/github
+  window.location.href = WORKER_BASE
+    + '/auth/github?redirect='
+    + encodeURIComponent(STATIC_PAGE);
+};
 
     // —— 退出 —— 
     document.getElementById('logoutBtn').onclick = async () => {
