@@ -81,14 +81,18 @@
     </div>
   </div>
 
-  <!-- 引入 marked.js 仅用于 Markdown 渲染 -->
+  <!-- 仅保留 marked.js 用于 Markdown 渲染 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Supabase‑JS 从 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     // —— 基本配置 —— 
     const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';
+    const ANON_KEY    = '你的 Supabase anon 公匙';
     const ADMIN_EMAIL = 'oliveroogle@gmail.com';
+    const client      = supabase.createClient(WORKER_BASE, ANON_KEY);
 
-    // 工具函数
+    // 时间/星期格式化
     function formatBeijingTime(d) {
       return new Date(d).toLocaleString('zh-CN',{ timeZone:'Asia/Shanghai', hour12:false });
     }
@@ -96,153 +100,164 @@
       return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(d).getDay()];
     }
 
-    // —— 登录 —— 
-    document.getElementById('loginBtn').onclick = () => {
-      // 直接跳到 Worker 的 OAuth 授权端点
-      window.location.href = `${WORKER_BASE}/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(location.href)}`;
-    };
+    document.addEventListener('DOMContentLoaded', async () => {
+      const authArea      = document.getElementById('authArea');
+      const adminArea     = document.getElementById('adminArea');
+      const loginBtn      = document.getElementById('loginBtn');
+      const logoutBtn     = document.getElementById('logoutBtn');
+      const submitBtn     = document.getElementById('submitBtn');
+      const cancelBtn     = document.getElementById('cancelEditBtn');
+      const searchBtn     = document.getElementById('searchBtn');
+      const searchInput   = document.getElementById('searchInput');
+      const articlesTable = document.querySelector('#articlesTable tbody');
 
-    // —— 退出 —— 
-    document.getElementById('logoutBtn').onclick = async () => {
-      await fetch(`${WORKER_BASE}/auth/v1/logout`, { method:'POST', credentials:'include' });
-      location.reload();
-    };
+      let currentEditId = null, currentPage = 1, limit = 5, loading = false;
 
-    // —— 关闭预览 —— 
-    function closePreview() {
-      document.getElementById('previewModal').classList.add('hidden');
-    }
-
-    // —— 取消编辑 —— 
-    function cancelEdit() {
-      document.getElementById('newTitle').value = '';
-      document.getElementById('newContent').value = '';
-      document.getElementById('coverInput').value = '';
-      currentEditId = null;
-      document.getElementById('cancelEditBtn').classList.add('hidden');
-    }
-
-    // —— 提交文章（新增/编辑） —— 
-    document.getElementById('submitBtn').onclick = async () => {
-      const title   = document.getElementById('newTitle').value.trim();
-      const content = document.getElementById('newContent').value.trim();
-      if (!title || !content) return alert('标题或内容不能为空');
-
-      // 会话检查
-      const userRes = await fetch(`${WORKER_BASE}/auth/v1/user`, { credentials:'include' });
-      const { user } = await userRes.json();
-      if (!user) return alert('未登录');
-
-      // 封面上传
-      let coverUrl = '';
-      const file = document.getElementById('coverInput').files[0];
-      if (file) {
-        const fd = new FormData();
-        fd.append('file', file);
-        const up = await fetch(`${WORKER_BASE}/uploadCover`, { method:'POST', credentials:'include', body:fd });
-        const { publicUrl, error } = await up.json();
-        if (error) return alert('封面上传失败：' + error);
-        coverUrl = publicUrl;
-      }
-
-      // 新增/编辑
-      const payload = {
-        title, content,
-        author_email: user.email,
-        updated_at:   new Date().toISOString(),
-        cover_url:    coverUrl || undefined,
-        id:           currentEditId
-      };
-      const method = currentEditId ? 'POST' : 'POST';
-      const res = await fetch(`${WORKER_BASE}/?` + (currentEditId ? `id=${currentEditId}` : ''), {
-        method,
-        credentials: 'include',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const { success, error } = await res.json();
-      if (!success) return alert('提交失败：' + error);
-      cancelEdit();
-      loadArticles(true);
-    };
-
-    // —— 删除文章 —— 
-    window.deleteArticle = async id => {
-      if (!confirm('确定要删除？')) return;
-      const res = await fetch(`${WORKER_BASE}/?id=${id}`, { method:'DELETE', credentials:'include' });
-      const { success, error } = await res.json();
-      if (!success) return alert('删除失败：' + error);
-      loadArticles(true);
-    };
-
-    // —— 编辑文章 —— 
-    window.editArticle = row => {
-      document.getElementById('newTitle').value = row.title;
-      document.getElementById('newContent').value = row.content;
-      currentEditId = row.id;
-      document.getElementById('cancelEditBtn').classList.remove('hidden');
-      window.scrollTo(0,0);
-    };
-
-    // —— 预览文章 —— 
-    window.previewArticle = row => {
-      document.getElementById('previewTitle').textContent   = row.title;
-      document.getElementById('previewCover').src           = row.cover_url || '';
-      document.getElementById('markdownContent').innerHTML  = marked.parse(row.content || '');
-      document.getElementById('previewModal').classList.remove('hidden');
-    };
-
-    // —— 加载文章列表（分页 + 搜索） —— 
-    let currentEditId = null, currentPage = 1, limit = 5, loading = false;
-    document.getElementById('searchBtn').onclick = () => loadArticles(true, document.getElementById('searchInput').value.trim());
-
-    async function loadArticles(reset = false, keyword = '') {
-      if (loading) return;
-      loading = true;
-      if (reset) {
-        document.querySelector('#articlesTable tbody').innerHTML = '';
-        currentPage = 1;
-      }
-      const url = new URL(WORKER_BASE + '/');
-      url.searchParams.set('page', currentPage);
-      url.searchParams.set('limit', limit);
-      if (keyword) url.searchParams.set('q', keyword);
-
-      const res = await fetch(url, { credentials:'include' });
-      const { articles, totalPages } = await res.json();
-
-      const tbody = document.querySelector('#articlesTable tbody');
-      articles.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td data-label="标题">${row.title}</td>
-          <td data-label="作者">${row.author_email}</td>
-          <td data-label="内容">${row.content?.slice(0,60)}...</td>
-          <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
-          <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
-          <td data-label="星期">${getWeekday(row.created_at)}</td>
-          <td data-label="封面">${row.cover_url?`<img src="${row.cover_url}" style="height:40px;">`:''}</td>
-          <td data-label="操作">
-            <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
-            <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
-            <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-          </td>`;
-        tbody.appendChild(tr);
-      });
-      loading = false;
-      if (currentPage < totalPages) currentPage++;
-    }
-
-    // —— 页面初始化：检查会话 & 显示区域 —— 
-    (async () => {
-      const res = await fetch(`${WORKER_BASE}/auth/v1/user`, { credentials:'include' });
-      const { user } = await res.json();
+      // —— 会话检查 —— 
+      const { data: { session } } = await client.auth.getSession();
+      const user = session?.user;
       if (user?.email === ADMIN_EMAIL) {
-        document.getElementById('authArea').classList.add('hidden');
-        document.getElementById('adminArea').classList.remove('hidden');
+        authArea.classList.add('hidden');
+        adminArea.classList.remove('hidden');
         loadArticles();
       }
-    })();
+
+      // —— 登录 —— 
+      loginBtn.onclick = () => {
+        client.auth.signInWithOAuth({
+          provider: 'github',
+          options: { redirectTo: location.href }
+        });
+      };
+
+      // —— 退出 —— 
+      logoutBtn.onclick = async () => {
+        await client.auth.signOut();
+        location.reload();
+      };
+
+      // —— 提交文章（新增/编辑） —— 
+      submitBtn.onclick = async () => {
+        const title   = document.getElementById('newTitle').value.trim();
+        const content = document.getElementById('newContent').value.trim();
+        if (!title || !content) return alert('标题或内容不能为空');
+
+        // 上传封面
+        let coverUrl = '';
+        const file = document.getElementById('coverInput').files[0];
+        if (file) {
+          const { data, error } = await client.storage
+            .from('articles')
+            .upload(`covers/${Date.now()}_${file.name}`, file);
+          if (error) return alert('封面上传失败：' + error.message);
+          coverUrl = client.storage.from('articles').getPublicUrl(data.path).data.publicUrl;
+        }
+
+        // 构造 payload
+        const payload = {
+          title, content,
+          author_email: user.email,
+          updated_at:   new Date().toISOString(),
+          cover_url:    coverUrl || undefined,
+          id:           currentEditId
+        };
+        // Supabase 端由 Worker 处理新增/编辑逻辑
+        const { error } = await client
+          .from('articles')
+          .upsert(
+            currentEditId
+              ? { ...payload, id: undefined }
+              : { ...payload, created_at: new Date().toISOString() }
+          );
+        if (error) return alert('提交失败：' + error.message);
+
+        // 重置 & 重新加载
+        cancelEdit();
+        loadArticles(true);
+      };
+
+      // —— 取消编辑 —— 
+      cancelBtn.onclick = cancelEdit;
+      function cancelEdit() {
+        document.getElementById('newTitle').value = '';
+        document.getElementById('newContent').value = '';
+        document.getElementById('coverInput').value  = '';
+        currentEditId = null;
+        cancelBtn.classList.add('hidden');
+      }
+
+      // —— 删除文章 —— 
+      window.deleteArticle = async id => {
+        if (!confirm('确定删除？')) return;
+        const { error } = await client.from('articles').delete().eq('id', id);
+        if (error) return alert('删除失败：' + error.message);
+        loadArticles(true);
+      };
+
+      // —— 编辑文章 —— 
+      window.editArticle = row => {
+        document.getElementById('newTitle').value   = row.title;
+        document.getElementById('newContent').value = row.content;
+        currentEditId = row.id;
+        cancelBtn.classList.remove('hidden');
+        window.scrollTo(0,0);
+      };
+
+      // —— 预览文章 —— 
+      window.previewArticle = row => {
+        document.getElementById('previewTitle').textContent  = row.title;
+        document.getElementById('previewCover').src          = row.cover_url || '';
+        document.getElementById('markdownContent').innerHTML = marked.parse(row.content || '');
+        document.getElementById('previewModal').classList.remove('hidden');
+      };
+      window.closePreview = () => document.getElementById('previewModal').classList.add('hidden');
+
+      // —— 搜索 & 分页加载 —— 
+      searchBtn.onclick = () => loadArticles(true, searchInput.value.trim());
+      window.addEventListener('scroll', () => {
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 10) {
+          loadArticles();
+        }
+      });
+
+      // —— 加载文章列表 —— 
+      async function loadArticles(reset = false, keyword = '') {
+        if (loading) return;
+        loading = true;
+        if (reset) {
+          articlesTable.innerHTML = '';
+          currentPage = 1;
+        }
+        let q = client.from('articles')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range((currentPage-1)*limit, currentPage*limit-1);
+        if (keyword) q = q.ilike('title', `%${keyword}%`);
+        const { data, error, count } = await q;
+        if (error) return alert('加载失败：' + error.message);
+
+        data.forEach(row => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td data-label="标题">${row.title}</td>
+            <td data-label="作者">${row.author_email}</td>
+            <td data-label="内容">${row.content?.slice(0,60)}...</td>
+            <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
+            <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
+            <td data-label="星期">${getWeekday(row.created_at)}</td>
+            <td data-label="封面">${row.cover_url?`<img src="${row.cover_url}" style="height:40px;">`:''}</td>
+            <td data-label="操作">
+              <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
+              <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
+              <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
+            </td>`;
+          articlesTable.appendChild(tr);
+        });
+
+        loading = false;
+        if (data.length === limit) currentPage++;
+      }
+    });
   </script>
 </body>
 </html>
