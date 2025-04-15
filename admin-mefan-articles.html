@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <title>文章后台管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
+    /* —— 完全沿用你原来的所有样式 —— */
     body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
     .btn { padding: 8px 16px; background: #333; color: #fff; border: none; cursor: pointer; margin-right: 5px; }
@@ -16,9 +16,30 @@
     th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
     th { background: #f0f0f0; }
 
-    .admin-bar { display: flex; justify-content: space-between; align-items: center; max-width: 960px; width: 100%; margin-bottom: 20px; flex-wrap: wrap; }
-    .admin-bar > input { flex: 1; min-width: 200px; margin: 5px; }
-    .admin-bar > div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; min-width: 200px; margin: 5px; }
+    .admin-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 960px;
+      width: 100%;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .admin-bar > input {
+      flex: 1;
+      min-width: 200px;
+      margin: 5px;
+    }
+
+    .admin-bar > div {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      min-width: 200px;
+      margin: 5px;
+    }
 
     #previewModal { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border: 1px solid #ccc; max-width: 700px; width: 90%; z-index: 999; overflow-y: auto; max-height: 80vh; }
     #previewModal h3 { margin-top: 0; }
@@ -28,33 +49,11 @@
     @media (max-width: 768px) {
       .admin-bar { flex-direction: column; align-items: stretch; }
       .btn, textarea { width: 100%; margin: 5px 0; }
-
       table, thead, tbody, th, td, tr { display: block; }
       thead { display: none; }
-
-      tbody tr {
-        border: 1px solid #ddd;
-        margin-bottom: 15px;
-        background: #fff;
-        padding: 10px;
-      }
-
-      tbody td {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 5px;
-        border: none;
-        border-bottom: 1px solid #eee;
-      }
-
-      tbody td::before {
-        content: attr(data-label);
-        font-weight: bold;
-        color: #555;
-        flex: 1;
-        margin-right: 10px;
-      }
-
+      tbody tr { border: 1px solid #ddd; margin-bottom: 15px; background: #fff; padding: 10px; }
+      tbody td { display: flex; justify-content: space-between; padding: 8px 5px; border: none; border-bottom: 1px solid #eee; }
+      tbody td::before { content: attr(data-label); font-weight: bold; color: #555; flex: 1; margin-right: 10px; }
       #submitBtn, #cancelEditBtn { width: 100%; }
     }
   </style>
@@ -98,143 +97,180 @@
     <h3 id="previewTitle"></h3>
     <img id="previewCover" />
     <div id="markdownContent"></div>
-    <button class="btn" onclick="document.getElementById('previewModal').classList.add('hidden')">关闭</button>
+    <button class="btn" onclick="closePreview()">关闭</button>
   </div>
 </div>
 
+<!-- Supabase‑JS & marked -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
-const WORKER_ENDPOINT = 'https://oliverfr-articles-proxy.mefans.workers.dev';
-const ADMIN_EMAIL = 'oliveroogle@gmail.com';
+  // —— 只改这几行，指向你的 Worker —— 
+  const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';      // 例如 https://oliverfr.com
+  const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+  const ADMIN_EMAIL = 'oliveroogle@gmail.com';
+  const client      = supabase.createClient(WORKER_BASE, ANON_KEY);
 
-function formatBeijingTime(dateString) {
-  const date = new Date(dateString);
-  return new Date(date.getTime() + 8 * 60 * 60000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
-}
-
-function getWeekday(dateString) {
-  return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(dateString).getDay()];
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  const loginBtn = document.getElementById("loginBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
-  const submitBtn = document.getElementById("submitBtn");
-  const cancelEditBtn = document.getElementById("cancelEditBtn");
-  const newTitle = document.getElementById("newTitle");
-  const newContent = document.getElementById("newContent");
-  const coverInput = document.getElementById("coverInput");
-  const searchBtn = document.getElementById("searchBtn");
-  const searchInput = document.getElementById("searchInput");
-  const articlesTable = document.querySelector("#articlesTable tbody");
-  let currentEditId = null;
-  let currentPage = 1;
-  let loading = false;
-  const limit = 5;
-
-  loginBtn.onclick = () => alert("无需登录（使用 Cloudflare Worker 中转）");
-  logoutBtn.onclick = () => location.reload();
-
-  submitBtn.onclick = async () => {
-    const title = newTitle.value.trim(), content = newContent.value.trim();
-    if (!title || !content) return alert("标题或内容不能为空");
-
-    const payload = {
-      title,
-      content,
-      author_email: ADMIN_EMAIL,
-      updated_at: new Date().toISOString()
-    };
-    if (!currentEditId) payload.created_at = new Date().toISOString();
-    if (coverInput.files[0]) payload.cover_url = "[上传功能未启用]";
-
-    const res = await fetch(WORKER_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(currentEditId ? { ...payload, id: currentEditId } : payload)
-    });
-
-    if (!res.ok) return alert("提交失败");
-    newTitle.value = newContent.value = "";
-    coverInput.value = "";
-    currentEditId = null;
-    cancelEditBtn.classList.add("hidden");
-    loadArticles(true);
-  };
-
-  cancelEditBtn.onclick = () => {
-    newTitle.value = newContent.value = "";
-    coverInput.value = "";
-    currentEditId = null;
-    cancelEditBtn.classList.add("hidden");
-  };
-
-  async function loadArticles(reset = false, keyword = "") {
-    if (loading) return;
-    loading = true;
-    const params = new URLSearchParams({ page: currentPage, limit, q: keyword || '' });
-    const res = await fetch(`${WORKER_ENDPOINT}?${params}`);
-    const { articles } = await res.json();
-    if (reset) articlesTable.innerHTML = "";
-
-    articles.forEach(row => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td data-label="标题">${row.title}</td>
-        <td data-label="作者">${row.author_email}</td>
-        <td data-label="内容">${row.content?.slice(0, 60)}...</td>
-        <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
-        <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
-        <td data-label="星期">${getWeekday(row.created_at)}</td>
-        <td data-label="封面">${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
-        <td data-label="操作">
-          <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
-          <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
-          <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-        </td>`;
-      articlesTable.appendChild(tr);
-    });
-    loading = false;
+  // 时间格式化
+  function formatBeijingTime(d) {
+    return new Date(d).toLocaleString('zh-CN',{ timeZone:'Asia/Shanghai', hour12:false });
+  }
+  function getWeekday(d) {
+    return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(d).getDay()];
   }
 
-  window.previewArticle = (row) => {
-    document.getElementById("previewTitle").textContent = row.title;
-    document.getElementById("previewCover").src = row.cover_url || '';
-    document.getElementById("markdownContent").innerHTML = marked.parse(row.content || '');
-    document.getElementById("previewModal").classList.remove("hidden");
-  };
+  document.addEventListener('DOMContentLoaded', async () => {
+    const authArea      = document.getElementById('authArea');
+    const adminArea     = document.getElementById('adminArea');
+    const loginBtn      = document.getElementById('loginBtn');
+    const logoutBtn     = document.getElementById('logoutBtn');
+    const submitBtn     = document.getElementById('submitBtn');
+    const cancelBtn     = document.getElementById('cancelEditBtn');
+    const searchBtn     = document.getElementById('searchBtn');
+    const searchInput   = document.getElementById('searchInput');
+    const articlesTable = document.querySelector('#articlesTable tbody');
 
-  window.editArticle = (row) => {
-    newTitle.value = row.title;
-    newContent.value = row.content;
-    currentEditId = row.id;
-    cancelEditBtn.classList.remove("hidden");
-    window.scrollTo(0, 0);
-  };
+    let currentEditId = null, currentPage = 1, limit = 5, loading = false;
 
-  window.deleteArticle = async (id) => {
-    if (!confirm("确定要删除该文章？")) return;
-    const res = await fetch(`${WORKER_ENDPOINT}?id=${id}`, { method: "DELETE" });
-    if (!res.ok) return alert("删除失败");
-    loadArticles(true);
-  };
-
-  searchBtn.onclick = () => {
-    currentPage = 1;
-    loadArticles(true, searchInput.value.trim());
-  };
-
-  window.addEventListener("scroll", () => {
-    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 10) {
-      currentPage++;
+    // 1. 会话检查
+    const { data:{ session } } = await client.auth.getSession();
+    const user = session?.user;
+    if (user?.email === ADMIN_EMAIL) {
+      authArea.classList.add('hidden');
+      adminArea.classList.remove('hidden');
       loadArticles();
     }
-  });
 
-  // 默认加载
-  authArea.classList.add("hidden");
-  adminArea.classList.remove("hidden");
-  loadArticles();
-});
+    // 2. 登录
+    loginBtn.onclick = () => {
+      client.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: location.href }
+      });
+    };
+
+    // 3. 登出
+    logoutBtn.onclick = async () => {
+      await client.auth.signOut();
+      location.reload();
+    };
+
+    // 4. 提交文章
+    submitBtn.onclick = async () => {
+      const title   = document.getElementById('newTitle').value.trim();
+      const content = document.getElementById('newContent').value.trim();
+      if (!title || !content) return alert('标题或内容不能为空');
+
+      // 上传封面
+      let coverUrl = '';
+      const file = document.getElementById('coverInput').files[0];
+      if (file) {
+        const { data, error } = await client.storage
+          .from('articles')
+          .upload(`covers/${Date.now()}_${file.name}`, file);
+        if (error) return alert('封面上传失败：' + error.message);
+        coverUrl = client.storage.from('articles').getPublicUrl(data.path).data.publicUrl;
+      }
+
+      // upsert
+      const payload = {
+        title, content,
+        author_email: user.email,
+        updated_at:   new Date().toISOString(),
+        cover_url:    coverUrl || undefined,
+        id:           currentEditId
+      };
+      const { error } = await client
+        .from('articles')
+        .upsert(
+          currentEditId
+            ? { ...payload, id: undefined }
+            : { ...payload, created_at: new Date().toISOString() }
+        );
+      if (error) return alert('提交失败：' + error.message);
+
+      cancelEdit();
+      loadArticles(true);
+    };
+
+    // 5. 取消编辑
+    cancelBtn.onclick = cancelEdit;
+    function cancelEdit() {
+      document.getElementById('newTitle').value   = '';
+      document.getElementById('newContent').value = '';
+      document.getElementById('coverInput').value = '';
+      currentEditId = null;
+      cancelBtn.classList.add('hidden');
+    }
+
+    // 6. 删除 / 编辑 / 预览
+    window.deleteArticle = async id => {
+      if (!confirm('确定删除？')) return;
+      const { error } = await client.from('articles').delete().eq('id', id);
+      if (error) return alert('删除失败：' + error.message);
+      loadArticles(true);
+    };
+    window.editArticle = row => {
+      document.getElementById('newTitle').value   = row.title;
+      document.getElementById('newContent').value = row.content;
+      currentEditId = row.id;
+      cancelBtn.classList.remove('hidden');
+      window.scrollTo(0,0);
+    };
+    window.previewArticle = row => {
+      document.getElementById('previewTitle').textContent  = row.title;
+      document.getElementById('previewCover').src          = row.cover_url || '';
+      document.getElementById('markdownContent').innerHTML = marked.parse(row.content || '');
+      document.getElementById('previewModal').classList.remove('hidden');
+    };
+    window.closePreview = () => document.getElementById('previewModal').classList.add('hidden');
+
+    // 7. 搜索 & 滚动加载
+    searchBtn.onclick = () => loadArticles(true, searchInput.value.trim());
+    window.addEventListener('scroll', () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 10) {
+        loadArticles();
+      }
+    });
+
+    // 8. 加载文章列表
+    async function loadArticles(reset = false, keyword = '') {
+      if (loading) return;
+      loading = true;
+      if (reset) {
+        articlesTable.innerHTML = '';
+        currentPage = 1;
+      }
+      let q = client.from('articles')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range((currentPage-1)*limit, currentPage*limit-1);
+      if (keyword) q = q.ilike('title', `%${keyword}%`);
+      const { data, error } = await q;
+      if (error) return alert('加载失败：' + error.message);
+
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td data-label="标题">${row.title}</td>
+          <td data-label="作者">${row.author_email}</td>
+          <td data-label="内容">${row.content?.slice(0,60)}...</td>
+          <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
+          <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
+          <td data-label="星期">${getWeekday(row.created_at)}</td>
+          <td data-label="封面">${row.cover_url?`<img src="${row.cover_url}" style="height:40px;">`:''}</td>
+          <td data-label="操作">
+            <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
+            <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
+            <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
+          </td>`;
+        articlesTable.appendChild(tr);
+      });
+
+      loading = false;
+      if (data.length === limit) currentPage++;
+    }
+  });
 </script>
 </body>
 </html>
