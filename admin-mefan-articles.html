@@ -5,7 +5,7 @@
   <title>文章后台管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    /* —— 保持你现有的所有样式不变 —— */
+    /* —— 保持你现有的所有样式 —— */
     body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
     .btn { padding: 8px 16px; background: #333; color: #fff; border: none; cursor: pointer; margin-right: 5px; }
@@ -38,17 +38,18 @@
 
   <h1>📰 文章后台管理</h1>
 
+  <!-- 登录区 -->
   <div id="authArea">
-    <!-- 1. 直接在按钮上写 onclick -->
-    <button id="loginBtn" class="btn" onclick="login()">使用 GitHub 登录</button>
+    <button id="loginBtn" class="btn">使用 GitHub 登录</button>
   </div>
 
+  <!-- 管理区 -->
   <div id="adminArea" class="hidden">
     <div class="admin-bar">
       <input type="text" id="searchInput" placeholder="搜索标题关键词…" />
       <div>
-        <button id="searchBtn" class="btn" onclick="loadArticles(true, document.getElementById('searchInput').value.trim())">🔍 搜索</button>
-        <button id="logoutBtn" class="btn" onclick="logout()">退出登录</button>
+        <button id="searchBtn" class="btn">🔍 搜索</button>
+        <button id="logoutBtn" class="btn">退出登录</button>
       </div>
     </div>
 
@@ -57,8 +58,8 @@
     <textarea id="newContent" placeholder="支持 Markdown 格式的内容"></textarea>
     <input type="file" id="coverInput" accept="image/*" />
     <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-      <button id="submitBtn" class="btn" onclick="submitArticle()">提交</button>
-      <button id="cancelEditBtn" class="btn hidden" onclick="cancelEdit()">取消编辑</button>
+      <button id="submitBtn" class="btn">提交</button>
+      <button id="cancelEditBtn" class="btn hidden">取消编辑</button>
     </div>
 
     <div style="overflow-x: auto; width: 100%;">
@@ -80,57 +81,39 @@
     </div>
   </div>
 
-  <!-- 2. UMD 版 Supabase-JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
+  <!-- 引入 marked.js 仅用于 Markdown 渲染 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
-    // —— Worker 代理地址 & 公钥 —— 
-    const WORKER_BASE     = 'https://oliverfr-articles-proxy.mefans.workers.dev';
-    const PUBLIC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-
-    // 全局 supabase 对象
-    const supabase = supabase.createClient(
-      WORKER_BASE,
-      PUBLIC_ANON_KEY,
-      { auth: { detectSessionInUrl: true, persistSession: true } }
-    );
-
+    // —— 基本配置 —— 
+    const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';
     const ADMIN_EMAIL = 'oliveroogle@gmail.com';
-    let currentEditId = null, currentPage = 1, limit = 5, loading = false;
 
-    function formatBeijingTime(d){
-      return new Date(d).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});
+    // 工具函数
+    function formatBeijingTime(d) {
+      return new Date(d).toLocaleString('zh-CN',{ timeZone:'Asia/Shanghai', hour12:false });
     }
-    function getWeekday(d){
+    function getWeekday(d) {
       return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(d).getDay()];
     }
 
-    // —— 3. 全局函数 —— 
+    // —— 登录 —— 
+    document.getElementById('loginBtn').onclick = () => {
+      // 直接跳到 Worker 的 OAuth 授权端点
+      window.location.href = `${WORKER_BASE}/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(location.href)}`;
+    };
 
-    // 登录
-    function login() {
-      alert('点击成功！开始跳转…');
-      supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          // 4. redirectTo 指向静态页面
-          redirectTo: 'https://oliverfr.com/admin-mefan-articles.html'
-        }
-      });
-    }
-
-    // 退出
-    async function logout() {
-      await supabase.auth.signOut();
+    // —— 退出 —— 
+    document.getElementById('logoutBtn').onclick = async () => {
+      await fetch(`${WORKER_BASE}/auth/v1/logout`, { method:'POST', credentials:'include' });
       location.reload();
-    }
+    };
 
-    // 关闭预览
+    // —— 关闭预览 —— 
     function closePreview() {
       document.getElementById('previewModal').classList.add('hidden');
     }
 
-    // 取消编辑
+    // —— 取消编辑 —— 
     function cancelEdit() {
       document.getElementById('newTitle').value = '';
       document.getElementById('newContent').value = '';
@@ -139,47 +122,80 @@
       document.getElementById('cancelEditBtn').classList.add('hidden');
     }
 
-    // 提交文章
-    async function submitArticle() {
+    // —— 提交文章（新增/编辑） —— 
+    document.getElementById('submitBtn').onclick = async () => {
       const title   = document.getElementById('newTitle').value.trim();
       const content = document.getElementById('newContent').value.trim();
       if (!title || !content) return alert('标题或内容不能为空');
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
+      // 会话检查
+      const userRes = await fetch(`${WORKER_BASE}/auth/v1/user`, { credentials:'include' });
+      const { user } = await userRes.json();
+      if (!user) return alert('未登录');
 
+      // 封面上传
       let coverUrl = '';
-      const fileInput = document.getElementById('coverInput');
-      if (fileInput.files[0]) {
-        const { data, error } = await supabase
-          .storage.from('articles')
-          .upload(`covers/${Date.now()}_${fileInput.files[0].name}`, fileInput.files[0], { upsert: true });
-        if (error) return alert('封面上传失败：' + error.message);
-        coverUrl = supabase
-          .storage.from('articles')
-          .getPublicUrl(data.path)
-          .data.publicUrl;
+      const file = document.getElementById('coverInput').files[0];
+      if (file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const up = await fetch(`${WORKER_BASE}/uploadCover`, { method:'POST', credentials:'include', body:fd });
+        const { publicUrl, error } = await up.json();
+        if (error) return alert('封面上传失败：' + error);
+        coverUrl = publicUrl;
       }
 
+      // 新增/编辑
       const payload = {
         title, content,
         author_email: user.email,
         updated_at:   new Date().toISOString(),
-        cover_url:    coverUrl || undefined
+        cover_url:    coverUrl || undefined,
+        id:           currentEditId
       };
-      let res;
-      if (currentEditId) {
-        res = await supabase.from('articles').update(payload).eq('id', currentEditId);
-      } else {
-        res = await supabase.from('articles').insert([{ ...payload, created_at: new Date().toISOString() }]);
-      }
-      if (res.error) return alert('提交失败：' + res.error.message);
-
+      const method = currentEditId ? 'POST' : 'POST';
+      const res = await fetch(`${WORKER_BASE}/?` + (currentEditId ? `id=${currentEditId}` : ''), {
+        method,
+        credentials: 'include',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const { success, error } = await res.json();
+      if (!success) return alert('提交失败：' + error);
       cancelEdit();
       loadArticles(true);
-    }
+    };
 
-    // 加载文章列表
+    // —— 删除文章 —— 
+    window.deleteArticle = async id => {
+      if (!confirm('确定要删除？')) return;
+      const res = await fetch(`${WORKER_BASE}/?id=${id}`, { method:'DELETE', credentials:'include' });
+      const { success, error } = await res.json();
+      if (!success) return alert('删除失败：' + error);
+      loadArticles(true);
+    };
+
+    // —— 编辑文章 —— 
+    window.editArticle = row => {
+      document.getElementById('newTitle').value = row.title;
+      document.getElementById('newContent').value = row.content;
+      currentEditId = row.id;
+      document.getElementById('cancelEditBtn').classList.remove('hidden');
+      window.scrollTo(0,0);
+    };
+
+    // —— 预览文章 —— 
+    window.previewArticle = row => {
+      document.getElementById('previewTitle').textContent   = row.title;
+      document.getElementById('previewCover').src           = row.cover_url || '';
+      document.getElementById('markdownContent').innerHTML  = marked.parse(row.content || '');
+      document.getElementById('previewModal').classList.remove('hidden');
+    };
+
+    // —— 加载文章列表（分页 + 搜索） —— 
+    let currentEditId = null, currentPage = 1, limit = 5, loading = false;
+    document.getElementById('searchBtn').onclick = () => loadArticles(true, document.getElementById('searchInput').value.trim());
+
     async function loadArticles(reset = false, keyword = '') {
       if (loading) return;
       loading = true;
@@ -187,19 +203,16 @@
         document.querySelector('#articlesTable tbody').innerHTML = '';
         currentPage = 1;
       }
+      const url = new URL(WORKER_BASE + '/');
+      url.searchParams.set('page', currentPage);
+      url.searchParams.set('limit', limit);
+      if (keyword) url.searchParams.set('q', keyword);
 
-      let q = supabase
-        .from('articles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range((currentPage - 1) * limit, currentPage * limit - 1);
-      if (keyword) q = q.ilike('title', `%${keyword}%`);
-
-      const { data, error } = await q;
-      if (error) return alert('加载失败：' + error.message);
+      const res = await fetch(url, { credentials:'include' });
+      const { articles, totalPages } = await res.json();
 
       const tbody = document.querySelector('#articlesTable tbody');
-      data.forEach(row => {
+      articles.forEach(row => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td data-label="标题">${row.title}</td>
@@ -216,40 +229,15 @@
           </td>`;
         tbody.appendChild(tr);
       });
-
       loading = false;
-      if (data.length === limit) currentPage++;
+      if (currentPage < totalPages) currentPage++;
     }
 
-    // 预览
-    window.previewArticle = row => {
-      document.getElementById('previewTitle').textContent = row.title;
-      document.getElementById('previewCover').src = row.cover_url || '';
-      document.getElementById('markdownContent').innerHTML = marked.parse(row.content || '');
-      document.getElementById('previewModal').classList.remove('hidden');
-    };
-
-    // 编辑
-    window.editArticle = row => {
-      document.getElementById('newTitle').value   = row.title;
-      document.getElementById('newContent').value = row.content;
-      currentEditId = row.id;
-      document.getElementById('cancelEditBtn').classList.remove('hidden');
-      window.scrollTo(0,0);
-    };
-
-    // 删除
-    window.deleteArticle = async id => {
-      if (!confirm('确定要删除该文章？')) return;
-      const { error } = await supabase.from('articles').delete().eq('id', id);
-      if (error) return alert('删除失败：' + error.message);
-      loadArticles(true);
-    };
-
-    // 页面加载后检查会话
+    // —— 页面初始化：检查会话 & 显示区域 —— 
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.email === ADMIN_EMAIL) {
+      const res = await fetch(`${WORKER_BASE}/auth/v1/user`, { credentials:'include' });
+      const { user } = await res.json();
+      if (user?.email === ADMIN_EMAIL) {
         document.getElementById('authArea').classList.add('hidden');
         document.getElementById('adminArea').classList.remove('hidden');
         loadArticles();
