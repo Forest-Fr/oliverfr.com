@@ -83,8 +83,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
-  const WORKER_BASE = window.location.origin;
-  const ANON_KEY    = '你的 Supabase anon 公匙';
+  const WORKER_BASE =  'https://oliverfr-articles-proxy.mefans.workers.dev';
+  const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
   const ADMIN_EMAIL = 'oliveroogle@gmail.com';
   const client      = supabase.createClient(WORKER_BASE, ANON_KEY);
 
