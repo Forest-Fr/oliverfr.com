@@ -86,7 +86,7 @@
   // 1) 把所有 Supabase 请求都指向你的 Worker 域名
   const WORKER_BASE   = 'https://oliverfr-articles-proxy.mefans.workers.dev';
   // 2) 用公开的 anon Key（安全，无需隐藏）
-  const PUBLIC_ANON_KEY = 'YOUR_PUBLIC_ANON_KEY_HERE';
+  const PUBLIC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
 
   const supabase = supabase.createClient(
     WORKER_BASE,
