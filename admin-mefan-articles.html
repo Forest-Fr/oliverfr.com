@@ -5,7 +5,7 @@
   <title>文章后台管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    /* 你的原有样式保持不变 */
+    /* —— 保持你现有的所有样式不变 —— */
     body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
     .btn { padding: 8px 16px; background: #333; color: #fff; border: none; cursor: pointer; margin-right: 5px; }
@@ -39,7 +39,7 @@
   <h1>📰 文章后台管理</h1>
 
   <div id="authArea">
-    <!-- 直接在按钮上写 onclick -->
+    <!-- 1. 直接在按钮上写 onclick -->
     <button id="loginBtn" class="btn" onclick="login()">使用 GitHub 登录</button>
   </div>
 
@@ -47,7 +47,7 @@
     <div class="admin-bar">
       <input type="text" id="searchInput" placeholder="搜索标题关键词…" />
       <div>
-        <button id="searchBtn" class="btn">🔍 搜索</button>
+        <button id="searchBtn" class="btn" onclick="loadArticles(true, document.getElementById('searchInput').value.trim())">🔍 搜索</button>
         <button id="logoutBtn" class="btn" onclick="logout()">退出登录</button>
       </div>
     </div>
@@ -80,11 +80,11 @@
     </div>
   </div>
 
-  <!-- UMD 版 Supabase JS -->
+  <!-- 2. UMD 版 Supabase-JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
-    // 代理到你的 Worker
+    // —— Worker 代理地址 & 公钥 —— 
     const WORKER_BASE     = 'https://oliverfr-articles-proxy.mefans.workers.dev';
     const PUBLIC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
 
@@ -105,14 +105,17 @@
       return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(d).getDay()];
     }
 
-    // —— 全局函数 —— 
+    // —— 3. 全局函数 —— 
 
     // 登录
     function login() {
-      console.log('login() called');
+      alert('点击成功！开始跳转…');
       supabase.auth.signInWithOAuth({
         provider: 'github',
-        options: { redirectTo:'https://oliverfr-articles-proxy.mefans.workers.dev'}
+        options: {
+          // 4. redirectTo 指向静态页面
+          redirectTo: 'https://oliverfr.com/admin-mefan-articles.html'
+        }
       });
     }
 
@@ -242,16 +245,6 @@
       if (error) return alert('删除失败：' + error.message);
       loadArticles(true);
     };
-
-    // 搜索 & 无限滚动
-    document.getElementById('searchBtn').addEventListener('click', () => {
-      loadArticles(true, document.getElementById('searchInput').value.trim());
-    });
-    window.addEventListener('scroll', () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 10) {
-        loadArticles();
-      }
-    });
 
     // 页面加载后检查会话
     (async () => {
