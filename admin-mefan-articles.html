@@ -82,20 +82,31 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
   // —— 只改这几行，指向你的 Worker —— 
-  const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';      // 例如 https://oliverfr.com
+  const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';
   const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
   const ADMIN_EMAIL = 'oliveroogle@gmail.com';
   const client      = supabase.createClient(WORKER_BASE, ANON_KEY);
 
-   // —— 替换为下面的北京时间 + 星期 计算逻辑 —— 
+  /**
+   * ❶ 返回形如 "2025-04-20T10:20:30+08:00" 的北京时间字符串
+   * 用于保证在数据库里存的 created_at / updated_at 带 +08:00 时区标记
+   */
+  function getBeijingISOString() {
+    // 获取当前实际 UTC 时间
+    const now = new Date();
+    // 加 8 小时
+    const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    // 将 ISOString 末尾的 "Z" 替换为 "+08:00"
+    return beijingTime.toISOString().replace('Z', '+08:00');
+  }
+
+  // —— 替换为下面的北京时间 + 星期 计算逻辑 —— 
   function formatBeijingTime(dateString) {
-    // 先把 UTC 时间字符串转成 Date
+    // 先把数据库中带 +08:00 的时间解析成 Date 对象
     const date = new Date(dateString);
-    // 北京时间比 UTC 快 8 小时
+    // 依旧加 8 小时偏移，让前端显示符合北京时间（相当于再往前提 8 小时）
     const beijingOffsetMinutes = 8 * 60;
-    // 将毫秒数加上偏移
     const localTime = new Date(date.getTime() + beijingOffsetMinutes * 60000);
-    // 用 toLocaleString 再格式化
     return localTime.toLocaleString('zh-CN', { hour12: false });
   }
 
@@ -141,68 +152,68 @@
       location.reload();
     };
 
-    // 4. 提交文章
-submitBtn.onclick = async () => {
-  const title   = document.getElementById('newTitle').value.trim();
-  const content = document.getElementById('newContent').value.trim();
-  if (!title || !content) return alert('标题或内容不能为空');
+    // 4. 提交文章（新增 / 编辑）
+    submitBtn.onclick = async () => {
+      const title   = document.getElementById('newTitle').value.trim();
+      const content = document.getElementById('newContent').value.trim();
+      if (!title || !content) return alert('标题或内容不能为空');
 
-  // —— 取当前用户 —— 
-  const { data: { session } } = await client.auth.getSession();
-  const user = session?.user;
-  if (!user) return alert('请先登录');
+      // —— 取当前用户 —— 
+      const { data: { session } } = await client.auth.getSession();
+      const user = session?.user;
+      if (!user) return alert('请先登录');
 
-  // —— 上传封面（可选） —— 
-  let coverUrl = '';
-  const file = document.getElementById('coverInput').files[0];
-  if (file) {
-    const { data, error } = await client.storage
-      .from('articles')
-      .upload(`covers/${Date.now()}_${file.name}`, file);
-    if (error) return alert('封面上传失败：' + error.message);
-    coverUrl = client
-      .storage
-      .from('articles')
-      .getPublicUrl(data.path)
-      .data
-      .publicUrl;
-  }
+      // —— 上传封面（可选） —— 
+      let coverUrl = '';
+      const file = document.getElementById('coverInput').files[0];
+      if (file) {
+        const { data, error } = await client.storage
+          .from('articles')
+          .upload(`covers/${Date.now()}_${file.name}`, file);
+        if (error) return alert('封面上传失败：' + error.message);
+        coverUrl = client
+          .storage
+          .from('articles')
+          .getPublicUrl(data.path)
+          .data
+          .publicUrl;
+      }
 
-  // —— 构造要写入的字段 —— 
-  const row = {
-    title,
-    content,
-    author_email: user.email,
-    updated_at:   new Date().toISOString(),
-    cover_url:    coverUrl || undefined
-  };
+      // ❷ 使用统一的 getBeijingISOString(), 保证 created_at ≤ updated_at
+      const now = getBeijingISOString();
+      const row = {
+        title,
+        content,
+        author_email: user.email,
+        updated_at: now,           // 每次操作都更新 "更新时间"
+        cover_url: coverUrl || undefined
+      };
 
-  let res;
-  if (currentEditId) {
-    // —— 编辑模式：用 update —— 
-    res = await client
-      .from('articles')
-      .update(row)
-      .eq('id', currentEditId);
-  } else {
-    // —— 新增模式：用 insert —— 
-    res = await client
-      .from('articles')
-      .insert([{
-        ...row,
-        created_at: new Date().toISOString()
-      }]);
-  }
+      let res;
+      if (currentEditId) {
+        // —— 编辑模式：用 update —— 
+        res = await client
+          .from('articles')
+          .update(row)
+          .eq('id', currentEditId);
+      } else {
+        // —— 新增模式：用 insert —— 
+        res = await client
+          .from('articles')
+          .insert([{
+            ...row,
+            created_at: now        // 新增时 "创建时间" 和 "更新时间" 都设置为 now
+          }]);
+      }
 
-  if (res.error) {
-    return alert('提交失败：' + res.error.message);
-  }
+      if (res.error) {
+        return alert('提交失败：' + res.error.message);
+      }
 
-  // —— 重置 & 刷新列表 —— 
-  cancelBtn.click();
-  loadArticles(true);
-};
-
+      // —— 重置 & 刷新列表 —— 
+      cancelBtn.click();
+      loadArticles(true);
+    };
 
     // 5. 取消编辑
     cancelBtn.onclick = () => {
@@ -213,13 +224,14 @@ submitBtn.onclick = async () => {
       cancelBtn.classList.add('hidden');
     };
 
-     // 6. 删除 / 编辑 / 预览
+    // 6. 删除 / 编辑 / 预览
     window.deleteArticle = async id => {
       if (!confirm('确定删除？')) return;
       const { error } = await client.from('articles').delete().eq('id', id);
       if (error) return alert('删除失败：' + error.message);
       loadArticles(true);
     };
+
     window.editArticle = row => {
       document.getElementById('newTitle').value   = row.title;
       document.getElementById('newContent').value = row.content;
@@ -227,12 +239,14 @@ submitBtn.onclick = async () => {
       cancelBtn.classList.remove('hidden');
       window.scrollTo(0,0);
     };
+
     window.previewArticle = row => {
       document.getElementById('previewTitle').textContent  = row.title;
       document.getElementById('previewCover').src          = row.cover_url || '';
       document.getElementById('markdownContent').innerHTML = marked.parse(row.content || '');
       document.getElementById('previewModal').classList.remove('hidden');
     };
+
     window.closePreview = () => document.getElementById('previewModal').classList.add('hidden');
 
     // 7. 搜索 & 滚动加载
@@ -243,7 +257,7 @@ submitBtn.onclick = async () => {
       }
     });
 
-      // 8. 加载文章列表，渲染时用新的格式化函数
+    // 8. 加载文章列表，渲染时用新的格式化函数
     async function loadArticles(reset = false, keyword = '') {
       if (loading) return;
       loading = true;
@@ -268,7 +282,7 @@ submitBtn.onclick = async () => {
           <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
           <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
           <td data-label="星期">${getWeekday(row.created_at)}</td>
-          <td data-label="封面">${row.cover_url?`<img src="${row.cover_url}" style="height:40px;">`:''}</td>
+          <td data-label="封面">${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;">` : ''}</td>
           <td data-label="操作">
             <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
             <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
