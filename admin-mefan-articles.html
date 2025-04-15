@@ -27,7 +27,7 @@
   // —— 所有 Supabase 请求走你的 Worker —— 
   const WORKER_BASE    = 'https://oliverfr-articles-proxy.mefans.workers.dev';
   // 公开的 anon key（前端可见无风险）
-  const PUBLIC_ANON_KEY = '你的_public_anon_key';
+  const PUBLIC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
 
   // 通过 UMD 全局拿到 supabase
   const supabase = supabase.createClient(
