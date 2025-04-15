@@ -5,33 +5,7 @@
   <title>文章后台管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    /* —— 原有样式保持不变 —— */
-    body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-    h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
-    .btn { padding: 8px 16px; background: #333; color: #fff; border: none; cursor: pointer; margin-right: 5px; }
-    .btn:hover { background: #555; }
-    .hidden { display: none; }
-    textarea, input[type="text"], input[type="file"] { width: 100%; margin: 5px 0; }
-    table { width: 100%; max-width: 960px; border-collapse: collapse; margin-top: 20px; background: #fff; }
-    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-    th { background: #f0f0f0; }
-    .admin-bar { display: flex; justify-content: space-between; align-items: center; max-width: 960px; width: 100%; margin-bottom: 20px; flex-wrap: wrap; }
-    .admin-bar > input { flex: 1; min-width: 200px; margin: 5px; }
-    .admin-bar > div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; min-width: 200px; margin: 5px; }
-    #previewModal { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border: 1px solid #ccc; max-width: 700px; width: 90%; z-index: 999; overflow-y: auto; max-height: 80vh; }
-    #previewModal h3 { margin-top: 0; }
-    #previewModal img { max-width: 100%; }
-    #markdownContent { white-space: pre-wrap; }
-    @media (max-width: 768px) {
-      .admin-bar { flex-direction: column; align-items: stretch; }
-      .btn, textarea { width: 100%; margin: 5px 0; }
-      table, thead, tbody, th, td, tr { display: block; }
-      thead { display: none; }
-      tbody tr { border: 1px solid #ddd; margin-bottom: 15px; background: #fff; padding: 10px; }
-      tbody td { display: flex; justify-content: space-between; padding: 8px 5px; border: none; border-bottom: 1px solid #eee; }
-      tbody td::before { content: attr(data-label); font-weight: bold; color: #555; flex: 1; margin-right: 10px; }
-      #submitBtn, #cancelEditBtn { width: 100%; }
-    }
+    /* （略，保持之前的样式不变） */
   </style>
 </head>
 <body>
@@ -43,51 +17,19 @@
 </div>
 
 <div id="adminArea" class="hidden">
-  <div class="admin-bar">
-    <input type="text" id="searchInput" placeholder="搜索标题关键词…" />
-    <div>
-      <button id="searchBtn" class="btn">🔍 搜索</button>
-      <button id="logoutBtn" class="btn">退出登录</button>
-    </div>
-  </div>
-
-  <h2>🆕 新增/编辑文章</h2>
-  <input type="text" id="newTitle" placeholder="标题" />
-  <textarea id="newContent" placeholder="支持 Markdown 格式的内容"></textarea>
-  <input type="file" id="coverInput" accept="image/*" />
-  <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-    <button id="submitBtn" class="btn">提交</button>
-    <button id="cancelEditBtn" class="btn hidden">取消编辑</button>
-  </div>
-
-  <div style="overflow-x: auto; width: 100%;">
-    <table id="articlesTable">
-      <thead>
-        <tr>
-          <th>标题</th><th>作者</th><th>内容</th><th>创建时间</th><th>更新时间</th><th>星期</th><th>封面</th><th>操作</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="previewModal" class="hidden">
-    <h3 id="previewTitle"></h3>
-    <img id="previewCover" />
-    <div id="markdownContent"></div>
-    <button class="btn" onclick="document.getElementById('previewModal').classList.add('hidden')">关闭</button>
-  </div>
+  <!-- （略，保持之前的管理 UI 结构） -->
 </div>
 
-<!-- 引入 Supabase-JS，让它走 Worker 代理 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 1. 正确引入 UMD 版 Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
-  // 1) 把所有 Supabase 请求都指向你的 Worker 域名
-  const WORKER_BASE   = 'https://oliverfr-articles-proxy.mefans.workers.dev';
-  // 2) 用公开的 anon Key（安全，无需隐藏）
-  const PUBLIC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+  // —— 所有 Supabase 请求走你的 Worker —— 
+  const WORKER_BASE    = 'https://oliverfr-articles-proxy.mefans.workers.dev';
+  // 公开的 anon key（前端可见无风险）
+  const PUBLIC_ANON_KEY = '你的_public_anon_key';
 
+  // 通过 UMD 全局拿到 supabase
   const supabase = supabase.createClient(
     WORKER_BASE,
     PUBLIC_ANON_KEY,
@@ -102,10 +44,15 @@
   const ADMIN_EMAIL = 'oliveroogle@gmail.com';
   let currentPage = 1, limit = 5, loading = false;
 
-  function formatBeijingTime(d){ return new Date(d).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}); }
-  function getWeekday(d){ return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(d).getDay()]; }
+  function formatBeijingTime(d){
+    return new Date(d).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});
+  }
+  function getWeekday(d){
+    return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(d).getDay()];
+  }
 
   document.addEventListener("DOMContentLoaded", async () => {
+    // —— 拿到按钮 —— 
     const loginBtn      = document.getElementById("loginBtn");
     const logoutBtn     = document.getElementById("logoutBtn");
     const authArea      = document.getElementById("authArea");
@@ -121,16 +68,18 @@
 
     let currentEditId = null;
 
-    // —— 登录
-    loginBtn.onclick = () => supabase.auth.signInWithOAuth({ provider: 'github' });
+    // —— 1. 登录按钮绑定 —— 
+    loginBtn.addEventListener('click', () => {
+      supabase.auth.signInWithOAuth({ provider: 'github' });
+    });
 
-    // —— 退出
-    logoutBtn.onclick = async () => {
+    // —— 2. 退出登录 —— 
+    logoutBtn.addEventListener('click', async () => {
       await supabase.auth.signOut();
       location.reload();
-    };
+    });
 
-    // —— 会话检查
+    // —— 3. 会话检查 —— 
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
     if (user?.email === ADMIN_EMAIL) {
@@ -139,8 +88,8 @@
       loadArticles();
     }
 
-    // —— 新增/编辑 提交
-    submitBtn.onclick = async () => {
+    // —— 4. 新增/编辑 提交 —— 
+    submitBtn.addEventListener('click', async () => {
       const title = newTitle.value.trim();
       const content = newContent.value.trim();
       if (!title || !content) return alert("标题或内容不能为空");
@@ -179,18 +128,18 @@
       currentEditId = null;
       cancelEditBtn.classList.add("hidden");
       loadArticles(true);
-    };
+    });
 
-    // —— 取消编辑
-    cancelEditBtn.onclick = () => {
+    // —— 5. 取消编辑 —— 
+    cancelEditBtn.addEventListener('click', () => {
       newTitle.value = '';
       newContent.value = '';
       coverInput.value = '';
       currentEditId = null;
       cancelEditBtn.classList.add("hidden");
-    };
+    });
 
-    // —— 加载文章列表
+    // —— 6. 加载文章列表 —— 
     async function loadArticles(reset = false, keyword = '') {
       if (loading) return;
       loading = true;
@@ -232,7 +181,7 @@
       if (data.length === limit) currentPage++;
     }
 
-    // —— 预览 / 编辑 / 删除
+    // —— 7. 预览 / 编辑 / 删除 —— 
     window.previewArticle = row => {
       document.getElementById("previewTitle").textContent = row.title;
       document.getElementById("previewCover").src         = row.cover_url || '';
@@ -253,8 +202,8 @@
       loadArticles(true);
     };
 
-    // —— 搜索 & 无限滚动
-    searchBtn.onclick = () => loadArticles(true, searchInput.value.trim());
+    // —— 8. 搜索 & 无限滚动 —— 
+    searchBtn.addEventListener('click', () => loadArticles(true, searchInput.value.trim()));
     window.addEventListener("scroll", () => {
       if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 10) {
         loadArticles();
