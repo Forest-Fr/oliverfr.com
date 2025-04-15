@@ -138,12 +138,27 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const ADMIN_EMAIL = 'oliveroogle@gmail.com';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/** 
+ * 返回一个带 +08:00 时区标记的字符串 (北京时间/上海时间)
+ * 使用 ISO 8601 格式，例如: 2025-04-20T10:20:30+08:00
+ */
+function getBeijingISOString() {
+  const beijingOffset = 8 * 60; // 8 小时 -> 分钟
+  const localTime = new Date(Date.now() + beijingOffset * 60000);
+  // 去掉末尾的 "Z"，替换为 "+08:00"
+  return localTime.toISOString().replace('Z', '+08:00');
+}
+
+/** 
+ * 用于前端展示时做时区转换，得到「本地时间的字符串」。
+ * 这里做法与 getBeijingISOString 保持一致：假设原表里存的就是带 +08:00 的字符串。
+ * 如果你的表里存的是纯 UTC，需要再额外处理一下。
+ */
 function formatBeijingTime(dateString) {
+  // 如果 dateString 含有 +08:00，浏览器一般能识别为北京时区
+  // 可直接用 new Date(dateString)。
   const date = new Date(dateString);
-  const beijingOffset = 8 * 60;
-  const localTime = new Date(date.getTime() + beijingOffset * 60000);
-  const options = { timeZone: 'Asia/Shanghai', hour12: false };
-  return localTime.toLocaleString('zh-CN', options);
+  return date.toLocaleString('zh-CN', { hour12: false });
 }
 
 function getWeekday(dateString) {
@@ -197,8 +212,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       coverUrl = client.storage.from("articles").getPublicUrl(data.path).data.publicUrl;
     }
 
-    // 先记录一下时间，以保证 created_at <= updated_at
-    const now = new Date().toISOString();
+    // 这里我们使用带 +08:00 时区的时间字符串
+    const now = getBeijingISOString();
 
     if (currentEditId) {
       // 更新文章：只更新 updated_at
@@ -206,7 +221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         title,
         content,
         author_email: user.email,
-        updated_at: now,
+        updated_at: now
       };
       if (coverUrl) payload.cover_url = coverUrl;
 
@@ -220,7 +235,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         content,
         author_email: user.email,
         created_at: now,
-        updated_at: now,
+        updated_at: now
       };
       if (coverUrl) payload.cover_url = coverUrl;
 
