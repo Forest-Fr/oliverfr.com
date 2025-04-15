@@ -235,7 +235,7 @@ submitBtn.onclick = async () => {
       }
     });
 
-    // 8. 加载文章列表，**只改这里的时间显示**：
+      // 8. 加载文章列表，渲染时用新的格式化函数
     async function loadArticles(reset = false, keyword = '') {
       if (loading) return;
       loading = true;
@@ -245,7 +245,7 @@ submitBtn.onclick = async () => {
       }
       let q = client.from('articles')
         .select('*')
-        .order('created_at',{ ascending:false })
+        .order('created_at', { ascending: false })
         .range((currentPage-1)*limit, currentPage*limit-1);
       if (keyword) q = q.ilike('title', `%${keyword}%`);
       const { data, error } = await q;
