@@ -151,7 +151,9 @@ document.addEventListener("DOMContentLoaded", () => {
     loading = true;
     const params = new URLSearchParams({ page: currentPage, limit, q: keyword });
     const res = await fetch(`${WORKER_ENDPOINT}?${params}`);
-    const { articles, total, totalPages } = await res.json();
+   // 关键修正 ↓↓↓
+  const result = await res.json();
+  const articles = result.articles; // ✅ 明确指定字段，避免 undefined 错误
     if (reset) articlesTable.innerHTML = "";
     articles.forEach(row => {
       const tr = document.createElement("tr");
