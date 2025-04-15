@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>文章后台管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
@@ -15,48 +16,21 @@
     th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
     th { background: #f0f0f0; }
 
-    .admin-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      max-width: 960px;
-      width: 100%;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .admin-bar > input {
-      flex: 1;
-      min-width: 200px;
-      margin: 5px;
-    }
-
-    .admin-bar > div {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      min-width: 200px;
-      margin: 5px;
-    }
+    .admin-bar { display: flex; justify-content: space-between; align-items: center; max-width: 960px; width: 100%; margin-bottom: 20px; flex-wrap: wrap; }
+    .admin-bar > input { flex: 1; min-width: 200px; margin: 5px; }
+    .admin-bar > div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; min-width: 200px; margin: 5px; }
 
     #previewModal { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border: 1px solid #ccc; max-width: 700px; width: 90%; z-index: 999; overflow-y: auto; max-height: 80vh; }
     #previewModal h3 { margin-top: 0; }
     #previewModal img { max-width: 100%; }
     #markdownContent { white-space: pre-wrap; }
 
-    /* ✅ 响应式样式补充 */
     @media (max-width: 768px) {
       .admin-bar { flex-direction: column; align-items: stretch; }
       .btn, textarea { width: 100%; margin: 5px 0; }
 
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-
-      thead {
-        display: none;
-      }
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
 
       tbody tr {
         border: 1px solid #ddd;
@@ -81,9 +55,7 @@
         margin-right: 10px;
       }
 
-      #submitBtn, #cancelEditBtn {
-        width: 100%;
-      }
+      #submitBtn, #cancelEditBtn { width: 100%; }
     }
   </style>
 </head>
@@ -130,130 +102,98 @@
   </div>
 </div>
 
-
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
-  
 const WORKER_ENDPOINT = 'https://oliverfr-articles-proxy.mefans.workers.dev';
-const ADMIN_EMAIL = 'oliveroogle@gmail.com'; // 保留
+const ADMIN_EMAIL = 'oliveroogle@gmail.com';
 
-
-  
 function formatBeijingTime(dateString) {
   const date = new Date(dateString);
-  const beijingOffset = 8 * 60;
-  const localTime = new Date(date.getTime() + beijingOffset * 60000);
-  const options = { timeZone: 'Asia/Shanghai', hour12: false };
-  return localTime.toLocaleString('zh-CN', options);
+  return new Date(date.getTime() + 8 * 60 * 60000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
 }
 
 function getWeekday(dateString) {
-  const weekdayMap = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
-  const d = new Date(dateString);
-  return weekdayMap[d.getDay()];
+  return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(dateString).getDay()];
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
   const loginBtn = document.getElementById("loginBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const submitBtn = document.getElementById("submitBtn");
   const cancelEditBtn = document.getElementById("cancelEditBtn");
-  const authArea = document.getElementById("authArea");
-  const adminArea = document.getElementById("adminArea");
   const newTitle = document.getElementById("newTitle");
   const newContent = document.getElementById("newContent");
   const coverInput = document.getElementById("coverInput");
   const searchBtn = document.getElementById("searchBtn");
   const searchInput = document.getElementById("searchInput");
   const articlesTable = document.querySelector("#articlesTable tbody");
-
   let currentEditId = null;
   let currentPage = 1;
   let loading = false;
   const limit = 5;
 
-  loginBtn.onclick = async () => {
-    await client.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: location.href } });
-  };
-
-  logoutBtn.onclick = async () => {
-    await client.auth.signOut();
-    location.reload();
-  };
+  loginBtn.onclick = () => alert("无需登录（使用 Cloudflare Worker 中转）");
+  logoutBtn.onclick = () => location.reload();
 
   submitBtn.onclick = async () => {
-  const title = newTitle.value.trim(), content = newContent.value.trim();
-  if (!title || !content) return alert("标题或内容不能为空");
+    const title = newTitle.value.trim(), content = newContent.value.trim();
+    if (!title || !content) return alert("标题或内容不能为空");
 
-  let coverUrl = "";
-  if (coverInput.files[0]) {
-    alert("当前封面上传请用 Supabase Storage 实现（此版本暂未集成）");
-  }
+    const payload = {
+      title,
+      content,
+      author_email: ADMIN_EMAIL,
+      updated_at: new Date().toISOString()
+    };
+    if (!currentEditId) payload.created_at = new Date().toISOString();
+    if (coverInput.files[0]) payload.cover_url = "[上传功能未启用]";
 
-  const payload = {
-    title,
-    content,
-    author_email: ADMIN_EMAIL,
-    updated_at: new Date().toISOString()
-  };
-  if (!currentEditId) payload.created_at = new Date().toISOString();
-  if (coverUrl) payload.cover_url = coverUrl;
+    const res = await fetch(WORKER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(currentEditId ? { ...payload, id: currentEditId } : payload)
+    });
 
-  const res = await fetch(WORKER_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(currentEditId ? { ...payload, id: currentEditId } : payload)
-  });
-
-  if (!res.ok) return alert("提交失败");
-  newTitle.value = newContent.value = "";
-  coverInput.value = "";
-  currentEditId = null;
-  cancelEditBtn.classList.add("hidden");
-  loadArticles(true);
-
-
+    if (!res.ok) return alert("提交失败");
+    newTitle.value = newContent.value = "";
+    coverInput.value = "";
+    currentEditId = null;
+    cancelEditBtn.classList.add("hidden");
+    loadArticles(true);
   };
 
   cancelEditBtn.onclick = () => {
-    newTitle.value = "";
-    newContent.value = "";
+    newTitle.value = newContent.value = "";
     coverInput.value = "";
     currentEditId = null;
     cancelEditBtn.classList.add("hidden");
   };
 
   async function loadArticles(reset = false, keyword = "") {
-  if (loading) return;
-  loading = true;
+    if (loading) return;
+    loading = true;
+    const params = new URLSearchParams({ page: currentPage, limit, q: keyword || '' });
+    const res = await fetch(`${WORKER_ENDPOINT}?${params}`);
+    const { articles } = await res.json();
+    if (reset) articlesTable.innerHTML = "";
 
-  const params = new URLSearchParams({ page: currentPage, limit, q: keyword || '' });
-  const res = await fetch(`https://oliverfr-articles-proxy.mefans.workers.dev/?${params}`);
-  const { articles: data } = await res.json();
-
-  if (reset) articlesTable.innerHTML = "";
-
-  data.forEach(row => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td data-label="标题">${row.title}</td>
-      <td data-label="作者">${row.author_email}</td>
-      <td data-label="内容">${row.content ? row.content.slice(0, 60) + "..." : ""}</td>
-      <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
-      <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
-      <td data-label="星期">${getWeekday(row.created_at)}</td>
-      <td data-label="封面">${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
-      <td data-label="操作">
-        <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
-        <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
-        <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
-      </td>`;
-    articlesTable.appendChild(tr);
-  });
-
-  loading = false;
-
-
+    articles.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td data-label="标题">${row.title}</td>
+        <td data-label="作者">${row.author_email}</td>
+        <td data-label="内容">${row.content?.slice(0, 60)}...</td>
+        <td data-label="创建时间">${formatBeijingTime(row.created_at)}</td>
+        <td data-label="更新时间">${formatBeijingTime(row.updated_at)}</td>
+        <td data-label="星期">${getWeekday(row.created_at)}</td>
+        <td data-label="封面">${row.cover_url ? `<img src="${row.cover_url}" style="height:40px;" />` : ''}</td>
+        <td data-label="操作">
+          <button class="btn" onclick='previewArticle(${JSON.stringify(row)})'>预览</button>
+          <button class="btn" onclick='editArticle(${JSON.stringify(row)})'>编辑</button>
+          <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
+        </td>`;
+      articlesTable.appendChild(tr);
+    });
+    loading = false;
   }
 
   window.previewArticle = (row) => {
@@ -273,8 +213,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   window.deleteArticle = async (id) => {
     if (!confirm("确定要删除该文章？")) return;
-    const { error } = await client.from("articles").delete().eq("id", id);
-    if (error) return alert("删除失败：" + error.message);
+    const res = await fetch(`${WORKER_ENDPOINT}?id=${id}`, { method: "DELETE" });
+    if (!res.ok) return alert("删除失败");
     loadArticles(true);
   };
 
@@ -290,13 +230,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  const { data: { session } } = await client.auth.getSession();
-  const user = session?.user;
-  if (user?.email === ADMIN_EMAIL) {
-    authArea.classList.add("hidden");
-    adminArea.classList.remove("hidden");
-    loadArticles();
-  }
+  // 默认加载
+  authArea.classList.add("hidden");
+  adminArea.classList.remove("hidden");
+  loadArticles();
 });
 </script>
 </body>
