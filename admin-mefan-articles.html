@@ -112,7 +112,7 @@
       console.log('login() called');
       supabase.auth.signInWithOAuth({
         provider: 'github',
-        options: { redirectTo:https:'//oliverfr-articles-proxy.mefans.workers.dev/'}
+        options: { redirectTo:WORKER_BASE}
       });
     }
 
