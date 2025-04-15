@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loading = true;
     const params = new URLSearchParams({ page: currentPage, limit, q: keyword || '' });
     const res = await fetch(`${WORKER_ENDPOINT}?${params}`);
-    const { articles } = await res.json();
+   const { messages: articles } = await res.json();
 
     if (reset) articlesTable.innerHTML = "";
     articles.forEach(row => {
