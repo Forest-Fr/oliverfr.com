@@ -306,63 +306,59 @@
       if (data.length === limit) currentPage++;
     }
   });
-(function () {
+(function(){
 
-  /* 替换危险字符（标题里可能出现） */
-  function escapeText(t=''){
+  /* HTML 实体转义（标题里可能出现） */
+  function esc(t=''){
     return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  document.getElementById('exportStaticBtn').addEventListener('click', () => {
-    const rawTitle   = document.getElementById('newTitle').value.trim();
-    const rawContent = document.getElementById('newContent').value.trim();
-    if (!rawTitle || !rawContent) return alert('请先填写标题和内容');
+  document.getElementById('exportStaticBtn').addEventListener('click',()=>{
+    const titleRaw = document.getElementById('newTitle').value.trim();
+    const mdRaw    = document.getElementById('newContent').value.trim();
+    if(!titleRaw||!mdRaw) return alert('请先填写标题和内容');
 
-    /* 基础变量 */
-    const slug      = rawTitle.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
+    const slug      = titleRaw.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
     const createdAt = new Date().toISOString().split('T')[0];
     const file      = document.getElementById('coverInput').files[0];
     const coverUrl  = file ? `https://oliverfr.com/assets/images/${encodeURIComponent(file.name)}` : '';
 
-    /* 1. 结构化数据对象 → 字符串，并转义 </script> */
+    /* 1) 结构化数据字符串，并把 </script> 转义 */
     const jsonLd = JSON.stringify({
       "@context":"https://schema.org",
       "@type":"Article",
-      "headline": rawTitle,
-      "author":   { "@type":"Person", "name":"Oliver F." },
+      "headline": titleRaw,
+      "author":   { "@type":"Person","name":"Oliver F." },
       "publisher":{ "@type":"Organization","name":"MeFan Solutions" },
       "datePublished": createdAt,
       "dateModified":  createdAt,
       "mainEntityOfPage":{ "@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html` },
       ...(file ? { image: coverUrl } : {})
-    }, null, 2).replace(/<\/script>/gi,'<\\/script>');   // ← 关键
+    },null,2).replace(/<\/script>/gi,'<\\/script>');   // 关键
 
-    /* 2. 整段 HTML 用普通字符串占位符替换 */
-    let html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">';
-    html += '<title>{{TITLE}} | MeFan 技术博客</title>';
-    html += '<meta name="description" content="{{TITLE}}">';
-    html += '<meta name="keywords" content="PoE, 网络设备, MeFan">';
-    html += '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
-    html += '<meta name="robots" content="index, follow">';
-    html += `<link rel="canonical" href="https://oliverfr.com/articles/${slug}.html">`;
-    html += `<script type="application/ld+json">\n${jsonLd}\n</script>`;
-    html += '<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>';
-    html += '</head><body>';
-    html += '<h1>{{TITLE}}</h1>';
-    html += `<div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>`;
-    html += '{{CONTENT}}';
-    html += '</body></html>';
+    /* 2) 组装 HTML —— 将 </script> 写成 <\/script> 避免截断 */
+    let html = ''
+      + '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">'
+      + `<title>${esc(titleRaw)} | MeFan 技术博客</title>`
+      + `<meta name="description" content="${esc(titleRaw)}">`
+      + '<meta name="keywords" content="PoE, 网络设备, MeFan">'
+      + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+      + '<meta name="robots" content="index, follow">'
+      + `<link rel="canonical" href="https://oliverfr.com/articles/${slug}.html">`
+      + '<script type="application/ld+json">\n' + jsonLd + '\n<\\/script>'
+      + '<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>'
+      + '</head><body>'
+      + `<h1>${esc(titleRaw)}</h1>`
+      + `<div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>`
+      + marked.parse(mdRaw)            /* Markdown 转 HTML，保持标签 */
+      + '</body></html>';
 
-    /* 3. 替换占位符 */
-    html = html
-      .replace(/{{TITLE}}/g, escapeText(rawTitle))
-      .replace('{{CONTENT}}', marked.parse(rawContent));
-
-    /* 4. 触发下载 */
-    const blob = new Blob([html], { type:'text/html' });
-    const link = document.createElement('a');
-    link.href  = URL.createObjectURL(blob);
-    link.download = `${slug}.html`;
+    /* 3) 触发下载 */
+    const blob = new Blob([html],{type:'text/html'});
+    const link = Object.assign(document.createElement('a'),{
+      href: URL.createObjectURL(blob),
+      download: `${slug}.html`
+    });
     link.click();
   });
 
