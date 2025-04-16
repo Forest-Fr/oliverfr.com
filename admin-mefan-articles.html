@@ -308,7 +308,7 @@
   });
 (function () {
 
-  /* HTML 实体转义（标题防 XSS） */
+  /* HTML 实体转义（标题用于 meta） */
   const esc = s => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   document.getElementById('exportStaticBtn').addEventListener('click', () => {
@@ -316,63 +316,47 @@
     const mdRaw    = document.getElementById('newContent').value.trim();
     if (!titleRaw || !mdRaw) { alert('请先填写标题和内容'); return; }
 
-    /* 基础信息 */
     const slug = titleRaw.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
     const day  = new Date().toISOString().split('T')[0];
     const file = document.getElementById('coverInput').files[0];
     const img  = file ? `https://oliverfr.com/assets/images/${encodeURIComponent(file.name)}` : '';
 
-    /* 1. 生成“壳”页面（没有 JSON‑LD） */
-    let html =
-`<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <title>${esc(titleRaw)} | MeFan 技术博客</title>
-  <meta name="description" content="${esc(titleRaw)}" />
-  <meta name="keywords" content="PoE, 网络设备, MeFan" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
-  <style>
-    body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}
-    h1{font-size:28px;margin-bottom:20px;}
-    img{max-width:100%;margin:20px 0;}
-    .meta{color:#888;font-size:14px;margin-bottom:20px;}
-  </style>
-</head>
-<body>
-  <h1>${esc(titleRaw)}</h1>
-  <div class="meta">发布日期：${day} ｜ 作者：Oliver F.</div>
-  ${marked.parse(mdRaw)}
-  <!-- JSON-LD 会在 onload 事件里注入 -->
-  <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      const ld = {
-        "@context":"https://schema.org",
-        "@type":"Article",
-        "headline": ${JSON.stringify(titleRaw)},
-        "author": { "@type":"Person","name":"Oliver F." },
-        "publisher": { "@type":"Organization","name":"MeFan Solutions" },
-        "datePublished": "${day}",
-        "dateModified": "${day}",
-        "mainEntityOfPage": {
-          "@type":"WebPage",
-          "@id":"https://oliverfr.com/articles/${slug}.html"
-        }${img ? `,\n        "image":"${img}"` : ''}
-      };
-      const s = document.createElement('script');
-      s.type = 'application/ld+json';
-      s.textContent = JSON.stringify(ld, null, 2);
-      document.head.appendChild(s);
-    });
-  </script>
-</body>
-</html>`;
+    /* 1. 生成 JSON‑LD 对象（稍后序列化） */
+    const ld = {
+      "@context":"https://schema.org",
+      "@type":"Article",
+      "headline": titleRaw,
+      "author":   { "@type":"Person","name":"Oliver F." },
+      "publisher":{ "@type":"Organization","name":"MeFan Solutions" },
+      "datePublished": day,
+      "dateModified":  day,
+      "mainEntityOfPage":{ "@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html` },
+      ...(img ? { image: img } : {})
+    };
 
-    /* 2. 触发下载 */
+    /* 2. 用数组拼接 HTML——整个过程中没有模板字符串、没有 </script> */
+    const parts = [];
+    parts.push('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">');
+    parts.push('<title>', esc(titleRaw), ' | MeFan 技术博客</title>');
+    parts.push('<meta name="description" content="', esc(titleRaw), '">');
+    parts.push('<meta name="keywords" content="PoE, 网络设备, MeFan">');
+    parts.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
+    parts.push('<meta name="robots" content="index, follow">');
+    parts.push('<link rel="canonical" href="https://oliverfr.com/articles/', slug, '.html">');
+    parts.push('<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>');
+    parts.push('</head><body>');
+    parts.push('<h1>', esc(titleRaw), '</h1>');
+    parts.push('<div class="meta">发布日期：', day, ' ｜ 作者：Oliver F.</div>');
+    parts.push(marked.parse(mdRaw));
+    /* 动态插入 JSON‑LD，避免在源码里写 </script> */
+    parts.push('<script type="application/ld+json">', JSON.stringify(ld, null, 2).replace(/<\/script>/gi,'<\\/script>'), '</scr'+'ipt>');
+    parts.push('</body></html>');
+
+    const html = parts.join('');
+
+    /* 3. 下载 */
     const blob = new Blob([html], { type:'text/html' });
-    const a    = Object.assign(document.createElement('a'), {
+    const a = Object.assign(document.createElement('a'), {
       href: URL.createObjectURL(blob),
       download: slug + '.html'
     });
