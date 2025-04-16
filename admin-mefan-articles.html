@@ -308,61 +308,61 @@
   });
 (function(){
 
-  /* HTML 实体转义（标题里可能出现） */
-  function esc(t=''){
-    return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  /* HTML 实体转义（标题用） */
+  function esc(txt=''){
+    return txt.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
   document.getElementById('exportStaticBtn').addEventListener('click',()=>{
-    const titleRaw = document.getElementById('newTitle').value.trim();
-    const mdRaw    = document.getElementById('newContent').value.trim();
-    if(!titleRaw||!mdRaw) return alert('请先填写标题和内容');
+    const tRaw = document.getElementById('newTitle').value.trim();
+    const md   = document.getElementById('newContent').value.trim();
+    if(!tRaw || !md) return alert('请先填写标题和内容');
 
-    const slug      = titleRaw.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
-    const createdAt = new Date().toISOString().split('T')[0];
-    const file      = document.getElementById('coverInput').files[0];
-    const coverUrl  = file ? `https://oliverfr.com/assets/images/${encodeURIComponent(file.name)}` : '';
+    const slug = tRaw.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
+    const day  = new Date().toISOString().split('T')[0];
+    const file = document.getElementById('coverInput').files[0];
+    const img  = file ? `https://oliverfr.com/assets/images/${encodeURIComponent(file.name)}` : '';
 
-    /* 1) 结构化数据字符串，并把 </script> 转义 */
-    const jsonLd = JSON.stringify({
+    /* 1) 结构化数据并把 </script> 拆写 */
+    const jsonStr = JSON.stringify({
       "@context":"https://schema.org",
       "@type":"Article",
-      "headline": titleRaw,
-      "author":   { "@type":"Person","name":"Oliver F." },
+      "headline": tRaw,
+      "author":{ "@type":"Person","name":"Oliver F." },
       "publisher":{ "@type":"Organization","name":"MeFan Solutions" },
-      "datePublished": createdAt,
-      "dateModified":  createdAt,
+      "datePublished": day,
+      "dateModified":  day,
       "mainEntityOfPage":{ "@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html` },
-      ...(file ? { image: coverUrl } : {})
-    },null,2).replace(/<\/script>/gi,'<\\/script>');   // 关键
+      ...(file ? { image: img } : {})
+    },null,2).replace(/<\/script>/gi,'<\\/script>');  // 关键：拆写
 
-    /* 2) 组装 HTML —— 将 </script> 写成 <\/script> 避免截断 */
-    let html = ''
-      + '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">'
-      + `<title>${esc(titleRaw)} | MeFan 技术博客</title>`
-      + `<meta name="description" content="${esc(titleRaw)}">`
-      + '<meta name="keywords" content="PoE, 网络设备, MeFan">'
-      + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
-      + '<meta name="robots" content="index, follow">'
-      + `<link rel="canonical" href="https://oliverfr.com/articles/${slug}.html">`
-      + '<script type="application/ld+json">\n' + jsonLd + '\n<\\/script>'
-      + '<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>'
-      + '</head><body>'
-      + `<h1>${esc(titleRaw)}</h1>`
-      + `<div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>`
-      + marked.parse(mdRaw)            /* Markdown 转 HTML，保持标签 */
-      + '</body></html>';
+    /* 2) 纯字符串拼接，源码里再无 </script> */
+    let html = '';
+    html += '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">';
+    html += '<title>'+esc(tRaw)+' | MeFan 技术博客</title>';
+    html += '<meta name="description" content="'+esc(tRaw)+'">';
+    html += '<meta name="keywords" content="PoE, 网络设备, MeFan">';
+    html += '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
+    html += '<meta name="robots" content="index, follow">';
+    html += '<link rel="canonical" href="https://oliverfr.com/articles/'+slug+'.html">';
+    html += '<script type="application/ld+json">\n'+jsonStr+'\n<\\/script>'; /* 也用拆写 */
+    html += '<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>';
+    html += '</head><body>';
+    html += '<h1>'+esc(tRaw)+'</h1>';
+    html += '<div class="meta">发布日期：'+day+' ｜ 作者：Oliver F.</div>';
+    html += marked.parse(md);               /* Markdown → HTML，保留标签 */
+    html += '</body></html>';
 
     /* 3) 触发下载 */
     const blob = new Blob([html],{type:'text/html'});
-    const link = Object.assign(document.createElement('a'),{
+    const a = Object.assign(document.createElement('a'),{
       href: URL.createObjectURL(blob),
-      download: `${slug}.html`
+      download: slug+'.html'
     });
-    link.click();
+    a.click();
   });
 
-})();
+})();   /* 立即执行结束 */
 </script>
 </body>
 </html>
