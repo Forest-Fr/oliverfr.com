@@ -310,11 +310,12 @@ document.getElementById('generateStaticHtmlBtn').addEventListener('click', async
 </body>
 </html>`;
 
-  const response = await fetch('https://YOUR_WORKER_URL/upload-article', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug, html })
-  });
+ const response = await fetch('https://upload-articlejs.mefans.workers.dev/', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ slug, html })
+});
+
 
   const result = await response.json();
   if (result.success) {
