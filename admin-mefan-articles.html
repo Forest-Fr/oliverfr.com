@@ -5,7 +5,7 @@
 <title>文章后台管理</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style>
-  /* —— 完全沿用你原来的所有样式 —— */
+  /* —— 保留原样式 —— */
   body{font-family:Arial,sans-serif;background:#f8f8f8;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
   h1{font-size:24px;display:flex;align-items:center;gap:10px;}
   .btn{padding:8px 16px;background:#333;color:#fff;border:none;cursor:pointer;margin-right:5px;}
@@ -38,7 +38,9 @@
 
 <h1>📰 文章后台管理</h1>
 
-<div id="authArea"><button id="loginBtn" class="btn">使用 GitHub 登录</button></div>
+<div id="authArea">
+  <button id="loginBtn" class="btn">使用 GitHub 登录</button>
+</div>
 
 <div id="adminArea" class="hidden">
   <div class="admin-bar">
@@ -53,9 +55,10 @@
   <input type="text" id="newTitle" placeholder="标题" />
   <textarea id="newContent" placeholder="支持 Markdown 格式的内容"></textarea>
   <input type="file" id="coverInput" accept="image/*" />
+
   <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-    <button id="submitBtn" class="btn">提交</button>
-    <button id="cancelEditBtn" class="btn hidden">取消编辑</button>
+    <button id="submitBtn"        class="btn">提交</button>
+    <button id="cancelEditBtn"    class="btn hidden">取消编辑</button>
     <button id="generateStaticHtmlBtn" class="btn">生成静态文章文件</button>
   </div>
 
@@ -63,7 +66,8 @@
     <table id="articlesTable">
       <thead>
         <tr>
-          <th>标题</th><th>作者</th><th>内容</th><th>创建时间</th><th>更新时间</th><th>星期</th><th>封面</th><th>操作</th>
+          <th>标题</th><th>作者</th><th>内容</th><th>创建时间</th>
+          <th>更新时间</th><th>星期</th><th>封面</th><th>操作</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -90,22 +94,27 @@ const client      = supabase.createClient(WORKER_BASE, ANON_KEY);
 
 /* ---------- 工具函数 ---------- */
 function getBeijingISOString(){
-  const now = new Date();
-  const beijing = new Date(now.getTime() + 8*60*60*1000);
-  return beijing.toISOString().replace('Z', '+08:00');
+  const now=new Date();
+  return new Date(now.getTime()+8*3600*1000).toISOString().replace('Z','+08:00');
 }
 function formatBeijingTime(str){
-  const d = new Date(str);
-  return new Date(d.getTime()+8*60*60*1000).toLocaleString('zh-CN',{hour12:false});
+  const d=new Date(str);
+  return new Date(d.getTime()+8*3600*1000).toLocaleString('zh-CN',{hour12:false});
 }
 function getWeekday(str){
   return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][new Date(str).getDay()];
 }
-function escapeHTML(text=''){
-  return text.replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
+function escapeHTML(t=''){
+  return t.replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
+}
+/* 用于生成静态 HTML 时，转义反引号和 </script> */
+function escapeForTemplate(str=''){
+  return str
+    .replace(/`/g,'&#96;')
+    .replace(/\$\{/g,'&#36;{')
+    .replace(/<\/script>/gi,'<\\/script>');
 }
 
-/* ---------- 主逻辑 ---------- */
 document.addEventListener('DOMContentLoaded',async()=>{
   const authArea      = document.getElementById('authArea');
   const adminArea     = document.getElementById('adminArea');
@@ -117,9 +126,9 @@ document.addEventListener('DOMContentLoaded',async()=>{
   const searchInput   = document.getElementById('searchInput');
   const articlesTable = document.querySelector('#articlesTable tbody');
 
-  let currentEditId = null, currentPage = 1, limit = 5, loading = false;
+  let currentEditId=null,currentPage=1,limit=5,loading=false;
 
-  // —— 会话检查 —— 
+  /* --- 会话检查 --- */
   const { data:{ session } } = await client.auth.getSession();
   if(session?.user?.email===ADMIN_EMAIL){
     authArea.classList.add('hidden');
@@ -127,18 +136,18 @@ document.addEventListener('DOMContentLoaded',async()=>{
     loadArticles();
   }
 
-  // —— 登录 / 登出 —— 
-  loginBtn.onclick = ()=>client.auth.signInWithOAuth({provider:'github',options:{redirectTo:location.href}});
-  logoutBtn.onclick = async ()=>{await client.auth.signOut();location.reload();};
+  /* --- 登录 / 登出 --- */
+  loginBtn.onclick=()=>client.auth.signInWithOAuth({provider:'github',options:{redirectTo:location.href}});
+  logoutBtn.onclick=async()=>{await client.auth.signOut();location.reload();};
 
-  // —— 提交（新增/编辑） —— 
-  submitBtn.onclick = async ()=>{
-    const title   = document.getElementById('newTitle').value.trim();
-    const content = document.getElementById('newContent').value.trim();
+  /* --- 提交文章（新增 / 编辑） --- */
+  submitBtn.onclick=async()=>{
+    const title=document.getElementById('newTitle').value.trim();
+    const content=document.getElementById('newContent').value.trim();
     if(!title||!content) return alert('标题或内容不能为空');
 
     const { data:{ session } } = await client.auth.getSession();
-    const user = session?.user;
+    const user=session?.user;
     if(!user) return alert('请先登录');
 
     let coverUrl='';
@@ -152,7 +161,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     const now=getBeijingISOString();
     const row={title,content,author_email:user.email,updated_at:now,cover_url:coverUrl||undefined};
 
-    const res = currentEditId
+    const res=currentEditId
       ? await client.from('articles').update(row).eq('id',currentEditId)
       : await client.from('articles').insert([{...row,created_at:now}]);
 
@@ -161,8 +170,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
     loadArticles(true);
   };
 
-  // —— 取消编辑 —— 
-  cancelBtn.onclick = ()=>{
+  /* --- 取消编辑 --- */
+  cancelBtn.onclick=()=>{
     document.getElementById('newTitle').value='';
     document.getElementById('newContent').value='';
     document.getElementById('coverInput').value='';
@@ -170,79 +179,83 @@ document.addEventListener('DOMContentLoaded',async()=>{
     cancelBtn.classList.add('hidden');
   };
 
-  // —— 预览 / 编辑 / 删除（供 inline 调用） —— 
-  window.previewArticle = row=>{
+  /* --- 预览 / 编辑 / 删除（供 inline 调用） --- */
+  window.previewArticle=row=>{
     document.getElementById('previewTitle').textContent=row.title;
     document.getElementById('previewCover').src=row.cover_url||'';
     document.getElementById('markdownContent').innerHTML=marked.parse(row.content||'');
     document.getElementById('previewModal').classList.remove('hidden');
   };
-  window.editArticle = row=>{
+  window.editArticle=row=>{
     document.getElementById('newTitle').value=row.title;
     document.getElementById('newContent').value=row.content;
     currentEditId=row.id;
     cancelBtn.classList.remove('hidden');
     window.scrollTo(0,0);
   };
-  window.deleteArticle = async id=>{
+  window.deleteArticle=async id=>{
     if(!confirm('确定删除？'))return;
     const { error } = await client.from('articles').delete().eq('id',id);
     if(error) return alert('删除失败：'+error.message);
     loadArticles(true);
   };
-  window.closePreview = ()=>document.getElementById('previewModal').classList.add('hidden');
+  window.closePreview=()=>document.getElementById('previewModal').classList.add('hidden');
 
-  // —— 搜索 & 滚动翻页 —— 
-  searchBtn.onclick = ()=>loadArticles(true,searchInput.value.trim());
+  /* --- 搜索 & 滚动翻页 --- */
+  searchBtn.onclick=()=>loadArticles(true,searchInput.value.trim());
   window.addEventListener('scroll',()=>{
     if(window.innerHeight+window.scrollY>=document.body.offsetHeight-10) loadArticles();
   });
 
-  /* —— 生成静态 HTML 文件 —— */
+  /* --- 生成静态 HTML 文件 --- */
   document.getElementById('generateStaticHtmlBtn').addEventListener('click',()=>{
-    const title=document.getElementById('newTitle').value.trim();
-    const content=document.getElementById('newContent').value.trim();
-    if(!title||!content) return alert('请先填写标题和内容');
+    const rawTitle   = document.getElementById('newTitle').value.trim();
+    const rawContent = document.getElementById('newContent').value.trim();
+    if(!rawTitle||!rawContent) return alert('请先填写标题和内容');
 
-    const slug=title.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
-    const createdAt=new Date().toISOString().split('T')[0];
-    const cover=document.getElementById('coverInput').files[0];
-    const coverUrl=cover?`https://oliverfr.com/assets/images/${cover.name}`:'';
+    const slug      = rawTitle.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
+    const createdAt = new Date().toISOString().split('T')[0];
 
-    const jsonLd={
+    /* 转义后用于最终 HTML */
+    const titleEsc       = escapeForTemplate(rawTitle);
+    const htmlContentEsc = escapeForTemplate(marked.parse(rawContent));
+
+    const jsonLd = {
       "@context":"https://schema.org",
       "@type":"Article",
-      "headline":title,
-      "author":{"@type":"Person","name":"Oliver F."},
-      "publisher":{"@type":"Organization","name":"MeFan Solutions"},
-      "datePublished":createdAt,
-      "dateModified":createdAt,
-      "mainEntityOfPage":{"@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html`},
-      ...(cover?{image:coverUrl}:{})
+      "headline": rawTitle,
+      "author": { "@type":"Person","name":"Oliver F." },
+      "publisher": { "@type":"Organization","name":"MeFan Solutions" },
+      "datePublished": createdAt,
+      "dateModified": createdAt,
+      "mainEntityOfPage": { "@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html` }
     };
+    const jsonLdEsc = escapeForTemplate(JSON.stringify(jsonLd,null,2));
 
     const html=`<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>${title} | MeFan 技术博客</title>
-  <meta name="description" content="${escapeHTML(title)}" />
-  <meta name="keywords" content="PoE, 网络设备, MeFan" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
-  <script type="application/ld+json">${JSON.stringify(jsonLd,null,2)}</script>
-  <style>
-    body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}
-    h1{font-size:28px;margin-bottom:20px;}
-    img{max-width:100%;margin:20px 0;}
-    .meta{color:#888;font-size:14px;margin-bottom:20px;}
-  </style>
+<meta charset="UTF-8" />
+<title>${titleEsc} | MeFan 技术博客</title>
+<meta name="description" content="${titleEsc}" />
+<meta name="keywords" content="PoE, 网络设备, MeFan" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
+<script type="application/ld+json">
+${jsonLdEsc}
+</script>
+<style>
+  body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}
+  h1{font-size:28px;margin-bottom:20px;}
+  img{max-width:100%;margin:20px 0;}
+  .meta{color:#888;font-size:14px;margin-bottom:20px;}
+</style>
 </head>
 <body>
-  <h1>${escapeHTML(title)}</h1>
-  <div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>
-  ${marked.parse(content)}
+<h1>${titleEsc}</h1>
+<div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>
+${htmlContentEsc}
 </body>
 </html>`;
 
@@ -253,7 +266,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     link.click();
   });
 
-  /* —— 加载文章列表 —— */
+  /* --- 加载文章列表 --- */
   async function loadArticles(reset=false,keyword=''){
     if(loading) return;
     loading=true;
@@ -263,12 +276,12 @@ document.addEventListener('DOMContentLoaded',async()=>{
               .order('created_at',{ascending:false})
               .range((currentPage-1)*limit,currentPage*limit-1);
     if(keyword) q=q.ilike('title',`%${keyword}%`);
-    const { data, error } = await q;
+    const { data,error } = await q;
     if(error) return alert('加载失败：'+error.message);
 
     data.forEach(row=>{
-      const snippet = escapeHTML((row.content||'').slice(0,60));
-      const rowEncoded = encodeURIComponent(JSON.stringify(row));
+      const snippet=escapeHTML((row.content||'').slice(0,60));
+      const rowEnc=encodeURIComponent(JSON.stringify(row));
 
       const tr=document.createElement('tr');
       tr.innerHTML=`
@@ -280,8 +293,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
         <td data-label="星期">${getWeekday(row.created_at)}</td>
         <td data-label="封面">${row.cover_url?`<img src="${row.cover_url}" style="height:40px;">`:''}</td>
         <td data-label="操作">
-          <button class="btn" onclick='previewArticle(JSON.parse(decodeURIComponent("${rowEncoded}")))'>预览</button>
-          <button class="btn" onclick='editArticle(JSON.parse(decodeURIComponent("${rowEncoded}")))'>编辑</button>
+          <button class="btn" onclick='previewArticle(JSON.parse(decodeURIComponent("${rowEnc}")))'>预览</button>
+          <button class="btn" onclick='editArticle(JSON.parse(decodeURIComponent("${rowEnc}")))'>编辑</button>
           <button class="btn" onclick='deleteArticle("${row.id}")'>删除</button>
         </td>`;
       articlesTable.appendChild(tr);
