@@ -272,7 +272,7 @@ document.getElementById('generateStaticHtmlBtn').addEventListener('click', () =>
   const coverFile = document.getElementById('coverInput').files[0];
   const coverUrl = coverFile ? `https://oliverfr.com/assets/images/${coverFile.name}` : '';
 
-  // 🔒 JSON-LD 字符串，避免拼接混乱
+  // 拼接结构化数据为 JSON 字符串（不使用模板嵌入）
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -288,9 +288,10 @@ document.getElementById('generateStaticHtmlBtn').addEventListener('click', () =>
     ...(coverFile ? { image: coverUrl } : {})
   };
 
-  // ✅ 最终拼接生成完整 HTML
-  const html = `
-<!DOCTYPE html>
+  const jsonLdScript = `<script type="application/ld+json">\n${JSON.stringify(jsonLd, null, 2)}\n</script>`;
+
+  // 拼接完整 HTML（结构化数据脚本字符串直接拼进 head）
+  const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -300,9 +301,7 @@ document.getElementById('generateStaticHtmlBtn').addEventListener('click', () =>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
-  <script type="application/ld+json">
-${JSON.stringify(jsonLd, null, 2)}
-  </script>
+  ${jsonLdScript}
   <style>
     body { font-family: Arial, sans-serif; margin: 40px auto; max-width: 700px; line-height: 1.6; }
     h1 { font-size: 28px; margin-bottom: 20px; }
@@ -315,10 +314,8 @@ ${JSON.stringify(jsonLd, null, 2)}
   <div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>
   ${marked.parse(content)}
 </body>
-</html>
-`;
+</html>`;
 
-  // 触发下载
   const blob = new Blob([html], { type: "text/html" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
