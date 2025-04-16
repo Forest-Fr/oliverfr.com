@@ -269,6 +269,23 @@ document.getElementById('generateStaticHtmlBtn').addEventListener('click', () =>
 
   const slug = title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w\-]/g, "");
   const createdAt = new Date().toISOString().split("T")[0];
+  const cover = document.getElementById('coverInput').files[0];
+  const coverUrl = cover ? `https://oliverfr.com/assets/images/${cover.name}` : '';
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": title,
+    "author": { "@type": "Person", "name": "Oliver F." },
+    "publisher": { "@type": "Organization", "name": "MeFan Solutions" },
+    "datePublished": createdAt,
+    "dateModified": createdAt,
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://oliverfr.com/articles/${slug}.html`
+    },
+    ...(cover ? { image: coverUrl } : {})
+  };
 
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -280,6 +297,7 @@ document.getElementById('generateStaticHtmlBtn').addEventListener('click', () =>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
+  <script type="application/ld+json">${JSON.stringify(jsonLd, null, 2)}</script>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px auto; max-width: 700px; line-height: 1.6; }
     h1 { font-size: 28px; margin-bottom: 20px; }
@@ -300,6 +318,7 @@ document.getElementById('generateStaticHtmlBtn').addEventListener('click', () =>
   link.download = `${slug}.html`;
   link.click();
 });
+
 
 
 
