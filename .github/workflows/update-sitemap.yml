@@ -3,8 +3,8 @@ name: Update Sitemap on Article Change
 on:
   push:
     paths:
-      - 'articles/**/*.html'  # 监听所有 HTML 文章变化
-      - '.github/workflows/update-sitemap.yml' # 本文件自身变化时也触发
+      - 'articles/**/*.html'
+      - '.github/workflows/update-sitemap.yml'
 
 jobs:
   generate-sitemap:
@@ -36,3 +36,7 @@ jobs:
           git add sitemap.xml
           git commit -m "🤖 自动更新 sitemap.xml"
           git push
+
+      - name: 📡 Ping Google to notify sitemap update
+        run: |
+          curl "https://www.google.com/ping?sitemap=https://oliverfr.com/sitemap.xml"
