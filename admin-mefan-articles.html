@@ -308,23 +308,21 @@
   });
 (function(){
 
-  /* HTML 实体转义（标题用） */
-  function esc(txt=''){
-    return txt.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
+  /* 简易转义（标题用） */
+  const esc = s => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   document.getElementById('exportStaticBtn').addEventListener('click',()=>{
     const tRaw = document.getElementById('newTitle').value.trim();
     const md   = document.getElementById('newContent').value.trim();
-    if(!tRaw || !md) return alert('请先填写标题和内容');
+    if(!tRaw || !md){ alert('请先填写标题和内容'); return; }
 
     const slug = tRaw.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
     const day  = new Date().toISOString().split('T')[0];
     const file = document.getElementById('coverInput').files[0];
     const img  = file ? `https://oliverfr.com/assets/images/${encodeURIComponent(file.name)}` : '';
 
-    /* 1) 结构化数据并把 </script> 拆写 */
-    const jsonStr = JSON.stringify({
+    /* 1) 生成 JSON‑LD 并拆写 </script>（防截断） */
+    const json = JSON.stringify({
       "@context":"https://schema.org",
       "@type":"Article",
       "headline": tRaw,
@@ -334,9 +332,9 @@
       "dateModified":  day,
       "mainEntityOfPage":{ "@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html` },
       ...(file ? { image: img } : {})
-    },null,2).replace(/<\/script>/gi,'<\\/script>');  // 关键：拆写
+    },null,2).replace(/<\/script>/gi,'<\\/script>');
 
-    /* 2) 纯字符串拼接，源码里再无 </script> */
+    /* 2) 纯字符串拼接（源码绝无 '</script>'） */
     let html = '';
     html += '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">';
     html += '<title>'+esc(tRaw)+' | MeFan 技术博客</title>';
@@ -345,24 +343,24 @@
     html += '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
     html += '<meta name="robots" content="index, follow">';
     html += '<link rel="canonical" href="https://oliverfr.com/articles/'+slug+'.html">';
-    html += '<script type="application/ld+json">\n'+jsonStr+'\n<\\/script>'; /* 也用拆写 */
+    html += '<script type="application/ld+json">\n'+json+'\n<\\/script>';  /* 拆写 */
     html += '<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>';
     html += '</head><body>';
     html += '<h1>'+esc(tRaw)+'</h1>';
     html += '<div class="meta">发布日期：'+day+' ｜ 作者：Oliver F.</div>';
-    html += marked.parse(md);               /* Markdown → HTML，保留标签 */
+    html += marked.parse(md);  /* Markdown → HTML */
     html += '</body></html>';
 
-    /* 3) 触发下载 */
+    /* 3) 下载 */
     const blob = new Blob([html],{type:'text/html'});
-    const a = Object.assign(document.createElement('a'),{
+    const a    = Object.assign(document.createElement('a'),{
       href: URL.createObjectURL(blob),
       download: slug+'.html'
     });
     a.click();
   });
 
-})();   /* 立即执行结束 */
+})();  // 立即执行
 </script>
 </body>
 </html>
