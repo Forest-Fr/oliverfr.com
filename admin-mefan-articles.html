@@ -308,7 +308,7 @@
   });
 (function () {
 
-  /* HTML 实体转义（标题用于 meta） */
+  /** HTML 实体转义 */
   const esc = s => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   document.getElementById('exportStaticBtn').addEventListener('click', () => {
@@ -321,7 +321,7 @@
     const file = document.getElementById('coverInput').files[0];
     const img  = file ? `https://oliverfr.com/assets/images/${encodeURIComponent(file.name)}` : '';
 
-    /* 1. 生成 JSON‑LD 对象（稍后序列化） */
+    /* ---------- JSON‑LD 对象 ---------- */
     const ld = {
       "@context":"https://schema.org",
       "@type":"Article",
@@ -333,30 +333,30 @@
       "mainEntityOfPage":{ "@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html` },
       ...(img ? { image: img } : {})
     };
+    const ldText = JSON.stringify(ld, null, 2).replace(/<\/script>/gi,'<\\/script>');
 
-    /* 2. 用数组拼接 HTML——整个过程中没有模板字符串、没有 </script> */
-    const parts = [];
-    parts.push('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">');
-    parts.push('<title>', esc(titleRaw), ' | MeFan 技术博客</title>');
-    parts.push('<meta name="description" content="', esc(titleRaw), '">');
-    parts.push('<meta name="keywords" content="PoE, 网络设备, MeFan">');
-    parts.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
-    parts.push('<meta name="robots" content="index, follow">');
-    parts.push('<link rel="canonical" href="https://oliverfr.com/articles/', slug, '.html">');
-    parts.push('<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>');
-    parts.push('</head><body>');
-    parts.push('<h1>', esc(titleRaw), '</h1>');
-    parts.push('<div class="meta">发布日期：', day, ' ｜ 作者：Oliver F.</div>');
-    parts.push(marked.parse(mdRaw));
-    /* 动态插入 JSON‑LD，避免在源码里写 </script> */
-    parts.push('<script type="application/ld+json">', JSON.stringify(ld, null, 2).replace(/<\/script>/gi,'<\\/script>'), '</scr'+'ipt>');
-    parts.push('</body></html>');
+    /* ---------- 组装 HTML，每次 push 只传 1 字符串 ---------- */
+    const p = [];
+    p.push('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">');
+    p.push('<title>'+esc(titleRaw)+' | MeFan 技术博客</title>');
+    p.push('<meta name="description" content="'+esc(titleRaw)+'">');
+    p.push('<meta name="keywords" content="PoE, 网络设备, MeFan">');
+    p.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
+    p.push('<meta name="robots" content="index, follow">');
+    p.push('<link rel="canonical" href="https://oliverfr.com/articles/'+slug+'.html">');
+    p.push('<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>');
+    p.push('</head><body>');
+    p.push('<h1>'+esc(titleRaw)+'</h1>');
+    p.push('<div class="meta">发布日期：'+day+' ｜ 作者：Oliver F.</div>');
+    p.push(marked.parse(mdRaw));
+    p.push('<script type="application/ld+json">'+ldText+'</scr'+'ipt>');
+    p.push('</body></html>');
 
-    const html = parts.join('');
+    const html = p.join('');
 
-    /* 3. 下载 */
+    /* ---------- 触发下载 ---------- */
     const blob = new Blob([html], { type:'text/html' });
-    const a = Object.assign(document.createElement('a'), {
+    const a    = Object.assign(document.createElement('a'), {
       href: URL.createObjectURL(blob),
       download: slug + '.html'
     });
