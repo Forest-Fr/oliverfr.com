@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -57,7 +58,7 @@
     <button id="submitBtn" class="btn">提交</button>
     <button id="cancelEditBtn" class="btn hidden">取消编辑</button>
     <!-- ✅ 就在这里插入按钮 -->
-  <button id="exportStaticBtn" class="btn">导出静态 HTML</button>
+  <button id="generateStaticHtmlBtn" class="btn">生成静态文章文件</button>
   </div>
 
   <div style="overflow-x: auto; width: 100%;">
@@ -262,9 +263,66 @@
 
     
 // —— 独立：生成静态 HTML 文件 —— 
+document.getElementById('generateStaticHtmlBtn').addEventListener('click', () => {
+  const title   = document.getElementById('newTitle').value.trim();
+  const content = document.getElementById('newContent').value.trim();
+  if (!title || !content) return alert('请先填写标题和内容');
 
+  const slug = title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w\-]/g, "");
+  const createdAt = new Date().toISOString().split("T")[0];
+  const coverFile = document.getElementById('coverInput').files[0];
+  const coverUrl = coverFile ? `https://oliverfr.com/assets/images/${coverFile.name}` : '';
 
+  // 拼接结构化数据为 JSON 字符串（不使用模板嵌入）
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": title,
+    "author": { "@type": "Person", "name": "Oliver F." },
+    "publisher": { "@type": "Organization", "name": "MeFan Solutions" },
+    "datePublished": createdAt,
+    "dateModified": createdAt,
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://oliverfr.com/articles/${slug}.html`
+    },
+    ...(coverFile ? { image: coverUrl } : {})
+  };
 
+  const jsonLdScript = `<script type="application/ld+json">\n${JSON.stringify(jsonLd, null, 2)}\n</script>`;
+
+  // 拼接完整 HTML（结构化数据脚本字符串直接拼进 head）
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title} | MeFan 技术博客</title>
+  <meta name="description" content="${title}" />
+  <meta name="keywords" content="PoE, 网络设备, MeFan" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
+  ${jsonLdScript}
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px auto; max-width: 700px; line-height: 1.6; }
+    h1 { font-size: 28px; margin-bottom: 20px; }
+    img { max-width: 100%; margin: 20px 0; }
+    .meta { color: #888; font-size: 14px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>
+  ${marked.parse(content)}
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${slug}.html`;
+  link.click();
+});
 
 
     
@@ -306,72 +364,6 @@
       if (data.length === limit) currentPage++;
     }
   });
-/* ===== IIFE：与其它脚本隔离（源码里绝无 '</script>'） ===== */
-(function(){
-
-  /* 简易 HTML 实体转义（标题防 XSS） */
-  const esc = s => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-  /* 预构造一个字符串常量，用作“结束标签”模式，但源码里看不到完整关键字 */
-  const END_TAG = '<\\/scr' + 'ipt>';   // => "<\/script>"
-
-  /* 动态生成匹配 <\/script> 的正则，避免字面量写死 */
-  const endTagRe = new RegExp(END_TAG.replace('\\/','/'), 'gi');
-
-  document.getElementById('exportStaticBtn').addEventListener('click', () => {
-    const tRaw = document.getElementById('newTitle').value.trim();
-    const md   = document.getElementById('newContent').value.trim();
-    if (!tRaw || !md) { alert('请先填写标题和内容'); return; }
-
-    const slug = tRaw.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
-    const day  = new Date().toISOString().split('T')[0];
-    const file = document.getElementById('coverInput').files[0];
-    const img  = file ? `https://oliverfr.com/assets/images/${encodeURIComponent(file.name)}` : '';
-
-    /* ---------- 1. 生成 JSON‑LD 字符串 ---------- */
-    let json = JSON.stringify({
-      "@context":"https://schema.org",
-      "@type":"Article",
-      "headline": tRaw,
-      "author":   { "@type":"Person","name":"Oliver F." },
-      "publisher":{ "@type":"Organization","name":"MeFan Solutions" },
-      "datePublished": day,
-      "dateModified":  day,
-      "mainEntityOfPage":{ "@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html` },
-      ...(file ? { image: img } : {})
-    }, null, 2);
-
-    /* 把 <\/script> → <\\/script>，避免在生成后的 HTML 中再触发结束 */
-    json = json.replace(endTagRe, '<\\\\script>');
-
-    /* ---------- 2. 纯字符串拼接完整 HTML ---------- */
-    let html = '';
-    html += '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">';
-    html += '<title>'+esc(tRaw)+' | MeFan 技术博客</title>';
-    html += '<meta name="description" content="'+esc(tRaw)+'">';
-    html += '<meta name="keywords" content="PoE, 网络设备, MeFan">';
-    html += '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
-    html += '<meta name="robots" content="index, follow">';
-    html += '<link rel="canonical" href="https://oliverfr.com/articles/'+slug+'.html">';
-    /* 这里的 <script> 结尾用 END_TAG（<\\/script>）拆写，源码安全 */
-    html += '<script type="application/ld+json">\n'+json+'\n'+END_TAG;
-    html += '<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6;}h1{font-size:28px;margin-bottom:20px;}img{max-width:100%;margin:20px 0}.meta{color:#888;font-size:14px;margin-bottom:20px}</style>';
-    html += '</head><body>';
-    html += '<h1>'+esc(tRaw)+'</h1>';
-    html += '<div class="meta">发布日期：'+day+' ｜ 作者：Oliver F.</div>';
-    html += marked.parse(md);   /* Markdown → HTML */
-    html += '</body></html>';
-
-    /* ---------- 3. 触发下载 ---------- */
-    const blob = new Blob([html], { type:'text/html' });
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: slug+'.html'
-    });
-    a.click();
-  });
-
-})();   /* IIFE end */
 </script>
 </body>
 </html>
