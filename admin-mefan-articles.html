@@ -259,6 +259,51 @@
       }
     });
 
+
+    
+// —— 独立：生成静态 HTML 文件 —— 
+document.getElementById('generateStaticHtmlBtn').addEventListener('click', () => {
+  const title   = document.getElementById('newTitle').value.trim();
+  const content = document.getElementById('newContent').value.trim();
+  if (!title || !content) return alert('请先填写标题和内容');
+
+  const slug = title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w\-]/g, "");
+  const createdAt = new Date().toISOString().split("T")[0];
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title} | MeFan 技术博客</title>
+  <meta name="description" content="${title}" />
+  <meta name="keywords" content="PoE, 网络设备, MeFan" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px auto; max-width: 700px; line-height: 1.6; }
+    h1 { font-size: 28px; margin-bottom: 20px; }
+    img { max-width: 100%; margin: 20px 0; }
+    .meta { color: #888; font-size: 14px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>
+  ${marked.parse(content)}
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${slug}.html`;
+  link.click();
+});
+
+
+
+    
     // 8. 加载文章列表，渲染时用新的格式化函数
     async function loadArticles(reset = false, keyword = '') {
       if (loading) return;
