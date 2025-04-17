@@ -1,13 +1,14 @@
-name: Update Sitemap on Article Change
+name: Generate sitemap
 
 on:
   push:
     paths:
-      - 'articles/**/*.html'
-      - '.github/workflows/update-sitemap.yml'
+      - 'articles/*.html'
+    branches:
+      - main
 
 jobs:
-  generate-sitemap:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
@@ -16,16 +17,15 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '18'
 
       - name: Generate sitemap.xml
         run: |
           echo '<?xml version="1.0" encoding="UTF-8"?>' > sitemap.xml
           echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' >> sitemap.xml
-          echo '<url><loc>https://oliverfr.com/</loc><lastmod>'$(date -u +%Y-%m-%d)'</lastmod><priority>1.0</priority></url>' >> sitemap.xml
-          for file in articles/*.html; do
-            fname=$(basename "$file")
-            echo "<url><loc>https://oliverfr.com/articles/$fname</loc><lastmod>$(date -u +%Y-%m-%d)</lastmod><priority>0.8</priority></url>" >> sitemap.xml
+          find articles -name '*.html' | while read file; do
+            url="https://oliverfr.com/${file}"
+            echo "  <url><loc>${url}</loc></url>" >> sitemap.xml
           done
           echo '</urlset>' >> sitemap.xml
 
@@ -33,10 +33,11 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git pull origin main
           git add sitemap.xml
-          git commit -m "🤖 自动更新 sitemap.xml"
-          git push
+          git commit -m "自动更新 sitemap.xml" || echo "No changes"
+          git push origin main
 
-      - name: 📡 Ping Google to notify sitemap update
+      - name: Ping Google to notify sitemap update
         run: |
           curl "https://www.google.com/ping?sitemap=https://oliverfr.com/sitemap.xml"
