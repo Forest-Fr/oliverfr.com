@@ -1,24 +1,60 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>PoE vs Router | MeFan 技术博客</title>
-  <meta name="description" content="PoE vs Router" />
-  <meta name="keywords" content="PoE, 网络设备, MeFan" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://oliverfr.com/articles/poe-vs-router.html" />
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px auto; max-width: 700px; line-height: 1.6; }
-    h1 { font-size: 28px; margin-bottom: 20px; }
-    img { max-width: 100%; margin: 20px 0; }
-    .meta { color: #888; font-size: 14px; margin-bottom: 20px; }
-  </style>
+<meta charset="UTF-8" />
+<title>PoE vs Router | MeFan 技术博客</title>
+<meta name="description" content="PoE vs Router" />
+<meta name="keywords" content="PoE, 网络设备, MeFan" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://oliverfr.com/articles/poe-vs-router.html" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "PoE vs Router",
+  "author": {
+    "@type": "Person",
+    "name": "Oliver F."
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "MeFan Solutions"
+  },
+  "datePublished": "2025-04-17",
+  "dateModified": "2025-04-17",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://oliverfr.com/articles/poe-vs-router.html"
+  }
+}
+</script>
+<style>
+body{font-family:Arial, sans-serif;margin:40px auto;max-width:700px;line-height:1.6}
+h1{font-size:28px;margin-bottom:20px}
+.meta{color:#888;font-size:14px;margin-bottom:20px}
+img{max-width:100%;margin:20px 0}
+</style>
 </head>
 <body>
-  <h1>PoE vs Router</h1>
-  <div class="meta">发布日期：2025-04-16 ｜ 作者：Oliver F.</div>
-  <p>与普通路由器相比，POE路由器具有额外的POE功能，能够为连接到其端口的POE设备提供电力和数据传输。在企业网络中，POE路由器通常扮演着核心枢纽的角色，负责将各种智能设备连接到互联网，并为其提供稳定的网络连接和电力供应。</p>
+<h1>PoE vs Router</h1>
+<div class="meta">发布日期：2025-04-17 ｜ 作者：Oliver F.</div>
+<ol>
+<li><p>路由器可以给你的局域网自动分配IP，虚拟拨号，就像一个交通警察，指挥着你的电脑该往哪走，你自己不用操心那么多了。只是用来分配网络数据的。交换机。交换机用来共享一根网线，路由器用来共享一个IP。</p>
+</li>
+<li><p>路由器在网络层，路由器可以处理TCP/IP协议，交换机不可以，交换机在中继层。路由器根据IP地址寻址，交换机根据mac地址寻址。</p>
+</li>
+<li><p>路由器可以把一个IP分配给很多个主机使用，这些主机对外只表现出一个IP。交换机可以把很多主机连起来，这些主机对外各有各的IP。</p>
+</li>
+<li><p>路由器提供防火墙的服务，具有虚拟拨号上网功能，交换机不具备这些功能。</p>
+</li>
+<li><p>集线器、交换机都是做端口扩展的，就是扩大局域网(通常都是以太网)的接入点，也就是能让局域网可以连进来更多的电脑。路由器是用来做网间连接，也就是用来连接不同的网络。交换机构成局域网，路由器构成广域网。</p>
+</li>
+</ol>
+<p>另外，市场上的POE交换机和普通交换机有什么不一样呢？</p>
+<ol>
+<li>可靠性：POE交换机就是支持对网线供电的交换机，和普通交换机相比就是受电终端(比如AP、数字摄像头等)不用再进行电源布线，对整个网络而言可靠性更高。</li>
+</ol>
 
 </body>
 </html>
