@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     const slug = title.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
     const createdAt = new Date().toISOString().split('T')[0];
 
-    /* ⚠️ 这里把 </script> 写成 <\/script> 避免提前闭合外层脚本 */
+  
     const html=`<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
