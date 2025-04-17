@@ -1,43 +1,42 @@
-name: generate-sitemap
+name: Update Sitemap on Article Change
 
 on:
   push:
-    branches:
-      - main
+    paths:
+      - 'articles/**/*.html'
+      - '.github/workflows/update-sitemap.yml'
 
 jobs:
-  build:
+  generate-sitemap:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Generate sitemap.xml
         run: |
-          echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > sitemap.xml
-          echo "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" >> sitemap.xml
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > sitemap.xml
+          echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' >> sitemap.xml
+          echo '<url><loc>https://oliverfr.com/</loc><lastmod>'$(date -u +%Y-%m-%d)'</lastmod><priority>1.0</priority></url>' >> sitemap.xml
           for file in articles/*.html; do
-            if [ -f "$file" ]; then
-              fname=$(basename "$file")
-              echo "  <url><loc>https://oliverfr.com/articles/$fname</loc></url>" >> sitemap.xml
-            fi
+            fname=$(basename "$file")
+            echo "<url><loc>https://oliverfr.com/articles/$fname</loc><lastmod>$(date -u +%Y-%m-%d)</lastmod><priority>0.8</priority></url>" >> sitemap.xml
           done
-          echo "</urlset>" >> sitemap.xml
+          echo '</urlset>' >> sitemap.xml
 
       - name: Commit sitemap.xml
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add sitemap.xml
-          git commit -m "自动更新 sitemap.xml" || echo "No changes to commit"
+          git commit -m "🤖 自动更新 sitemap.xml"
           git push
 
-      - name: 🛰️ Ping Google to notify sitemap update
+      - name: 📡 Ping Google to notify sitemap update
         run: |
           curl "https://www.google.com/ping?sitemap=https://oliverfr.com/sitemap.xml"
