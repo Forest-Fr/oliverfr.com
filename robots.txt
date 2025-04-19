@@ -1,5 +1,6 @@
 User-agent: *
 Disallow: /https://oliverfr.com/admin-mefan-articles.html
+Disallow: /https://oliverfr.com/admin-mefan-articles-Supabase.html
 Disallow: /https://oliverfr.com/admin-mefan-fr-runs.html
 Allow: /
 
