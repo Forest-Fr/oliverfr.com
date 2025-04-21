@@ -93,7 +93,7 @@
   <!-- ========== C. 主脚本逻辑（保留所有功能与结构） ========== -->
   <script>
     /* 👉 主逻辑结构已统一整理，后续可按模块压缩或混淆 */
-    const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';
+    const WORKER_BASE = 'https://gpt.mefans.workers.dev/gpt';
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';  // 保留完整 key
     const ADMIN_EMAIL = 'oliveroogle@gmail.com';
     const client = supabase.createClient(WORKER_BASE, ANON_KEY);
@@ -282,7 +282,7 @@ ${marked.parse(content)}</body></html>`;
         if (!topic) return alert('请先输入一个主题标题后再点击生成');
 
         try {
-          const res = await fetch("https://oliverfr-articles-proxy.mefans.workers.dev/gpt", {
+          const res = await fetch("https://gpt.mefans.workers.dev/gpt", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ topic })
