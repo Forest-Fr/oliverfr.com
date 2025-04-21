@@ -233,7 +233,7 @@ img{max-width:100%;margin:20px 0}</style></head>
 <div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>
 ${marked.parse(content)}</body></html>`;
 
-        const res = await fetch('https://upload-articlejs.mefans.workers.dev/', {
+        const res = await fetch('https://gpt.mefans.workers.dev/gpt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug, html })
