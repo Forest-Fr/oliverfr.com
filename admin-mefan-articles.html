@@ -282,7 +282,7 @@ ${marked.parse(content)}</body></html>`;
         if (!topic) return alert('请先输入一个主题标题后再点击生成');
 
         try {
-          const res = await fetch("https://oliverfr-articles-proxy.mefans.workers.dev/gpt", {
+          const res = await fetch("https://gpt.mefans.workers.dev/gpt", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ topic })
