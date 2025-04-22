@@ -193,17 +193,26 @@ async function loadArticles(reset=false,kw=''){
 }
 
 /* -- AI 生成 ------------------------- */
-aiBtn.onclick=async()=>{
-  const topic=titleInp.value.trim();
-  if(!topic)return alert('请先输入标题');
-  try{
-    const r=await fetch('https://gpt.mefans.workers.dev/gpt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic})}).then(r=>r.json());
-    if(!r.success)throw new Error(r.message||'生成失败');
-    mdArea.value=r.content;
-    if(editor){await editor.blocks.clear();await editor.blocks.insert('paragraph',{text:r.content});}
-    alert('✅ AI 内容已生成');
-  }catch(e){alert('❌ GPT 生成失败：'+e.message);}
-};
+  aiBtn.onclick = async ()=>{
+      const topic = titleInp.value.trim();
+      if(!topic) return alert('请先输入标题');
+      try{
+        const j = await fetch('https://gpt.mefans.workers.dev/gpt', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ topic })
+        }).then(r=>r.json());
+        if(!j.success) throw new Error(j.detail||j.message||'生成失败');
+        mdArea.value = j.content;
+        if(editor){
+          await editor.blocks.clear();
+          await editor.blocks.insert('paragraph',{ text:j.content });
+        }
+        alert('✅ AI 内容已生成，请检查编辑区！');
+      }catch(e){
+        alert('❌ GPT 生成失败：'+e.message);
+      }
+    };
 
 /* -- 生成静态 HTML ------------------- */
 genBtn.onclick=async()=>{
