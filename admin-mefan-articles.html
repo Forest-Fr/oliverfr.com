@@ -1,4 +1,4 @@
-<!-- admin-mefan-articles.html  ── 2025‑04‑22  完整版 -->
+<!-- admin-mefan-articles.html ―― 2025‑04‑22 最终整合版 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -8,221 +8,171 @@
 <link rel="icon" href="MeFan-Logo.png" type="image/png" />
 
 <style>
-/* ===== 基础 ===== */
 body{font-family:Arial,Helvetica,sans-serif;background:#f8f8f8;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center}
 h1{font-size:24px;margin-bottom:10px}
-.btn{padding:8px 16px;background:#333;color:#fff;border:none;cursor:pointer;margin:5px}
+.btn{padding:8px 16px;background:#333;color:#fff;border:none;cursor:pointer;margin:5px;width:100%}
 .btn:hover{background:#555}
 .hidden{display:none}
 textarea,input[type="text"],input[type="file"]{width:100%;margin:5px 0}
-
-/* ===== 表格 ===== */
 table{width:100%;max-width:960px;border-collapse:collapse;margin-top:20px;background:#fff;table-layout:fixed}
 th,td{padding:10px;border:1px solid #ddd;text-align:left}
 th{background:#f0f0f0}
 td.author,td.content{word-break:break-all;overflow:hidden;text-overflow:ellipsis;max-width:340px}
-
-/* ===== 管理条 ===== */
 .admin-bar{display:flex;justify-content:space-between;align-items:center;max-width:960px;width:100%;margin-bottom:20px;flex-wrap:wrap}
 .admin-bar>input{flex:1;min-width:200px;margin:5px}
 .admin-bar>div{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:5px}
-
-/* ===== 预览弹窗 ===== */
 #previewModal{position:fixed;top:10%;left:50%;transform:translateX(-50%);background:#fff;padding:20px;border:1px solid #ccc;max-width:700px;width:90%;z-index:999;overflow-y:auto;max-height:80vh}
 #markdownContent{white-space:pre-wrap}
-
-/* ===== 移动端 ===== */
 @media(max-width:768px){
-  .admin-bar{flex-direction:column}
-  .btn,textarea{width:100%}
-  table,thead,tbody,th,td,tr{display:block}
-  thead{display:none}
-  tbody tr{margin-bottom:15px;padding:10px;border:1px solid #ddd;background:#fff}
-  tbody td{display:flex;justify-content:space-between;padding:8px 5px;border-bottom:1px solid #eee}
-  tbody td::before{content:attr(data-label);font-weight:bold;margin-right:10px}
+ .admin-bar{flex-direction:column}
+ .btn,textarea{width:100%}
+ table,thead,tbody,th,td,tr{display:block}
+ thead{display:none}
+ tbody tr{margin-bottom:15px;padding:10px;border:1px solid #ddd;background:#fff}
+ tbody td{display:flex;justify-content:space-between;padding:8px 5px;border-bottom:1px solid #eee}
+ tbody td::before{content:attr(data-label);font-weight:bold;margin-right:10px}
 }
 </style>
 
-<!-- ===== 依赖 ===== -->
+<!-- 依赖 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<!-- block 工具 (UMD) -->
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/paragraph@2.11.0/dist/bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.7.0/dist/bundle.js"></script>
 </head>
 <body>
 <h1>📰 文章后台管理</h1>
 
-<!-- ========== 登录区 ========== -->
-<div id="authArea">
-  <button id="loginBtn" class="btn">使用 GitHub 登录</button>
-</div>
+<div id="authArea"><button id="loginBtn" class="btn">使用 GitHub 登录</button></div>
 
-<!-- ========== 后台主区 ========== -->
 <div id="adminArea" class="hidden">
 
-  <!-- 搜索 / 登出 -->
   <div class="admin-bar">
     <input type="text" id="searchInput" placeholder="搜索标题关键词…">
     <div>
-      <button id="searchBtn" class="btn">🔍 搜索</button>
-      <button id="logoutBtn" class="btn">退出登录</button>
+      <button id="searchBtn" class="btn" style="width:auto">🔍 搜索</button>
+      <button id="logoutBtn" class="btn" style="width:auto">退出登录</button>
     </div>
   </div>
 
-  <!-- 编辑区 -->
   <h2>🆕 新增/编辑文章</h2>
   <input type="text" id="newTitle" placeholder="标题">
   <div style="display:flex;gap:10px;margin:5px 0">
-    <button id="toggleToEditor"   class="btn">📐 可视化模式</button>
-    <button id="toggleToTextarea" class="btn hidden">🖊 Markdown 模式</button>
+    <button id="toggleToEditor"   class="btn" style="width:auto">📐 可视化模式</button>
+    <button id="toggleToTextarea" class="btn hidden" style="width:auto">🖊 Markdown 模式</button>
   </div>
   <div id="editorContainer" class="hidden" style="border:1px solid #ccc;min-height:200px;padding:10px;background:#fff"></div>
   <textarea id="newContent" placeholder="支持 Markdown 格式的内容"></textarea>
   <input type="file" id="coverInput" accept="image/*">
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0">
-    <button id="submitBtn" class="btn">提交</button>
-    <button id="cancelEditBtn" class="btn hidden">取消编辑</button>
-    <button id="generateStaticHtmlBtn" class="btn">生成静态文章文件</button>
-    <button id="aiBtn" class="btn">AI 生成文章结构+SEO</button>
+  <div style="display:flex;flex-direction:column;gap:10px;margin:10px 0;width:100%;max-width:960px">
+    <button id="submitBtn"               class="btn">提交</button>
+    <button id="cancelEditBtn"           class="btn hidden">取消编辑</button>
+    <button id="generateStaticHtmlBtn"   class="btn">生成静态文章文件</button>
+    <button id="aiBtn"                   class="btn">AI 生成文章结构+SEO</button>
   </div>
 
-  <!-- 列表 -->
   <div style="overflow-x:auto;width:100%">
     <table id="articlesTable">
-      <thead>
-        <tr><th>标题</th><th>作者</th><th>内容</th><th>创建时间</th><th>更新时间</th><th>星期</th><th>封面</th><th>操作</th></tr>
-      </thead>
+      <thead><tr><th>标题</th><th>作者</th><th>内容</th><th>创建时间</th><th>更新时间</th><th>星期</th><th>封面</th><th>操作</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
 
-  <!-- 预览弹窗 -->
   <div id="previewModal" class="hidden">
-    <h3 id="previewTitle"></h3>
-    <img id="previewCover">
-    <div id="markdownContent"></div>
+    <h3 id="previewTitle"></h3><img id="previewCover"><div id="markdownContent"></div>
     <button class="btn" onclick="closePreview()">关闭</button>
   </div>
 </div>
 
-<!-- ========== 引导器：确保 EditorJS 先加载 ========== -->
+<!-- ========= 引导器确保 EditorJS 已就绪 ========= -->
 <script>
 (function loadEditorJS(run){
-  if(window.EditorJS){ run(); return; }
+  if(window.EditorJS){run();return;}
   const s=document.createElement('script');
   s.src='https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2';
-  s.onload=run; document.head.appendChild(s);
+  s.onload=run;document.head.appendChild(s);
 })(function main(){
 
-/* ====== 配置 ====== */
+/* -- 配置 / 工具 ----------------------- */
 const WORKER_BASE='https://oliverfr-articles-proxy.mefans.workers.dev';
 const ANON_KEY   ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
 const ADMIN_EMAIL='oliveroogle@gmail.com';
 const supa=supabase.createClient(WORKER_BASE,ANON_KEY);
 
-/* ====== 工具 ====== */
 const $=id=>document.getElementById(id);
 const toBJ=()=>new Date(Date.now()+288e5).toISOString().replace('Z','+08:00');
 const fmt=s=>new Date(s).toLocaleString('zh-CN',{hour12:false});
 const wk =s=>['日','一','二','三','四','五','六'][new Date(s).getDay()];
 const esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ====== DOM refs ====== */
+/* -- DOM refs -------------------------- */
 const btnE=$('toggleToEditor'), btnT=$('toggleToTextarea');
 const editorDiv=$('editorContainer'), mdArea=$('newContent'), titleInp=$('newTitle');
 const tbBody=document.querySelector('#articlesTable tbody');
-const aiBtn=$('aiBtn');
+const aiBtn=$('aiBtn'), genBtn=$('generateStaticHtmlBtn');
 let editor=null, editingId=null, page=1, limit=5, loading=false;
 
-/* ====== 可视化 / Markdown 切换 ====== */
+/* -- 可视化 / Markdown 切换 ------------ */
 btnE.onclick=async()=>{
   if(editor) await editor.destroy();
   editorDiv.classList.remove('hidden'); mdArea.classList.add('hidden');
   btnE.classList.add('hidden'); btnT.classList.remove('hidden');
-
   const tools={};
-  const P=window.ParagraphTool||window.Paragraph;
-  if(P) tools.paragraph={class:P,inlineToolbar:true};
-  const H=window.Header||window.HeaderTool;
-  if(H) tools.header   ={class:H,inlineToolbar:true};
-
+  const P=window.ParagraphTool||window.Paragraph; if(P) tools.paragraph={class:P,inlineToolbar:true};
+  const H=window.Header||window.HeaderTool;     if(H) tools.header   ={class:H,inlineToolbar:true};
   editor=new window.EditorJS({
-    holder:'editorContainer',
-    tools,
+    holder:'editorContainer',tools,
     data:{blocks:[{type:'paragraph',data:{text:mdArea.value.replace(/\n/g,'<br>')}}]}
   });
 };
 btnT.onclick=destroyEditor;
 async function destroyEditor(){
   if(!editor) return;
-  try{
-    const saved=await editor.save();
-    mdArea.value=saved.blocks.map(b=>b.data.text||'').join('\n\n');
-    await editor.destroy();
-  }catch(e){console.warn('destroyEditor',e);}
-  editor=null;
-  editorDiv.classList.add('hidden'); mdArea.classList.remove('hidden');
-  btnE.classList.remove('hidden'); btnT.classList.add('hidden');
+  try{const s=await editor.save();mdArea.value=s.blocks.map(b=>b.data.text||'').join('\n\n');await editor.destroy();}
+  catch(e){console.warn(e);}
+  editor=null;editorDiv.classList.add('hidden');mdArea.classList.remove('hidden');
+  btnE.classList.remove('hidden');btnT.classList.add('hidden');
 }
 
-/* ====== 登录流程 ====== */
+/* -- 登录 ------------------------------ */
 (async()=>{
   const {data:{session}}=await supa.auth.getSession();
   if(session?.user?.email===ADMIN_EMAIL){
-    $('authArea').classList.add('hidden');
-    $('adminArea').classList.remove('hidden');
+    $('authArea').classList.add('hidden');$('adminArea').classList.remove('hidden');
     loadArticles(true);
   }
 })();
 $('loginBtn').onclick =()=>supa.auth.signInWithOAuth({provider:'github',options:{redirectTo:location.href}});
 $('logoutBtn').onclick=async()=>{await supa.auth.signOut();location.reload();};
 
-/* ====== CRUD ====== */
+/* -- 提交 / 更新 ----------------------- */
 $('submitBtn').onclick=async()=>{
   const title=titleInp.value.trim();
-  const content=editor ? (await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim() : mdArea.value.trim();
+  const content=editor?(await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim():mdArea.value.trim();
   if(!title||!content) return alert('标题/内容不能为空');
-
   const row={title,content,updated_at:toBJ()};
   let err;
-  if(editingId){
-    ({error:err}=await supa.from('articles').update(row).eq('id',editingId));
-  }else{
-    row.created_at=row.updated_at;
-    ({error:err}=await supa.from('articles').insert([row]));
-  }
+  if(editingId){({error:err}=await supa.from('articles').update(row).eq('id',editingId));}
+  else {row.created_at=row.updated_at;({error:err}=await supa.from('articles').insert([row]));}
   if(err) return alert(err.message);
-  $('cancelEditBtn').click(); loadArticles(true);
+  $('cancelEditBtn').click();loadArticles(true);
 };
-
 $('cancelEditBtn').onclick=()=>{titleInp.value='';mdArea.value='';editingId=null;destroyEditor();$('cancelEditBtn').classList.add('hidden');};
 
-window.editArticle=r=>{
-  titleInp.value=r.title; mdArea.value=r.content; editingId=r.id; $('cancelEditBtn').classList.remove('hidden'); destroyEditor();
-  window.scrollTo(0,0);
-};
-window.deleteArticle=async id=>{
-  if(!confirm('确定删除？')) return;
-  const {error}=await supa.from('articles').delete().eq('id',id);
-  if(error) alert(error.message); else loadArticles(true);
-};
-window.previewArticle=r=>{
-  $('previewTitle').textContent=r.title; $('previewCover').src=r.cover_url||'';
-  $('markdownContent').innerHTML=marked.parse(r.content||''); $('previewModal').classList.remove('hidden');
-};
+/* -- 列表操作 ------------------------- */
+window.editArticle=r=>{titleInp.value=r.title;mdArea.value=r.content;editingId=r.id;$('cancelEditBtn').classList.remove('hidden');destroyEditor();window.scrollTo(0,0);};
+window.deleteArticle=async id=>{if(!confirm('确定删除？'))return;const{error}=await supa.from('articles').delete().eq('id',id);if(error)alert(error.message);else loadArticles(true);};
+window.previewArticle=r=>{$('previewTitle').textContent=r.title;$('previewCover').src=r.cover_url||'';$('markdownContent').innerHTML=marked.parse(r.content||'');$('previewModal').classList.remove('hidden');};
 window.closePreview=()=>$('previewModal').classList.add('hidden');
 
-/* ====== 列表加载 ====== */
+/* -- 列表加载 ------------------------- */
 $('searchBtn').onclick=()=>loadArticles(true,$('searchInput').value.trim());
-window.addEventListener('scroll',()=>{if(!loading && window.innerHeight+window.scrollY>document.body.offsetHeight-80) loadArticles();});
+window.addEventListener('scroll',()=>{if(!loading && window.innerHeight+window.scrollY>document.body.offsetHeight-80)loadArticles();});
 async function loadArticles(reset=false,kw=''){
-  if(loading) return; loading=true;
-  if(reset){tbBody.innerHTML='';page=1;}
+  if(loading)return;loading=true;if(reset){tbBody.innerHTML='';page=1;}
   let q=supa.from('articles').select('*').order('created_at',{ascending:false}).range((page-1)*limit,page*limit-1);
   if(kw) q=q.ilike('title','%'+kw+'%');
-  const {data=[],error}=await q;
-  if(error){alert(error.message);loading=false;return;}
+  const {data=[],error}=await q;if(error){alert(error.message);loading=false;return;}
   data.forEach(r=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -237,26 +187,48 @@ async function loadArticles(reset=false,kw=''){
         <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>预览</button>
         <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>编辑</button>
         <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
-      </td>`;
-    tbBody.appendChild(tr);
+      </td>`;tbBody.appendChild(tr);
   });
-  if(data.length===limit) page++;
-  loading=false;
+  if(data.length===limit)page++;loading=false;
 }
 
-/* ====== AI 生成 ====== */
+/* -- AI 生成 ------------------------- */
 aiBtn.onclick=async()=>{
   const topic=titleInp.value.trim();
-  if(!topic) return alert('请先输入标题');
+  if(!topic)return alert('请先输入标题');
   try{
-    const {success,content,message}=await fetch('https://gpt.mefans.workers.dev/gpt',{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic})
-    }).then(r=>r.json());
-    if(!success) throw new Error(message||'生成失败');
-    mdArea.value=content;
-    if(editor){await editor.blocks.clear();await editor.blocks.insert('paragraph',{text:content});}
+    const r=await fetch('https://gpt.mefans.workers.dev/gpt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic})}).then(r=>r.json());
+    if(!r.success)throw new Error(r.message||'生成失败');
+    mdArea.value=r.content;
+    if(editor){await editor.blocks.clear();await editor.blocks.insert('paragraph',{text:r.content});}
     alert('✅ AI 内容已生成');
   }catch(e){alert('❌ GPT 生成失败：'+e.message);}
+};
+
+/* -- 生成静态 HTML ------------------- */
+genBtn.onclick=async()=>{
+  const title=titleInp.value.trim();
+  const content=editor?(await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim():mdArea.value.trim();
+  if(!title||!content)return alert('请填写标题和内容');
+  const createdAt=toBJ().split('T')[0];
+  const slug=title.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
+  const html=[
+    '<!DOCTYPE html>',
+    '<html lang="zh-CN"><head><meta charset="UTF-8"/>',
+    `<title>${esc(title)} | MeFan 技术博客</title>`,
+    `<meta name="description" content="${esc(title)}"/>`,
+    `<link rel="canonical" href="https://oliverfr.com/articles/${slug}.html"/>`,
+    '<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6}</style>',
+    '</head><body>',
+    `<h1>${esc(title)}</h1>`,
+    `<div class="meta">发布日期：${createdAt} ｜ 作者：Oliver F.</div>`,
+    marked.parse(content),
+    '</body></html>'
+  ].join('\n');
+  try{
+    const j=await fetch(WORKER_BASE+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug,html})}).then(r=>r.json());
+    if(j.success)alert('✅ 已发布上线：'+j.url);else throw new Error(j.message||JSON.stringify(j));
+  }catch(e){alert('❌ 发布失败：'+e.message);}
 };
 
 }); /* main */
