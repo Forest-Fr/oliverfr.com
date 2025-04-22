@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -82,7 +83,13 @@
     const ADMIN_EMAIL = 'oliveroogle@gmail.com';
     const client = supabase.createClient(WORKER_BASE, ANON_KEY);
     let editor, currentEditId = null;
-
+   // 接下来就可以用 supa.auth.signInWithOAuth 等接口了
+    document.getElementById('loginBtn').onclick = () => {
+      supa.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: location.href }
+      });
+    };
     function getBeijingISOString() {
       const utcMs = Date.now();
       const bjMs = utcMs + 8 * 3600 * 1000;
