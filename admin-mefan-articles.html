@@ -32,11 +32,11 @@
     }
   </style>
 
-  <!-- 1. UMD 版 Supabase -->
+  <!-- Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <!-- 2. Markdown 解析 -->
+  <!-- Markdown 解析 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- 3. UMD 版 Editor.js + 插件 -->
+  <!-- Editor.js UMD + 插件 -->
   <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2/dist/editor.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@editorjs/paragraph@2.11.0/dist/bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.7.0/dist/bundle.js"></script>
@@ -65,7 +65,8 @@
       <button id="toggleToEditor" class="btn">📐 可视化模式</button>
       <button id="toggleToTextarea" class="btn hidden">🖊 Markdown 模式</button>
     </div>
-    <div id="editorContainer" class="hidden" style="border:1px solid #ccc;min-height:200px;padding:10px;background:#fff"></div>
+    <div id="editorContainer" class="hidden"
+         style="border:1px solid #ccc;min-height:200px;padding:10px;background:#fff"></div>
     <textarea id="newContent" placeholder="支持 Markdown 格式的内容"></textarea>
     <input type="file" id="coverInput" accept="image/*"/>
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;">
@@ -75,7 +76,7 @@
       <button id="aiBtn" class="btn">AI 生成文章结构+SEO</button>
     </div>
 
-    <!-- 列表 -->
+    <!-- 文章列表 -->
     <div style="overflow-x:auto; width:100%;">
       <table id="articlesTable">
         <thead>
@@ -106,12 +107,12 @@
     const supa = supabase.createClient(WORKER_BASE, ANON_KEY);
 
     // 工具函数
-    const esc = s => (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const toBJ = ()=> new Date(Date.now()+8*3600*1000).toISOString().replace('Z','+08:00');
-    const fmtTime = s=> new Date(s).toLocaleString('zh-CN',{hour12:false});
-    const wk = s=> ['日','一','二','三','四','五','六'][new Date(s).getDay()];
+    const esc     = s=> (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'" :'&#39;'}[c]));
+    const toBJ    = ()=> new Date(Date.now()+8*3600*1000).toISOString().replace('Z','+08:00');
+    const fmtTime = s => new Date(s).toLocaleString('zh-CN',{hour12:false});
+    const wk      = s => ['日','一','二','三','四','五','六'][new Date(s).getDay()];
 
-    // DOM
+    // DOM 引用
     const authArea  = document.getElementById('authArea');
     const adminArea = document.getElementById('adminArea');
     const loginBtn  = document.getElementById('loginBtn');
@@ -127,56 +128,55 @@
     const editorDiv = document.getElementById('editorContainer');
     const mdArea    = document.getElementById('newContent');
     const titleInp  = document.getElementById('newTitle');
-    let editor=null, editingId=null, page=1, limit=5, busy=false;
 
-    // 切换到可视化
+    let editor = null, editingId=null, page=1, limit=5, busy=false;
+
+    // —— 可视化 / Markdown 切换 —— 
     btnE.onclick = async ()=>{
       if(editor) await editor.destroy();
-      editorDiv.classList.remove('hidden'); mdArea.classList.add('hidden');
+      editorDiv.classList.remove('hidden');
+      mdArea.classList.add('hidden');
       btnE.classList.add('hidden'); btnT.classList.remove('hidden');
       editor = new EditorJS({
         holder: 'editorContainer',
-        tools: {
-          paragraph: { class: Paragraph, inlineToolbar: true },
-          header:    { class: Header,    inlineToolbar: true },
+        tools:{
+          paragraph:{class:Paragraph, inlineToolbar:true},
+          header:{class:Header, inlineToolbar:true}
         },
-        data: { blocks: [{ type:'paragraph', data:{ text: mdArea.value }}] }
+        data:{ blocks:[{type:'paragraph', data:{text:mdArea.value}}] }
       });
     };
-    // 切换回 Markdown
     btnT.onclick = async ()=>{
       if(!editor) return;
       const saved = await editor.save();
-      // 手动提取所有 blocks 的 text，最简单拼 Markdown
-      const md = saved.blocks
-        .map(b=>b.data.text||'')
-        .filter(t=>t.trim())
-        .join('\n\n');
-      mdArea.value = md;
-      await editor.destroy(); editor = null;
-      editorDiv.classList.add('hidden'); mdArea.classList.remove('hidden');
+      // 手动把所有 block.data.text 拼接成 Markdown
+      mdArea.value = saved.blocks.map(b=>b.data.text||'').join('\n\n');
+      await editor.destroy();
+      editor = null;
+      editorDiv.classList.add('hidden');
+      mdArea.classList.remove('hidden');
       btnE.classList.remove('hidden'); btnT.classList.add('hidden');
     };
-    btnE.click(); // 默认打开可视化
+    btnE.click(); // 默认启动可视化模式
 
-    // OAuth 状态检查
-    const { data:{ session }} = await supa.auth.getSession();
+    // —— 登录态检查 & 挂载 —— 
+    const { data:{session} } = await supa.auth.getSession();
     if(session?.user?.email===ADMIN_EMAIL){
       authArea.classList.add('hidden');
       adminArea.classList.remove('hidden');
       loadArticles();
     }
-    loginBtn.onclick  = ()=> supa.auth.signInWithOAuth({ provider:'github', options:{ redirectTo:location.href }});
-    logoutBtn.onclick = async ()=>{ await supa.auth.signOut(); location.reload(); };
+    loginBtn.onclick  = ()=> supa.auth.signInWithOAuth({provider:'github', options:{redirectTo:location.href}});
+    logoutBtn.onclick = async ()=>{ await supa.auth.signOut(); location.reload() };
 
-    // 提交或更新
+    // —— 提交 / 更新 —— 
     submitBtn.onclick = async ()=>{
-      const title = titleInp.value.trim();
+      const title   = titleInp.value.trim();
       const content = editor
         ? (await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim()
         : mdArea.value.trim();
       if(!title||!content) return alert('标题或内容不能为空');
-      const { data:{ session }} = await supa.auth.getSession();
+      const { data:{session} } = await supa.auth.getSession();
       if(!session) return alert('请先登录');
 
       // 上传封面
@@ -190,44 +190,44 @@
       }
 
       const now = toBJ();
-      const row = { title, content, author_email: session.user.email, updated_at: now, ...(coverUrl&&{cover_url:coverUrl}) };
+      const row = { title, content, author_email:session.user.email, updated_at:now, ...(coverUrl&&{cover_url:coverUrl}) };
       const res = editingId
-        ? await supa.from('articles').update(row).eq('id', editingId)
-        : await supa.from('articles').insert([{ ...row, created_at: now }]);
+        ? await supa.from('articles').update(row).eq('id',editingId)
+        : await supa.from('articles').insert([{...row,created_at:now}]);
       if(res.error) return alert('提交失败：'+res.error.message);
 
       cancelBtn.click();
       loadArticles(true);
     };
 
-    // 取消编辑
+    // —— 取消编辑 —— 
     cancelBtn.onclick = ()=>{
       titleInp.value = '';
-      mdArea.value = '';
+      mdArea.value   = '';
       document.getElementById('coverInput').value = '';
       editingId = null;
       cancelBtn.classList.add('hidden');
     };
 
-    // 删除
+    // —— 删除 —— 
     window.deleteArticle = async id=>{
       if(!confirm('确定删除？')) return;
-      const { error } = await supa.from('articles').delete().eq('id', id);
+      const { error } = await supa.from('articles').delete().eq('id',id);
       if(error) return alert('删除失败：'+error.message);
       loadArticles(true);
     };
 
-    // 编辑
+    // —— 编辑 —— 
     window.editArticle = row=>{
       titleInp.value = row.title;
-      mdArea.value = row.content;
+      mdArea.value   = row.content;
       editingId = row.id;
       cancelBtn.classList.remove('hidden');
       btnT.click();
       window.scrollTo(0,0);
     };
 
-    // 预览
+    // —— 预览 —— 
     window.previewArticle = row=>{
       document.getElementById('previewTitle').textContent = row.title;
       document.getElementById('previewCover').src = row.cover_url||'';
@@ -236,7 +236,7 @@
     };
     window.closePreview = ()=> document.getElementById('previewModal').classList.add('hidden');
 
-    // 搜索 & 滚动
+    // —— 搜索 & 滚动分页 —— 
     searchBtn.onclick = ()=> loadArticles(true, document.getElementById('searchInput').value.trim());
     window.addEventListener('scroll', ()=>{
       if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 50) {
@@ -244,52 +244,54 @@
       }
     });
 
-    // 加载文章列表
+    // —— 拉取文章列表 —— 
     async function loadArticles(reset=false, kw=''){
-      if(busy) return;
-      busy = true;
+      if(busy) return; busy = true;
       if(reset){
         tbBody.innerHTML = '';
         page = 1;
       }
-      let q = supa.from('articles').select('*').order('created_at',{ascending:false})
-                .range((page-1)*limit, page*limit-1);
+      let q = supa.from('articles').select('*')
+        .order('created_at',{ascending:false})
+        .range((page-1)*limit, page*limit-1);
       if(kw) q = q.ilike('title','%'+kw+'%');
       const { data, error } = await q;
-      if(error){ alert('加载失败：'+error.message); busy=false; return; }
+      if(error){ alert('加载失败：'+error.message); busy = false; return; }
       data.forEach(r=>{
         const tr = document.createElement('tr');
         const coverTd = r.cover_url
           ? `<td data-label="封面"><img src="${r.cover_url}" style="height:40px"></td>`
           : `<td data-label="封面"></td>`;
-        tr.innerHTML =
-          `<td data-label="标题">${esc(r.title)}</td>
-           <td data-label="作者">${esc(r.author_email)}</td>
-           <td data-label="内容">${esc((r.content||'').slice(0,60))}…</td>
-           <td data-label="创建时间">${fmtTime(r.created_at)}</td>
-           <td data-label="更新时间">${fmtTime(r.updated_at)}</td>
-           <td data-label="星期">星期${wk(r.created_at)}</td>
-           ${coverTd}
-           <td data-label="操作">
-             <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,"\\'")})'>预览</button>
-             <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,"\\'")})'>编辑</button>
-             <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
-           </td>`;
+        tr.innerHTML = `
+          <td data-label="标题">${esc(r.title)}</td>
+          <td data-label="作者">${esc(r.author_email)}</td>
+          <td data-label="内容">${esc((r.content||'').slice(0,60))}…</td>
+          <td data-label="创建时间">${fmtTime(r.created_at)}</td>
+          <td data-label="更新时间">${fmtTime(r.updated_at)}</td>
+          <td data-label="星期">星期${wk(r.created_at)}</td>
+          ${coverTd}
+          <td data-label="操作">
+            <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,"\\'")})'>预览</button>
+            <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,"\\'")})'>编辑</button>
+            <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
+          </td>`;
         tbBody.appendChild(tr);
       });
       busy = false;
       if(data.length === limit) page++;
     }
 
-    // 生成静态 HTML
+    // —— 生成静态 HTML —— 
     genBtn.onclick = async ()=>{
-      const title = titleInp.value.trim();
+      const title   = titleInp.value.trim();
       const content = editor
         ? (await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim()
         : mdArea.value.trim();
       if(!title||!content) return alert('请填写标题和内容');
       const createdAt = toBJ().split('T')[0];
-      const slug = title.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
+      const slug = title.toLowerCase()
+        .replace(/\s+/g,'-')
+        .replace(/[^\w\-]/g,'');
       const html = [
         '<!DOCTYPE html>',
         '<html lang="zh-CN"><head><meta charset="UTF-8"/>',
@@ -316,7 +318,7 @@
       }
     };
 
-    // AI 生成
+    // —— AI 生成 —— 
     aiBtn.onclick = async ()=>{
       const topic = titleInp.value.trim();
       if(!topic) return alert('请先输入标题');
