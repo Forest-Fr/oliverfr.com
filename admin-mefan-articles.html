@@ -100,6 +100,7 @@ const tbBody=document.querySelector('#articlesTable tbody');
 const aiBtn=$('aiBtn'),genBtn=$('generateStaticHtmlBtn');
 let editor=null,editingId=null,page=1,limit=5,loading=false;
 
+/* --- 编辑器切换逻辑 --- */
 btnE.onclick=async()=>{
   if(editor) await editor.destroy();
   editorDiv.classList.remove('hidden');mdArea.classList.add('hidden');
@@ -118,17 +119,23 @@ async function destroyEditor(){
   btnE.classList.remove('hidden');btnT.classList.add('hidden');
 }
 
+/* --- 登录逻辑 --- */
 (async()=>{
   const {data:{session}}=await supa.auth.getSession();
   if(session?.user?.email===ADMIN_EMAIL){$('authArea').classList.add('hidden');$('adminArea').classList.remove('hidden');loadArticles(true);}
 })();
 $('loginBtn').onclick=()=>supa.auth.signInWithOAuth({provider:'github',options:{redirectTo:location.href}});
 $('logoutBtn').onclick=async()=>{await supa.auth.signOut();location.reload();};
+
+/* --- 提交保存逻辑 --- */
 $('submitBtn').onclick=async()=>{
   const title=titleInp.value.trim(),content=editor?(await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim():mdArea.value.trim();
   if(!title||!content)return alert('标题/内容不能为空');
   const {data:{user}}=await supa.auth.getUser();
-  const row={title,content,author_email:user?.email||'',updated_at:toBJ()};
+  const row={title,content,
+    seo_description:seoDescInp.value.trim(),  // ✅ 保存 SEO 描述
+    keywords:keywordsInp.value.trim(),        // ✅ 保存 SEO 关键词
+    author_email:user?.email||'',updated_at:toBJ()};
   if(coverInput.files[0]){
     const file=coverInput.files[0];
     const {data,error}=await supa.storage.from('articles').upload(`covers/${Date.now()}_${file.name}`,file,{upsert:true});
@@ -141,11 +148,27 @@ $('submitBtn').onclick=async()=>{
   if(err)return alert(err.message);
   $('cancelEditBtn').click();loadArticles(true);
 };
+
+/* --- 取消编辑逻辑 --- */
 $('cancelEditBtn').onclick=()=>{titleInp.value='';mdArea.value='';seoDescInp.value='';keywordsInp.value='';editingId=null;destroyEditor();$('cancelEditBtn').classList.add('hidden');};
-window.editArticle=r=>{titleInp.value=r.title;mdArea.value=r.content;editingId=r.id;$('cancelEditBtn').classList.remove('hidden');destroyEditor();window.scrollTo(0,0);};
+
+/* --- 编辑文章时填充逻辑 --- */
+window.editArticle=r=>{
+  titleInp.value=r.title;mdArea.value=r.content;
+  seoDescInp.value=r.seo_description||'';  // ✅ 填充 SEO 描述
+  keywordsInp.value=r.keywords||'';        // ✅ 填充 SEO 关键词
+  editingId=r.id;$('cancelEditBtn').classList.remove('hidden');
+  destroyEditor();window.scrollTo(0,0);
+};
+
+/* --- 删除文章 --- */
 window.deleteArticle=async id=>{if(!confirm('确定删除？'))return;const{error}=await supa.from('articles').delete().eq('id',id);if(error)alert(error.message);else loadArticles(true);};
+
+/* --- 预览文章 --- */
 window.previewArticle=r=>{$('previewTitle').textContent=r.title;$('previewCover').src=r.cover_url||'';$('markdownContent').innerHTML=marked.parse(r.content||'');$('previewModal').classList.remove('hidden');};
 window.closePreview=()=>$('previewModal').classList.add('hidden');
+
+/* --- 加载文章列表 --- */
 $('searchBtn').onclick=()=>loadArticles(true,$('searchInput').value.trim());
 window.addEventListener('scroll',()=>{if(!loading&&window.innerHeight+window.scrollY>document.body.offsetHeight-80)loadArticles();});
 async function loadArticles(reset=false,kw=''){
@@ -156,6 +179,8 @@ async function loadArticles(reset=false,kw=''){
   data.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td data-label="标题">${esc(r.title)}</td><td class="author" data-label="作者">${esc(r.author_email||'')}</td><td class="content" data-label="内容">${esc((r.content||'').slice(0,60))}…</td><td data-label="创建时间">${fmt(r.created_at)}</td><td data-label="更新时间">${fmt(r.updated_at)}</td><td data-label="星期">星期${wk(r.created_at)}</td><td data-label="封面">${r.cover_url?`<img src="${r.cover_url}" style="height:40px">`:''}</td><td data-label="操作"><button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>预览</button><button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>编辑</button><button class="btn" onclick="deleteArticle('${r.id}')">删除</button></td>`;tbBody.appendChild(tr);});
   if(data.length===limit)page++;loading=false;
 }
+
+/* --- AI 生成文章结构+SEO --- */
 aiBtn.onclick=async()=>{
   const topic=titleInp.value.trim();
   if(!topic)return alert('请先输入标题');
@@ -167,6 +192,8 @@ aiBtn.onclick=async()=>{
     alert('✅ AI 内容已生成，请检查编辑区和 SEO 区域！');
   }catch(e){alert('❌ GPT 生成失败：'+e.message);}
 };
+
+/* --- 生成静态 HTML --- */
 genBtn.onclick=async()=>{
   const title=titleInp.value.trim(),content=editor?(await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim():mdArea.value.trim();
   if(!title||!content)return alert('请填写标题和内容');
@@ -180,6 +207,7 @@ genBtn.onclick=async()=>{
   }catch(e){alert('❌ 网络异常：'+e.message);}
 };
 });
+
 </script>
 </body>
 </html>
