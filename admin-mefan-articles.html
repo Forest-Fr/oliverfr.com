@@ -192,7 +192,7 @@ aiBtn.onclick = async () => {
     }).then(r => r.json());
     if (!j.success) throw new Error(j.detail || j.message || '生成失败');
 
-    const article = j.article || j.content || '';  // ✅ 自动兼容字段
+  const article = j.article_body || j.article || j.content || '';  // 兼容所有字段
     mdArea.value = article;                        // ✅ 填入正文
     seoDescInp.value = j.seo_description || '';    // ✅ 填入 SEO 描述
     keywordsInp.value = j.keywords || '';          // ✅ 填入 SEO 关键词
