@@ -68,7 +68,21 @@ td.author,td.content{word-break:break-all;overflow:hidden;text-overflow:ellipsis
   </div>
   <div style="overflow-x:auto;width:100%">
     <table id="articlesTable">
-      <thead><tr><th>标题</th><th>作者</th><th>内容</th><th>创建时间</th><th>更新时间</th><th>星期</th><th>封面</th><th>操作</th></tr></thead>
+    <thead>
+<tr>
+  <th>标题</th>
+  <th>作者</th>
+  <th>内容</th>
+  <th>SEO 描述</th>       <!-- ✅ 新增 -->
+  <th>SEO 关键词</th>     <!-- ✅ 新增 -->
+  <th>创建时间</th>
+  <th>更新时间</th>
+  <th>星期</th>
+  <th>封面</th>
+  <th>操作</th>
+</tr>
+</thead>
+
       <tbody></tbody>
     </table>
   </div>
@@ -176,7 +190,26 @@ async function loadArticles(reset=false,kw=''){
   let q=supa.from('articles').select('*').order('created_at',{ascending:false}).range((page-1)*limit,page*limit-1);
   if(kw)q=q.ilike('title','%'+kw+'%');
   const {data=[],error}=await q;if(error){alert(error.message);loading=false;return;}
-  data.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td data-label="标题">${esc(r.title)}</td><td class="author" data-label="作者">${esc(r.author_email||'')}</td><td class="content" data-label="内容">${esc((r.content||'').slice(0,60))}…</td><td data-label="创建时间">${fmt(r.created_at)}</td><td data-label="更新时间">${fmt(r.updated_at)}</td><td data-label="星期">星期${wk(r.created_at)}</td><td data-label="封面">${r.cover_url?`<img src="${r.cover_url}" style="height:40px">`:''}</td><td data-label="操作"><button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>预览</button><button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>编辑</button><button class="btn" onclick="deleteArticle('${r.id}')">删除</button></td>`;tbBody.appendChild(tr);});
+  data.forEach(r=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML=`
+    <td data-label="标题">${esc(r.title)}</td>
+    <td class="author" data-label="作者">${esc(r.author_email||'')}</td>
+    <td class="content" data-label="内容">${esc((r.content||'').slice(0,60))}…</td>
+    <td data-label="SEO 描述">${esc(r.seo_description||'')}</td>   <!-- ✅ 新增 -->
+    <td data-label="SEO 关键词">${esc(r.keywords||'')}</td>         <!-- ✅ 新增 -->
+    <td data-label="创建时间">${fmt(r.created_at)}</td>
+    <td data-label="更新时间">${fmt(r.updated_at)}</td>
+    <td data-label="星期">星期${wk(r.created_at)}</td>
+    <td data-label="封面">${r.cover_url?`<img src="${r.cover_url}" style="height:40px">`:''}</td>
+    <td data-label="操作">
+      <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>预览</button>
+      <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>编辑</button>
+      <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
+    </td>`;
+  tbBody.appendChild(tr);
+});
+
   if(data.length===limit)page++;loading=false;
 }
 
