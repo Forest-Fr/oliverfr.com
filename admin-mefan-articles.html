@@ -1,4 +1,4 @@
-<!-- admin-mefan-articles.html ―― 2025‑04‑26 SEO整合版 -->
+<!-- admin-mefan-articles.html ―― 2025-04-26 SEO 整合 & AI 回填修正版 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -40,8 +40,15 @@ td.author,td.content{word-break:break-all;overflow:hidden;text-overflow:ellipsis
 </head>
 <body>
 <h1>📰 文章后台管理</h1>
-<div id="authArea"><button id="loginBtn" class="btn">使用 GitHub 登录</button></div>
+
+<!-- 登录区 -->
+<div id="authArea">
+  <button id="loginBtn" class="btn">使用 GitHub 登录</button>
+</div>
+
+<!-- 管理区 -->
 <div id="adminArea" class="hidden">
+  <!-- 顶部搜索 / 退出 -->
   <div class="admin-bar">
     <input type="text" id="searchInput" placeholder="搜索标题关键词…">
     <div>
@@ -49,214 +56,340 @@ td.author,td.content{word-break:break-all;overflow:hidden;text-overflow:ellipsis
       <button id="logoutBtn" class="btn" style="width:auto">退出登录</button>
     </div>
   </div>
+
+  <!-- 新增 / 编辑 -->
   <h2>🆕 新增/编辑文章</h2>
   <input type="text" id="newTitle" placeholder="标题">
   <textarea id="seoDescriptionInput" placeholder="SEO 描述 (可选)"></textarea>
   <input type="text" id="keywordsInput" placeholder="SEO 关键词 (用逗号分隔, 可选)">
   <div style="display:flex;gap:10px;margin:5px 0">
-    <button id="toggleToEditor" class="btn" style="width:auto">📐 可视化模式</button>
+    <button id="toggleToEditor"  class="btn" style="width:auto">📐 可视化模式</button>
     <button id="toggleToTextarea" class="btn hidden" style="width:auto">🖊 Markdown 模式</button>
   </div>
   <div id="editorContainer" class="hidden" style="border:1px solid #ccc;min-height:200px;padding:10px;background:#fff"></div>
   <textarea id="newContent" placeholder="支持 Markdown 格式的内容"></textarea>
   <input type="file" id="coverInput" accept="image/*">
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0">
-    <button id="submitBtn" class="btn">提交</button>
-    <button id="cancelEditBtn" class="btn hidden">取消编辑</button>
+    <button id="submitBtn"         class="btn">提交</button>
+    <button id="cancelEditBtn"     class="btn hidden">取消编辑</button>
     <button id="generateStaticHtmlBtn" class="btn">生成静态文章文件</button>
-    <button id="aiBtn" class="btn">AI 生成文章结构+SEO</button>
+    <button id="aiBtn"             class="btn">AI 生成文章结构+SEO</button>
   </div>
+
+  <!-- 列表 -->
   <div style="overflow-x:auto;width:100%">
     <table id="articlesTable">
-    <thead>
-<tr>
-  <th>标题</th>
-  <th>作者</th>
-  <th>内容</th>
-  <th>SEO 描述</th>       <!-- ✅ 新增 -->
-  <th>SEO 关键词</th>     <!-- ✅ 新增 -->
-  <th>创建时间</th>
-  <th>更新时间</th>
-  <th>星期</th>
-  <th>封面</th>
-  <th>操作</th>
-</tr>
-</thead>
-
+      <thead>
+        <tr>
+          <th>标题</th>
+          <th>作者</th>
+          <th>内容</th>
+          <th>SEO 描述</th>
+          <th>SEO 关键词</th>
+          <th>创建时间</th>
+          <th>更新时间</th>
+          <th>星期</th>
+          <th>封面</th>
+          <th>操作</th>
+        </tr>
+      </thead>
       <tbody></tbody>
     </table>
   </div>
+
+  <!-- 预览弹窗 -->
   <div id="previewModal" class="hidden">
-    <h3 id="previewTitle"></h3><img id="previewCover"><div id="markdownContent"></div>
+    <h3 id="previewTitle"></h3>
+    <img id="previewCover">
+    <div id="markdownContent"></div>
     <button class="btn" onclick="closePreview()">关闭</button>
   </div>
 </div>
+
 <script>
+/* ============ 动态加载 Editor.js 主包 ============ */
 (function loadEditorJS(run){
-  if(window.EditorJS){run();return;}
+  if (window.EditorJS){ run(); return; }
   const s=document.createElement('script');
   s.src='https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2';
-  s.onload=run;document.head.appendChild(s);
+  s.onload=run;
+  document.head.appendChild(s);
 })(function main(){
-const WORKER_BASE='https://oliverfr-articles-proxy.mefans.workers.dev';
-const ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-const ADMIN_EMAIL='oliveroogle@gmail.com';
-const supa=supabase.createClient(WORKER_BASE,ANON_KEY);
-const $=id=>document.getElementById(id);
-const toBJ=()=>new Date(Date.now()+288e5).toISOString().replace('Z','+08:00');
-const fmt=s=>new Date(s).toLocaleString('zh-CN',{hour12:false});
-const wk=s=>['日','一','二','三','四','五','六'][new Date(s).getDay()];
-const esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const btnE=$('toggleToEditor'),btnT=$('toggleToTextarea');
-const editorDiv=$('editorContainer'),mdArea=$('newContent'),titleInp=$('newTitle');
-const seoDescInp=$('seoDescriptionInput'),keywordsInp=$('keywordsInput');
-const tbBody=document.querySelector('#articlesTable tbody');
-const aiBtn=$('aiBtn'),genBtn=$('generateStaticHtmlBtn');
-let editor=null,editingId=null,page=1,limit=5,loading=false;
 
-/* --- 编辑器切换逻辑 --- */
-btnE.onclick=async()=>{
-  if(editor) await editor.destroy();
-  editorDiv.classList.remove('hidden');mdArea.classList.add('hidden');
-  btnE.classList.add('hidden');btnT.classList.remove('hidden');
-  const tools={},P=window.ParagraphTool||window.Paragraph,H=window.Header||window.HeaderTool;
-  if(P) tools.paragraph={class:P,inlineToolbar:true};
-  if(H) tools.header={class:H,inlineToolbar:true};
-  editor=new window.EditorJS({holder:'editorContainer',tools,data:{blocks:[{type:'paragraph',data:{text:mdArea.value.replace(/\n/g,'<br>')}}]}});
+/* ----------- 基础配置 ----------- */
+const WORKER_BASE='https://oliverfr-articles-proxy.mefans.workers.dev';
+const ANON_KEY   ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+const ADMIN_EMAIL='oliveroogle@gmail.com';
+
+const supa = supabase.createClient(WORKER_BASE, ANON_KEY);
+const $     = id => document.getElementById(id);
+const toBJ  = () => new Date(Date.now()+288e5).toISOString().replace('Z','+08:00');
+const fmt   = s => new Date(s).toLocaleString('zh-CN',{hour12:false});
+const wk    = s => ['日','一','二','三','四','五','六'][new Date(s).getDay()];
+const esc   = s => (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ----------- DOM 缓存 ----------- */
+const btnE = $('toggleToEditor'),
+      btnT = $('toggleToTextarea'),
+      editorDiv = $('editorContainer'),
+      mdArea  = $('newContent'),
+      titleInp = $('newTitle'),
+      seoDescInp = $('seoDescriptionInput'),
+      keywordsInp= $('keywordsInput'),
+      tbBody = document.querySelector('#articlesTable tbody'),
+      aiBtn  = $('aiBtn'),
+      genBtn = $('generateStaticHtmlBtn');
+
+let editor=null, editingId=null, page=1, limit=5, loading=false;
+
+/* === 编辑器切换 === */
+btnE.onclick = async () => {
+  if (editor) await editor.destroy();
+  editorDiv.classList.remove('hidden');
+  mdArea.classList.add('hidden');
+  btnE.classList.add('hidden');
+  btnT.classList.remove('hidden');
+
+  const tools={}, P=window.ParagraphTool||window.Paragraph, H=window.Header||window.HeaderTool;
+  if (P) tools.paragraph={class:P,inlineToolbar:true};
+  if (H) tools.header   ={class:H,inlineToolbar:true};
+
+  editor = new window.EditorJS({
+    holder:'editorContainer',
+    tools,
+    data:{blocks:[{type:'paragraph',data:{text:mdArea.value.replace(/\n/g,'<br>')}}]}
+  });
 };
-btnT.onclick=destroyEditor;
+
+btnT.onclick = destroyEditor;
+
 async function destroyEditor(){
   if(!editor) return;
-  try{const s=await editor.save();mdArea.value=s.blocks.map(b=>b.data.text||'').join('\n\n');await editor.destroy();}
-  catch(e){console.warn(e);}
-  editor=null;editorDiv.classList.add('hidden');mdArea.classList.remove('hidden');
-  btnE.classList.remove('hidden');btnT.classList.add('hidden');
+  try{
+    const s=await editor.save();
+    mdArea.value = s.blocks.map(b=>b.data.text||'').join('\n\n');
+    await editor.destroy();
+  }catch(e){ console.warn(e); }
+  editor=null;
+  editorDiv.classList.add('hidden');
+  mdArea.classList.remove('hidden');
+  btnE.classList.remove('hidden');
+  btnT.classList.add('hidden');
 }
 
-/* --- 登录逻辑 --- */
+/* === 登录逻辑 === */
 (async()=>{
-  const {data:{session}}=await supa.auth.getSession();
-  if(session?.user?.email===ADMIN_EMAIL){$('authArea').classList.add('hidden');$('adminArea').classList.remove('hidden');loadArticles(true);}
-})();
-$('loginBtn').onclick=()=>supa.auth.signInWithOAuth({provider:'github',options:{redirectTo:location.href}});
-$('logoutBtn').onclick=async()=>{await supa.auth.signOut();location.reload();};
-
-/* --- 提交保存逻辑 --- */
-$('submitBtn').onclick=async()=>{
-  const title=titleInp.value.trim(),content=editor?(await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim():mdArea.value.trim();
-  if(!title||!content)return alert('标题/内容不能为空');
-  const {data:{user}}=await supa.auth.getUser();
-  const row={title,content,
-    seo_description:seoDescInp.value.trim(),  // ✅ 保存 SEO 描述
-    keywords:keywordsInp.value.trim(),        // ✅ 保存 SEO 关键词
-    author_email:user?.email||'',updated_at:toBJ()};
-  if(coverInput.files[0]){
-    const file=coverInput.files[0];
-    const {data,error}=await supa.storage.from('articles').upload(`covers/${Date.now()}_${file.name}`,file,{upsert:true});
-    if(error)return alert("封面上传失败: "+error.message);
-    row.cover_url=supa.storage.from('articles').getPublicUrl(data.path).data.publicUrl;
+  const {data:{session}} = await supa.auth.getSession();
+  if (session?.user?.email === ADMIN_EMAIL){
+    $('authArea').classList.add('hidden');
+    $('adminArea').classList.remove('hidden');
+    loadArticles(true);
   }
+})();
+
+$('loginBtn').onclick  = () => supa.auth.signInWithOAuth({provider:'github',options:{redirectTo:location.href}});
+$('logoutBtn').onclick = async () => { await supa.auth.signOut(); location.reload(); };
+
+/* === 提交保存 === */
+$('submitBtn').onclick = async () => {
+  const title   = titleInp.value.trim();
+  const content = editor
+      ? (await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim()
+      : mdArea.value.trim();
+  if (!title || !content) return alert('标题/内容不能为空');
+
+  const {data:{user}} = await supa.auth.getUser();
+  const row = {
+    title, content,
+    seo_description: seoDescInp.value.trim(),
+    keywords:        keywordsInp.value.trim(),
+    author_email:    user?.email || '',
+    updated_at:      toBJ()
+  };
+
+  if (coverInput.files[0]){
+    const file = coverInput.files[0];
+    const {data,error}=await supa.storage.from('articles').upload(`covers/${Date.now()}_${file.name}`,file,{upsert:true});
+    if(error) return alert("封面上传失败: "+error.message);
+    row.cover_url = supa.storage.from('articles').getPublicUrl(data.path).data.publicUrl;
+  }
+
   let err;
-  if(editingId){({error:err}=await supa.from('articles').update(row).eq('id',editingId));}
-  else{row.created_at=row.updated_at;({error:err}=await supa.from('articles').insert([row]));}
-  if(err)return alert(err.message);
-  $('cancelEditBtn').click();loadArticles(true);
+  if (editingId)
+        ({error:err} = await supa.from('articles').update(row).eq('id',editingId));
+  else {
+        row.created_at = row.updated_at;
+        ({error:err} = await supa.from('articles').insert([row]));
+  }
+  if (err) return alert(err.message);
+
+  $('cancelEditBtn').click();
+  loadArticles(true);
 };
 
-/* --- 取消编辑逻辑 --- */
-$('cancelEditBtn').onclick=()=>{titleInp.value='';mdArea.value='';seoDescInp.value='';keywordsInp.value='';editingId=null;destroyEditor();$('cancelEditBtn').classList.add('hidden');};
-
-/* --- 编辑文章时填充逻辑 --- */
-window.editArticle=r=>{
-  titleInp.value=r.title;mdArea.value=r.content;
-  seoDescInp.value=r.seo_description||'';  // ✅ 填充 SEO 描述
-  keywordsInp.value=r.keywords||'';        // ✅ 填充 SEO 关键词
-  editingId=r.id;$('cancelEditBtn').classList.remove('hidden');
-  destroyEditor();window.scrollTo(0,0);
+/* === 取消编辑 === */
+$('cancelEditBtn').onclick = () => {
+  titleInp.value = '';
+  mdArea.value   = '';
+  seoDescInp.value = '';
+  keywordsInp.value = '';
+  editingId=null;
+  destroyEditor();
+  $('cancelEditBtn').classList.add('hidden');
 };
 
-/* --- 删除文章 --- */
-window.deleteArticle=async id=>{if(!confirm('确定删除？'))return;const{error}=await supa.from('articles').delete().eq('id',id);if(error)alert(error.message);else loadArticles(true);};
+/* === 编辑文章时填充表单 === */
+window.editArticle = r => {
+  titleInp.value   = r.title;
+  mdArea.value     = r.content;
+  seoDescInp.value = r.seo_description || '';
+  keywordsInp.value= r.keywords || '';
+  editingId = r.id;
+  $('cancelEditBtn').classList.remove('hidden');
+  destroyEditor();
+  window.scrollTo(0,0);
+};
 
-/* --- 预览文章 --- */
-window.previewArticle=r=>{$('previewTitle').textContent=r.title;$('previewCover').src=r.cover_url||'';$('markdownContent').innerHTML=marked.parse(r.content||'');$('previewModal').classList.remove('hidden');};
-window.closePreview=()=>$('previewModal').classList.add('hidden');
+/* === 删除 === */
+window.deleteArticle = async id => {
+  if(!confirm('确定删除？')) return;
+  const {error} = await supa.from('articles').delete().eq('id',id);
+  if (error) alert(error.message);
+  else loadArticles(true);
+};
 
-/* --- 加载文章列表 --- */
-$('searchBtn').onclick=()=>loadArticles(true,$('searchInput').value.trim());
-window.addEventListener('scroll',()=>{if(!loading&&window.innerHeight+window.scrollY>document.body.offsetHeight-80)loadArticles();});
-async function loadArticles(reset=false,kw=''){
-  if(loading)return;loading=true;if(reset){tbBody.innerHTML='';page=1;}
-  let q=supa.from('articles').select('*').order('created_at',{ascending:false}).range((page-1)*limit,page*limit-1);
-  if(kw)q=q.ilike('title','%'+kw+'%');
-  const {data=[],error}=await q;if(error){alert(error.message);loading=false;return;}
-  data.forEach(r=>{
-  const tr=document.createElement('tr');
-  tr.innerHTML=`
-    <td data-label="标题">${esc(r.title)}</td>
-    <td class="author" data-label="作者">${esc(r.author_email||'')}</td>
-    <td class="content" data-label="内容">${esc((r.content||'').slice(0,60))}…</td>
-    <td data-label="SEO 描述">${esc(r.seo_description||'')}</td>   <!-- ✅ 新增 -->
-    <td data-label="SEO 关键词">${esc(r.keywords||'')}</td>         <!-- ✅ 新增 -->
-    <td data-label="创建时间">${fmt(r.created_at)}</td>
-    <td data-label="更新时间">${fmt(r.updated_at)}</td>
-    <td data-label="星期">星期${wk(r.created_at)}</td>
-    <td data-label="封面">${r.cover_url?`<img src="${r.cover_url}" style="height:40px">`:''}</td>
-    <td data-label="操作">
-      <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>预览</button>
-      <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>编辑</button>
-      <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
-    </td>`;
-  tbBody.appendChild(tr);
+/* === 预览 === */
+window.previewArticle = r => {
+  $('previewTitle').textContent=r.title;
+  $('previewCover').src=r.cover_url||'';
+  $('markdownContent').innerHTML=marked.parse(r.content||'');
+  $('previewModal').classList.remove('hidden');
+};
+window.closePreview = () => $('previewModal').classList.add('hidden');
+
+/* === 列表加载 & 无限滚动 === */
+$('searchBtn').onclick = () => loadArticles(true, $('searchInput').value.trim());
+window.addEventListener('scroll',()=>{
+  if(!loading && window.innerHeight + window.scrollY > document.body.offsetHeight - 80)
+    loadArticles();
 });
 
-  if(data.length===limit)page++;loading=false;
+async function loadArticles(reset=false, kw=''){
+  if(loading) return;
+  loading=true;
+  if(reset){ tbBody.innerHTML=''; page=1; }
+
+  let q = supa.from('articles')
+             .select('*')
+             .order('created_at',{ascending:false})
+             .range((page-1)*limit, page*limit-1);
+  if (kw) q = q.ilike('title','%'+kw+'%');
+
+  const {data=[],error} = await q;
+  if(error){ alert(error.message); loading=false; return; }
+
+  data.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td data-label="标题">${esc(r.title)}</td>
+      <td class="author" data-label="作者">${esc(r.author_email||'')}</td>
+      <td class="content" data-label="内容">${esc((r.content||'').slice(0,60))}…</td>
+      <td data-label="SEO 描述">${esc(r.seo_description||'')}</td>
+      <td data-label="SEO 关键词">${esc(r.keywords||'')}</td>
+      <td data-label="创建时间">${fmt(r.created_at)}</td>
+      <td data-label="更新时间">${fmt(r.updated_at)}</td>
+      <td data-label="星期">星期${wk(r.created_at)}</td>
+      <td data-label="封面">${r.cover_url?`<img src="${r.cover_url}" style="height:40px">`:''}</td>
+      <td data-label="操作">
+        <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>预览</button>
+        <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,'&#39;')})'>编辑</button>
+        <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
+      </td>`;
+    tbBody.appendChild(tr);
+  });
+
+  if (data.length === limit) page++;
+  loading=false;
 }
 
-/* --- AI 生成文章结构+SEO --- */
+/* === AI 生成文章 + SEO === */
 aiBtn.onclick = async () => {
   const topic = titleInp.value.trim();
   if (!topic) return alert('请先输入标题');
-  try {
-    const j = await fetch('https://gpt.mefans.workers.dev/gpt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic })
-    }).then(r => r.json());
-    if (!j.success) throw new Error(j.detail || j.message || '生成失败');
 
-  const article = j.article_body || j.article || j.content || '';  // 兼容所有字段
-    mdArea.value = article;                        // ✅ 填入正文
-    seoDescInp.value = j.seo_description || '';    // ✅ 填入 SEO 描述
-    keywordsInp.value = j.keywords || '';          // ✅ 填入 SEO 关键词
+  try{
+    const j = await fetch('https://gpt.mefans.workers.dev/gpt',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({topic})
+    }).then(r=>r.json());
 
-    if (editor) {
+    /* —— 解析多形态返回 —— */
+    let article   = j.article_body   || j.article || j.content || '';
+    let seoDesc   = j.seo_description || '';
+    let kws       = j.keywords || '';
+
+    /* 兜底：GPT 直接把 JSON 当字符串塞回 */
+    if(!article && typeof j === 'string'){
+      try{
+        const inner = JSON.parse(j);
+        article = inner.article_body || inner.article || inner.content || '';
+        seoDesc = inner.seo_description || '';
+        kws     = inner.keywords || '';
+      }catch(_){}
+    }
+
+    /* 写回三个框 */
+    mdArea.value       = article;
+    seoDescInp.value   = seoDesc;
+    keywordsInp.value  = kws;
+
+    /* 同步可视化编辑器内容 */
+    if(editor){
       await editor.blocks.clear();
-      await editor.blocks.insert('paragraph', { text: article });
+      await editor.blocks.insert('paragraph',{text:article.replace(/\n/g,'<br>')});
     }
 
     alert('✅ AI 内容已生成，请检查编辑区和 SEO 区域！');
-  } catch (e) {
-    alert('❌ GPT 生成失败：' + e.message);
+  }catch(e){
+    alert('❌ GPT 生成失败：'+ e.message);
   }
 };
 
+/* === 生成静态 HTML & 上传 GitHub === */
+genBtn.onclick = async () => {
+  const title = titleInp.value.trim();
+  const content = editor
+        ? (await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim()
+        : mdArea.value.trim();
+  if(!title || !content) return alert('请填写标题和内容');
 
-/* --- 生成静态 HTML --- */
-genBtn.onclick=async()=>{
-  const title=titleInp.value.trim(),content=editor?(await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim():mdArea.value.trim();
-  if(!title||!content)return alert('请填写标题和内容');
-  const seoDesc=seoDescInp.value.trim()||title,keywords=keywordsInp.value.trim()||'MeFan, Bluetooth headphones, wireless audio';
-  const createdAt=toBJ().split('T')[0],slug=title.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
-  const coverUrl=`https://oliverfr.com/covers/${slug}-cover.jpg`,ogImageUrl=`https://oliverfr.com/og-images/${slug}-og.jpg`,logoUrl=`https://oliverfr.com/assets/logo.png`;
-  const html=`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8" /><title>${esc(title)} | MeFan 技术博客</title><meta name="description" content="${esc(seoDesc)}" /><meta name="keywords" content="${esc(keywords)}" /><meta name="viewport" content="width=device-width,initial-scale=1.0" /><meta name="robots" content="index, follow" /><link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" /><meta property="og:type" content="article" /><meta property="og:title" content="${esc(title)}" /><meta property="og:description" content="${esc(seoDesc)}" /><meta property="og:image" content="${ogImageUrl}" /><meta property="og:url" content="https://oliverfr.com/articles/${slug}.html" /><meta property="og:site_name" content="MeFan Tech" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content="${esc(title)}" /><meta name="twitter:description" content="${esc(seoDesc)}" /><meta name="twitter:image" content="${ogImageUrl}" /><script type="application/ld+json">${JSON.stringify({"@context":"https://schema.org","@type":"Article","headline":title,"description":seoDesc,"image":coverUrl,"author":{"@type":"Person","name":"Oliver F."},"publisher":{"@type":"Organization","name":"MeFan Solutions","logo":{"@type":"ImageObject","url":logoUrl}},"datePublished":createdAt,"dateModified":createdAt,"mainEntityOfPage":{"@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html`}},null,2)}<\/script><style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6}h1{font-size:28px;margin-bottom:20px}.meta{color:#888;font-size:14px;margin-bottom:20px}img{max-width:100%;margin:20px 0}.logo{display:block;margin:0 auto 20px;height:60px}</style></head><body><img src="${logoUrl}" alt="MeFan Logo" class="logo" /><h1>${esc(title)}</h1><div class="meta">release date：${createdAt} ｜ Author：Oliver F.</div><img src="${coverUrl}" alt="${esc(title)} 封面图" />${marked.parse(content)}</body></html>`;
+  const seoDesc = seoDescInp.value.trim() || title;
+  const keywords= keywordsInp.value.trim() || 'MeFan, Bluetooth headphones, wireless audio';
+
+  const createdAt  = toBJ().split('T')[0];
+  const slug = title.toLowerCase().replace(/\s+/g,'-').replace(/[^\w\-]/g,'');
+  const coverUrl   = `https://oliverfr.com/covers/${slug}-cover.jpg`;
+  const ogImageUrl = `https://oliverfr.com/og-images/${slug}-og.jpg`;
+  const logoUrl    = `https://oliverfr.com/assets/logo.png`;
+
+  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8" /><title>${esc(title)} | MeFan 技术博客</title><meta name="description" content="${esc(seoDesc)}" /><meta name="keywords" content="${esc(keywords)}" /><meta name="viewport" content="width=device-width,initial-scale=1.0" /><meta name="robots" content="index, follow" /><link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" /><meta property="og:type" content="article" /><meta property="og:title" content="${esc(title)}" /><meta property="og:description" content="${esc(seoDesc)}" /><meta property="og:image" content="${ogImageUrl}" /><meta property="og:url" content="https://oliverfr.com/articles/${slug}.html" /><meta property="og:site_name" content="MeFan Tech" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content="${esc(title)}" /><meta name="twitter:description" content="${esc(seoDesc)}" /><meta name="twitter:image" content="${ogImageUrl}" /><script type="application/ld+json">${JSON.stringify({"@context":"https://schema.org","@type":"Article","headline":title,"description":seoDesc,"image":coverUrl,"author":{"@type":"Person","name":"Oliver F."},"publisher":{"@type":"Organization","name":"MeFan Solutions","logo":{"@type":"ImageObject","url":logoUrl}},"datePublished":createdAt,"dateModified":createdAt,"mainEntityOfPage":{"@type":"WebPage","@id":`https://oliverfr.com/articles/${slug}.html`}},null,2)}<\/script><style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6}h1{font-size:28px;margin-bottom:20px}.meta{color:#888;font-size:14px;margin-bottom:20px}img{max-width:100%;margin:20px 0}.logo{display:block;margin:0 auto 20px;height:60px}</style></head><body><img src="${logoUrl}" alt="MeFan Logo" class="logo" /><h1>${esc(title)}</h1><div class="meta">release date：${createdAt} ｜ Author：Oliver F.</div><img src="${coverUrl}" alt="${esc(title)} 封面图" />${marked.parse(content)}</body></html>`;
+
   try{
-    const res=await fetch('https://upload-articlejs.mefans.workers.dev/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug,html})}).then(r=>r.json());
-    res.success?alert('✅ 已发布上线：'+res.url):alert('❌ 发布失败：'+(res.message||JSON.stringify(res)));
-  }catch(e){alert('❌ 网络异常：'+e.message);}
-};
-});
+    const res = await fetch('https://upload-articlejs.mefans.workers.dev/',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({slug,html})
+    }).then(r=>r.json());
 
+    if (res.success) alert('✅ 已发布上线：'+res.url);
+    else alert('❌ 发布失败：'+(res.message||JSON.stringify(res)));
+  }catch(e){
+    alert('❌ 网络异常：'+ e.message);
+  }
+};
+
+}); /* end main */
 </script>
 </body>
 </html>
