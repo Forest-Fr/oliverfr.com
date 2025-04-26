@@ -187,7 +187,7 @@ aiBtn.onclick=async()=>{
   try{
     const j=await fetch('https://gpt.mefans.workers.dev/gpt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic})}).then(r=>r.json());
     if(!j.success)throw new Error(j.detail||j.message||'生成失败');
-    mdArea.value=j.content;seoDescInp.value=j.seo_description||'';keywordsInp.value=j.keywords||'';
+    mdArea.value=j.article;seoDescInp.value=j.seo_description||'';keywordsInp.value=j.keywords||'';
     if(editor){await editor.blocks.clear();await editor.blocks.insert('paragraph',{text:j.content});}
     alert('✅ AI 内容已生成，请检查编辑区和 SEO 区域！');
   }catch(e){alert('❌ GPT 生成失败：'+e.message);}
