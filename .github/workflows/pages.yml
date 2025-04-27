@@ -1,38 +1,21 @@
-name: GitHub Pages Build and Deploy
+name: Deploy static content to GitHub Pages
 
 on:
   push:
-    branches:
-      - main  # 只在 main 分支触发
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      # 如果有构建过程（比如 Hugo, Jekyll, Next.js），可以加这里
-      # 但如果纯静态 HTML/CSS，可以跳过 build，直接 deploy
-
-      - name: Upload pages artifact
-        uses: actions/upload-pages-artifact@v2
-        with:
-          path: .  # 你的网站根目录
-
   deploy:
     runs-on: ubuntu-latest
-    needs: build  # 依赖 build 任务完成
-
-    permissions:
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v2
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v3
+      - uses: actions/upload-pages-artifact@v2
+        with:
+          path: .  # 你的网站根目录
+      - uses: actions/deploy-pages@v2
