@@ -11,17 +11,170 @@
     h1 { font-size: 32px; }
     h2 { font-size: 20px; color: #555; }
     ul { line-height: 1.8; padding-left: 20px; }
-    .btn { padding: 12px 24px; margin: 5px; display: inline-block; text-decoration: none; border-radius: 4px; cursor: pointer; }
+    .btn {
+      padding: 12px 24px;
+      margin: 5px;
+      display: inline-block;
+      text-decoration: none;
+      border-radius: 4px;
+      cursor: pointer;
+      border: none;       /* 去掉默认边框 */
+      font-size: 1em;
+    }
     .primary { background: #222; color: #fff; }
     .secondary { background: #eee; color: #000; }
     .dark { background: #444; color: #fff; }
     .lang-switch { position: fixed; top: 20px; right: 20px; }
     #loading { display: none; font-size: 18px; text-align: center; margin-top: 50px; }
-    section { margin-bottom: 100px; }
+    #features-section, #demos-section, #contact-section {
+      scroll-margin-top: 80px;
+      margin-bottom: 80px;
+    }
   </style>
+  <!-- 延迟加载 Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js" defer></script>
+  <!-- 延迟执行所有初始化逻辑 -->
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      // —— 配置 & 变量 —— 
+      const supabaseUrl = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co';
+      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5dHh5bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+      let supabaseClient = null;
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+      }
+      let currentLang = 'en';
+      const loadingEl = document.getElementById('loading');
+
+      const fallbackData = {
+        en: {
+          title: "Build Your Own Global E-commerce Website — SEO-Ready from Day One",
+          subtitle: "Static + lightweight backend architecture built for speed, discoverability, and full control.",
+          features: [
+            { title: "Fast Deployment", desc: "Host on Cloudflare Pages or GitHub — no server required." },
+            { title: "SEO Built-in", desc: "Auto-generate sitemap, meta, JSON-LD to boost indexing." },
+            { title: "AI-Powered", desc: "AI generates descriptions, keywords, even full pages." },
+            { title: "Multilingual", desc: "Serve global buyers with localized content." },
+            { title: "Own Your Data", desc: "Keep full control over your leads and customer info." }
+          ],
+          cta: "Take Control of Your Global Storefront"
+        },
+        zh: {
+          title: "打造全球买家的独立站 — 天生适配 SEO",
+          subtitle: "静态+轻后端架构，速度快，易收录，品牌自主，专为跨境卖家设计。",
+          features: [
+            { title: "极速上线", desc: "托管于 Cloudflare Pages 或 GitHub，免服务器，全球加速。" },
+            { title: "内建 SEO", desc: "自动生成 sitemap、meta、JSON-LD，加快 Google 收录。" },
+            { title: "AI 内容生成", desc: "AI 一键生成产品描述、关键词、摘要。" },
+            { title: "多语言支持", desc: "轻松切换，适配海外市场，提升转化率。" },
+            { title: "客户数据自有", desc: "客户资料自己掌握，隐私合规，品牌独立。" }
+          ],
+          cta: "立即打造你的全球销售阵地"
+        }
+      };
+
+      // —— 内容渲染 —— 
+      async function fetchContent(lang) {
+        loadingEl.style.display = 'block';
+        try {
+          let data = [];
+          if (supabaseClient) {
+            const resp = await supabaseClient
+              .from('landing_content')
+              .select('*')
+              .eq('lang', lang)
+              .order('created_at', { ascending: true });
+            if (!resp.error && resp.data.length) {
+              data = resp.data;
+            }
+          }
+          const content = data.length ? formatData(data) : fallbackData[lang];
+          renderContent(content);
+        } catch (err) {
+          renderContent(fallbackData[lang]);
+        } finally {
+          loadingEl.style.display = 'none';
+        }
+      }
+
+      function formatData(items) {
+        return {
+          title: items.find(i => i.type==='title')?.title || '',
+          subtitle: items.find(i => i.type==='subtitle')?.description || '',
+          features: items.filter(i => i.type==='feature')
+                         .map(f => ({ title: f.title, desc: f.description })),
+          cta: items.find(i => i.type==='cta')?.description || ''
+        };
+      }
+
+      function renderContent(data) {
+        document.getElementById("features-section").innerHTML = `
+          <h1>${data.title}</h1>
+          <h2>${data.subtitle}</h2>
+          <h3>${currentLang==='en'?'Why Choose Us?':'为什么选择我们？'}</h3>
+          <ul>
+            ${data.features.map(f=>`<li><strong>${f.title}:</strong> ${f.desc}</li>`).join('')}
+          </ul>
+        `;
+        document.getElementById("demos-section").innerHTML = `
+          <h3>${currentLang==='en'?'Live Demos':'案例演示'}</h3>
+          <p>${currentLang==='en'?'Showcase your storefronts, pages, and conversions.':'展示你的店铺、页面和转化流程。'}</p>
+        `;
+        document.getElementById("contact-section").innerHTML = `
+          <h3>${currentLang==='en'?'Contact Us':'联系我们'}</h3>
+          <p>${currentLang==='en'?'Ready to build? Let’s talk!':'准备好开始？欢迎联系我们！'}</p>
+        `;
+        updateSEO(data);
+      }
+
+      function updateSEO(data) {
+        document.title = data.title || 'Landing Page';
+        const meta = document.getElementById('meta-description');
+        if (meta) meta.content = data.subtitle;
+        const jsonEl = document.getElementById('jsonld-script');
+        if (jsonEl) jsonEl.textContent = JSON.stringify({
+          "@context":"https://schema.org",
+          "@type":"WebSite",
+          name: data.title,
+          description: data.subtitle,
+          url: window.location.href
+        }, null, 2);
+      }
+
+      // —— 交互绑定 —— 
+      document.querySelectorAll('.lang-switch .btn').forEach(btn => {
+        btn.type = 'button';
+      });
+      document.getElementById('enBtn')
+        .addEventListener('click', () => { currentLang='en'; fetchContent('en'); });
+      document.getElementById('zhBtn')
+        .addEventListener('click', () => { currentLang='zh'; fetchContent('zh'); });
+
+      // 平滑锚点滚动
+      document.querySelectorAll('a[href^="#"]').forEach(link => {
+        link.addEventListener('click', e => {
+          e.preventDefault();
+          const target = document.querySelector(link.getAttribute('href'));
+          if (target) target.scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+
+      // 如果 Supabase 可用，监听数据库变更
+      if (supabaseClient) {
+        supabaseClient
+          .channel('landing_content_changes')
+          .on('postgres_changes', { event:'*', schema:'public', table:'landing_content' }, () => {
+            fetchContent(currentLang);
+          })
+          .subscribe();
+      }
+
+      // 首次加载
+      fetchContent(currentLang);
+    });
+  </script>
 </head>
 <body>
-
   <div class="lang-switch">
     <button id="enBtn" class="btn secondary">EN</button>
     <button id="zhBtn" class="btn secondary">中文</button>
@@ -33,155 +186,9 @@
     <a class="btn dark" href="#contact-section">Contact</a>
   </div>
 
-  <div id="landing"></div>
   <div id="loading">Loading content...</div>
-
-  <!-- 页面锚点区块 -->
-<div id="features-section"></div>
-<div id="demos-section"></div>
-<div id="contact-section"></div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script>
-    const supabaseUrl = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-    let currentLang = 'en';
-    const landing = document.getElementById('landing');
-    const loading = document.getElementById('loading');
-
-    const fallbackData = {
-      en: {
-        title: "Build Your Own Global E-commerce Website — SEO-Ready from Day One",
-        subtitle: "Static + lightweight backend architecture built for speed, discoverability, and full control. Ideal for cross-border e-commerce brands.",
-        features: [
-          { title: "Fast Deployment, Global Delivery", desc: "Host on Cloudflare Pages, Vercel, or GitHub Pages — no server required, global CDN enabled." },
-          { title: "Built-in SEO Optimization", desc: "Auto-generate sitemap, JSON-LD, meta tags, and OG images to help Google index your pages faster." },
-          { title: "AI-Powered Content & Metadata", desc: "Let AI create your product descriptions, SEO summaries, and keyword tags — one click, publish-ready." },
-          { title: "Multilingual & Multicurrency Support", desc: "Serve global buyers with localized content and pricing — gain trust and boost conversion." },
-          { title: "Own Your Leads, Own Your Data", desc: "Integrated contact forms + database storage. You own the customer info, not the platform." }
-        ],
-        cta: "Take Control of Your Global Storefront"
-      },
-      zh: {
-        title: "打造全球买家的独立网站 — 天生适配 SEO",
-        subtitle: "静态+轻后端架构，速度快，易收录，品牌自主，专为跨境卖家设计。",
-        features: [
-          { title: "极速上线，全球加速", desc: "托管于 Cloudflare Pages、Vercel、GitHub Pages，全球访问，无需服务器。" },
-          { title: "内建 SEO 优化", desc: "自动生成 sitemap、JSON-LD、meta 标签、OG 图，加快 Google 收录。" },
-          { title: "AI 辅助内容生成", desc: "一键生成产品描述、SEO 概述、关键词标签，高效发布。" },
-          { title: "多语言多币种支持", desc: "轻松适配海外买家，增强信任感，提升转化率。" },
-          { title: "客户数据完全自有", desc: "询盘表单 + 数据库存储，客户信息自己掌握。" }
-        ],
-        cta: "打造属于你的全球销售阵地"
-      }
-    };
-
-    async function fetchContent(lang) {
-      loading.style.display = 'block';
-      landing.innerHTML = '';
-      try {
-        const { data, error } = await supabase
-          .from('landing_content')
-          .select('*')
-          .eq('lang', lang)
-          .order('created_at', { ascending: true });
-
-        if (error || !data.length) {
-          console.warn('Supabase fetch failed, using fallback.', error?.message);
-          renderContent(fallbackData[lang]);
-        } else {
-          renderContent(formatDataFromSupabase(data));
-        }
-      } catch (err) {
-        console.error('Error:', err);
-        renderContent(fallbackData[lang]);
-      } finally {
-        loading.style.display = 'none';
-      }
-    }
-
-    function formatDataFromSupabase(items) {
-      const title = items.find(i => i.type === 'title')?.title || '';
-      const subtitle = items.find(i => i.type === 'subtitle')?.description || '';
-      const features = items.filter(i => i.type === 'feature').map(f => ({ title: f.title, desc: f.description }));
-      const cta = items.find(i => i.type === 'cta')?.description || '';
-      return { title, subtitle, features, cta };
-    }
-
-    function renderContent(data) {
-      landing.innerHTML = `
-        <h1>${data.title}</h1>
-        <h2>${data.subtitle}</h2>
-
-        <div style="margin-top:40px;" id="features-section">
-          <h3>${currentLang === 'en' ? 'Why Choose Us?' : '为什么选择我们？'}</h3>
-          <ul>
-            ${data.features.map(f => `<li><strong>${f.title}:</strong> ${f.desc}</li>`).join('')}
-          </ul>
-        </div>
-
-        <div style="margin-top:100px;" id="demos-section">
-          <h3>${currentLang === 'en' ? 'Live Demos' : '案例演示'}</h3>
-          <p>${currentLang === 'en' ? 'Showcase your storefronts and workflows.' : '展示你的店铺与转化流程。'}</p>
-        </div>
-
-        <div style="margin-top:100px;" id="contact-section">
-          <h3>${currentLang === 'en' ? 'Contact Us' : '联系我们'}</h3>
-          <p>${currentLang === 'en' ? 'Ready to build? Let’s talk!' : '准备好打造你的独立站？立即联系我们！'}</p>
-        </div>
-      `;
-      updateSEO(data);
-    }
-
-    function updateSEO(data) {
-      document.title = data.title || 'Default Title';
-      const metaDesc = document.getElementById('meta-description');
-      if (metaDesc) metaDesc.setAttribute('content', data.subtitle || '');
-      const jsonLd = {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": data.title,
-        "description": data.subtitle,
-        "url": window.location.href
-      };
-      const jsonLdScript = document.getElementById('jsonld-script');
-      if (jsonLdScript) jsonLdScript.textContent = JSON.stringify(jsonLd, null, 2);
-    }
-
-    document.getElementById('enBtn').onclick = () => {
-      currentLang = 'en';
-      fetchContent(currentLang);
-    };
-    document.getElementById('zhBtn').onclick = () => {
-      currentLang = 'zh';
-      fetchContent(currentLang);
-    };
-
-    fetchContent(currentLang);
-
-    supabase.channel('landing_content_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'landing_content' }, payload => {
-        console.log('Supabase content updated, reloading...');
-        fetchContent(currentLang);
-      })
-      .subscribe();
-// 平滑锚点跳转：确保 DOM 插入后再跳转
-  document.querySelectorAll('a[href^="#"]').forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      const targetId = e.currentTarget.getAttribute('href');
-      setTimeout(() => {
-        const targetEl = document.querySelector(targetId);
-        if (targetEl) {
-          targetEl.scrollIntoView({ behavior: 'smooth' });
-        } else {
-          console.warn('Target not yet in DOM:', targetId);
-        }
-      }, 200); // 等 Supabase 渲染完成再执行滚动
-    });
-  });
-  </script>
+  <div id="features-section"></div>
+  <div id="demos-section"></div>
+  <div id="contact-section"></div>
 </body>
 </html>
