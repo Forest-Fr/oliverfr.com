@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI 简历优化器</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: .75rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: vertical;
+    }
+    button {
+      display: inline-block;
+      margin-top: .75rem;
+      padding: .5rem 1.25rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      background-color: #0070f3;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    #result {
+      background: #f9f9f9;
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>AI 简历优化器</h1>
+
+  <label>
+    <strong>原始简历</strong><br/>
+    <textarea id="orig" rows="10" placeholder="在此粘贴或输入您的简历…"></textarea>
+  </label>
+  <br/>
+  <button id="optBtn">AI 优化简历</button>
+
+  <h2>优化后简历</h2>
+  <textarea id="result" rows="10" readonly placeholder="优化结果会显示在这里…"></textarea>
+
+  <script>
+    // —— 配置 —— 
+    const API_URL = "https://cv-edit-worker.mefans.workers.dev/edit-resume";
+
+    // —— 用户标识 & 上次 resume_id（可选） —— 
+    let userId = localStorage.getItem("uid");
+    if (!userId) {
+      userId = crypto.randomUUID();
+      localStorage.setItem("uid", userId);
+    }
+    let resumeId = localStorage.getItem("lastResumeId");
+
+    // —— 按钮点击事件 —— 
+    const origEl  = document.getElementById("orig");
+    const resEl   = document.getElementById("result");
+    const btn     = document.getElementById("optBtn");
+
+    btn.addEventListener("click", async () => {
+      const text = origEl.value.trim();
+      if (!text) {
+        return alert("请先输入简历内容！");
+      }
+
+      btn.disabled = true;
+      btn.textContent = "优化中…";
+
+      try {
+        const resp = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id:  userId,
+            text:     text,
+            resume_id: resumeId  // 如果是第一次，这里为 null
+          })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          console.error(data);
+          throw new Error(data);
+        }
+
+        // 展示结果，并保存 resume_id 以便下次更新
+        resEl.value = data.edited_text;
+        if (data.resume_id) {
+          resumeId = data.resume_id;
+          localStorage.setItem("lastResumeId", resumeId);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("请求失败，请稍后重试。");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "AI 优化简历";
+      }
+    });
+  </script>
+</body>
+</html>
