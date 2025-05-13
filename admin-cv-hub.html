@@ -231,16 +231,17 @@
   <script>
 
   // —— 同域调用，不再跑到二级域名 —— 
+// —— 只保留当前域名，不再跑到 Workers.dev 二级域名 —— 
   const API_BASE = "";
 
-  //—— 登录重定向 handling —— 
+  //—— 登录后 GitHub 会把 access_token 丢到 hash —— 
   (function() {
     const hash = location.hash;
-    // GitHub OAuth implicit flow 会把 access_token 放在 hash 里
     if (hash.includes("access_token")) {
-      const query = hash.slice(1);   // 去掉 #
-      // 回到 /callback，由 Worker 拦截、转 token、写 cookie，再 302 跳回后台
-      location.href = `/callback?${query}`;
+      // implicit flow 拿到 token & refresh_token 在 hash
+      // 转成查询参数，回到 /callback，由 Worker 处理拿到 cookie，写好后再 302 跳回后台
+      const q = hash.slice(1); // 去掉 #
+      location.href = `/callback?${q}`;
     }
   })();
 
@@ -258,13 +259,13 @@
     }).format(new Date(iso));
   }
 
-  //---- 登录/登出 ----
-  const loginBtn   = document.getElementById("loginBtn");
-  const logoutBtn  = document.getElementById("logoutBtn");
-  const contentEl  = document.getElementById("content");
+  //---- 登录/登出 按钮 —— 
+  const loginBtn  = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const contentEl = document.getElementById("content");
 
-  // 登出走同域 /logout，Worker 里会清 cookie 并 302 回后台
-  loginBtn.onclick = () => location.href = `${API_BASE}/login`;
+  // 登出：POST /logout，同域清 cookie、302 回后台
+  loginBtn.onclick  = () => { location.href = `${API_BASE}/login`; };
   logoutBtn.onclick = async () => {
     await fetch(`${API_BASE}/logout`, {
       method:      "POST",
@@ -273,7 +274,7 @@
     location.reload();
   };
 
-  //---- 权限检查 ----
+  //---- 权限检查 —— 
   async function checkAuth() {
     console.log("🔍 开始检查登录状态…");
     const resp = await fetch(`${API_BASE}/session`, {
@@ -281,12 +282,12 @@
     });
     console.log("🔍 /session status:", resp.status);
     console.log("🔍 /session headers:", {
-      "set-cookie":                   resp.headers.get("set-cookie"),
-      "access-control-allow-origin":  resp.headers.get("access-control-allow-origin")
+      "set-cookie":                  resp.headers.get("set-cookie"),
+      "access-control-allow-origin": resp.headers.get("access-control-allow-origin")
     });
 
+    // 未登录或会话无效
     if (!resp.ok) {
-      console.warn("⚠️ 未登录或会话无效，显示登录按钮");
       loginBtn.style.display  = "";
       logoutBtn.style.display = "none";
       contentEl.style.display = "none";
@@ -296,14 +297,13 @@
     const { authenticated, user } = await resp.json();
     console.log("🔍 /session body:", { authenticated, user });
 
+    // **仅允许 oliveroogle@gmail.com** 
     if (authenticated && user.email === "oliveroogle@gmail.com") {
-      console.log("✅ 管理员验证通过，显示后台");
       loginBtn.style.display  = "none";
       logoutBtn.style.display = "";
       contentEl.style.display = "";
       initPage();
     } else {
-      console.error("❌ 非管理员或认证失败", user);
       alert("只有管理员可访问此页面");
       loginBtn.style.display  = "";
       logoutBtn.style.display = "none";
@@ -313,17 +313,17 @@
 
   //---- 分页 & 搜索 & 渲染 ----
   let currentPage = 1, pageSize = 10, totalCount = 0, lastSearch = "";
-  const searchEl      = document.getElementById("search");
-  const tableBody     = document.getElementById("tableBody");
-  const prevPageBtn   = document.getElementById("prevPage");
-  const nextPageBtn   = document.getElementById("nextPage");
-  const pageInfoEl    = document.getElementById("pageInfo");
-  const markdownPrv   = document.getElementById("markdownPreview");
-  const editorModal   = document.getElementById("editorModal");
-  const editOrigEl    = document.getElementById("editOriginal");
-  const editEditEl    = document.getElementById("editEdited");
-  const saveEditBtn   = document.getElementById("saveEdit");
-  const cancelEditBtn = document.getElementById("cancelEdit");
+  const searchEl    = document.getElementById("search");
+  const tableBody   = document.getElementById("tableBody");
+  const prevPageBtn = document.getElementById("prevPage");
+  const nextPageBtn = document.getElementById("nextPage");
+  const pageInfoEl  = document.getElementById("pageInfo");
+  const markdownPrv = document.getElementById("markdownPreview");
+  const editorModal = document.getElementById("editorModal");
+  const editOrigEl  = document.getElementById("editOriginal");
+  const editEditEl  = document.getElementById("editEdited");
+  const saveEditBtn = document.getElementById("saveEdit");
+  const cancelBtn   = document.getElementById("cancelEdit");
   let editingId = null;
 
   function initPage() {
@@ -351,7 +351,7 @@
         fetchAndRender();
       }
     };
-    cancelEditBtn.onclick = () => {
+    cancelBtn.onclick = () => {
       editingId = null;
       editorModal.style.display = "none";
     };
@@ -379,21 +379,21 @@
     const { total, data } = await resp.json();
     totalCount = total;
 
-    pageInfoEl.textContent      = `${currentPage} / ${Math.ceil(totalCount / pageSize) || 1}`;
+    pageInfoEl.textContent      = `${currentPage} / ${Math.ceil(totalCount/pageSize)||1}`;
     prevPageBtn.disabled        = currentPage <= 1;
     nextPageBtn.disabled        = currentPage * pageSize >= totalCount;
 
     tableBody.innerHTML = "";
-    data.forEach(row => {
+    data.forEach(r => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${row.id.slice(0,8)}</td>
-        <td>${row.user_id}</td>
-        <td>${formatBeijing(row.created_at)}</td>
+        <td>${r.id.slice(0,8)}</td>
+        <td>${r.user_id}</td>
+        <td>${formatBeijing(r.created_at)}</td>
         <td>
-          <button class="btn-preview" data-text="${encodeURIComponent(row.original_text)}">预览</button>
-          <button class="btn-edit"    data-id="${row.id}">编辑</button>
-          <button class="btn-delete"  data-id="${row.id}">删除</button>
+          <button class="btn-preview" data-text="${encodeURIComponent(r.original_text)}">预览</button>
+          <button class="btn-edit"    data-id="${r.id}">编辑</button>
+          <button class="btn-delete"  data-id="${r.id}">删除</button>
         </td>`;
       tableBody.append(tr);
     });
@@ -407,8 +407,8 @@
     document.querySelectorAll(".btn-edit").forEach(el =>
       el.onclick = async () => {
         editingId = el.dataset.id;
-        const resp = await fetch(`/get-resume?id=${editingId}`, { credentials: "include" });
-        const obj  = await resp.json();
+        const res  = await fetch(`/get-resume?id=${editingId}`, { credentials: "include" });
+        const obj  = await res.json();
         editOrigEl.value = obj.original_text;
         editEditEl.value = obj.edited_text || "";
         editorModal.style.display = "";
@@ -427,7 +427,7 @@
     );
   }
 
-  // 页面一打开就检查权限
+  //—— 页面一打开就检查授权 —— 
   checkAuth();
 
 
