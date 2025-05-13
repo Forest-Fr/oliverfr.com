@@ -235,15 +235,14 @@
   const API_BASE = "";
 
   //—— 登录后 GitHub 会把 access_token 丢到 hash —— 
-  (function() {
-    const hash = location.hash;
-    if (hash.includes("access_token")) {
-      // implicit flow 拿到 token & refresh_token 在 hash
-      // 转成查询参数，回到 /callback，由 Worker 处理拿到 cookie，写好后再 302 跳回后台
-      const q = hash.slice(1); // 去掉 #
-      location.href = `/callback?${q}`;
-    }
-  })();
+(function() {
+  const hash = location.hash;
+  if (hash.includes("access_token")) {
+    const query = hash.slice(1);
+    const current = location.pathname || '/admin-cv-hub.html';
+    location.href = `/callback?${query}&redirect_to=${encodeURIComponent(current)}`;
+  }
+})();
 
   //—— Helper: 北京时间格式 —— 
   function formatBeijing(iso) {
