@@ -1,46 +1,180 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>CV 管理后台</title>
-
-  <!-- 1. 一进 admin-cv-hub.html 就处理 access_token -->
-  <script>
-    if (location.hash.includes("access_token")) {
-      const query = location.hash.slice(1); 
-      location.replace(`/callback?${query}`);
-    }
-  </script>
-
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- 只保留 Markdown 渲染库 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    /* —— 你的原有 CSS —— */
-    * { box-sizing: border-box; margin:0; padding:0; }
-    body { font-family:-apple-system,Segoe UI,Arial,sans-serif; background:#f5f7fa; padding:1rem; }
-    h1 { text-align:center; font-size:2rem; margin-bottom:1rem; }
-    #auth { display:flex; justify-content:center; margin-bottom:1rem; }
-    #auth button { background:#24292e; color:#fff; border:none; padding:.5rem 1rem; border-radius:4px; cursor:pointer; }
-    #content { display:none; max-width:1200px; margin:0 auto; }
-    #search { width:100%; padding:.5rem; font-size:1rem; margin-bottom:1rem; border:1px solid #ccc; border-radius:4px; }
-    .main { display:flex; flex-direction:column; gap:1rem; }
-    @media (min-width:768px) { .main { flex-direction:row; } .table-wrapper{flex:2;} .preview-wrapper{flex:1;} }
-    .table-wrapper, .preview-wrapper { background:#fff; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding:1rem; overflow-x:auto; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:.6rem .8rem; text-align:left; border-bottom:1px solid #eee; }
-    th { background:#fafafa; font-weight:600; }
-    #pagination { display:flex; justify-content:center; align-items:center; margin-top:.75rem; }
-    #pagination button { background:#0366d6; color:#fff; border:none; padding:.4rem .8rem; border-radius:4px; cursor:pointer; margin:0 .5rem; }
-    #pagination button:disabled { opacity:.5; cursor:not-allowed; }
-    #markdownPreview { line-height:1.8; }
-    #modalOverlay { position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.4); display:none; z-index:900; }
-    #editorModal { position:fixed; top:50%;left:50%; transform:translate(-50%,-50%); width:90%;max-width:600px;
-      background:#fff;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:1.5rem; display:none;z-index:1000; }
-    #editorModal h2 { margin-bottom:1rem; font-size:1.25rem; }
-    #editorModal textarea { width:100%;height:8rem;margin-bottom:1rem;padding:.5rem; border:1px solid #ccc; border-radius:4px; }
-    #editorModal button { background:#0366d6;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;margin-right:.5rem; }
-    @media (max-width:480px) { h1{font-size:1.5rem;} #search{font-size:.9rem;} th,td{font-size:.85rem;padding:.5rem;} #pagination button{padding:.3rem .6rem;} }
-  </style>
+  /* 基础重置与字体 */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f5f7fa;
+    color: #333;
+    line-height: 1.6;
+    padding: 1rem;
+  }
+  h1 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  /* 容器 */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* 登录/登出 区域：居中 */
+  #auth {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+  #auth button {
+    background: #24292e;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  #auth button + button {
+    margin-left: 0.5rem;
+  }
+
+  /* 搜索框 */
+  #search {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+  /* 主体布局：移动端垂直，桌面端左右并列 */
+  .main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  @media (min-width: 768px) {
+    .main { flex-direction: row; }
+    .table-wrapper { flex: 2; }
+    .preview-wrapper { flex: 1; }
+  }
+
+  /* 表格与预览通用样式 */
+  .table-wrapper,
+  .preview-wrapper {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 1rem;
+    overflow-x: auto;
+  }
+
+  /* 表格 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+  th {
+    background: #fafafa;
+    font-weight: 600;
+  }
+
+  /* 分页 */
+  #pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0.75rem;
+  }
+  #pagination button {
+    background: #0366d6;
+    color: #fff;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0 0.5rem;
+  }
+  #pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Markdown 预览 */
+  #preview h2 {
+    margin-bottom: 0.5rem;
+  }
+  #markdownPreview {
+    line-height: 1.8;
+  }
+
+  /* 编辑浮层 & 遮罩 */
+  #modalOverlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    z-index: 900;
+  }
+  #editorModal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 600px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 1.5rem;
+    display: none;
+    z-index: 1000;
+  }
+  #editorModal h2 {
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+  }
+  #editorModal textarea {
+    width: 100%;
+    height: 8rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  #editorModal button {
+    background: #0366d6;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 0.5rem;
+  }
+
+  /* Responsive typography & spacing on small screens */
+  @media (max-width: 480px) {
+    h1 { font-size: 1.5rem; }
+    #search { font-size: 0.9rem; }
+    th, td { font-size: 0.85rem; padding: 0.5rem; }
+    #pagination button { padding: 0.3rem 0.6rem; }
+  }
+</style>
+
 </head>
 <body>
   <h1>CV 管理后台</h1>
@@ -51,21 +185,33 @@
     <button id="logoutBtn" style="display:none">登出</button>
   </div>
 
-  <!-- 主体内容，初始隐藏 -->
-  <div id="content">
+  <div id="content" class="container" style="display:none">
+    <!-- 搜索 -->
     <input type="text" id="search" placeholder="搜索原始简历内容… (回车搜索)" />
+
     <div class="main">
+      <!-- 左侧：表格 + 分页 -->
       <div class="table-wrapper">
         <table>
-          <thead><tr><th>ID</th><th>用户</th><th>创建时间</th><th>操作</th></tr></thead>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>用户</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
           <tbody id="tableBody"></tbody>
         </table>
+
         <div id="pagination">
           <button id="prevPage">上一页</button>
           <span id="pageInfo"></span>
           <button id="nextPage">下一页</button>
         </div>
       </div>
+
+      <!-- 右侧：Markdown 预览 -->
       <div class="preview-wrapper" id="preview">
         <h2>预览 (Markdown 渲染)</h2>
         <div id="markdownPreview">点击“预览”按钮查看简历内容</div>
@@ -83,96 +229,144 @@
   </div>
 
   <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const API_BASE = "";
+    const API_BASE = "https://cv-edit-worker.mefans.workers.dev";
 
-    // 登录跳转到 Worker /login
-    document.getElementById("loginBtn").onclick = () => location.href = "/login";
-    document.getElementById("logoutBtn").onclick = async () => {
-      await fetch("/logout", { method:"POST", credentials:"include" });
+    //—— 登录重定向 handling —— 
+    (function() {
+      const hash = location.hash;
+      if (hash.includes("access_token")) {
+        const query = hash.slice(1);
+        location.href = `https://oliverfr.com/callback?${query}`;
+      }
+    })();
+
+    //—— Helper: 北京时间格式 —— 
+    function formatBeijing(iso) {
+      if (!iso) return '—';
+      return new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year:   'numeric',
+        month:  '2-digit',
+        day:    '2-digit',
+        hour:   '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).format(new Date(iso));
+    }
+
+    //---- 登录/登出 ----
+    const loginBtn  = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const contentEl = document.getElementById("content");
+
+    loginBtn.onclick = () => location.href = `${API_BASE}/login`;
+    logoutBtn.onclick = async () => {
+      await fetch(`${API_BASE}/logout`, { method:"POST", credentials:"include" });
       location.reload();
     };
 
-    // 鉴权
+    //---- 权限检查 ----
     async function checkAuth() {
-      const r = await fetch("/session", {credentials:"include"});
-      if (!r.ok) {
-        document.getElementById("loginBtn").style.display = "";
-        document.getElementById("logoutBtn").style.display= "none";
-        document.getElementById("content").style.display= "none";
+      const resp = await fetch(`${API_BASE}/session`, { credentials: "include" });
+      if (!resp.ok) {
+        loginBtn.style.display = "";
+        logoutBtn.style.display = "none";
+        contentEl.style.display = "none";
         return;
       }
-      const {authenticated,user} = await r.json();
-      if (authenticated && user.email==="oliveroogle@gmail.com") {
-        document.getElementById("loginBtn").style.display = "none";
-        document.getElementById("logoutBtn").style.display= "";
-        document.getElementById("content").style.display= "";
+      const { authenticated, user } = await resp.json();
+      if (authenticated && user.email === "oliveroogle@gmail.com") {
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "";
+        contentEl.style.display = "";
         initPage();
       } else {
-        alert("只有管理员可访问！");
+        alert("只有管理员可访问此页面");
+        loginBtn.style.display = "";
+        logoutBtn.style.display = "none";
+        contentEl.style.display = "none";
       }
     }
 
-    // 主流程同你原来代码
-    let currentPage=1,pageSize=10,totalCount=0,lastSearch="";
-    const searchEl=document.getElementById("search"),
-          tableBody=document.getElementById("tableBody"),
-          prevPageBtn=document.getElementById("prevPage"),
-          nextPageBtn=document.getElementById("nextPage"),
-          pageInfoEl=document.getElementById("pageInfo"),
-          markdownPrv=document.getElementById("markdownPreview"),
-          editorModal=document.getElementById("editorModal"),
-          editOrigEl=document.getElementById("editOriginal"),
-          editEditEl=document.getElementById("editEdited"),
-          saveEditBtn=document.getElementById("saveEdit"),
-          cancelEditBtn=document.getElementById("cancelEdit");
-    let editingId=null;
+    //---- 分页 & 搜索 & 渲染 ----
+    let currentPage = 1, pageSize = 10, totalCount = 0, lastSearch = "";
+    const searchEl    = document.getElementById("search");
+    const tableBody   = document.getElementById("tableBody");
+    const prevPageBtn = document.getElementById("prevPage");
+    const nextPageBtn = document.getElementById("nextPage");
+    const pageInfoEl  = document.getElementById("pageInfo");
+    const markdownPrv = document.getElementById("markdownPreview");
+    const editorModal = document.getElementById("editorModal");
+    const editOrigEl  = document.getElementById("editOriginal");
+    const editEditEl  = document.getElementById("editEdited");
+    const saveEditBtn = document.getElementById("saveEdit");
+    const cancelEditBtn = document.getElementById("cancelEdit");
+    let editingId = null;
 
     function initPage() {
       bindEvents();
       fetchAndRender();
     }
+
     function bindEvents() {
-      searchEl.onkeypress=e=>{
-        if(e.key==="Enter"){
-          lastSearch=searchEl.value.trim();
-          currentPage=1;fetchAndRender();
+      searchEl.onkeypress = e => {
+        if (e.key === "Enter") {
+          lastSearch = searchEl.value.trim();
+          currentPage = 1;
+          fetchAndRender();
         }
       };
-      prevPageBtn.onclick=()=>{if(currentPage>1){currentPage--;fetchAndRender();}};
-      nextPageBtn.onclick=()=>{if(currentPage*pageSize<totalCount){currentPage++;fetchAndRender();}};
-      cancelEditBtn.onclick=()=>{editingId=null;editorModal.style.display="none";};
-      saveEditBtn.onclick=async()=>{
-        await fetch("/update-resume", {
-          method:"PATCH",credentials:"include",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            id:editingId,
-            original_text:editOrigEl.value.trim(),
-            edited_text:editEditEl.value.trim()
+      prevPageBtn.onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          fetchAndRender();
+        }
+      };
+      nextPageBtn.onclick = () => {
+        if (currentPage * pageSize < totalCount) {
+          currentPage++;
+          fetchAndRender();
+        }
+      };
+      cancelEditBtn.onclick = () => {
+        editingId = null;
+        editorModal.style.display = "none";
+      };
+      saveEditBtn.onclick = async () => {
+        await fetch(`${API_BASE}/update-resume`, {
+          method:      "PATCH",
+          credentials: "include",
+          headers:     { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id:           editingId,
+            original_text: editOrigEl.value.trim(),
+            edited_text:   editEditEl.value.trim()
           })
         });
-        editorModal.style.display="none";
+        editorModal.style.display = "none";
         fetchAndRender();
       };
     }
+
     async function fetchAndRender() {
-      const r=await fetch(
-        `/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,
-        {credentials:"include"}
+      const resp = await fetch(
+        `${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,
+        { credentials: "include" }
       );
-      const {total,data}=await r.json();
-      totalCount=total;
-      pageInfoEl.textContent=`${currentPage} / ${Math.ceil(totalCount/pageSize)||1}`;
-      prevPageBtn.disabled=currentPage<=1;
-      nextPageBtn.disabled=currentPage*pageSize>=totalCount;
-      tableBody.innerHTML="";
-      data.forEach(row=>{
-        const tr=document.createElement("tr");
-        tr.innerHTML=`
+      const { total, data } = await resp.json();
+      totalCount = total;
+
+      pageInfoEl.textContent = `${currentPage} / ${Math.ceil(totalCount/pageSize)||1}`;
+      prevPageBtn.disabled   = currentPage <= 1;
+      nextPageBtn.disabled   = currentPage * pageSize >= totalCount;
+
+      tableBody.innerHTML = "";
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
           <td>${row.id.slice(0,8)}</td>
           <td>${row.user_id}</td>
-          <td>${new Date(row.created_at).toLocaleString()}</td>
+          <td>${formatBeijing(row.created_at)}</td>
           <td>
             <button class="btn-preview" data-text="${encodeURIComponent(row.original_text)}">预览</button>
             <button class="btn-edit"    data-id="${row.id}">编辑</button>
@@ -180,30 +374,37 @@
           </td>`;
         tableBody.append(tr);
       });
-      document.querySelectorAll(".btn-preview").forEach(el=>
-        el.onclick=()=>{markdownPrv.innerHTML=marked.parse(decodeURIComponent(el.dataset.text));window.scrollTo({top:markdownPrv.offsetTop});}
+
+      document.querySelectorAll(".btn-preview").forEach(el =>
+        el.onclick = () => {
+          markdownPrv.innerHTML = marked.parse(decodeURIComponent(el.dataset.text));
+          window.scrollTo({ top: markdownPrv.offsetTop, behavior: "smooth" });
+        }
       );
-      document.querySelectorAll(".btn-edit").forEach(el=>el.onclick=()=>openEditor(el.dataset.id));
-      document.querySelectorAll(".btn-delete").forEach(el=>el.onclick=()=>deleteRecord(el.dataset.id));
-    }
-    async function openEditor(id) {
-      editingId=id;
-      const resp=await fetch(`/get-resume?id=${id}`,{credentials:"include"});
-      const obj=await resp.json();
-      editOrigEl.value=obj.original_text;
-      editEditEl.value=obj.edited_text||"";
-      editorModal.style.display="";
-      window.scrollTo({top:editorModal.offsetTop,behavior:"smooth"});
-    }
-    async function deleteRecord(id){
-      if(!confirm("确认删除？"))return;
-      await fetch(`/delete-resume?id=${id}`,{method:"DELETE",credentials:"include"});
-      fetchAndRender();
+      document.querySelectorAll(".btn-edit").forEach(el =>
+        el.onclick = async () => {
+          editingId = el.dataset.id;
+          const resp = await fetch(`${API_BASE}/get-resume?id=${editingId}`, { credentials: "include" });
+          const obj  = await resp.json();
+          editOrigEl.value = obj.original_text;
+          editEditEl.value = obj.edited_text || "";
+          editorModal.style.display = "";
+          window.scrollTo({ top: editorModal.offsetTop, behavior: "smooth" });
+        }
+      );
+      document.querySelectorAll(".btn-delete").forEach(el =>
+        el.onclick = async () => {
+          if (!confirm("确认删除这条记录？")) return;
+          await fetch(`${API_BASE}/delete-resume?id=${el.dataset.id}`, {
+            method:      "DELETE",
+            credentials: "include"
+          });
+          fetchAndRender();
+        }
+      );
     }
 
-    // 启动鉴权
     checkAuth();
-  });
   </script>
 </body>
 </html>
