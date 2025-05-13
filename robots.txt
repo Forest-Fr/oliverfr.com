@@ -1,7 +1,12 @@
 User-agent: *
 Disallow: /https://oliverfr.com/admin-mefan-articles.html
 Disallow: /https://oliverfr.com/admin-mefan-fr-runs.html
+Disallow: /https://oliverfr.com/your-cv.html
+
+
+
+
 Allow: /
 
 Sitemap: https://oliverfr.com/sitemap.xml
-# Updated: 2025-05-04
+# Updated: 2025-05-13
