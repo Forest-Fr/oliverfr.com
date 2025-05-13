@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <title>CV 管理后台</title>
+  <script>
+    if (location.hash.includes("access_token")) {
+      const query = location.hash.slice(1);
+      location.replace("https://oliverfr.com/callback?" + query);
+    }
+  </script>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <!-- 只保留 Markdown 渲染库 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -233,15 +239,7 @@
   <script>
   const API_BASE = "https://cv-edit-worker.mefans.workers.dev";
 
-// 👇👇 插入：处理隐式登录的 access_token 重定向 👇👇
-(function () {
-  const hash = location.hash;
-  if (hash.includes("access_token")) {
-    const query = hash.slice(1); // 去掉 #
-    location.href = `https://oliverfr.com/callback?${query}`;
-  }
-})();
-// ☝☝ 结束插入 ☝☝
+
 
 
 // ---- 登录 / 登出 ----
