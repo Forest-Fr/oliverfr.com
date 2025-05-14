@@ -230,26 +230,22 @@
 
   <script>
 
-// —— 同域调用，不再跑到 workers.dev 二级域名 —— 
-const API_BASE = "";
+ // —— 同域调用，不再跑到 workers.dev 二级域名 —— 
+  const API_BASE = "";
 
-// —— 登录后 GitHub 会把 access_token 丢到 hash —— 
-(function() {
-  const hash = location.hash;
-  if (hash.includes("access_token")) {
-    console.log("🔁 页面 hash 是:", location.hash);
-    const query = hash.slice(1);  // 去掉 #
-    const current = location.pathname || '/admin-cv-hub.html';
+  // —— 登录后 GitHub 会把 access_token 丢到 hash —— 
+  (function() {
+    const hash = location.hash;
+    if (hash.includes("access_token")) {
+      console.log("🔁 页面 hash 是:", location.hash);
+      const query = hash.slice(1);  // 去掉 “#”
+      const current = location.pathname || '/admin-cv-hub.html';
 
-    // ✅ 拼成真正的 query string，刷新跳转
-    const url = new URL(location.origin + `/callback?${query}&redirect_to=${encodeURIComponent(current)}`);
-    location.replace(url.toString());  // 用 replace 避免浏览器保留 hash
-  }
-})();
-
-
-
-
+      // ✅ 拼成真正的 query string，刷新跳转到 /callback
+      const url = new URL(location.origin + `/callback?${query}&redirect_to=${encodeURIComponent(current)}`);
+      location.replace(url.toString());  // 用 replace 避免浏览器保留 hash
+    }
+  })();
 
   //—— Helper: 北京时间格式 —— 
   function formatBeijing(iso) {
@@ -266,12 +262,13 @@ const API_BASE = "";
   }
 
   //---- 登录/登出 按钮 —— 
-  const loginBtn  = document.getElementById("loginBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
-  const contentEl = document.getElementById("content");
+  const loginBtn   = document.getElementById("loginBtn");
+  const logoutBtn  = document.getElementById("logoutBtn");
+  const contentEl  = document.getElementById("content");
 
-  // 登出：POST /logout，同域清 cookie、302 回后台
+  // 登录：跳转到 Worker 的 /login 路由，由 Worker 负责发起 OAuth
   loginBtn.onclick  = () => { location.href = `${API_BASE}/login`; };
+  // 登出：POST /logout，再 reload 清理会话
   logoutBtn.onclick = async () => {
     await fetch(`${API_BASE}/logout`, {
       method:      "POST",
@@ -318,7 +315,10 @@ const API_BASE = "";
   }
 
   //---- 分页 & 搜索 & 渲染 ----
-  let currentPage = 1, pageSize = 10, totalCount = 0, lastSearch = "";
+  let currentPage  = 1,
+      pageSize     = 10,
+      totalCount   = 0,
+      lastSearch   = "";
   const searchEl    = document.getElementById("search");
   const tableBody   = document.getElementById("tableBody");
   const prevPageBtn = document.getElementById("prevPage");
@@ -330,7 +330,7 @@ const API_BASE = "";
   const editEditEl  = document.getElementById("editEdited");
   const saveEditBtn = document.getElementById("saveEdit");
   const cancelBtn   = document.getElementById("cancelEdit");
-  let editingId = null;
+  let editingId     = null;
 
   function initPage() {
     bindEvents();
@@ -340,7 +340,7 @@ const API_BASE = "";
   function bindEvents() {
     searchEl.onkeypress = e => {
       if (e.key === "Enter") {
-        lastSearch = searchEl.value.trim();
+        lastSearch  = searchEl.value.trim();
         currentPage = 1;
         fetchAndRender();
       }
@@ -385,9 +385,9 @@ const API_BASE = "";
     const { total, data } = await resp.json();
     totalCount = total;
 
-    pageInfoEl.textContent      = `${currentPage} / ${Math.ceil(totalCount/pageSize)||1}`;
-    prevPageBtn.disabled        = currentPage <= 1;
-    nextPageBtn.disabled        = currentPage * pageSize >= totalCount;
+    pageInfoEl.textContent       = `${currentPage} / ${Math.ceil(totalCount / pageSize) || 1}`;
+    prevPageBtn.disabled         = currentPage <= 1;
+    nextPageBtn.disabled         = currentPage * pageSize >= totalCount;
 
     tableBody.innerHTML = "";
     data.forEach(r => {
@@ -413,8 +413,8 @@ const API_BASE = "";
     document.querySelectorAll(".btn-edit").forEach(el =>
       el.onclick = async () => {
         editingId = el.dataset.id;
-        const res  = await fetch(`/get-resume?id=${editingId}`, { credentials: "include" });
-        const obj  = await res.json();
+        const res = await fetch(`${API_BASE}/get-resume?id=${editingId}`, { credentials: "include" });
+        const obj = await res.json();
         editOrigEl.value = obj.original_text;
         editEditEl.value = obj.edited_text || "";
         editorModal.style.display = "";
@@ -424,7 +424,7 @@ const API_BASE = "";
     document.querySelectorAll(".btn-delete").forEach(el =>
       el.onclick = async () => {
         if (!confirm("确认删除这条记录？")) return;
-        await fetch(`/delete-resume?id=${el.dataset.id}`, {
+        await fetch(`${API_BASE}/delete-resume?id=${el.dataset.id}`, {
           method:      "DELETE",
           credentials: "include"
         });
