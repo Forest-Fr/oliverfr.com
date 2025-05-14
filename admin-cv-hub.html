@@ -165,7 +165,8 @@
     cursor: pointer;
     margin-right: 0.5rem;
   }
-
+#editorModal button:disabled { opacity:.6; cursor:not-allowed; }
+ 
   /* Responsive typography & spacing on small screens */
   @media (max-width: 480px) {
     h1 { font-size: 1.5rem; }
@@ -229,7 +230,7 @@
   </div>
 
   <script>
- /* ========= 通用配置 ========= */
+/* ========= 通用配置 ========= */
 // 如果 Worker 跑在同域，可把 API_BASE 设为 ''
 const API_BASE = 'https://cv-edit-worker.mefans.workers.dev';
 
@@ -248,7 +249,7 @@ const loginBtn  = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const contentEl = document.getElementById('content');
 
-loginBtn.onclick = () => location.href = `${API_BASE}/g-login`;
+loginBtn.onclick  = () => (location.href = `${API_BASE}/g-login`);
 logoutBtn.onclick = async () => {
   await fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' });
   location.reload();
@@ -258,14 +259,14 @@ logoutBtn.onclick = async () => {
 async function checkAuth() {
   const resp = await fetch(`${API_BASE}/session`, { credentials: 'include' });
   if (!resp.ok) {
-    loginBtn.style.display = '';
+    loginBtn.style.display  = '';
     logoutBtn.style.display = 'none';
     contentEl.style.display = 'none';
     return;
   }
   const { authenticated, user } = await resp.json();
   if (authenticated && user.email === 'oliveroogle@gmail.com') {
-    loginBtn.style.display = 'none';
+    loginBtn.style.display  = 'none';
     logoutBtn.style.display = '';
     contentEl.style.display = '';
     initPage();
@@ -274,60 +275,94 @@ async function checkAuth() {
   }
 }
 
-/* ========= 分页 / 搜索 / 渲染 ========= */
-let currentPage = 1, pageSize = 10, totalCount = 0, lastSearch = '';
-const searchEl    = document.getElementById('search');
-const tableBody   = document.getElementById('tableBody');
-const prevPageBtn = document.getElementById('prevPage');
-const nextPageBtn = document.getElementById('nextPage');
-const pageInfoEl  = document.getElementById('pageInfo');
-const markdownPrv = document.getElementById('markdownPreview');
-const editorModal = document.getElementById('editorModal');
-const editOrigEl  = document.getElementById('editOriginal');
-const editEditEl  = document.getElementById('editEdited');
-const saveEditBtn = document.getElementById('saveEdit');
-const cancelBtn   = document.getElementById('cancelEdit');
-let editingId     = null;
+/* ========= 分页 / 搜索 / 编辑 ========= */
+let currentPage  = 1,
+    pageSize     = 10,
+    totalCount   = 0,
+    lastSearch   = '',
+    editingId    = null;
+
+const searchEl     = document.getElementById('search');
+const tableBody    = document.getElementById('tableBody');
+const prevPageBtn  = document.getElementById('prevPage');
+const nextPageBtn  = document.getElementById('nextPage');
+const pageInfoEl   = document.getElementById('pageInfo');
+const markdownPrv  = document.getElementById('markdownPreview');
+const modalOverlay = document.getElementById('modalOverlay');
+const editorModal  = document.getElementById('editorModal');
+const editOrigEl   = document.getElementById('editOriginal');
+const editEditEl   = document.getElementById('editEdited');
+const saveEditBtn  = document.getElementById('saveEdit');
+const cancelBtn    = document.getElementById('cancelEdit');
 
 function initPage() {
   bindEvents();
   fetchAndRender();
 }
 
+/* ---------- 事件绑定 ---------- */
 function bindEvents() {
+  /* 搜索框 */
   searchEl.onkeypress = e => {
     if (e.key === 'Enter') {
-      lastSearch = searchEl.value.trim();
+      lastSearch  = searchEl.value.trim();
       currentPage = 1;
       fetchAndRender();
     }
   };
-  prevPageBtn.onclick = () => {
-    if (currentPage > 1) { currentPage--; fetchAndRender(); }
-  };
+
+  /* 分页按钮 */
+  prevPageBtn.onclick = () => { if (currentPage > 1) { currentPage--; fetchAndRender(); } };
   nextPageBtn.onclick = () => {
     if (currentPage * pageSize < totalCount) { currentPage++; fetchAndRender(); }
   };
-  cancelBtn.onclick = () => {
-    editingId = null;
-    editorModal.style.display = 'none';
-  };
+
+  /* 取消编辑 */
+  cancelBtn.onclick = closeEditor;
+  modalOverlay.onclick = closeEditor;
+
+  /* 保存编辑 */
   saveEditBtn.onclick = async () => {
-    await fetch(`${API_BASE}/edit-resume`, {            /* <- 路径修正 */
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: editingId,
-        original_text: editOrigEl.value.trim(),
-        edited_text:   editEditEl.value.trim()
-      })
-    });
-    editorModal.style.display = 'none';
-    fetchAndRender();
+    saveEditBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/edit-resume`, {
+        method:      'PATCH',
+        credentials: 'include',
+        headers:     { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id:            editingId,
+          original_text: editOrigEl.value.trim(),
+          edited_text:   editEditEl.value.trim()
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      closeEditor();
+      fetchAndRender();
+    } catch (e) {
+      alert('保存失败：' + e.message);
+    } finally {
+      saveEditBtn.disabled = false;
+    }
   };
 }
 
+/* ---------- 打开 / 关闭编辑器 ---------- */
+function openEditor(record) {
+  editingId        = record.id;
+  editOrigEl.value = record.original_text || '';
+  editEditEl.value = record.edited_text   || '';
+
+  modalOverlay.style.display = 'block';
+  editorModal.style.display  = 'block';
+}
+
+function closeEditor() {
+  editingId = null;
+  editorModal.style.display  = 'none';
+  modalOverlay.style.display = 'none';
+}
+
+/* ---------- 拉取并渲染表格 ---------- */
 async function fetchAndRender() {
   try {
     const resp = await fetch(
@@ -338,17 +373,15 @@ async function fetchAndRender() {
     const { total, data } = await resp.json();
     totalCount = total;
 
-    /* ===== 分页控件 ===== */
+    /* 分页信息 */
     pageInfoEl.textContent = `${currentPage} / ${Math.ceil(totalCount / pageSize) || 1}`;
     prevPageBtn.disabled   = currentPage <= 1;
     nextPageBtn.disabled   = currentPage * pageSize >= totalCount;
 
-    /* ===== 生成表格 ===== */
+    /* 生成表格行 */
     tableBody.innerHTML = '';
     if (data.length === 0) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td colspan="4" style="text-align:center;color:#888">暂无数据</td>`;
-      tableBody.append(tr);
+      tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888">暂无数据</td></tr>';
     } else {
       data.forEach(r => {
         const tr = document.createElement('tr');
@@ -358,28 +391,24 @@ async function fetchAndRender() {
           <td>${formatBeijing(r.created_at)}</td>
           <td>
             <button class="btn-preview" data-text="${encodeURIComponent(r.original_text)}">预览</button>
-            <button class="btn-edit"    data-id="${r.id}">编辑</button>
-            <button class="btn-delete"  data-id="${r.id}">删除</button>
+            <button class="btn-edit" data-id="${r.id}">编辑</button>
+            <button class="btn-delete" data-id="${r.id}">删除</button>
           </td>`;
         tableBody.append(tr);
       });
     }
 
-    /* ===== 行内按钮事件 ===== */
+    /* 行内按钮事件 */
     document.querySelectorAll('.btn-preview').forEach(el =>
       el.onclick = () => {
         markdownPrv.innerHTML = marked.parse(decodeURIComponent(el.dataset.text));
-        window.scrollTo({ top: markdownPrv.offsetTop, behavior: 'smooth' });
+        window.scrollTo({ top: markdownPrv.offsetTop - 20, behavior: 'smooth' });
       }
     );
     document.querySelectorAll('.btn-edit').forEach(el =>
       el.onclick = async () => {
-        editingId = el.dataset.id;
-        const res = await fetch(`${API_BASE}/get-resume?id=${editingId}`, { credentials: 'include' });
-        const obj = await res.json();
-        editOrigEl.value = obj.original_text || '';
-        editEditEl.value = obj.edited_text   || '';
-        editorModal.style.display = '';
+        const res = await fetch(`${API_BASE}/get-resume?id=${el.dataset.id}`, { credentials: 'include' });
+        openEditor(await res.json());
       }
     );
     document.querySelectorAll('.btn-delete').forEach(el =>
