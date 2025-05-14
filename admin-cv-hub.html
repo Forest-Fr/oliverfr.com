@@ -230,20 +230,23 @@
 
   <script>
 
-  const API_BASE = "";
+// —— 同域调用，不再跑到 workers.dev 二级域名 —— 
+const API_BASE = "";
 
-  //—— 登录后 GitHub 会把 access_token 丢到 hash —— 
- const hash = location.hash;
+// —— 登录后 GitHub 会把 access_token 丢到 hash —— 
+(function() {
+  const hash = location.hash;
   if (hash.includes("access_token")) {
     console.log("🔁 页面 hash 是:", location.hash);
     const query = hash.slice(1);  // 去掉 #
     const current = location.pathname || '/admin-cv-hub.html';
 
-    // ✅ 完整转为 query 参数，刷新页面进入 /callback?access_token=...&redirect_to=...
+    // ✅ 拼成真正的 query string，刷新跳转
     const url = new URL(location.origin + `/callback?${query}&redirect_to=${encodeURIComponent(current)}`);
-    location.replace(url.toString()); // 避免浏览器保留 hash
+    location.replace(url.toString());  // 用 replace 避免浏览器保留 hash
   }
 })();
+
 
 
 
