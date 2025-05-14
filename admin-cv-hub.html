@@ -235,14 +235,18 @@
   const API_BASE = "";
 
   //—— 登录后 GitHub 会把 access_token 丢到 hash —— 
+//—— 登录后 GitHub 会把 access_token 丢到 hash —— 
 (function () {
+  console.log("🔁 页面 hash 是:", location.hash);  // ✅ 放这里
+
   const hash = location.hash;
   if (hash.includes("access_token")) {
-    const query = hash.slice(1);  // ⬅️ 提取 hash 中的 access_token
+    const query = hash.slice(1);
     const current = location.pathname || '/admin-cv-hub.html';
     location.href = `/callback?${query}&redirect_to=${encodeURIComponent(current)}`;
   }
 })();
+
 
 
   //—— Helper: 北京时间格式 —— 
