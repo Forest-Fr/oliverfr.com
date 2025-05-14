@@ -237,15 +237,18 @@
   //—— 登录后 GitHub 会把 access_token 丢到 hash —— 
 //—— 登录后 GitHub 会把 access_token 丢到 hash —— 
 (function () {
-  console.log("🔁 页面 hash 是:", location.hash);  // ✅ 放这里
-
   const hash = location.hash;
   if (hash.includes("access_token")) {
-    const query = hash.slice(1);
+    console.log("🔁 页面 hash 是:", location.hash);
+
+    const query = hash.slice(1);  // 去掉 #
     const current = location.pathname || '/admin-cv-hub.html';
+
+    // ✅ 重新跳转，手动拼接 token 到 search 参数里
     location.href = `/callback?${query}&redirect_to=${encodeURIComponent(current)}`;
   }
 })();
+
 
 
 
