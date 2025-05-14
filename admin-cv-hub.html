@@ -252,17 +252,14 @@
     const contentEl  = document.getElementById("content");
 
     // 登录：跳到 Worker 的 /login，由 Worker 发起 Google OAuth Code Flow
-    loginBtn.onclick  = () => {
-      location.href = `${API_BASE}/login`;
-    };
+    loginBtn.onclick = () => {
+    location.href = `${API_BASE}/g-login`;
+  };
     // 登出：POST /logout，再 reload 清理会话
-    logoutBtn.onclick = async () => {
-      await fetch(`${API_BASE}/logout`, {
-        method:      "POST",
-        credentials: "include"
-      });
-      location.reload();
-    };
+     logoutBtn.onclick = async () => {
+    await fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' });
+    location.reload();
+  };
 
     // —— 权限检查 —— 
     async function checkAuth() {
