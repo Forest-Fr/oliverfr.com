@@ -229,10 +229,11 @@
   </div>
 
   <script>
- const API_BASE = "";
+  // —— 如果你把 Worker 部署在 https://oliverfr.com，那么 API_BASE 就留空
+    //    如果另一个子域，比如 https://api.oliverfr.com，填 "/api" 或完整域名
+    const API_BASE = "";
 
-
-//—— Helper: 北京时间格式 —— 
+    // —— Helper: 北京时间格式 —— 
     function formatBeijing(iso) {
       if (!iso) return '—';
       return new Intl.DateTimeFormat('zh-CN', {
@@ -246,13 +247,15 @@
       }).format(new Date(iso));
     }
 
-    //---- 登录/登出 按钮 —— 
+    // —— 登录/登出 按钮 —— 
     const loginBtn   = document.getElementById("loginBtn");
     const logoutBtn  = document.getElementById("logoutBtn");
     const contentEl  = document.getElementById("content");
 
-    // 登录：跳 Worker 的 /login，由 Worker 发起 Google OAuth（code 流）
-    loginBtn.onclick  = () => { location.href = `${API_BASE}/login`; };
+    // 登录：跳到 Worker 的 /login，由 Worker 发起 Google OAuth Code Flow
+    loginBtn.onclick  = () => {
+      location.href = `${API_BASE}/login`;
+    };
     // 登出：POST /logout，再 reload 清理会话
     logoutBtn.onclick = async () => {
       await fetch(`${API_BASE}/logout`, {
@@ -262,7 +265,7 @@
       location.reload();
     };
 
-    //---- 权限检查 —— 
+    // —— 权限检查 —— 
     async function checkAuth() {
       console.log("🔍 开始检查登录状态…");
       const resp = await fetch(`${API_BASE}/session`, {
@@ -271,6 +274,7 @@
       console.log("🔍 /session status:", resp.status);
 
       if (!resp.ok) {
+        // 未登录
         loginBtn.style.display  = "";
         logoutBtn.style.display = "none";
         contentEl.style.display = "none";
@@ -281,6 +285,7 @@
       console.log("🔍 /session body:", { authenticated, user });
 
       if (authenticated && user.email === "oliveroogle@gmail.com") {
+        // 管理员专用
         loginBtn.style.display  = "none";
         logoutBtn.style.display = "";
         contentEl.style.display = "";
@@ -293,7 +298,7 @@
       }
     }
 
-    //---- 分页 & 搜索 & 渲染 —— 保持不变 —— 
+    // —— 分页 & 搜索 & 渲染 ——（与你已有的完全一致） 
     let currentPage = 1, pageSize = 10, totalCount = 0, lastSearch = "";
     const searchEl    = document.getElementById("search");
     const tableBody   = document.getElementById("tableBody");
@@ -409,10 +414,8 @@
       );
     }
 
-    //—— 页面一打开就检查授权 —— 
+    // —— 页面加载时马上检查授权 —— 
     checkAuth();
-
-
   </script>
 </body>
 </html>
