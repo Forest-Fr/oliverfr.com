@@ -179,9 +179,9 @@
 <body>
   <h1>CV 管理后台</h1>
 
-  <!-- GitHub 登录/登出 -->
+ <!-- Google 登录/登出 -->
   <div id="auth">
-    <button id="loginBtn">GitHub 登录</button>
+    <button id="loginBtn">Google 登录</button>
     <button id="logoutBtn" style="display:none">登出</button>
   </div>
 
@@ -232,209 +232,185 @@
  const API_BASE = "";
 
 
-  // —— 登录后 GitHub 会把 access_token 丢到 hash —— 
-  (function() {
-    const hash = location.hash;
-    if (hash.includes("access_token")) {
-      console.log("🔁 页面 hash 是:", location.hash);
-      const query = hash.slice(1);  // 去掉 “#”
-      const current = location.pathname || '/admin-cv-hub.html';
-
-      // ✅ 拼成真正的 query string，刷新跳转到 /callback
-      const url = new URL(location.origin + `/callback?${query}&redirect_to=${encodeURIComponent(current)}`);
-      location.replace(url.toString());  // 用 replace 避免浏览器保留 hash
-    }
-  })();
-
-  //—— Helper: 北京时间格式 —— 
-  function formatBeijing(iso) {
-    if (!iso) return '—';
-    return new Intl.DateTimeFormat('zh-CN', {
-      timeZone: 'Asia/Shanghai',
-      year:   'numeric',
-      month:  '2-digit',
-      day:    '2-digit',
-      hour:   '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }).format(new Date(iso));
-  }
-
-  //---- 登录/登出 按钮 —— 
-  const loginBtn   = document.getElementById("loginBtn");
-  const logoutBtn  = document.getElementById("logoutBtn");
-  const contentEl  = document.getElementById("content");
-
-  // 登录：跳转到 Worker 的 /login 路由，由 Worker 负责发起 OAuth
-  loginBtn.onclick  = () => { location.href = `${API_BASE}/login`; };
-  // 登出：POST /logout，再 reload 清理会话
-  logoutBtn.onclick = async () => {
-    await fetch(`${API_BASE}/logout`, {
-      method:      "POST",
-      credentials: "include"
-    });
-    location.reload();
-  };
-
-  //---- 权限检查 —— 
-  async function checkAuth() {
-    console.log("🔍 开始检查登录状态…");
-    const resp = await fetch(`${API_BASE}/session`, {
-      credentials: "include"
-    });
-    console.log("🔍 /session status:", resp.status);
-    console.log("🔍 /session headers:", {
-      "set-cookie":                  resp.headers.get("set-cookie"),
-      "access-control-allow-origin": resp.headers.get("access-control-allow-origin")
-    });
-
-    // 未登录或会话无效
-    if (!resp.ok) {
-      loginBtn.style.display  = "";
-      logoutBtn.style.display = "none";
-      contentEl.style.display = "none";
-      return;
+//—— Helper: 北京时间格式 —— 
+    function formatBeijing(iso) {
+      if (!iso) return '—';
+      return new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year:   'numeric',
+        month:  '2-digit',
+        day:    '2-digit',
+        hour:   '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).format(new Date(iso));
     }
 
-    const { authenticated, user } = await resp.json();
-    console.log("🔍 /session body:", { authenticated, user });
+    //---- 登录/登出 按钮 —— 
+    const loginBtn   = document.getElementById("loginBtn");
+    const logoutBtn  = document.getElementById("logoutBtn");
+    const contentEl  = document.getElementById("content");
 
-    // **仅允许 oliveroogle@gmail.com** 
-    if (authenticated && user.email === "oliveroogle@gmail.com") {
-      loginBtn.style.display  = "none";
-      logoutBtn.style.display = "";
-      contentEl.style.display = "";
-      initPage();
-    } else {
-      alert("只有管理员可访问此页面");
-      loginBtn.style.display  = "";
-      logoutBtn.style.display = "none";
-      contentEl.style.display = "none";
-    }
-  }
-
-  //---- 分页 & 搜索 & 渲染 ----
-  let currentPage  = 1,
-      pageSize     = 10,
-      totalCount   = 0,
-      lastSearch   = "";
-  const searchEl    = document.getElementById("search");
-  const tableBody   = document.getElementById("tableBody");
-  const prevPageBtn = document.getElementById("prevPage");
-  const nextPageBtn = document.getElementById("nextPage");
-  const pageInfoEl  = document.getElementById("pageInfo");
-  const markdownPrv = document.getElementById("markdownPreview");
-  const editorModal = document.getElementById("editorModal");
-  const editOrigEl  = document.getElementById("editOriginal");
-  const editEditEl  = document.getElementById("editEdited");
-  const saveEditBtn = document.getElementById("saveEdit");
-  const cancelBtn   = document.getElementById("cancelEdit");
-  let editingId     = null;
-
-  function initPage() {
-    bindEvents();
-    fetchAndRender();
-  }
-
-  function bindEvents() {
-    searchEl.onkeypress = e => {
-      if (e.key === "Enter") {
-        lastSearch  = searchEl.value.trim();
-        currentPage = 1;
-        fetchAndRender();
-      }
-    };
-    prevPageBtn.onclick = () => {
-      if (currentPage > 1) {
-        currentPage--;
-        fetchAndRender();
-      }
-    };
-    nextPageBtn.onclick = () => {
-      if (currentPage * pageSize < totalCount) {
-        currentPage++;
-        fetchAndRender();
-      }
-    };
-    cancelBtn.onclick = () => {
-      editingId = null;
-      editorModal.style.display = "none";
-    };
-    saveEditBtn.onclick = async () => {
-      await fetch(`${API_BASE}/update-resume`, {
-        method:      "PATCH",
-        credentials: "include",
-        headers:     { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id:            editingId,
-          original_text: editOrigEl.value.trim(),
-          edited_text:   editEditEl.value.trim()
-        })
+    // 登录：跳 Worker 的 /login，由 Worker 发起 Google OAuth（code 流）
+    loginBtn.onclick  = () => { location.href = `${API_BASE}/login`; };
+    // 登出：POST /logout，再 reload 清理会话
+    logoutBtn.onclick = async () => {
+      await fetch(`${API_BASE}/logout`, {
+        method:      "POST",
+        credentials: "include"
       });
-      editorModal.style.display = "none";
-      fetchAndRender();
+      location.reload();
     };
-  }
 
-  async function fetchAndRender() {
-    const resp = await fetch(
-      `${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,
-      { credentials: "include" }
-    );
-    const { total, data } = await resp.json();
-    totalCount = total;
+    //---- 权限检查 —— 
+    async function checkAuth() {
+      console.log("🔍 开始检查登录状态…");
+      const resp = await fetch(`${API_BASE}/session`, {
+        credentials: "include"
+      });
+      console.log("🔍 /session status:", resp.status);
 
-    pageInfoEl.textContent       = `${currentPage} / ${Math.ceil(totalCount / pageSize) || 1}`;
-    prevPageBtn.disabled         = currentPage <= 1;
-    nextPageBtn.disabled         = currentPage * pageSize >= totalCount;
-
-    tableBody.innerHTML = "";
-    data.forEach(r => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${r.id.slice(0,8)}</td>
-        <td>${r.user_id}</td>
-        <td>${formatBeijing(r.created_at)}</td>
-        <td>
-          <button class="btn-preview" data-text="${encodeURIComponent(r.original_text)}">预览</button>
-          <button class="btn-edit"    data-id="${r.id}">编辑</button>
-          <button class="btn-delete"  data-id="${r.id}">删除</button>
-        </td>`;
-      tableBody.append(tr);
-    });
-
-    document.querySelectorAll(".btn-preview").forEach(el =>
-      el.onclick = () => {
-        markdownPrv.innerHTML = marked.parse(decodeURIComponent(el.dataset.text));
-        window.scrollTo({ top: markdownPrv.offsetTop, behavior: "smooth" });
+      if (!resp.ok) {
+        loginBtn.style.display  = "";
+        logoutBtn.style.display = "none";
+        contentEl.style.display = "none";
+        return;
       }
-    );
-    document.querySelectorAll(".btn-edit").forEach(el =>
-      el.onclick = async () => {
-        editingId = el.dataset.id;
-        const res = await fetch(`${API_BASE}/get-resume?id=${editingId}`, { credentials: "include" });
-        const obj = await res.json();
-        editOrigEl.value = obj.original_text;
-        editEditEl.value = obj.edited_text || "";
-        editorModal.style.display = "";
-        window.scrollTo({ top: editorModal.offsetTop, behavior: "smooth" });
+
+      const { authenticated, user } = await resp.json();
+      console.log("🔍 /session body:", { authenticated, user });
+
+      if (authenticated && user.email === "oliveroogle@gmail.com") {
+        loginBtn.style.display  = "none";
+        logoutBtn.style.display = "";
+        contentEl.style.display = "";
+        initPage();
+      } else {
+        alert("只有管理员可访问此页面");
+        loginBtn.style.display  = "";
+        logoutBtn.style.display = "none";
+        contentEl.style.display = "none";
       }
-    );
-    document.querySelectorAll(".btn-delete").forEach(el =>
-      el.onclick = async () => {
-        if (!confirm("确认删除这条记录？")) return;
-        await fetch(`${API_BASE}/delete-resume?id=${el.dataset.id}`, {
-          method:      "DELETE",
-          credentials: "include"
+    }
+
+    //---- 分页 & 搜索 & 渲染 —— 保持不变 —— 
+    let currentPage = 1, pageSize = 10, totalCount = 0, lastSearch = "";
+    const searchEl    = document.getElementById("search");
+    const tableBody   = document.getElementById("tableBody");
+    const prevPageBtn = document.getElementById("prevPage");
+    const nextPageBtn = document.getElementById("nextPage");
+    const pageInfoEl  = document.getElementById("pageInfo");
+    const markdownPrv = document.getElementById("markdownPreview");
+    const editorModal = document.getElementById("editorModal");
+    const editOrigEl  = document.getElementById("editOriginal");
+    const editEditEl  = document.getElementById("editEdited");
+    const saveEditBtn = document.getElementById("saveEdit");
+    const cancelBtn   = document.getElementById("cancelEdit");
+    let editingId     = null;
+
+    function initPage() {
+      bindEvents();
+      fetchAndRender();
+    }
+
+    function bindEvents() {
+      searchEl.onkeypress = e => {
+        if (e.key === "Enter") {
+          lastSearch  = searchEl.value.trim();
+          currentPage = 1;
+          fetchAndRender();
+        }
+      };
+      prevPageBtn.onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          fetchAndRender();
+        }
+      };
+      nextPageBtn.onclick = () => {
+        if (currentPage * pageSize < totalCount) {
+          currentPage++;
+          fetchAndRender();
+        }
+      };
+      cancelBtn.onclick = () => {
+        editingId = null;
+        editorModal.style.display = "none";
+      };
+      saveEditBtn.onclick = async () => {
+        await fetch(`${API_BASE}/update-resume`, {
+          method:      "PATCH",
+          credentials: "include",
+          headers:     { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id:            editingId,
+            original_text: editOrigEl.value.trim(),
+            edited_text:   editEditEl.value.trim()
+          })
         });
+        editorModal.style.display = "none";
         fetchAndRender();
-      }
-    );
-  }
+      };
+    }
 
-  //—— 页面一打开就检查授权 —— 
-  checkAuth();
+    async function fetchAndRender() {
+      const resp = await fetch(
+        `${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,
+        { credentials: "include" }
+      );
+      const { total, data } = await resp.json();
+      totalCount = total;
 
+      pageInfoEl.textContent       = `${currentPage} / ${Math.ceil(totalCount / pageSize) || 1}`;
+      prevPageBtn.disabled         = currentPage <= 1;
+      nextPageBtn.disabled         = currentPage * pageSize >= totalCount;
+
+      tableBody.innerHTML = "";
+      data.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r.id.slice(0,8)}</td>
+          <td>${r.user_id}</td>
+          <td>${formatBeijing(r.created_at)}</td>
+          <td>
+            <button class="btn-preview" data-text="${encodeURIComponent(r.original_text)}">预览</button>
+            <button class="btn-edit"    data-id="${r.id}">编辑</button>
+            <button class="btn-delete"  data-id="${r.id}">删除</button>
+          </td>`;
+        tableBody.append(tr);
+      });
+
+      document.querySelectorAll(".btn-preview").forEach(el =>
+        el.onclick = () => {
+          markdownPrv.innerHTML = marked.parse(decodeURIComponent(el.dataset.text));
+          window.scrollTo({ top: markdownPrv.offsetTop, behavior: "smooth" });
+        }
+      );
+      document.querySelectorAll(".btn-edit").forEach(el =>
+        el.onclick = async () => {
+          editingId = el.dataset.id;
+          const res = await fetch(`${API_BASE}/get-resume?id=${editingId}`, { credentials: "include" });
+          const obj = await res.json();
+          editOrigEl.value = obj.original_text;
+          editEditEl.value = obj.edited_text || "";
+          editorModal.style.display = "";
+          window.scrollTo({ top: editorModal.offsetTop, behavior: "smooth" });
+        }
+      );
+      document.querySelectorAll(".btn-delete").forEach(el =>
+        el.onclick = async () => {
+          if (!confirm("确认删除这条记录？")) return;
+          await fetch(`${API_BASE}/delete-resume?id=${el.dataset.id}`, {
+            method:      "DELETE",
+            credentials: "include"
+          });
+          fetchAndRender();
+        }
+      );
+    }
+
+    //—— 页面一打开就检查授权 —— 
+    checkAuth();
 
 
   </script>
