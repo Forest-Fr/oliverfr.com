@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>CV 管理后台</title>
+   <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <!-- 只保留 Markdown 渲染库 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -211,13 +212,25 @@
           <button id="nextPage">下一页</button>
         </div>
       </div>
-
-      <!-- 右侧：Markdown 预览 -->
+   <!-- 右侧：Markdown 预览（固定侧栏） -->
       <div class="preview-wrapper" id="preview">
         <h2>预览 (Markdown 渲染)</h2>
         <div id="markdownPreview">点击“预览”按钮查看简历内容</div>
       </div>
-    </div>
+    </div> <!-- /.main -->
+  </div>   <!-- /#content -->
+
+  <!-- ================= 预览弹窗 ================= -->
+  <!-- 复用全局 #modalOverlay 遮罩，无需再建遮罩层 -->
+  <div id="previewModal"
+       class="preview-wrapper"
+       style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+              max-height:80vh;overflow:auto;z-index:1000;width:90%;max-width:700px;">
+    <button id="closePreview"
+            style="float:right;background:#e2e8f0;border:0;border-radius:4px;
+                   padding:0 8px;font-size:22px;line-height:24px;cursor:pointer">×</button>
+    <h2 style="margin-top:0">简历预览</h2>
+    <div id="previewContent" style="line-height:1.8"></div>
   </div>
 
   <div id="modalOverlay"></div>
@@ -231,7 +244,6 @@
 
   <script>
 /* ========= 通用配置 ========= */
-// 如果 Worker 跑在同域，可把 API_BASE 设为 ''
 const API_BASE = 'https://cv-edit-worker.mefans.workers.dev';
 
 /* ========= 工具 ========= */
@@ -239,55 +251,23 @@ function formatBeijing(iso) {
   if (!iso) return '—';
   return new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'Asia/Shanghai',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
+    year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',second:'2-digit'
   }).format(new Date(iso));
 }
 
-/* ========= 登录 / 登出 ========= */
-const loginBtn  = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const contentEl = document.getElementById('content');
+/* ========= DOM ========= */
+const loginBtn   = document.getElementById('loginBtn');
+const logoutBtn  = document.getElementById('logoutBtn');
+const contentEl  = document.getElementById('content');
 
-loginBtn.onclick  = () => (location.href = `${API_BASE}/g-login`);
-logoutBtn.onclick = async () => {
-  await fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' });
-  location.reload();
-};
+const searchEl    = document.getElementById('search');
+const tableBody   = document.getElementById('tableBody');
+const prevPageBtn = document.getElementById('prevPage');
+const nextPageBtn = document.getElementById('nextPage');
+const pageInfoEl  = document.getElementById('pageInfo');
+const markdownPrv = document.getElementById('markdownPreview');
 
-/* ========= 权限检查 ========= */
-async function checkAuth() {
-  const resp = await fetch(`${API_BASE}/session`, { credentials: 'include' });
-  if (!resp.ok) {
-    loginBtn.style.display  = '';
-    logoutBtn.style.display = 'none';
-    contentEl.style.display = 'none';
-    return;
-  }
-  const { authenticated, user } = await resp.json();
-  if (authenticated && user.email === 'oliveroogle@gmail.com') {
-    loginBtn.style.display  = 'none';
-    logoutBtn.style.display = '';
-    contentEl.style.display = '';
-    initPage();
-  } else {
-    alert('只有管理员可访问此页面');
-  }
-}
-
-/* ========= 分页 / 搜索 / 编辑 ========= */
-let currentPage  = 1,
-    pageSize     = 10,
-    totalCount   = 0,
-    lastSearch   = '',
-    editingId    = null;
-
-const searchEl     = document.getElementById('search');
-const tableBody    = document.getElementById('tableBody');
-const prevPageBtn  = document.getElementById('prevPage');
-const nextPageBtn  = document.getElementById('nextPage');
-const pageInfoEl   = document.getElementById('pageInfo');
-const markdownPrv  = document.getElementById('markdownPreview');
 const modalOverlay = document.getElementById('modalOverlay');
 const editorModal  = document.getElementById('editorModal');
 const editOrigEl   = document.getElementById('editOriginal');
@@ -295,139 +275,138 @@ const editEditEl   = document.getElementById('editEdited');
 const saveEditBtn  = document.getElementById('saveEdit');
 const cancelBtn    = document.getElementById('cancelEdit');
 
-function initPage() {
-  bindEvents();
-  fetchAndRender();
+const previewModal   = document.getElementById('previewModal');
+const previewContent = document.getElementById('previewContent');
+const closePreview   = document.getElementById('closePreview');
+
+/* ========= 登录 / 登出 ========= */
+loginBtn.onclick  = () => (location.href = `${API_BASE}/g-login`);
+logoutBtn.onclick = async () => {
+  await fetch(`${API_BASE}/logout`, { method:'POST', credentials:'include' });
+  location.reload();
+};
+
+/* ========= 权限检查 ========= */
+async function checkAuth() {
+  const r = await fetch(`${API_BASE}/session`, { credentials:'include' });
+  if (!r.ok) { unauth(); return; }
+  const { authenticated, user } = await r.json();
+  if (authenticated && user.email === 'oliveroogle@gmail.com') {
+    loginBtn.style.display='none'; logoutBtn.style.display='';
+    contentEl.style.display='';    initPage();
+  } else { unauth(); }
+}
+function unauth(){
+  loginBtn.style.display=''; logoutBtn.style.display='none';
+  contentEl.style.display='none';
 }
 
-/* ---------- 事件绑定 ---------- */
-function bindEvents() {
-  /* 搜索框 */
-  searchEl.onkeypress = e => {
-    if (e.key === 'Enter') {
-      lastSearch  = searchEl.value.trim();
-      currentPage = 1;
-      fetchAndRender();
-    }
-  };
+/* ========= 分页 / 列表 ========= */
+let currentPage=1,pageSize=10,totalCount=0,lastSearch='',editingId=null;
+function initPage(){ bindEvents(); fetchAndRender(); }
 
-  /* 分页按钮 */
-  prevPageBtn.onclick = () => { if (currentPage > 1) { currentPage--; fetchAndRender(); } };
-  nextPageBtn.onclick = () => {
-    if (currentPage * pageSize < totalCount) { currentPage++; fetchAndRender(); }
-  };
+function bindEvents(){
+  searchEl.onkeypress = e=>{ if(e.key==='Enter'){ lastSearch=searchEl.value.trim(); currentPage=1; fetchAndRender(); } };
+  prevPageBtn.onclick = ()=>{ if(currentPage>1){currentPage--;fetchAndRender();} };
+  nextPageBtn.onclick = ()=>{ if(currentPage*pageSize<totalCount){currentPage++;fetchAndRender();} };
 
-  /* 取消编辑 */
+  /* 编辑弹窗 */
   cancelBtn.onclick = closeEditor;
-  modalOverlay.onclick = closeEditor;
-
-  /* 保存编辑 */
-  saveEditBtn.onclick = async () => {
-    saveEditBtn.disabled = true;
-    try {
-      const res = await fetch(`${API_BASE}/edit-resume`, {
-        method:      'PATCH',
-        credentials: 'include',
-        headers:     { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id:            editingId,
-          original_text: editOrigEl.value.trim(),
-          edited_text:   editEditEl.value.trim()
-        })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      closeEditor();
-      fetchAndRender();
-    } catch (e) {
-      alert('保存失败：' + e.message);
-    } finally {
-      saveEditBtn.disabled = false;
-    }
+  modalOverlay.onclick = e=>{
+    if(e.target===modalOverlay) { closeEditor(); closePreviewModal(); }
   };
+  saveEditBtn.onclick = saveEdit;
+
+  /* 预览弹窗关闭 */
+  closePreview.onclick = closePreviewModal;
 }
 
-/* ---------- 打开 / 关闭编辑器 ---------- */
-function openEditor(record) {
-  editingId        = record.id;
-  editOrigEl.value = record.original_text || '';
-  editEditEl.value = record.edited_text   || '';
+async function fetchAndRender(){
+  try{
+    const r = await fetch(`${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,{credentials:'include'});
+    if(!r.ok) throw new Error(r.status);
+    const {total,data}=await r.json(); totalCount=total;
 
-  modalOverlay.style.display = 'block';
-  editorModal.style.display  = 'block';
-}
+    pageInfoEl.textContent=`${currentPage}/${Math.ceil(totalCount/pageSize)||1}`;
+    prevPageBtn.disabled=currentPage<=1;
+    nextPageBtn.disabled=currentPage*pageSize>=totalCount;
 
-function closeEditor() {
-  editingId = null;
-  editorModal.style.display  = 'none';
-  modalOverlay.style.display = 'none';
-}
-
-/* ---------- 拉取并渲染表格 ---------- */
-async function fetchAndRender() {
-  try {
-    const resp = await fetch(
-      `${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,
-      { credentials: 'include' }
-    );
-    if (!resp.ok) throw new Error(`/list-resumes HTTP ${resp.status}`);
-    const { total, data } = await resp.json();
-    totalCount = total;
-
-    /* 分页信息 */
-    pageInfoEl.textContent = `${currentPage} / ${Math.ceil(totalCount / pageSize) || 1}`;
-    prevPageBtn.disabled   = currentPage <= 1;
-    nextPageBtn.disabled   = currentPage * pageSize >= totalCount;
-
-    /* 生成表格行 */
-    tableBody.innerHTML = '';
-    if (data.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888">暂无数据</td></tr>';
-    } else {
-      data.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${r.id.slice(0, 8)}</td>
-          <td>${r.user_id}</td>
-          <td>${formatBeijing(r.created_at)}</td>
+    tableBody.innerHTML='';
+    if(data.length===0){
+      tableBody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#888">暂无数据</td></tr>';
+    }else{
+      data.forEach(row=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td>${row.id.slice(0,8)}</td>
+          <td>${row.user_id}</td>
+          <td>${formatBeijing(row.created_at)}</td>
           <td>
-            <button class="btn-preview" data-text="${encodeURIComponent(r.original_text)}">预览</button>
-            <button class="btn-edit" data-id="${r.id}">编辑</button>
-            <button class="btn-delete" data-id="${r.id}">删除</button>
+            <button class="btn-preview" data-text="${encodeURIComponent(row.original_text)}">预览</button>
+            <button class="btn-edit" data-id="${row.id}">编辑</button>
+            <button class="btn-delete" data-id="${row.id}">删除</button>
           </td>`;
         tableBody.append(tr);
       });
     }
 
-    /* 行内按钮事件 */
-    document.querySelectorAll('.btn-preview').forEach(el =>
-      el.onclick = () => {
-        markdownPrv.innerHTML = marked.parse(decodeURIComponent(el.dataset.text));
-        window.scrollTo({ top: markdownPrv.offsetTop - 20, behavior: 'smooth' });
-      }
-    );
-    document.querySelectorAll('.btn-edit').forEach(el =>
-      el.onclick = async () => {
-        const res = await fetch(`${API_BASE}/get-resume?id=${el.dataset.id}`, { credentials: 'include' });
-        openEditor(await res.json());
-      }
-    );
-    document.querySelectorAll('.btn-delete').forEach(el =>
-      el.onclick = async () => {
-        if (!confirm('确认删除这条记录？')) return;
-        await fetch(`${API_BASE}/delete-resume?id=${el.dataset.id}`, {
-          method: 'DELETE',
-          credentials: 'include'
-        });
-        fetchAndRender();
-      }
-    );
-  } catch (err) {
-    console.error('❌ 列表加载失败', err);
-    alert('加载数据失败，请稍后再试');
-  }
+    /* 行内事件 */
+    document.querySelectorAll('.btn-preview').forEach(b=>b.onclick=()=>{
+      const html = marked.parse(decodeURIComponent(b.dataset.text));
+      markdownPrv.innerHTML = html;               // 右侧静态区
+      openPreviewModal(html);                     // 弹窗
+    });
+    document.querySelectorAll('.btn-edit').forEach(b=>b.onclick=()=> openEditor(b.dataset.id));
+    document.querySelectorAll('.btn-delete').forEach(b=>b.onclick=()=> delResume(b.dataset.id));
+  }catch(e){ alert('加载失败'); console.error(e); }
 }
 
-/* ========= 初始化 ========= */
+/* ========= 编辑 ========= */
+async function openEditor(id){
+  const r=await fetch(`${API_BASE}/get-resume?id=${id}`,{credentials:'include'});
+  const rec=await r.json();
+  editingId        = rec.id;
+  editOrigEl.value = rec.original_text||'';
+  editEditEl.value = rec.edited_text||'';
+
+  modalOverlay.style.display='block';
+  editorModal.style.display='block';
+}
+function closeEditor(){
+  editingId=null;
+  editorModal.style.display='none';
+  modalOverlay.style.display='none';
+}
+async function saveEdit(){
+  saveEditBtn.disabled=true;
+  try{
+    const body={id:editingId,original_text:editOrigEl.value.trim(),edited_text:editEditEl.value.trim()};
+    const r=await fetch(`${API_BASE}/edit-resume`,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error(await r.text());
+    closeEditor(); fetchAndRender();
+  }catch(e){ alert('保存失败:'+e.message); }
+  finally{ saveEditBtn.disabled=false; }
+}
+
+/* ========= 删除 ========= */
+async function delResume(id){
+  if(!confirm('确认删除？')) return;
+  await fetch(`${API_BASE}/delete-resume?id=${id}`,{method:'DELETE',credentials:'include'});
+  fetchAndRender();
+}
+
+/* ========= 预览弹窗 ========= */
+function openPreviewModal(html){
+  previewContent.innerHTML=html;
+  modalOverlay.style.display='block';
+  previewModal.style.display='block';
+}
+function closePreviewModal(){
+  previewModal.style.display='none';
+  modalOverlay.style.display='none';
+}
+
+/* ========= 启动 ========= */
 checkAuth();
   </script>
 </body>
