@@ -230,12 +230,9 @@
 
   <script>
 
-  // —— 同域调用，不再跑到二级域名 —— 
-// —— 只保留当前域名，不再跑到 Workers.dev 二级域名 —— 
   const API_BASE = "";
 
   //—— 登录后 GitHub 会把 access_token 丢到 hash —— 
-//—— 登录后 GitHub 会把 access_token 丢到 hash —— 
  const hash = location.hash;
   if (hash.includes("access_token")) {
     console.log("🔁 页面 hash 是:", location.hash);
