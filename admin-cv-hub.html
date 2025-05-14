@@ -3,236 +3,115 @@
 <head>
   <meta charset="UTF-8" />
   <title>CV 管理后台</title>
-   <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
+  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- 只保留 Markdown 渲染库 -->
+  <!-- Markdown 渲染库 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
   <style>
-  /* 基础重置与字体 */
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-    background: #f5f7fa;
-    color: #333;
-    line-height: 1.6;
-    padding: 1rem;
+  /* ========= 全局样式 / 布局 ========= */
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:#f5f7fa;color:#333;line-height:1.6;padding:1rem
   }
-  h1 {
-    text-align: center;
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-
-  /* 容器 */
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  /* 登录/登出 区域：居中 */
-  #auth {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 1rem;
-  }
-  #auth button {
-    background: #24292e;
-    color: #fff;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  #auth button + button {
-    margin-left: 0.5rem;
-  }
-
+  h1{font-size:2rem;text-align:center;margin-bottom:1rem}
+  .container{max-width:1200px;margin:0 auto}
   /* 搜索框 */
-  #search {
-    width: 100%;
-    padding: 0.5rem;
-    font-size: 1rem;
-    margin-bottom: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+  #search{width:100%;padding:.5rem;font-size:1rem;margin-bottom:1rem;
+          border:1px solid #ccc;border-radius:4px}
+  /* 主体布局：移动端垂直，桌面左右 */
+  .main{display:flex;flex-direction:column;gap:1rem}
+  @media (min-width:768px){.main{flex-direction:row}
+                            .table-wrapper{flex:2}.preview-wrapper{flex:1}}
+  /* 盒子通用 */
+  .table-wrapper,.preview-wrapper{
+    background:#fff;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.1);
+    padding:1rem;overflow-x:auto
   }
-
-  /* 主体布局：移动端垂直，桌面端左右并列 */
-  .main {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  @media (min-width: 768px) {
-    .main { flex-direction: row; }
-    .table-wrapper { flex: 2; }
-    .preview-wrapper { flex: 1; }
-  }
-
-  /* 表格与预览通用样式 */
-  .table-wrapper,
-  .preview-wrapper {
-    background: #fff;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    padding: 1rem;
-    overflow-x: auto;
-  }
-
   /* 表格 */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  th, td {
-    padding: 0.6rem 0.8rem;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-  }
-  th {
-    background: #fafafa;
-    font-weight: 600;
-  }
-
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:.6rem .8rem;border-bottom:1px solid #eee;text-align:left}
+  th{background:#fafafa;font-weight:600}
   /* 分页 */
-  #pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: 0.75rem;
-  }
-  #pagination button {
-    background: #0366d6;
-    color: #fff;
-    border: none;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
-    cursor: pointer;
-    margin: 0 0.5rem;
-  }
-  #pagination button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
+  #pagination{display:flex;justify-content:center;align-items:center;margin-top:.75rem}
+  #pagination button{background:#0366d6;color:#fff;border:0;padding:.4rem .8rem;
+                     border-radius:4px;cursor:pointer;margin:0 .5rem}
+  #pagination button:disabled{opacity:.5;cursor:not-allowed}
   /* Markdown 预览 */
-  #preview h2 {
-    margin-bottom: 0.5rem;
-  }
-  #markdownPreview {
-    line-height: 1.8;
-  }
+  #preview h2{margin-bottom:.5rem}
+  #markdownPreview{line-height:1.8}
+  /* 弹窗 & 遮罩 */
+  #modalOverlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:900}
+  #editorModal{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:90%;max-width:600px;background:#fff;border-radius:6px;
+    box-shadow:0 4px 12px rgba(0,0,0,.15);padding:1.5rem;display:none;z-index:1000}
+  #editorModal textarea{width:100%;height:8rem;margin-bottom:1rem;padding:.5rem;
+                        border:1px solid #ccc;border-radius:4px;font-family:inherit}
+  #editorModal button{background:#0366d6;color:#fff;border:0;padding:.5rem 1rem;
+                      border-radius:4px;cursor:pointer;margin-right:.5rem}
+  #editorModal button:disabled{opacity:.6;cursor:not-allowed}
 
-  /* 编辑浮层 & 遮罩 */
-  #modalOverlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.4);
-    display: none;
-    z-index: 900;
-  }
-  #editorModal {
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 600px;
-    background: #fff;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    padding: 1.5rem;
-    display: none;
-    z-index: 1000;
-  }
-  #editorModal h2 {
-    margin-bottom: 1rem;
-    font-size: 1.25rem;
-  }
-  #editorModal textarea {
-    width: 100%;
-    height: 8rem;
-    margin-bottom: 1rem;
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-family: inherit;
-  }
-  #editorModal button {
-    background: #0366d6;
-    color: #fff;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-right: 0.5rem;
-  }
-#editorModal button:disabled { opacity:.6; cursor:not-allowed; }
- 
-  /* Responsive typography & spacing on small screens */
-  @media (max-width: 480px) {
-    h1 { font-size: 1.5rem; }
-    #search { font-size: 0.9rem; }
-    th, td { font-size: 0.85rem; padding: 0.5rem; }
-    #pagination button { padding: 0.3rem 0.6rem; }
-  }
-</style>
+  /* 预览弹窗 */
+  #previewModal{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    max-height:80vh;overflow:auto;z-index:1000;width:90%;max-width:700px;
+    background:#fff;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);
+    padding:1.5rem;display:none}
+  #previewModal button{float:right;background:#e2e8f0;border:0;border-radius:4px;
+                       padding:0 8px;font-size:22px;line-height:24px;cursor:pointer}
 
+  /* 响应式文字 */
+  @media (max-width:480px){
+    h1{font-size:1.5rem} #search{font-size:.9rem}
+    th,td{font-size:.85rem;padding:.5rem}
+    #pagination button{padding:.3rem .6rem}
+  }
+  </style>
 </head>
+
 <body>
   <h1>CV 管理后台</h1>
 
- <!-- GitHub 登录/登出 -->
-  <div id="auth">
-    <button id="loginBtn">GitHub 登录</button>
-    <button id="logoutBtn" style="display:none">登出</button>
-  </div>
-
-  <div id="content" class="container" style="display:none">
+  <!-- 主内容 -->
+  <div id="content" class="container">
     <!-- 搜索 -->
     <input type="text" id="search" placeholder="搜索原始简历内容… (回车搜索)" />
 
     <div class="main">
-      <!-- 左侧：表格 + 分页 -->
+      <!-- 表格 + 分页 -->
       <div class="table-wrapper">
         <table>
           <thead>
-            <tr>
-              <th>ID</th>
-              <th>用户</th>
-              <th>创建时间</th>
-              <th>操作</th>
-            </tr>
+            <tr><th>ID</th><th>用户</th><th>创建时间</th><th>操作</th></tr>
           </thead>
           <tbody id="tableBody"></tbody>
         </table>
-
         <div id="pagination">
           <button id="prevPage">上一页</button>
           <span id="pageInfo"></span>
           <button id="nextPage">下一页</button>
         </div>
       </div>
-   <!-- 右侧：Markdown 预览（固定侧栏） -->
+
+      <!-- Markdown 预览侧栏 -->
       <div class="preview-wrapper" id="preview">
         <h2>预览 (Markdown 渲染)</h2>
         <div id="markdownPreview">点击“预览”按钮查看简历内容</div>
       </div>
-    </div> <!-- /.main -->
-  </div>   <!-- /#content -->
+    </div>
+  </div>
 
-  <!-- ================= 预览弹窗 ================= -->
-  <!-- 复用全局 #modalOverlay 遮罩，无需再建遮罩层 -->
-  <div id="previewModal"
-       class="preview-wrapper"
-       style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-              max-height:80vh;overflow:auto;z-index:1000;width:90%;max-width:700px;">
-    <button id="closePreview"
-            style="float:right;background:#e2e8f0;border:0;border-radius:4px;
-                   padding:0 8px;font-size:22px;line-height:24px;cursor:pointer">×</button>
+  <!-- 预览弹窗 -->
+  <div id="previewModal">
+    <button id="closePreview">×</button>
     <h2 style="margin-top:0">简历预览</h2>
     <div id="previewContent" style="line-height:1.8"></div>
   </div>
 
+  <!-- 编辑弹窗 & 遮罩 -->
   <div id="modalOverlay"></div>
   <div id="editorModal">
     <h2>编辑简历</h2>
@@ -242,88 +121,84 @@
     <button id="cancelEdit">取消</button>
   </div>
 
-  <script>
-/* ========= 通用配置 ========= */
-/* ========= 通用配置 ========= */
-   const API_BASE = "";
-    /* ========= DOM 元素 ========= */
-    const loginBtn   = document.getElementById('loginBtn');
-    const logoutBtn  = document.getElementById('logoutBtn');
-    const contentEl  = document.getElementById('content');
-    // ...其它 DOM 获取不变...
+<script>
+/* ========= 全局常量 ========= */
+const API_BASE   = "";          // 同域 Worker，无需加前缀
+const pageSize   = 10;
 
-    /* ========= 登录 / 登出 ========= */
-    // 将登录跳转改为 GitHub Code Flow 路径 /gh-login
-    loginBtn.onclick  = () => { location.href = `${API_BASE}/gh-login`; };
-    logoutBtn.onclick = async () => {
-      await fetch(`${API_BASE}/logout`, { method:'POST', credentials:'include' });
-      location.reload();
-    };
+/* ========= DOM ========= */
+const searchEl      = document.getElementById('search');
+const tableBody     = document.getElementById('tableBody');
+const prevPageBtn   = document.getElementById('prevPage');
+const nextPageBtn   = document.getElementById('nextPage');
+const pageInfoEl    = document.getElementById('pageInfo');
 
-    /* ========= 权限检查 ========= */
-    async function checkAuth() {
-      const resp = await fetch(`${API_BASE}/session`, { credentials:'include' });
-      if (!resp.ok) {
-        loginBtn.style.display  = '';
-        logoutBtn.style.display = 'none';
-        contentEl.style.display = 'none';
-        return;
-      }
-      const { authenticated, user } = await resp.json();
-      if (authenticated && (
-           user.email === 'oliveroogle@gmail.com' ||
-           // GitHub 登录时我们用 gh_token，可以在 session 接口里返回 via:'github'
-           user.login   === 'oliveroogle'
-         )) {
-        loginBtn.style.display  = 'none';
-        logoutBtn.style.display = '';
-        contentEl.style.display = '';
-        initPage();
-      } else {
-        alert('只有管理员可访问此页面');
-        loginBtn.style.display  = '';
-        logoutBtn.style.display = 'none';
-        contentEl.style.display = 'none';
-      }
-    }
+const modalOverlay  = document.getElementById('modalOverlay');
+const editorModal   = document.getElementById('editorModal');
+const editOrigEl    = document.getElementById('editOriginal');
+const editEditEl    = document.getElementById('editEdited');
+const saveEditBtn   = document.getElementById('saveEdit');
+const cancelBtn     = document.getElementById('cancelEdit');
 
-/* ========= 分页 / 列表 ========= */
-let currentPage=1,pageSize=10,totalCount=0,lastSearch='',editingId=null;
-function initPage(){ bindEvents(); fetchAndRender(); }
+const previewModal  = document.getElementById('previewModal');
+const closePreview  = document.getElementById('closePreview');
+const previewContent= document.getElementById('previewContent');
+const markdownPrv   = document.getElementById('markdownPreview');
 
+/* ========= 状态 ========= */
+let currentPage = 1, totalCount = 0, lastSearch = '', editingId = null;
+
+/* ========= 工具 ========= */
+const fmt = n => n<10? '0'+n : n;
+function formatBeijing(iso){
+  const d = new Date(iso);
+  d.setHours(d.getHours()+8);                     // ISO → 北京
+  return `${d.getFullYear()}-${fmt(d.getMonth()+1)}-${fmt(d.getDate())} `
+       + `${fmt(d.getHours())}:${fmt(d.getMinutes())}`;
+}
+
+/* ========= 初始化 ========= */
+function initPage(){
+  bindEvents();
+  fetchAndRender();
+}
+
+/* ========= 事件绑定 ========= */
 function bindEvents(){
-  searchEl.onkeypress = e=>{ if(e.key==='Enter'){ lastSearch=searchEl.value.trim(); currentPage=1; fetchAndRender(); } };
+  searchEl.onkeypress = e=>{
+    if(e.key==='Enter'){
+      lastSearch = searchEl.value.trim();
+      currentPage = 1;
+      fetchAndRender();
+    }
+  };
   prevPageBtn.onclick = ()=>{ if(currentPage>1){currentPage--;fetchAndRender();} };
   nextPageBtn.onclick = ()=>{ if(currentPage*pageSize<totalCount){currentPage++;fetchAndRender();} };
 
-  /* 编辑弹窗 */
-  cancelBtn.onclick = closeEditor;
-  modalOverlay.onclick = e=>{
-    if(e.target===modalOverlay) { closeEditor(); closePreviewModal(); }
+  cancelBtn.onclick   = closeEditor;
+  modalOverlay.onclick= e=>{
+    if(e.target===modalOverlay){ closeEditor(); closePreviewModal(); }
   };
   saveEditBtn.onclick = saveEdit;
-
-  /* 预览弹窗关闭 */
-  closePreview.onclick = closePreviewModal;
+  closePreview.onclick= closePreviewModal;
 }
 
+/* ========= 列表渲染 ========= */
 async function fetchAndRender(){
   try{
-    const r = await fetch(`${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,{credentials:'include'});
+    const r = await fetch(`${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,
+                          { credentials:'include' });
     if(!r.ok) throw new Error(r.status);
-    const {total,data}=await r.json(); totalCount=total;
+    const { total,data } = await r.json();
+    totalCount = total;
 
-    pageInfoEl.textContent=`${currentPage}/${Math.ceil(totalCount/pageSize)||1}`;
-    prevPageBtn.disabled=currentPage<=1;
-    nextPageBtn.disabled=currentPage*pageSize>=totalCount;
+    pageInfoEl.textContent = `${currentPage}/${Math.ceil(totalCount/pageSize)||1}`;
+    prevPageBtn.disabled = currentPage<=1;
+    nextPageBtn.disabled = currentPage*pageSize>=totalCount;
 
-    tableBody.innerHTML='';
-    if(data.length===0){
-      tableBody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#888">暂无数据</td></tr>';
-    }else{
-      data.forEach(row=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`
+    tableBody.innerHTML = data.length
+      ? data.map(row=>`
+        <tr>
           <td>${row.id.slice(0,8)}</td>
           <td>${row.user_id}</td>
           <td>${formatBeijing(row.created_at)}</td>
@@ -331,32 +206,33 @@ async function fetchAndRender(){
             <button class="btn-preview" data-text="${encodeURIComponent(row.original_text)}">预览</button>
             <button class="btn-edit" data-id="${row.id}">编辑</button>
             <button class="btn-delete" data-id="${row.id}">删除</button>
-          </td>`;
-        tableBody.append(tr);
-      });
-    }
+          </td>
+        </tr>`).join('')
+      : '<tr><td colspan="4" style="text-align:center;color:#888">暂无数据</td></tr>';
 
-    /* 行内事件 */
+    /* 行内事件绑定 */
     document.querySelectorAll('.btn-preview').forEach(b=>b.onclick=()=>{
       const html = marked.parse(decodeURIComponent(b.dataset.text));
-      markdownPrv.innerHTML = html;               // 右侧静态区
-      openPreviewModal(html);                     // 弹窗
+      markdownPrv.innerHTML = html;
+      openPreviewModal(html);
     });
-    document.querySelectorAll('.btn-edit').forEach(b=>b.onclick=()=> openEditor(b.dataset.id));
-    document.querySelectorAll('.btn-delete').forEach(b=>b.onclick=()=> delResume(b.dataset.id));
-  }catch(e){ alert('加载失败'); console.error(e); }
+    document.querySelectorAll('.btn-edit').forEach(b=>b.onclick=()=>openEditor(b.dataset.id));
+    document.querySelectorAll('.btn-delete').forEach(b=>b.onclick=()=>delResume(b.dataset.id));
+  }catch(e){
+    alert('加载失败'); console.error(e);
+  }
 }
 
 /* ========= 编辑 ========= */
 async function openEditor(id){
-  const r=await fetch(`${API_BASE}/get-resume?id=${id}`,{credentials:'include'});
-  const rec=await r.json();
+  const r   = await fetch(`${API_BASE}/get-resume?id=${id}`, { credentials:'include' });
+  const rec = await r.json();
   editingId        = rec.id;
   editOrigEl.value = rec.original_text||'';
   editEditEl.value = rec.edited_text||'';
 
-  modalOverlay.style.display='block';
-  editorModal.style.display='block';
+  modalOverlay.style.display = 'block';
+  editorModal.style.display  = 'block';
 }
 function closeEditor(){
   editingId=null;
@@ -366,12 +242,24 @@ function closeEditor(){
 async function saveEdit(){
   saveEditBtn.disabled=true;
   try{
-    const body={id:editingId,original_text:editOrigEl.value.trim(),edited_text:editEditEl.value.trim()};
-    const r=await fetch(`${API_BASE}/edit-resume`,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const body = {
+      resume_id: editingId,                      // 已有则更新
+      user_id:   'admin',                        // 新增时需要；可改后台逻辑
+      text:      editEditEl.value.trim()
+    };
+    const r = await fetch(`${API_BASE}/edit-resume`, {
+      method: 'POST',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
     if(!r.ok) throw new Error(await r.text());
     closeEditor(); fetchAndRender();
-  }catch(e){ alert('保存失败:'+e.message); }
-  finally{ saveEditBtn.disabled=false; }
+  }catch(e){
+    alert('保存失败: '+e.message);
+  }finally{
+    saveEditBtn.disabled=false;
+  }
 }
 
 /* ========= 删除 ========= */
@@ -393,7 +281,7 @@ function closePreviewModal(){
 }
 
 /* ========= 启动 ========= */
-checkAuth();
-  </script>
+initPage();
+</script>
 </body>
 </html>
