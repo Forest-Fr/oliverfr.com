@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>医疗 Copilot（支持语音/手动/本地OCR/实时拍照OCR）</title>
+  <style>
+    body { margin:0; padding:0; font-family:sans-serif; background:#f0f2f5; display:flex; flex-direction:column; height:100vh; }
+    .chat-container { flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:8px; }
+    .bubble { max-width:70%; padding:12px; border-radius:8px; word-break:break-word; }
+    .patient { background:#e6f7ff; align-self:flex-start; }
+    .assistant { background:#f6ffed; align-self:flex-end; }
+    .loading { opacity:0.6; }
+    .controls, .extra-controls { padding:12px; background:#fff; border-top:1px solid #ddd; display:flex; flex-wrap:wrap; gap:8px; }
+    button { padding:10px; border:none; border-radius:4px; font-size:14px; cursor:pointer; }
+    button:hover { opacity:0.9; }
+    #btnListen { background:#1890ff; color:#fff; }
+    #btnDiagnose { background:#52c41a; color:#fff; }
+    #btnAddText { background:#722ed1; color:#fff; }
+    #btnOpenCam, #btnSnap { background:#fa8c16; color:#fff; }
+    textarea { flex:1 1 100%; height:60px; padding:8px; border:1px solid #ccc; border-radius:4px; resize:none; }
+    input[type=file] { flex:1; }
+    video { display:none; width:200px; height:150px; border:1px solid #ccc; border-radius:4px; }
+    canvas { display:none; }
+  </style>
+</head>
+<body>
+
+  <div class="chat-container" id="chat"></div>
+
+  <!-- 语音 & 诊断 控件 -->
+  <div class="controls">
+    <button id="btnListen">开始录音</button>
+    <button id="btnDiagnose">获取诊断建议</button>
+  </div>
+
+  <!-- 手动输入 & 文件 & 实时拍照 -->
+  <div class="extra-controls">
+    <textarea id="manualText" placeholder="手动输入患者描述…"></textarea>
+    <button id="btnAddText">添加描述</button>
+    <input type="file" id="imgUpload" accept="image/*">
+    <button id="btnOpenCam">打开摄像头</button>
+    <button id="btnSnap">拍照识别</button>
+    <video id="videoPreview" autoplay muted></video>
+    <canvas id="camCanvas"></canvas>
+  </div>
+
+  <!-- 引入 Tesseract.js OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
+  <script>
+  (function(){
+    const chatEl = document.getElementById('chat');
+    const btnListen = document.getElementById('btnListen');
+    const btnDiagnose = document.getElementById('btnDiagnose');
+    const btnAddText = document.getElementById('btnAddText');
+    const manualText = document.getElementById('manualText');
+    const imgUpload = document.getElementById('imgUpload');
+    const btnOpenCam = document.getElementById('btnOpenCam');
+    const btnSnap = document.getElementById('btnSnap');
+    const video = document.getElementById('videoPreview');
+    const canvas = document.getElementById('camCanvas');
+    let stream = null;
+
+    let listening = false;
+    let recognition = null;
+    const messages = []; // { role, text, el }
+
+    // 初始化语音识别
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'zh-CN';
+      recognition.continuous = true;
+      recognition.onresult = e => {
+        const text = Array.from(e.results)
+          .slice(e.resultIndex)
+          .map(r => r[0].transcript)
+          .join('');
+        appendMessage('patient', text);
+      };
+    }
+
+    // 追加消息
+    function appendMessage(role, text, loading=false) {
+      const div = document.createElement('div');
+      div.className = 'bubble ' + role + (loading ? ' loading' : '');
+      div.textContent = loading ? (role==='assistant'?'诊断中…':text) : text;
+      chatEl.appendChild(div);
+      chatEl.scrollTop = chatEl.scrollHeight;
+      messages.push({ role, text, el: div });
+      return messages[messages.length - 1];
+    }
+
+    // 语音按钮
+    btnListen.addEventListener('click', () => {
+      if (!recognition) return alert('浏览器不支持语音识别');
+      listening = !listening;
+      btnListen.textContent = listening ? '停止录音' : '开始录音';
+      listening ? recognition.start() : recognition.stop();
+    });
+
+    // 添加手动文本
+    btnAddText.addEventListener('click', () => {
+      const text = manualText.value.trim();
+      if (!text) return;
+      appendMessage('patient', text);
+      manualText.value = '';
+    });
+
+    // 本地文件上传 OCR
+    imgUpload.addEventListener('change', async () => {
+      const file = imgUpload.files[0];
+      if (!file) return;
+      appendMessage('patient', '正在识别本地图像…', true);
+      const { data: { text } } = await Tesseract.recognize(file, 'chi_sim');
+      // 删除上条 loading
+      const last = messages.pop();
+      chatEl.removeChild(last.el);
+      appendMessage('patient', text);
+      imgUpload.value = '';
+    });
+
+    // 打开/关闭摄像头
+    btnOpenCam.addEventListener('click', async () => {
+      if (stream) {
+        stream.getTracks().forEach(t=>t.stop());
+        stream = null;
+        video.style.display = 'none';
+        btnOpenCam.textContent = '打开摄像头';
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        video.style.display = 'block';
+        btnOpenCam.textContent = '关闭摄像头';
+      } catch (e) {
+        alert('无法访问摄像头：' + e.message);
+      }
+    });
+
+    // 拍照并 OCR
+    btnSnap.addEventListener('click', async () => {
+      if (!stream) return alert('请先打开摄像头');
+      // 将视频帧绘制到 canvas
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      appendMessage('patient', '正在识别拍照图像…', true);
+      // 转 blob
+      canvas.toBlob(async blob => {
+        const { data: { text } } = await Tesseract.recognize(blob, 'chi_sim');
+        const last = messages.pop();
+        chatEl.removeChild(last.el);
+        appendMessage('patient', text);
+      }, 'image/png');
+    });
+
+    // 点击诊断建议
+    btnDiagnose.addEventListener('click', async () => {
+      const transcript = messages
+        .filter(m => m.role==='patient')
+        .map(m => m.text).join('\n');
+      if (!transcript) return alert('请先输入患者描述');
+      const placeholder = appendMessage('assistant', '', true);
+
+      const resp = await fetch('/api/medical-diagnosis', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ transcript })
+      });
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      while (!done) {
+        const { value, done: d } = await reader.read();
+        done = d;
+        const chunk = decoder.decode(value||new Uint8Array(), { stream: !d });
+        placeholder.el.textContent += chunk;
+        placeholder.el.classList.remove('loading');
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+    });
+
+    // 初次欢迎
+    appendMessage('assistant', '欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
+  })();
+  </script>
+
+</body>
+</html>
