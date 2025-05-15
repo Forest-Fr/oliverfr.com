@@ -46,7 +46,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
   <script>
-  ;(function(){
+  (function(){
     const WORKER_ENDPOINT = 'https://admin-your-medical.mefans.workers.dev/api/medical-diagnosis';
 
     const chatEl     = document.getElementById('chat');
@@ -138,39 +138,76 @@
       },'image/png');
     });
 
-    // 获取诊断建议
-    btnDiagnose.addEventListener('click',async()=>{
-      const transcript=messages.filter(m=>m.role==='patient').map(m=>m.text).join('\n');
-      if(!transcript) return alert('请先输入患者描述');
-      const code=prompt('请输入 13 位授权码'); if(!code) return;
+   // 获取诊断建议
+btnDiagnose.addEventListener('click', async () => {
+  const transcript = messages
+    .filter(m => m.role === 'patient')
+    .map(m => m.text)
+    .join('\n');
+  if (!transcript) return alert('请先输入患者描述');
 
-      const placeholder=appendMessage('assistant','',true);
-      const resp=await fetch(WORKER_ENDPOINT,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({code,transcript})
-      });
-      if(resp.status===401){
-        placeholder.el.textContent='授权失败，请检查授权码';
-        placeholder.el.classList.remove('loading');
+  const code = prompt('请输入 13 位授权码');
+  if (!code) return;
+
+  // loading 占位
+  const placeholder = appendMessage('assistant', '', true);
+
+  // 请求 Worker
+  const resp = await fetch(WORKER_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, transcript })
+  });
+
+  if (resp.status === 401) {
+    placeholder.el.textContent = '授权失败，请检查授权码';
+    placeholder.el.classList.remove('loading');
+    return;
+  }
+  if (!resp.ok) {
+    placeholder.el.textContent = `错误 ${resp.status}`;
+    placeholder.el.classList.remove('loading');
+    return;
+  }
+
+  // —— 新：按行解析 SSE —— 
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    // 累积文本
+    buffer += decoder.decode(value, { stream: true });
+    // 拆行
+    const lines = buffer.split('\n');
+    // 保留最后一行（可能不完整）
+    buffer = lines.pop();
+    for (let line of lines) {
+      line = line.trim();
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (payload === '[DONE]') {
+        // 完成
+        reader.cancel();
         return;
       }
-      if(!resp.ok){
-        placeholder.el.textContent=`错误 ${resp.status}`;
-        placeholder.el.classList.remove('loading');
-        return;
+      try {
+        const parsed = JSON.parse(payload);
+        const delta = parsed.choices?.[0]?.delta?.content;
+        if (delta) {
+          placeholder.el.textContent += delta;
+          placeholder.el.classList.remove('loading');
+          chatEl.scrollTop = chatEl.scrollHeight;
+        }
+      } catch (e) {
+        console.warn('无法解析 SSE 行：', line, e);
       }
-      const reader=resp.body.getReader(), decoder=new TextDecoder();
-      let done=false;
-      while(!done){
-        const{value,done:d}=await reader.read();
-        done=d;
-        const chunk=decoder.decode(value||new Uint8Array(),{stream:!d});
-        placeholder.el.textContent+=chunk;
-        placeholder.el.classList.remove('loading');
-        chatEl.scrollTop=chatEl.scrollHeight;
-      }
-    });
+    }
+  }
+  // —— 解析结束 —— 
+});
+
 
     // 欢迎
     appendMessage('assistant','欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
