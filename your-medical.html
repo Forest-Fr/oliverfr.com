@@ -159,66 +159,75 @@
   }
 
   /* ---------- 8. 获取诊断建议（流式 SSE） ---------- */
+ /* ---------- 8. 获取诊断建议（流式 SSE，按行渲染） ---------- */
   btnDiagnose.onclick = async () => {
-    const transcript = messages
-      .filter(m => m.role === 'patient')
-      .map(m => m.text)
-      .join('\n');
+    const transcript = messages.filter(m=>m.role==='patient').map(m=>m.text).join('\n');
     if (!transcript) return alert('请先输入患者描述');
-
     const code = prompt('请输入 13 位授权码');
     if (!code) return;
 
-    // 必须用 let，后面会修改它
-    let place = appendMessage('assistant', '', true);
-    let buf   = '';
-    let full  = '';
-    let done  = false;
+    // 先插入一个 loading 占位
+    const placeholder = appendMessage('assistant', '', true);
 
     const resp = await fetch(`${API_BASE}/api/medical-diagnosis`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ code, transcript })
     });
-
     if (resp.status === 401) {
-      place.el.textContent = '授权失败，请检查授权码';
-      place.el.classList.remove('loading');
+      placeholder.el.innerHTML = '授权失败，请检查授权码';
+      placeholder.el.classList.remove('loading');
       return;
     }
     if (!resp.ok) {
-      place.el.textContent = `错误 ${resp.status}`;
-      place.el.classList.remove('loading');
+      placeholder.el.innerHTML = `错误 ${resp.status}`;
+      placeholder.el.classList.remove('loading');
       return;
     }
 
     const reader  = resp.body.getReader();
     const decoder = new TextDecoder('utf-8');
+    let buf = '', full = '';
 
-    // 严格读到 [DONE] 再结束
-    while (!done) {
-      const { value, done: rDone } = await reader.read();
-      if (rDone) break;
+    // 逐段读取
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
       buf += decoder.decode(value, { stream: true });
 
-      // 拆分事件块
-      const parts = buf.split('\n\n');
-      buf = parts.pop() || '';
+      // 拆分完整的 SSE 事件
+      const chunks = buf.split('\n\n');
+      buf = chunks.pop();  // 留下不完整的部分
 
-      for (const part of parts) {
-        if (!part.startsWith('data: ')) continue;
-        const payload = part.slice(6).trim();  // 跳过 "data: "
-        if (payload === '[DONE]') {
-          done = true;
-          continue;
+      for (const chunk of chunks) {
+        const m = chunk.match(/^data:\s*(.*)$/m);
+        if (!m) continue;
+        const data = m[1].trim();
+        if (data === '[DONE]') {
+          buf = '';
+          break;
         }
-        full += payload;
+        // 累积并逐行渲染
+        full += data;
       }
     }
 
-    // 渲染最终结果
-    place.el.classList.remove('loading');
-    place.el.innerHTML = formatDiagnosis(full.trim());
+    // 渲染：先把 placeholder 变成规范的 HTML
+    placeholder.el.classList.remove('loading');
+    // 按行拆分，确保 “1.” “2.” “3.” 各占一行
+    const lines = full.trim().split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    placeholder.el.innerHTML = lines
+      .map(line => {
+        // 如果以数字序号开头
+        const m = line.match(/^(\d+)\.\s*(.*)$/);
+        if (m) {
+          return `<strong>${m[1]}.</strong> ${m[2]}`;
+        }
+        // 否则作为普通段落
+        return line;
+      })
+      .join('<br/>');
+
     chatEl.scrollTop = chatEl.scrollHeight;
   };
 
