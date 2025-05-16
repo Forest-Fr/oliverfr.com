@@ -91,19 +91,21 @@
     color: #333;
     margin-right: 8px;
   }
-  /* 移除桌面 min-width 限制 */
+
+  /* 表格本身撑满容器 */
   #convTable {
     width: 100%;
     min-width: auto;
   }
 
-  /* 确保滚动容器占满全屏，无额外 padding/margin */
+  /* 表格外层容器与上方控件相同内边距，并铺白底 */
   .table-container {
     width: 100%;
     margin: 0;
-    padding: 0 16px;     /* ← 这里改成和上方控件一致的左右边距 */
-    overflow-x: auto;    /* 保留横向滚动能力 */
+    padding: 0 16px;
     box-sizing: border-box;
+    background: #fff;       /* ← 白底填满两侧 */
+    overflow-x: auto;
   }
 
   /* Pager 水平居中 */
