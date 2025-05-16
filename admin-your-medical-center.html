@@ -9,30 +9,46 @@
     body { margin:0; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; background:#f0f2f5; }
     header { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.1); }
     header h1 { margin:0; font-size:1.25rem; }
+    header .actions { display:flex; }
     header .actions button { margin-left:8px; padding:6px 12px; border:none; border-radius:4px; cursor:pointer; }
+
     #controls { padding:16px; background:#fff; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    #controls input, #controls select { padding:6px 8px; border:1px solid #ccc; border-radius:4px; }
-    #convTable { width:100%; border-collapse:collapse; margin-top:16px; background:#fff; }
+    #controls input, #controls select, #controls button { padding:6px 8px; border:1px solid #ccc; border-radius:4px; }
+
+    /* 新增：表格滚动容器 */
+    .table-container { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+    #convTable { width:100%; border-collapse:collapse; margin-top:16px; background:#fff; min-width:800px; }
     #convTable th, #convTable td { padding:8px 12px; border:1px solid #ddd; }
     #convTable th { background:#fafafa; text-align:left; }
     .empty { text-align:center; padding:24px; color:#888; }
+
     /* 分页 */
     #pager { margin:16px 24px; display:flex; align-items:center; gap:12px; }
     #pager button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; }
+
     /* 详情弹窗 */
     #detailModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:2000; }
     #detailModal .modal-content { position:relative; background:#fff; width:90%; max-width:600px; max-height:80%; overflow:auto; border-radius:8px; padding:16px; }
-    #detailModal .modal-content h2 { margin-top:0; }
     #detailModal .close-btn { position:absolute; top:12px; right:12px; font-size:20px; background:none; border:none; cursor:pointer; }
+
     /* 操作按钮 */
     .btnPreview, .btnEdit, .btnDel { margin-right:6px; padding:4px 8px; border:none; border-radius:4px; cursor:pointer; }
     .btnPreview { background:#1890ff; color:#fff; }
     .btnEdit    { background:#52c41a; color:#fff; }
     .btnDel     { background:#fa541c; color:#fff; }
+
+    /* 小屏响应式 */
+    @media (max-width:768px) {
+      header, #controls, #pager { flex-direction:column; align-items:flex-start; }
+      header .actions, #controls { width:100%; }
+      header .actions button, #controls button { flex:1; margin:4px 0; }
+      #convTable { min-width:600px; }
+    }
   </style>
 </head>
 <body>
-  <!-- Zero Trust 已在 Cloudflare Access 中配置 -->
+
   <header>
     <h1>医疗 Copilot 管理后台</h1>
     <div class="actions">
@@ -44,7 +60,6 @@
   <div id="controls">
     <input type="text" id="filterCode" placeholder="按访问码过滤" />
     <button id="btnFilter">应用筛选</button>
-    <!-- 扩展：日期范围筛选 -->
     <!--
     <label>开始日期：<input type="date" id="startDate" /></label>
     <label>结束日期：<input type="date" id="endDate" /></label>
@@ -52,20 +67,23 @@
     <button id="btnExport">导出当前页 CSV</button>
   </div>
 
-  <table id="convTable">
-    <thead>
-      <tr>
-        <th>创建时间 (北京时间)</th>
-        <th>访问码</th>
-        <th>病情记录</th>
-        <th>诊断报告</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr class="empty"><td colspan="5">加载中…</td></tr>
-    </tbody>
-  </table>
+  <!-- 表格外层滚动容器 -->
+  <div class="table-container">
+    <table id="convTable">
+      <thead>
+        <tr>
+          <th>创建时间 (北京时间)</th>
+          <th>访问码</th>
+          <th>病情记录</th>
+          <th>诊断报告</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="empty"><td colspan="5">加载中…</td></tr>
+      </tbody>
+    </table>
+  </div>
 
   <div id="pager">
     <button id="btnPrev">&laquo; 上一页</button>
@@ -73,13 +91,10 @@
     <button id="btnNext">下一页 &raquo;</button>
   </div>
 
-  <!-- 详情 / 编辑 弹窗 -->
   <div id="detailModal">
     <div class="modal-content">
       <button class="close-btn" id="modalClose">&times;</button>
-      <div id="modalBody">
-        <!-- 内容由脚本动态注入：预览或编辑表单 -->
-      </div>
+      <div id="modalBody"></div>
     </div>
   </div>
 
@@ -138,24 +153,21 @@
             <button class="btnDel">删除</button>
           </td>
         `;
-        // 预览
-        tr.querySelector('.btnPreview').addEventListener('click', ()=> showPreview(item));
-        // 编辑
-        tr.querySelector('.btnEdit').addEventListener('click', ()=> showEditForm(item));
-        // 删除
-        tr.querySelector('.btnDel').addEventListener('click', async ()=>{
-          if(!confirm('确定要删除这条记录？')) return;
+        tr.querySelector('.btnPreview').onclick = ()=> showPreview(item);
+        tr.querySelector('.btnEdit').onclick    = ()=> showEditForm(item);
+        tr.querySelector('.btnDel').onclick     = async ()=>{
+          if(!confirm('确定要删除？')) return;
           await fetch(`${API_BASE}/admin/api/conversations/${item.id}`, {
             method:'DELETE', credentials:'include'
           });
           loadConversations();
-        });
+        };
         tbody.appendChild(tr);
       });
     }
 
     function exportCSV(){
-      if(!lastList.length) return alert('当前无可导出数据');
+      if(!lastList.length) return alert('无数据可导出');
       const header = ['创建时间','访问码','病情记录','诊断报告'];
       const rows = lastList.map(it=>[
         fmtTimeBeijing(it.created_at),
@@ -165,33 +177,28 @@
       ]);
       const csv = header.join(',') + '\n' + rows.map(r=>r.join(',')).join('\n');
       const blob = new Blob([csv],{type:'text/csv'});
-      const url = URL.createObjectURL(blob);
+      const url  = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `conversations_page${page}.csv`;
-      a.click(); URL.revokeObjectURL(url);
+      a.href = url; a.download = `page${page}.csv`; a.click();
+      URL.revokeObjectURL(url);
     }
 
-    const modal      = document.getElementById('detailModal');
-    const modalBody  = document.getElementById('modalBody');
-    const closeBtn   = document.getElementById('modalClose');
-    closeBtn.addEventListener('click', ()=> modal.style.display='none');
-    modal.addEventListener('click', e=> { if(e.target===modal) modal.style.display='none'; });
+    const modal     = document.getElementById('detailModal');
+    const modalBody = document.getElementById('modalBody');
+    document.getElementById('modalClose').onclick = ()=> modal.style.display='none';
+    modal.onclick = e=> { if(e.target===modal) modal.style.display='none'; };
 
-    // 预览
     function showPreview(item){
       modalBody.innerHTML = `
         <h2>对话详情</h2>
         <p><strong>访问码：</strong>${item.access_code}</p>
         <p><strong>创建时间：</strong>${fmtTimeBeijing(item.created_at)}</p>
-        <h3>病情记录</h3>
-        <pre style="white-space:pre-wrap;">${item.transcript}</pre>
-        <h3>诊断报告</h3>
-        <pre style="white-space:pre-wrap;">${item.diagnosis}</pre>
+        <h3>病情记录</h3><pre style="white-space:pre-wrap;">${item.transcript}</pre>
+        <h3>诊断报告</h3><pre style="white-space:pre-wrap;">${item.diagnosis}</pre>
       `;
       modal.style.display = 'flex';
     }
 
-    // 编辑
     function showEditForm(item){
       modalBody.innerHTML = `
         <h2>编辑对话</h2>
@@ -204,7 +211,7 @@
       `;
       modal.style.display = 'flex';
       document.getElementById('cancelEdit').onclick = ()=> modal.style.display='none';
-      document.getElementById('saveEdit' ).onclick = async ()=>{
+      document.getElementById('saveEdit').onclick = async ()=>{
         const t = document.getElementById('editTranscript').value.trim();
         const d = document.getElementById('editDiagnosis').value.trim();
         await fetch(`${API_BASE}/admin/api/conversations/${item.id}`, {
@@ -218,15 +225,13 @@
       };
     }
 
-    // 绑定
-    document.getElementById('btnRefresh').addEventListener('click', ()=> { page=1; loadConversations(); });
-    document.getElementById('btnFilter' ).addEventListener('click', ()=> { page=1; loadConversations(); });
-    document.getElementById('btnLogout' ).addEventListener('click', ()=> window.location.href='/cdn-cgi/access/logout');
-    document.getElementById('btnExport' ).addEventListener('click', exportCSV);
-    btnPrev.addEventListener('click', ()=> { if(page>1){ page--; loadConversations(); } });
-    btnNext.addEventListener('click', ()=> { page++; loadConversations(); });
+    document.getElementById('btnRefresh').onclick = ()=>{ page=1; loadConversations(); };
+    document.getElementById('btnFilter' ).onclick = ()=>{ page=1; loadConversations(); };
+    document.getElementById('btnLogout' ).onclick = ()=>{ location.href='/cdn-cgi/access/logout'; };
+    document.getElementById('btnExport' ).onclick = exportCSV;
+    btnPrev.onclick = ()=>{ if(page>1){ page--; loadConversations(); } };
+    btnNext.onclick = ()=>{ page++; loadConversations(); };
 
-    // 初始加载
     loadConversations();
   })();
   </script>
