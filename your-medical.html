@@ -8,7 +8,7 @@
   <style>
     body { margin:0; padding:0; font-family:sans-serif; background:#f0f2f5; display:flex; flex-direction:column; height:100vh; }
     .chat-container { flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:8px; }
-    .bubble { max-width:70%; padding:12px; border-radius:8px; word-break:break-word; white-space: pre-wrap; }
+    .bubble { max-width:70%; padding:12px; border-radius:8px; word-break:break-word; }
     .patient { background:#e6f7ff; align-self:flex-start; }
     .assistant { background:#f6ffed; align-self:flex-end; }
     .loading { opacity:0.6; }
@@ -27,16 +27,13 @@
 </head>
 <body>
 
-  <!-- 聊天区 -->
   <div class="chat-container" id="chat"></div>
 
-  <!-- 操作按钮 -->
   <div class="controls">
     <button id="btnListen">开始录音</button>
     <button id="btnDiagnose">获取诊断建议</button>
   </div>
 
-  <!-- 额外输入区 -->
   <div class="extra-controls">
     <textarea id="manualText" placeholder="手动输入患者描述…"></textarea>
     <button id="btnAddText">添加描述</button>
@@ -49,7 +46,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
   <script>
-  (function(){
+  ;(function(){
     // — 1. Worker 中转地址 —
     const WORKER_ENDPOINT = 'https://admin-your-medical.mefans.workers.dev';
 
@@ -153,7 +150,7 @@
       }, 'image/png');
     });
 
-    // — 8. 获取诊断建议：严格解析 SSE 事件，只取 data 字段内容 —
+    // — 8. 获取诊断建议：严格解析 SSE 事件，只取 data 字段内容 & 后处理格式化 —
     btnDiagnose.addEventListener('click', async () => {
       // a) 收集患者所有输入
       const transcript = messages
@@ -186,10 +183,10 @@
         return;
       }
 
-      // e) 逐条解析 SSE，拿到 raw delta 并追加
+      // e) 严格解析 SSE，累积 fullText
       const reader  = resp.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = '', fullText = '';
 
       while (true) {
         const { value, done } = await reader.read();
@@ -198,20 +195,34 @@
 
         // SSE 事件之间以双换行分隔
         const parts = buffer.split('\n\n');
-        buffer = parts.pop();  // 最后一段可能未完整
+        buffer = parts.pop();  // 最后一段可能未完成
 
         for (const part of parts) {
-          // 匹配 data: 开头的那一行
+          // 匹配 data: 开头内容
           const m = part.match(/^data:\s*(.+)$/m);
           if (!m) continue;
           const chunk = m[1].trim();
           if (chunk === '[DONE]') continue;
-          // 直接追加到文本节点
-          placeholder.el.textContent += chunk;
-          placeholder.el.classList.remove('loading');
-          chatEl.scrollTop = chatEl.scrollHeight;
+          fullText += chunk;
         }
       }
+
+      // f) 后处理 & 格式化
+      let formatted = fullText
+        // 在序号前插入换行
+        .replace(/\s*1\.\s*/g, '\n1. ')
+        .replace(/\s*2\.\s*/g, '\n2. ')
+        .replace(/\s*3\.\s*/g, '\n3. ')
+        .replace(/\s*4\.\s*/g, '\n4. ')
+        // 序号加粗
+        .replace(/\n(\d\.)/g, '<br/><strong>$1</strong>')
+        // 其余换行转 <br/>
+        .replace(/\n/g, '<br/>');
+
+      // g) 渲染到页面
+      placeholder.el.classList.remove('loading');
+      placeholder.el.innerHTML = formatted;
+      chatEl.scrollTop = chatEl.scrollHeight;
     });
 
     // — 9. 初次欢迎 —
