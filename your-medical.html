@@ -133,176 +133,270 @@ button:hover{opacity:.9}
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded',()=>{
+/* =======================  医疗 Copilot 主脚本  ======================= */
+document.addEventListener('DOMContentLoaded', () => {
 
-/* ---------- 配置 ---------- */
-const API_BASE='https://admin-your-medical.mefans.workers.dev'; // ← 修改域名
+  /* ---------- 可配置 ---------- */
+  const API_BASE = 'https://admin-your-medical.mefans.workers.dev';   // ← 改成自己的域名
+  const DEBUG    = false;                                            // true 则在控制台输出调试
 
-/* ---------- DOM ---------- */
-const $=id=>document.getElementById(id);
-const chat=$('chat'),toc=$('toc'),sidebar=$('sidebar'),overlay=$('overlay');
-const btnMenu=$('btnMenu'),btnClose=$('btnCloseSidebar');
-const btnListen=$('btnListen'),btnDiag=$('btnDiagnose'),btnToggle=$('btnToggleView');
-const btnCopy=$('btnCopy'),btnPDF=$('btnPDF'),btnRead=$('btnRead');
-const btnAdd=$('btnAddText'),manual=$('manualText'),imgUp=$('imgUpload');
-const btnCam=$('btnOpenCam'),btnSnap=$('btnSnap'),video=$('videoPreview'),canvas=$('camCanvas');
-
-/* ---------- 状态 ---------- */
-let view='doctor',stream=null,listening=false,recog=null,msgs=[];
-let lastReq=null;         // 存最近一次诊断请求 {code, transcript}
-
-/* ---------- 工具 & 目录 ---------- */
-const append=(role,text,loading=false)=>{
-  const div=document.createElement('div');
-  div.className=`bubble ${role}${loading?' loading':''}`;
-  div.innerHTML=loading&&role==='assistant'?'诊断中…':text;
-  chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
-  const m={role,text,el:div};msgs.push(m);return m;
-};
-
-function buildTOC(el){
-  const section=document.createElement('section');
-  section.innerHTML=`<strong>${new Date().toLocaleTimeString()}</strong>`;
-  const nav=document.createElement('nav');
-  section.appendChild(nav);
-
-  el.querySelectorAll('h1,h2').forEach(h=>{
-    const id='h_'+Math.random().toString(36).slice(2,9);h.id=id;
-    const a=document.createElement('a');a.href='#'+id;
-    a.textContent=h.textContent.replace(/^[0-9.]+\\s*/,'');
-    nav.appendChild(a);
-  });
-  toc.prepend(section);
-}
-
-/* ---------- 侧栏 ---------- */
-const openSidebar=()=>{sidebar.classList.add('open');overlay.classList.add('show');}
-const closeSidebar=()=>{sidebar.classList.remove('open');overlay.classList.remove('show');}
-btnMenu.onclick=openSidebar;btnClose.onclick=closeSidebar;overlay.onclick=closeSidebar;
-
-/* ---------- 视图切换 ---------- */
-function updateViewBtn(){btnToggle.textContent=view==='doctor'?'患者视图':'医生视图';}
-function toggleView(){
-  if(view==='doctor'){view='patient';document.body.classList.add('patient-hide');document.body.classList.remove('doctor-hide');}
-  else{view='doctor';document.body.classList.add('doctor-hide');document.body.classList.remove('patient-hide');}
-  updateViewBtn();
-}
-updateViewBtn();btnToggle.onclick=toggleView;
-
-/* ---------- 语音 ---------- */
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(SR){recog=new SR();recog.lang='zh-CN';recog.continuous=true;
-  recog.onresult=e=>{
-    const txt=Array.from(e.results).slice(e.resultIndex).map(r=>r[0].transcript).join('');
-    append('patient',txt);
+  /* ---------- 调试 / Toast ---------- */
+  const log   = (...a) => DEBUG && console.log('[DEBUG]', ...a);
+  const toast = msg => { const d=document.createElement('div');
+    Object.assign(d.style,{position:'fixed',top:'20px',left:'50%',transform:'translateX(-50%)',
+      background:'#ff4d4f',color:'#fff',padding:'6px 12px',borderRadius:'4px',zIndex:2000,fontSize:'13px'});
+    d.textContent=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),2500);
   };
-}
-btnListen.onclick=()=>{
-  if(!recog)return alert('浏览器不支持语音识别');
-  listening=!listening;btnListen.textContent=listening?'停止录音':'开始录音';
-  listening?recog.start():recog.stop();
-};
 
-/* ---------- OCR / 摄像头 / 输入 ---------- */
-btnAdd.onclick=()=>{const t=manual.value.trim();if(t)append('patient',t);manual.value='';manual.blur();};
+  /* ---------- 取 DOM 带容错 ---------- */
+  const $ = id => {
+    const el = document.getElementById(id);
+    if (!el) { console.error('❌ 缺少元素 #' + id); toast('页面缺少元素 ' + id); }
+    return el;
+  };
 
-imgUp.onchange=async()=>{
-  const f=imgUp.files[0];if(!f)return;
-  const h=append('patient','正在识别…',true);
-  const {data:{text}}=await Tesseract.recognize(f,'chi_sim');h.el.remove();append('patient',text);imgUp.value='';
-};
+  /* ----------------- DOM ----------------- */
+  const chat     = $('chat');
+  const tocBox   = $('toc');
+  const sidebar  = $('sidebar');
+  const overlay  = $('overlay');
+  const btnMenu  = $('btnMenu');
+  const btnClose = $('btnCloseSidebar');
 
-btnCam.onclick=async()=>{
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;video.style.display='none';btnCam.textContent='打开摄像头';return;}
-  try{stream=await navigator.mediaDevices.getUserMedia({video:true});video.srcObject=stream;video.style.display='block';btnCam.textContent='关闭摄像头';}
-  catch(e){alert('无法访问摄像头：'+e.message);}
-};
-btnSnap.onclick=()=>{
-  if(!stream)return alert('请先打开摄像头');
-  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-  canvas.getContext('2d').drawImage(video,0,0);
-  const h=append('patient','识别中…',true);
-  canvas.toBlob(async blob=>{
-    const {data:{text}}=await Tesseract.recognize(blob,'chi_sim');
-    h.el.remove();append('patient',text);
-  },'image/png');
-};
+  /* 控制按钮 */
+  const btnListen  = $('btnListen');
+  const btnDiag    = $('btnDiagnose');
+  const btnToggle  = $('btnToggleView');
+  const btnAdd     = $('btnAddText');
+  const btnCopy    = $('btnCopy');
+  const btnPDF     = $('btnPDF');
+  const btnRead    = $('btnRead');
+  const btnCam     = $('btnOpenCam');
+  const btnSnap    = $('btnSnap');
+  const imgUp      = $('imgUpload');
+  const manual     = $('manualText');
+  const video      = $('videoPreview');
+  const canvas     = $('camCanvas');
 
-/* ---------- 诊断逻辑（支持重试） ---------- */
-async function runDiagnosis(code, transcript, bubble=null){
-  if(!bubble) bubble=append('assistant','',true);
-  lastReq={code,transcript};
+  /* ----------------- 状态 ----------------- */
+  let view = 'doctor';
+  let stream = null;
+  let recog  = null;
+  let msgs   = [];
+  let lastReq = null;  // { code, transcript }
 
-  let resp;
-  try{
-    resp=await fetch(\`\${API_BASE}/api/medical-diagnosis\`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({code,transcript})
+  /* ----------------- 工具函数 ----------------- */
+  const append = (role, html, loading = false) => {
+    const div = document.createElement('div');
+    div.className = `bubble ${role}${loading ? ' loading' : ''}`;
+    div.innerHTML = html;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    const m = { role, text: html, el: div };
+    msgs.push(m);
+    return m;
+  };
+
+  const buildTOC = el => {
+    const sec = document.createElement('section');
+    sec.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>`;
+    const nav = document.createElement('nav');
+    sec.appendChild(nav);
+
+    el.querySelectorAll('h1,h2').forEach(h => {
+      const id = 'h_' + Math.random().toString(36).slice(2, 9);
+      h.id = id;
+      const a = document.createElement('a');
+      a.href = '#' + id;
+      a.textContent = h.textContent.replace(/^[0-9.]+\s*/, '');
+      nav.appendChild(a);
     });
-  }catch(e){
-    return showRetry(bubble,'网络错误:'+e.message);
-  }
-  if(resp.status===401) return showRetry(bubble,'授权失败');
-  if(!resp.ok)          return showRetry(bubble,'错误 '+resp.status);
+    tocBox.prepend(sec);
+  };
 
-  /* -- 流式解析 -- */
-  let md=''; const reader=resp.body.pipeThrough(new TextDecoderStream()).getReader(); let buf='';
-  while(true){
-    const {value,done}=await reader.read(); if(done)break;
-    buf+=value;
-    let idx; while((idx=buf.indexOf('\\n\\n'))!==-1){
-      const chunk=buf.slice(0,idx).trim();buf=buf.slice(idx+2);
-      if(!chunk.startsWith('data:'))continue;
-      const p=chunk.slice(5).trim(); if(p==='[DONE]')continue;
-      md+=JSON.parse(p).content;
-    }
-  }
+  const showRetry = (bubble, msg) => {
+    bubble.el.innerHTML = `${msg} <button class="retry-btn">重试</button>`;
+    bubble.el.classList.remove('loading');
+    bubble.el.querySelector('.retry-btn').addEventListener('click', () => {
+      if (lastReq) runDiagnosis(lastReq.code, lastReq.transcript, bubble);
+    });
+  };
 
-  bubble.el.classList.remove('loading');
-  bubble.el.innerHTML=marked.parse(md.trim());
-  bubble.text=md.trim();
-  bubble.el.querySelectorAll('table tr').forEach(tr=>{
-    const [d,p]=tr.children;if(p){d.classList.add('doctor-order');p.classList.add('patient-explain');}
+  /* ----------------- 侧栏 ----------------- */
+  btnMenu?.addEventListener('click', () => {
+    sidebar.classList.add('open');
+    overlay.classList.add('show');
   });
-  buildTOC(bubble.el); if(view==='patient')toggleView();
-  chat.scrollTop=chat.scrollHeight;
-}
+  btnClose?.addEventListener('click', closeSidebar);
+  overlay?.addEventListener('click', closeSidebar);
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  }
 
-function showRetry(bubble,msg){
-  bubble.el.innerHTML=\`\${msg} <button class="retry-btn">重试</button>\`;
-  bubble.el.classList.remove('loading');
-  bubble.el.querySelector('.retry-btn').onclick=()=>{if(lastReq)runDiagnosis(lastReq.code,lastReq.transcript,bubble);};
-}
+  /* ----------------- 视图切换 ----------------- */
+  const applyView = () => {
+    document.body.classList.toggle('patient-hide', view === 'patient');
+    document.body.classList.toggle('doctor-hide',  view === 'doctor');
+    btnToggle.textContent = view === 'doctor' ? '患者视图' : '医生视图';
+  };
+  btnToggle?.addEventListener('click', () => {
+    view = view === 'doctor' ? 'patient' : 'doctor';
+    applyView();
+  });
+  applyView();
 
-btnDiag.onclick=()=>{
-  const transcript=msgs.filter(m=>m.role==='patient').map(m=>m.text).join('\\n');
-  if(!transcript)return alert('请先输入内容');
-  const code=prompt('请输入 13 位授权码'); if(!code) return;
-  runDiagnosis(code,transcript);
-};
+  /* ----------------- 语音识别 ----------------- */
+  btnListen?.addEventListener('click', () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return toast('浏览器不支持语音识别');
+    if (!recog) {
+      recog = new SR();
+      recog.lang = 'zh-CN';
+      recog.continuous = true;
+      recog.onresult = e => {
+        const txt = Array.from(e.results).slice(e.resultIndex).map(r => r[0].transcript).join('');
+        append('patient', txt);
+      };
+    }
+    const listening = btnListen.dataset.listen === '1';
+    if (listening) { recog.stop(); btnListen.dataset.listen = '0'; btnListen.textContent = '开始录音'; }
+    else           { recog.start(); btnListen.dataset.listen = '1'; btnListen.textContent = '停止录音'; }
+  });
 
-/* ---------- 辅助功能 ---------- */
-btnCopy.onclick=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');
-  if(!last)return alert('暂无报告');
-  navigator.clipboard.writeText(last.text||last.el.textContent).then(()=>alert('已复制'));
-};
-btnPDF.onclick=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');
-  if(!last)return alert('暂无报告');
-  html2pdf().set({margin:10,filename:'report.pdf',html2canvas:{scale:2}}).from(last.el).save();
-};
-btnRead.onclick=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');
-  if(!last)return alert('暂无报告');
-  const t=last.el.querySelector('ul li')?.textContent||last.el.textContent.slice(0,150);
-  const s=window.speechSynthesis;s.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='zh-CN';s.speak(u);
-};
+  /* ----------------- 手动输入 & OCR ----------------- */
+  btnAdd?.addEventListener('click', () => {
+    const t = manual.value.trim();
+    if (t) append('patient', t);
+    manual.value = '';
+    manual.blur();
+  });
 
-/* ---------- 欢迎 ---------- */
-append('assistant','欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
+  imgUp?.addEventListener('change', async () => {
+    const f = imgUp.files[0];
+    if (!f) return;
+    const h = append('patient', '正在识别…', true);
+    const { data: { text } } = await Tesseract.recognize(f, 'chi_sim');
+    h.el.remove();
+    append('patient', text);
+    imgUp.value = '';
+  });
 
+  /* ----------------- 摄像头 ----------------- */
+  btnCam?.addEventListener('click', async () => {
+    if (stream) {                         // 关闭
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+      video.style.display = 'none';
+      btnCam.textContent = '打开摄像头';
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      video.style.display = 'block';
+      btnCam.textContent = '关闭摄像头';
+    } catch (e) { toast('无法访问摄像头：' + e.message); }
+  });
+
+  btnSnap?.addEventListener('click', () => {
+    if (!stream) return toast('请先打开摄像头');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const h = append('patient', '识别中…', true);
+    canvas.toBlob(async blob => {
+      const { data: { text } } = await Tesseract.recognize(blob, 'chi_sim');
+      h.el.remove();
+      append('patient', text);
+    }, 'image/png');
+  });
+
+  /* ----------------- 诊断逻辑 ----------------- */
+  btnDiag?.addEventListener('click', () => {
+    const transcript = msgs.filter(m => m.role === 'patient').map(m => m.text).join('\n');
+    if (!transcript) return toast('请先输入内容');
+    const code = prompt('请输入 13 位授权码');
+    if (!code) return;
+    runDiagnosis(code, transcript);
+  });
+
+  async function runDiagnosis(code, transcript, bubble = null) {
+    if (!bubble) bubble = append('assistant', '', true);
+    lastReq = { code, transcript };
+
+    let resp;
+    try {
+      resp = await fetch(`${API_BASE}/api/medical-diagnosis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, transcript })
+      });
+    } catch (e) { return showRetry(bubble, '网络错误:' + e.message); }
+
+    if (resp.status === 401) return showRetry(bubble, '授权失败');
+    if (!resp.ok)          return showRetry(bubble, '错误 ' + resp.status);
+
+    let md = '', buffer = '';
+    const reader = resp.body.pipeThrough(new TextDecoderStream()).getReader();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let idx;
+      while ((idx = buffer.indexOf('\n\n')) !== -1) {
+        const chunk = buffer.slice(0, idx).trim();
+        buffer = buffer.slice(idx + 2);
+        if (!chunk.startsWith('data:')) continue;
+        const p = chunk.slice(5).trim();
+        if (p === '[DONE]') continue;
+        md += JSON.parse(p).content;
+      }
+    }
+
+    bubble.el.classList.remove('loading');
+    bubble.el.innerHTML = marked.parse(md.trim());
+    bubble.text = md.trim();
+    bubble.el.querySelectorAll('table tr').forEach(tr => {
+      const [d, p] = tr.children;
+      if (p) { d.classList.add('doctor-order'); p.classList.add('patient-explain'); }
+    });
+    buildTOC(bubble.el);
+    if (view === 'patient') applyView();
+  }
+
+  /* ----------------- 辅助按钮 ----------------- */
+  btnCopy?.addEventListener('click', () => {
+    const last = [...msgs].reverse().find(m => m.role === 'assistant');
+    if (!last) return toast('暂无报告');
+    navigator.clipboard.writeText(last.text || last.el.textContent)
+      .then(() => toast('已复制'));
+  });
+
+  btnPDF?.addEventListener('click', () => {
+    const last = [...msgs].reverse().find(m => m.role === 'assistant');
+    if (!last) return toast('暂无报告');
+    html2pdf().set({ margin: 10, filename: 'report.pdf', html2canvas: { scale: 2 } })
+      .from(last.el).save();
+  });
+
+  btnRead?.addEventListener('click', () => {
+    const last = [...msgs].reverse().find(m => m.role === 'assistant');
+    if (!last) return toast('暂无报告');
+    const t = last.el.querySelector('ul li')?.textContent || last.el.textContent.slice(0, 150);
+    const s = window.speechSynthesis;
+    s.cancel();
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = 'zh-CN';
+    s.speak(u);
+  });
+
+  /* ----------------- 欢迎 ----------------- */
+  append('assistant', '欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
+
+  log('JS init done');
 });
 </script>
+
 </body>
 </html>
