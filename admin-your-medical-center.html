@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>医疗 Copilot 管理后台</title>
+  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
+  <style>
+    body { margin:0; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; background:#f0f2f5; }
+    header { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.1); }
+    header h1 { margin:0; font-size:1.25rem; }
+    header .actions button { margin-left:8px; padding:6px 12px; border:none; border-radius:4px; cursor:pointer; }
+    #controls { padding:16px; background:#fff; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    #controls input, #controls select { padding:6px 8px; border:1px solid #ccc; border-radius:4px; }
+    #convTable { width:100%; border-collapse:collapse; margin-top:16px; background:#fff; }
+    #convTable th, #convTable td { padding:8px 12px; border:1px solid #ddd; }
+    #convTable th { background:#fafafa; text-align:left; }
+    .empty { text-align:center; padding:24px; color:#888; }
+    /* 分页 */
+    #pager { margin:16px 24px; display:flex; align-items:center; gap:12px; }
+    #pager button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; }
+    /* 详情弹窗 */
+    #detailModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:2000; }
+    #detailModal .modal-content { background:#fff; width:90%; max-width:600px; max-height:80%; overflow:auto; border-radius:8px; padding:16px; }
+    #detailModal .modal-content h2 { margin-top:0; }
+    #detailModal .close-btn { position:absolute; top:12px; right:12px; font-size:20px; background:none; border:none; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <!-- Zero Trust 已在 Cloudflare Access 中配置 -->
+  <header>
+    <h1>医疗 Copilot 管理后台</h1>
+    <div class="actions">
+      <button id="btnRefresh">刷新列表</button>
+      <button id="btnLogout">登出</button>
+    </div>
+  </header>
+
+  <div id="controls">
+    <input type="text" id="filterCode" placeholder="按访问码过滤" />
+    <button id="btnFilter">应用筛选</button>
+
+    <!-- 扩展：日期范围筛选 -->
+    <!--
+    <label>开始日期：<input type="date" id="startDate" /></label>
+    <label>结束日期：<input type="date" id="endDate" /></label>
+    -->
+
+    <button id="btnExport">导出当前页 CSV</button>
+  </div>
+
+  <table id="convTable">
+    <thead>
+      <tr>
+        <th>创建时间 (北京时间)</th>
+        <th>访问码</th>
+        <th>病情记录</th>
+        <th>诊断报告</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="empty"><td colspan="4">加载中…</td></tr>
+    </tbody>
+  </table>
+
+  <div id="pager">
+    <button id="btnPrev">&laquo; 上一页</button>
+    <span>第 <span id="curPage">1</span> 页</span>
+    <button id="btnNext">下一页 &raquo;</button>
+  </div>
+
+  <!-- 详情弹窗 -->
+  <div id="detailModal">
+    <div class="modal-content">
+      <button class="close-btn" id="modalClose">&times;</button>
+      <h2>对话详情</h2>
+      <p><strong>访问码：</strong><span id="detailCode"></span></p>
+      <p><strong>创建时间：</strong><span id="detailTime"></span></p>
+      <h3>病情记录</h3>
+      <pre id="detailTranscript" style="white-space:pre-wrap;"></pre>
+      <h3>诊断报告</h3>
+      <pre id="detailDiagnosis" style="white-space:pre-wrap;"></pre>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const API_BASE = 'https://admin-your-medical.mefans.workers.dev';
+    const tbody    = document.querySelector('#convTable tbody');
+    const filterIn = document.getElementById('filterCode');
+    const btnPrev  = document.getElementById('btnPrev');
+    const btnNext  = document.getElementById('btnNext');
+    const curPage  = document.getElementById('curPage');
+    const pageSize = 10;  // 可调整每页显示条数
+    let page = 1, lastList = [];
+
+    /** 格式化为北京时间 */
+    function fmtTimeBeijing(iso){
+      return new Date(iso).toLocaleString('zh-CN',{
+        timeZone:'Asia/Shanghai',
+        year:'numeric',month:'2-digit',day:'2-digit',
+        hour:'2-digit',minute:'2-digit',second:'2-digit'
+      });
+    }
+
+    /** 加载数据 */
+    async function loadConversations(){
+      tbody.innerHTML = '<tr class="empty"><td colspan="4">加载中…</td></tr>';
+      try {
+        let url = `${API_BASE}/admin/api/conversations?page=${page}&pageSize=${pageSize}`;
+        const codeFilter = filterIn.value.trim();
+        if(codeFilter) url += `&access_code=${encodeURIComponent(codeFilter)}`;
+        const res = await fetch(url, { credentials:'include' });
+        if(!res.ok) throw new Error(res.statusText);
+        const list = await res.json();
+        lastList = list;
+        renderTable(list);
+      } catch(e){
+        tbody.innerHTML = `<tr class="empty"><td colspan="4">加载失败：${e.message}</td></tr>`;
+      }
+      curPage.textContent = page;
+    }
+
+    /** 渲染表格 */
+    function renderTable(list){
+      if(list.length === 0){
+        tbody.innerHTML = '<tr class="empty"><td colspan="4">无匹配记录</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      list.forEach((item,idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${fmtTimeBeijing(item.created_at)}</td>
+          <td>${item.access_code}</td>
+          <td title="${item.transcript}">${item.transcript.slice(0,30)}…</td>
+          <td title="${item.diagnosis}">${item.diagnosis.slice(0,30)}…</td>
+        `;
+        // 点击行查看详情
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click',()=> showDetail(item));
+        tbody.appendChild(tr);
+      });
+    }
+
+    /** 导出 CSV */
+    function exportCSV(){
+      if(lastList.length === 0) return alert('当前无可导出数据');
+      const header = ['创建时间','访问码','病情记录','诊断报告'];
+      const rows = lastList.map(item=>[
+        fmtTimeBeijing(item.created_at),
+        item.access_code,
+        `"${item.transcript.replace(/"/g,'""')}"`,
+        `"${item.diagnosis.replace(/"/g,'""')}"`
+      ]);
+      let csv = header.join(',') + '\n' + rows.map(r=>r.join(',')).join('\n');
+      const blob = new Blob([csv],{type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `conversations_page${page}.csv`;
+      a.click(); URL.revokeObjectURL(url);
+    }
+
+    /** 详情弹窗 */
+    const modal      = document.getElementById('detailModal');
+    const detailCode = document.getElementById('detailCode');
+    const detailTime = document.getElementById('detailTime');
+    const detailTrans= document.getElementById('detailTranscript');
+    const detailDiag = document.getElementById('detailDiagnosis');
+    function showDetail(item){
+      detailCode.textContent = item.access_code;
+      detailTime.textContent = fmtTimeBeijing(item.created_at);
+      detailTrans.textContent= item.transcript;
+      detailDiag.textContent = item.diagnosis;
+      modal.style.display = 'flex';
+    }
+    document.getElementById('modalClose').addEventListener('click',()=> modal.style.display='none');
+    modal.addEventListener('click',e=>{ if(e.target===modal) modal.style.display='none'; });
+
+    // 绑定事件
+    document.getElementById('btnRefresh').addEventListener('click',()=> { page=1; loadConversations(); });
+    document.getElementById('btnFilter' ).addEventListener('click',()=> { page=1; loadConversations(); });
+    document.getElementById('btnLogout' ).addEventListener('click',()=> window.location.href='/cdn-cgi/access/logout');
+    document.getElementById('btnExport' ).addEventListener('click',exportCSV);
+    btnPrev.addEventListener('click',()=>{ if(page>1){ page--; loadConversations(); } });
+    btnNext.addEventListener('click',()=>{ page++; loadConversations(); });
+
+    // 首次加载
+    loadConversations();
+  })();
+  </script>
+</body>
+</html>
