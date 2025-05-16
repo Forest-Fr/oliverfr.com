@@ -15,7 +15,7 @@
     #controls { padding:16px; background:#fff; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     #controls input, #controls select, #controls button { padding:6px 8px; border:1px solid #ccc; border-radius:4px; }
 
-    /* 新增：表格滚动容器 */
+    /* 表格滚动容器 */
     .table-container { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 
     #convTable { width:100%; border-collapse:collapse; margin-top:16px; background:#fff; min-width:800px; }
@@ -23,31 +23,57 @@
     #convTable th { background:#fafafa; text-align:left; }
     .empty { text-align:center; padding:24px; color:#888; }
 
-    /* 分页 */
-    #pager { margin:16px 24px; display:flex; align-items:center; gap:12px; }
-    #pager button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; }
-
-    /* 详情弹窗 */
-    #detailModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:2000; }
-    #detailModal .modal-content { position:relative; background:#fff; width:90%; max-width:600px; max-height:80%; overflow:auto; border-radius:8px; padding:16px; }
-    #detailModal .close-btn { position:absolute; top:12px; right:12px; font-size:20px; background:none; border:none; cursor:pointer; }
-
     /* 操作按钮 */
     .btnPreview, .btnEdit, .btnDel { margin-right:6px; padding:4px 8px; border:none; border-radius:4px; cursor:pointer; }
     .btnPreview { background:#1890ff; color:#fff; }
     .btnEdit    { background:#52c41a; color:#fff; }
     .btnDel     { background:#fa541c; color:#fff; }
 
-    /* 小屏响应式 */
-    @media (max-width:768px) {
+    /* 分页 */
+    #pager { margin:16px 24px; display:flex; align-items:center; gap:12px; }
+    #pager button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; }
+
+    /* 详情/编辑 弹窗 */
+    #detailModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:2000; }
+    #detailModal .modal-content { position:relative; background:#fff; width:90%; max-width:600px; max-height:80%; overflow:auto; border-radius:8px; padding:16px; }
+    #detailModal .close-btn { position:absolute; top:12px; right:12px; font-size:20px; background:none; border:none; cursor:pointer; }
+
+    /* 移动端卡片式布局 */
+    @media (max-width: 768px) {
       header, #controls, #pager { flex-direction:column; align-items:flex-start; }
       header .actions, #controls { width:100%; }
       header .actions button, #controls button { flex:1; margin:4px 0; }
+
+      /* 隐藏表头 */
+      #convTable thead { display: none; }
+      /* 卡片列表 */
+      #convTable, #convTable tbody, #convTable tr { display: block; width:100%; }
+      #convTable tr {
+        margin-bottom:1em;
+        border:1px solid #ddd;
+        border-radius:4px;
+        background:#fff;
+        padding:0.5em;
+      }
+      #convTable td {
+        display:flex;
+        justify-content:space-between;
+        padding:0.5em 0;
+        border:none;
+        border-bottom:1px solid #eee;
+      }
+      #convTable td:last-of-type { border-bottom:none; }
+      #convTable td::before {
+        content: attr(data-label);
+        font-weight:600;
+        color:#333;
+      }
       #convTable { min-width:600px; }
     }
   </style>
 </head>
 <body>
+  <!-- Zero Trust 已在 Cloudflare Access 中配置 -->
 
   <header>
     <h1>医疗 Copilot 管理后台</h1>
@@ -67,20 +93,18 @@
     <button id="btnExport">导出当前页 CSV</button>
   </div>
 
-  <!-- 表格外层滚动容器 -->
   <div class="table-container">
     <table id="convTable">
       <thead>
         <tr>
           <th>创建时间 (北京时间)</th>
-          <th>访问码</th>
           <th>病情记录</th>
           <th>诊断报告</th>
           <th>操作</th>
         </tr>
       </thead>
       <tbody>
-        <tr class="empty"><td colspan="5">加载中…</td></tr>
+        <tr class="empty"><td colspan="4">加载中…</td></tr>
       </tbody>
     </table>
   </div>
@@ -118,7 +142,7 @@
     }
 
     async function loadConversations(){
-      tbody.innerHTML = '<tr class="empty"><td colspan="5">加载中…</td></tr>';
+      tbody.innerHTML = '<tr class="empty"><td colspan="4">加载中…</td></tr>';
       try {
         let url = `${API_BASE}/admin/api/conversations?page=${page}&pageSize=${pageSize}`;
         const codeFilter = filterIn.value.trim();
@@ -129,25 +153,24 @@
         lastList = list;
         renderTable(list);
       } catch(e){
-        tbody.innerHTML = `<tr class="empty"><td colspan="5">加载失败：${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr class="empty"><td colspan="4">加载失败：${e.message}</td></tr>`;
       }
       curPage.textContent = page;
     }
 
     function renderTable(list){
       if(!list.length){
-        tbody.innerHTML = '<tr class="empty"><td colspan="5">无匹配记录</td></tr>';
+        tbody.innerHTML = '<tr class="empty"><td colspan="4">无匹配记录</td></tr>';
         return;
       }
       tbody.innerHTML = '';
       list.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${fmtTimeBeijing(item.created_at)}</td>
-          <td>${item.access_code}</td>
-          <td title="${item.transcript}">${item.transcript.slice(0,30)}…</td>
-          <td title="${item.diagnosis}">${item.diagnosis.slice(0,30)}…</td>
-          <td>
+          <td data-label="创建时间 (北京时间)">${fmtTimeBeijing(item.created_at)}</td>
+          <td data-label="病情记录" title="${item.transcript}">${item.transcript.slice(0,30)}…</td>
+          <td data-label="诊断报告" title="${item.diagnosis}">${item.diagnosis.slice(0,30)}…</td>
+          <td data-label="操作">
             <button class="btnPreview">预览</button>
             <button class="btnEdit">编辑</button>
             <button class="btnDel">删除</button>
@@ -168,10 +191,9 @@
 
     function exportCSV(){
       if(!lastList.length) return alert('无数据可导出');
-      const header = ['创建时间','访问码','病情记录','诊断报告'];
+      const header = ['创建时间','病情记录','诊断报告'];
       const rows = lastList.map(it=>[
         fmtTimeBeijing(it.created_at),
-        it.access_code,
         `"${it.transcript.replace(/"/g,'""')}"`,
         `"${it.diagnosis.replace(/"/g,'""')}"`
       ]);
@@ -191,7 +213,6 @@
     function showPreview(item){
       modalBody.innerHTML = `
         <h2>对话详情</h2>
-        <p><strong>访问码：</strong>${item.access_code}</p>
         <p><strong>创建时间：</strong>${fmtTimeBeijing(item.created_at)}</p>
         <h3>病情记录</h3><pre style="white-space:pre-wrap;">${item.transcript}</pre>
         <h3>诊断报告</h3><pre style="white-space:pre-wrap;">${item.diagnosis}</pre>
@@ -215,8 +236,7 @@
         const t = document.getElementById('editTranscript').value.trim();
         const d = document.getElementById('editDiagnosis').value.trim();
         await fetch(`${API_BASE}/admin/api/conversations/${item.id}`, {
-          method:'PATCH',
-          credentials:'include',
+          method:'PATCH', credentials:'include',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ transcript:t, diagnosis:d })
         });
