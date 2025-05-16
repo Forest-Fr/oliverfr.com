@@ -38,13 +38,14 @@
     #detailModal .modal-content { position:relative; background:#fff; width:90%; max-width:600px; max-height:80%; overflow:auto; border-radius:8px; padding:16px; }
     #detailModal .close-btn { position:absolute; top:12px; right:12px; font-size:20px; background:none; border:none; cursor:pointer; }
 
-    /* 移动端卡片式布局 */
+    /* 移动端卡片式布局 & 调整 Pager 水平排列 & 去掉右侧灰边 */
     @media (max-width: 768px) {
-      header, #controls, #pager { flex-direction:column; align-items:flex-start; }
-      header .actions, #controls { width:100%; }
-      header .actions button, #controls button { flex:1; margin:4px 0; }
+      /* 让 header, controls, pager 在窄屏下仍水平排列 */
+      header, #controls, #pager { flex-direction: row; justify-content: space-between; }
+      header .actions, #controls { width:auto; }
+      header .actions button, #controls button { flex:none; margin:0; }
 
-      /* 隐藏表头 */
+      /* 隐藏原始表头 */
       #convTable thead { display: none; }
       /* 卡片列表 */
       #convTable, #convTable tbody, #convTable tr { display: block; width:100%; }
@@ -67,14 +68,18 @@
         content: attr(data-label);
         font-weight:600;
         color:#333;
+        margin-right:8px;
       }
-      #convTable { min-width:600px; }
+      /* 移除桌面 min-width 限制，避免左右灰边 */
+      #convTable { min-width: auto; }
+      /* 确保滚动容器没有额外 padding/margin */
+      .table-container { padding:0; margin:0; }
+      /* Pager 水平居中 */
+      #pager { justify-content:center; width:100%; padding:0 16px; }
     }
   </style>
 </head>
 <body>
-  <!-- Zero Trust 已在 Cloudflare Access 中配置 -->
-
   <header>
     <h1>医疗 Copilot 管理后台</h1>
     <div class="actions">
@@ -86,10 +91,6 @@
   <div id="controls">
     <input type="text" id="filterCode" placeholder="按访问码过滤" />
     <button id="btnFilter">应用筛选</button>
-    <!--
-    <label>开始日期：<input type="date" id="startDate" /></label>
-    <label>结束日期：<input type="date" id="endDate" /></label>
-    -->
     <button id="btnExport">导出当前页 CSV</button>
   </div>
 
