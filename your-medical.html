@@ -1,37 +1,70 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>医疗 Copilot</title>
-  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
-  <style>
-    body { margin:0; padding:0; font-family:sans-serif; background:#f0f2f5; display:flex; flex-direction:column; height:100vh; }
-    .chat-container { flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:8px; }
-    .bubble { max-width:70%; padding:12px; border-radius:8px; word-break:break-word; }
-    .patient { background:#e6f7ff; align-self:flex-start; }
-    .assistant { background:#f6ffed; align-self:flex-end; }
-    .loading { opacity:0.6; }
-    .controls, .extra-controls { padding:12px; background:#fff; border-top:1px solid #ddd; display:flex; flex-wrap:wrap; gap:8px; }
-    textarea { flex:1 1 100%; height:60px; padding:8px; border:1px solid #ccc; border-radius:4px; resize:none; }
-    input[type=file] { flex:1; }
-    video { display:none; width:200px; height:150px; border:1px solid #ccc; border-radius:4px; }
-    canvas { display:none; }
-    button { padding:10px; border:none; border-radius:4px; font-size:14px; cursor:pointer; }
-    button:hover { opacity:0.9; }
-    #btnListen { background:#1890ff; color:#fff; }
-    #btnDiagnose { background:#52c41a; color:#fff; }
-    #btnAddText { background:#722ed1; color:#fff; }
-    #btnOpenCam, #btnSnap { background:#fa8c16; color:#fff; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>医疗 Copilot</title>
+<link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
+
+<!-- ===== 样式 ===== -->
+<style>
+:root{
+  --bg:#f0f2f5; --patient:#e6f7ff; --assistant:#f6ffed;
+  --primary:#1890ff; --success:#52c41a; --purple:#722ed1; --orange:#fa8c16;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+     background:var(--bg);display:flex;height:100vh;overflow:hidden}
+.sidebar{width:200px;background:#fff;border-right:1px solid #ddd;overflow:auto}
+.sidebar h3{margin:8px 0 4px;padding:0 12px;font-size:14px;color:#888}
+#toc a{display:block;padding:4px 12px 4px 24px;font-size:13px;color:#555;text-decoration:none}
+#toc a:hover{background:#f5f5f5}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.chat-container{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+.bubble{max-width:70%;padding:12px;border-radius:8px;word-break:break-word}
+.patient{background:var(--patient);align-self:flex-start}
+.assistant{background:var(--assistant);align-self:flex-end}
+.loading{opacity:.6}
+.controls,.extra-controls{padding:12px;background:#fff;border-top:1px solid #ddd;display:flex;flex-wrap:wrap;gap:8px}
+textarea{flex:1 1 100%;height:60px;padding:8px;border:1px solid #ccc;border-radius:4px;resize:none}
+input[type=file]{flex:1}
+video{display:none;width:200px;height:150px;border:1px solid #ccc;border-radius:4px}
+canvas{display:none}
+button{padding:10px;border:none;border-radius:4px;font-size:14px;cursor:pointer}
+button:hover{opacity:.9}
+#btnListen{background:var(--primary);color:#fff}
+#btnDiagnose{background:var(--success);color:#fff}
+#btnAddText{background:var(--purple);color:#fff}
+#btnOpenCam,#btnSnap{background:var(--orange);color:#fff}
+#btnToggleView{background:#13c2c2;color:#fff}
+#btnCopy{background:#2f54eb;color:#fff}
+#btnPDF{background:#fa541c;color:#fff}
+#btnRead{background:#d46b08;color:#fff}
+
+/* 医生/患者双栏控制 */
+.doctor-hide .patient-explain{display:none}
+.patient-hide .doctor-order{display:none}
+</style>
 </head>
 <body>
 
+<!-- ========== 侧边目录 ========== -->
+<div class="sidebar">
+  <h3>目录</h3>
+  <nav id="toc"></nav>
+</div>
+
+<!-- ========== 主体 ========== -->
+<div class="main">
   <div class="chat-container" id="chat"></div>
 
   <div class="controls">
     <button id="btnListen">开始录音</button>
     <button id="btnDiagnose">获取诊断建议</button>
+    <button id="btnToggleView" title="医生/患者视图切换">切换视图</button>
+    <button id="btnCopy" title="复制最新报告">复制报告</button>
+    <button id="btnPDF" title="导出 PDF">导出 PDF</button>
+    <button id="btnRead" title="朗读速览">朗读速览</button>
   </div>
 
   <div class="extra-controls">
@@ -43,22 +76,28 @@
     <video id="videoPreview" autoplay muted></video>
     <canvas id="camCanvas"></canvas>
   </div>
+</div>
 
-<!-- OCR -->
+<!-- ===== 脚本 ===== -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
-<!-- Markdown 渲染 -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
 <script>
 (function () {
-  /* ==================== 配置 ==================== */
-  const API_BASE = 'https://admin-your-medical.mefans.workers.dev'; // ← 按需修改
+  /* =========== 配置 =========== */
+  const API_BASE = 'https://admin-your-medical.mefans.workers.dev'; // ← 修改为你的域名
 
-  /* ==================== DOM ==================== */
-  const chatEl      = document.getElementById('chat');
+  /* =========== DOM =========== */
+  const chatEl  = document.getElementById('chat');
+  const tocEl   = document.getElementById('toc');
   const btnListen   = document.getElementById('btnListen');
   const btnDiagnose = document.getElementById('btnDiagnose');
   const btnAddText  = document.getElementById('btnAddText');
+  const btnToggle   = document.getElementById('btnToggleView');
+  const btnCopy     = document.getElementById('btnCopy');
+  const btnPDF      = document.getElementById('btnPDF');
+  const btnRead     = document.getElementById('btnRead');
   const manualText  = document.getElementById('manualText');
   const imgUpload   = document.getElementById('imgUpload');
   const btnOpenCam  = document.getElementById('btnOpenCam');
@@ -66,179 +105,190 @@
   const video       = document.getElementById('videoPreview');
   const canvas      = document.getElementById('camCanvas');
 
-  /* ==================== 状态 ==================== */
-  let stream = null,
-      listening = false,
-      recognition = null;
+  /* =========== 状态 =========== */
+  let stream = null, listening = false, recognition = null;
   const messages = [];
+  let viewMode = 'doctor'; // doctor / patient
 
-  /* ==================== 工具函数 ==================== */
-  function appendMessage (role, text, loading = false) {
+  /* =========== 工具 =========== */
+  function appendMessage(role, text, loading=false){
     const div = document.createElement('div');
-    div.className = `bubble ${role}${loading ? ' loading' : ''}`;
-    div.innerHTML = loading && role === 'assistant' ? '诊断中…' : text;
+    div.className = `bubble ${role}${loading?' loading':''}`;
+    div.innerHTML = loading && role==='assistant' ? '诊断中…' : text;
     chatEl.appendChild(div);
     chatEl.scrollTop = chatEl.scrollHeight;
-    const msg = { role, text, el: div };
+    const msg = {role,text,el:div};
     messages.push(msg);
     return msg;
   }
 
-  /* ==================== 语音识别 ==================== */
+  function buildTOC(container){
+    tocEl.innerHTML='';
+    const heads = container.querySelectorAll('h1,h2,h3');
+    heads.forEach(h=>{
+      const id = 'h_'+Math.random().toString(36).slice(2,9);
+      h.id=id;
+      const a=document.createElement('a');
+      a.href='#'+id;
+      a.textContent=h.textContent.replace(/^[0-9.]+\s*/,'');
+      tocEl.appendChild(a);
+    });
+  }
+
+  function toggleView(){
+    viewMode = viewMode==='doctor' ? 'patient' : 'doctor';
+    document.body.classList.toggle('doctor-hide', viewMode==='patient');
+    document.body.classList.toggle('patient-hide', viewMode==='doctor');
+  }
+
+  function copyReport(){
+    const last = [...messages].reverse().find(m=>m.role==='assistant');
+    if(!last) return alert('暂无报告');
+    navigator.clipboard.writeText(last.text || last.el.textContent)
+      .then(()=>alert('已复制'))
+      .catch(e=>alert('复制失败：'+e.message));
+  }
+
+  function exportPDF(){
+    const last = [...messages].reverse().find(m=>m.role==='assistant');
+    if(!last) return alert('暂无报告');
+    html2pdf().set({margin:10,filename:'report.pdf',html2canvas:{scale:2}})
+      .from(last.el).save();
+  }
+
+  function readSummary(){
+    const last = [...messages].reverse().find(m=>m.role==='assistant');
+    if(!last) return alert('暂无报告');
+    const summary = last.el.querySelector('ul li')?.textContent || last.el.textContent.slice(0,200);
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(summary);
+    utter.lang='zh-CN'; utter.rate=1;
+    synth.speak(utter);
+  }
+
+  /* =========== 语音识别 =========== */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SR) {
+  if(SR){
     recognition = new SR();
-    recognition.lang = 'zh-CN';
-    recognition.continuous = true;
-    recognition.onresult = e => {
-      const txt = Array.from(e.results)
-        .slice(e.resultIndex)
-        .map(r => r[0].transcript)
-        .join('');
-      appendMessage('patient', txt);
+    recognition.lang='zh-CN';
+    recognition.continuous=true;
+    recognition.onresult=e=>{
+      const txt=Array.from(e.results).slice(e.resultIndex).map(r=>r[0].transcript).join('');
+      appendMessage('patient',txt);
     };
   }
-  btnListen.onclick = () => {
-    if (!recognition) return alert('浏览器不支持语音识别');
-    listening = !listening;
-    btnListen.textContent = listening ? '停止录音' : '开始录音';
-    listening ? recognition.start() : recognition.stop();
+  btnListen.onclick=()=>{
+    if(!recognition) return alert('浏览器不支持语音识别');
+    listening=!listening;
+    btnListen.textContent=listening?'停止录音':'开始录音';
+    listening?recognition.start():recognition.stop();
   };
 
-  /* ==================== 手动输入 ==================== */
-  btnAddText.onclick = () => {
-    const t = manualText.value.trim();
-    if (t) appendMessage('patient', t);
-    manualText.value = '';
+  /* =========== 手动输入 =========== */
+  btnAddText.onclick=()=>{
+    const t=manualText.value.trim();
+    if(t) appendMessage('patient',t);
+    manualText.value='';
   };
 
-  /* ==================== 本地 OCR ==================== */
-  imgUpload.onchange = async () => {
-    const file = imgUpload.files[0];
-    if (!file) return;
-    const h = appendMessage('patient', '正在识别本地图像…', true);
-    const { data: { text } } = await Tesseract.recognize(file, 'chi_sim');
-    h.el.remove();
-    appendMessage('patient', text);
-    imgUpload.value = '';
+  /* =========== OCR =========== */
+  imgUpload.onchange=async()=>{
+    const f=imgUpload.files[0]; if(!f) return;
+    const h=appendMessage('patient','正在识别本地图像…',true);
+    const {data:{text}}=await Tesseract.recognize(f,'chi_sim');
+    h.el.remove(); appendMessage('patient',text);
+    imgUpload.value='';
   };
 
-  /* ==================== 摄像头识别 ==================== */
-  btnOpenCam.onclick = async () => {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-      video.style.display = 'none';
-      btnOpenCam.textContent = '打开摄像头';
-      return;
-    }
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      video.srcObject = stream;
-      video.style.display = 'block';
-      btnOpenCam.textContent = '关闭摄像头';
-    } catch (e) {
-      alert('无法访问摄像头：' + e.message);
-    }
+  /* =========== 摄像头 =========== */
+  btnOpenCam.onclick=async()=>{
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;
+      video.style.display='none';btnOpenCam.textContent='打开摄像头';return;}
+    try{stream=await navigator.mediaDevices.getUserMedia({video:true});
+      video.srcObject=stream;video.style.display='block';
+      btnOpenCam.textContent='关闭摄像头';}
+    catch(e){alert('无法访问摄像头：'+e.message);}
+  };
+  btnSnap.onclick=()=>{
+    if(!stream) return alert('请先打开摄像头');
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+    canvas.getContext('2d').drawImage(video,0,0);
+    const h=appendMessage('patient','正在识别拍照图像…',true);
+    canvas.toBlob(async blob=>{
+      const {data:{text}}=await Tesseract.recognize(blob,'chi_sim');
+      h.el.remove(); appendMessage('patient',text);
+    },'image/png');
   };
 
-  btnSnap.onclick = () => {
-    if (!stream) return alert('请先打开摄像头');
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    const h = appendMessage('patient', '正在识别拍照图像…', true);
-    canvas.toBlob(async blob => {
-      const { data: { text } } = await Tesseract.recognize(blob, 'chi_sim');
-      h.el.remove();
-      appendMessage('patient', text);
-    }, 'image/png');
-  };
+  /* =========== 请求诊断 =========== */
+  btnDiagnose.onclick=async()=>{
+    const transcript=messages.filter(m=>m.role==='patient').map(m=>m.text).join('\n');
+    if(!transcript) return alert('请先输入患者描述');
+    const code=prompt('请输入 13 位授权码'); if(!code) return;
 
-  /* ==================== 请求诊断 ==================== */
-  btnDiagnose.onclick = async () => {
-    const transcript = messages
-      .filter(m => m.role === 'patient')
-      .map(m => m.text)
-      .join('\n');
+    const bubble=appendMessage('assistant','',true);
+    let markdown='';
 
-    if (!transcript) return alert('请先输入患者描述');
-
-    const code = prompt('请输入 13 位授权码');
-    if (!code) return;
-
-    const bubble = appendMessage('assistant', '', true); // loading
-    let markdown = '';
-
-    /* ---------- 请求后端 ---------- */
     let resp;
-    try {
-      resp = await fetch(`${API_BASE}/api/medical-diagnosis`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, transcript })
+    try{
+      resp=await fetch(\`\${API_BASE}/api/medical-diagnosis\`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({code,transcript})
       });
-    } catch (e) {
-      bubble.el.textContent = '网络错误：' + e.message;
-      bubble.el.classList.remove('loading');
-      return;
+    }catch(e){
+      bubble.el.textContent='网络错误：'+e.message;bubble.el.classList.remove('loading');return;
     }
 
-    if (resp.status === 401) {
-      bubble.el.textContent = '授权失败，请检查授权码';
-      bubble.el.classList.remove('loading');
-      return;
-    }
-    if (!resp.ok) {
-      bubble.el.textContent = `错误 ${resp.status}`;
-      bubble.el.classList.remove('loading');
-      return;
-    }
+    if(resp.status===401){bubble.el.textContent='授权失败，请检查授权码';bubble.el.classList.remove('loading');return;}
+    if(!resp.ok){bubble.el.textContent='错误 '+resp.status;bubble.el.classList.remove('loading');return;}
 
-    /* ---------- 解析 SSE ---------- */
-    const reader = resp.body
-      .pipeThrough(new TextDecoderStream())
-      .getReader();
-
-    let buffer = '';
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += value;
-
-      /* 每次出现 \n\n 说明一个 event 完整到达 */
+    const reader=resp.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer='';
+    while(true){
+      const {value,done}=await reader.read(); if(done) break;
+      buffer+=value;
       let idx;
-      while ((idx = buffer.indexOf('\n\n')) !== -1) {
-        const chunk = buffer.slice(0, idx).trim();
-        buffer = buffer.slice(idx + 2); // 剩余
-
-        if (!chunk.startsWith('data:')) continue;
-        const payload = chunk.slice(5).trim(); // 去掉 'data:'
-
-        if (payload === '[DONE]') continue;
-
-        let obj;
-        try { obj = JSON.parse(payload); } catch { obj = { content: payload }; }
-        if (obj.content) markdown += obj.content;
+      while((idx=buffer.indexOf('\\n\\n'))!==-1){
+        const chunk=buffer.slice(0,idx).trim();buffer=buffer.slice(idx+2);
+        if(!chunk.startsWith('data:')) continue;
+        const payload=chunk.slice(5).trim();
+        if(payload==='[DONE]') continue;
+        const obj=JSON.parse(payload);
+        if(obj.content) markdown+=obj.content;
       }
     }
 
-    /* ---------- 渲染输出 ---------- */
+    /* ---- 渲染 ---- */
     bubble.el.classList.remove('loading');
     bubble.el.innerHTML = marked.parse(markdown.trim());
-    bubble.text = markdown.trim();               // ← 同步到消息对象
+
+    /* 给速览卡片 & 医嘱患者列加 class，方便视图切换 */
+    bubble.el.querySelectorAll('table tr').forEach(tr=>{
+      const tds=tr.children;
+      if(tds.length===2){tds[0].classList.add('doctor-order');tds[1].classList.add('patient-explain');}
+    });
+
+    bubble.text = markdown.trim();
     chatEl.scrollTop = chatEl.scrollHeight;
+
+    buildTOC(bubble.el);                 // 生成目录
+    if(viewMode==='patient') toggleView(); // 应用当前视图
   };
 
-  /* ==================== 欢迎语 ==================== */
-  appendMessage(
-    'assistant',
-    '欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。'
-  );
+  /* =========== 事件绑定 =========== */
+  btnToggle.onclick = toggleView;
+  btnCopy.onclick   = copyReport;
+  btnPDF.onclick    = exportPDF;
+  btnRead.onclick   = readSummary;
+
+  /* =========== 虚拟键盘自适应 =========== */
+  manualText.addEventListener('focus',()=>manualText.scrollIntoView({block:'center'}));
+
+  /* =========== 欢迎语 =========== */
+  appendMessage('assistant','欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
 })();
-
-
-  </script>
-
+</script>
 </body>
 </html>
