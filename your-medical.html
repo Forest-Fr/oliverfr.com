@@ -3,24 +3,37 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>医疗 Copilot</title>
+<title>医疗 Copilot</title>
 <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
 
 <style>
 :root{--bg:#f0f2f5;--patient:#e6f7ff;--assistant:#f6ffed;
       --primary:#1890ff;--success:#52c41a;--purple:#722ed1;--orange:#fa8c16}
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto}
-body{background:var(--bg);display:flex;height:100vh;overflow:hidden}
-.sidebar{width:220px;background:#fff;border-right:1px solid #ddd;overflow:auto;transition:transform .3s}
-.sidebar h3{margin:8px 0 4px;padding:0 12px;font-size:14px;color:#888}
-#toc a{display:block;padding:4px 12px 4px 24px;font-size:13px;color:#555;text-decoration:none}
+
+/* ---------- 布局 ---------- */
+body{background:var(--bg);display:flex;min-height:100vh;flex-direction:column}
+.app{flex:1;display:flex;overflow:hidden}
+
+/* ---------- 侧栏 ---------- */
+.sidebar{width:220px;background:#fff;border-right:1px solid #ddd;overflow:auto;transition:transform .3s ease}
+.sidebar h3{margin:12px 0 8px;padding-left:48px;font-size:15px;color:#666;font-weight:600}
+#toc a{display:block;padding:6px 12px 6px 36px;font-size:13px;color:#555;text-decoration:none}
 #toc a:hover{background:#f5f5f5}
+
+/* 关闭按钮 */
+#btnCloseSidebar{position:absolute;top:8px;right:8px;border:none;background:#ddd;
+  width:26px;height:26px;border-radius:50%;font-size:16px;cursor:pointer;line-height:26px}
+#btnCloseSidebar:hover{background:#ccc}
+
+/* ---------- 主区 ---------- */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .chat-container{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
 .bubble{max-width:70%;padding:12px;border-radius:8px;word-break:break-word}
 .patient{background:var(--patient);align-self:flex-start}
 .assistant{background:var(--assistant);align-self:flex-end}
 .loading{opacity:.6}
+
 .controls,.extra-controls{padding:12px;background:#fff;border-top:1px solid #ddd;display:flex;flex-wrap:wrap;gap:8px}
 textarea{flex:1 1 100%;height:60px;padding:8px;border:1px solid #ccc;border-radius:4px;resize:none}
 input[type=file]{flex:1}
@@ -28,6 +41,8 @@ video{display:none;width:200px;height:150px;border:1px solid #ccc;border-radius:
 canvas{display:none}
 button{padding:10px;border:none;border-radius:4px;font-size:14px;cursor:pointer}
 button:hover{opacity:.9}
+
+/* 按钮配色 */
 #btnListen{background:var(--primary);color:#fff}
 #btnDiagnose{background:var(--success);color:#fff}
 #btnAddText{background:var(--purple);color:#fff}
@@ -36,19 +51,23 @@ button:hover{opacity:.9}
 #btnCopy{background:#2f54eb;color:#fff}
 #btnPDF{background:#fa541c;color:#fff}
 #btnRead{background:#d46b08;color:#fff}
-#btnMenu{display:none;position:absolute;top:8px;left:8px;background:#555;color:#fff;border-radius:4px;padding:6px 10px;z-index:1000}
 
-/* 医生/患者视图 */
+/* 汉堡 / overlay */
+#btnMenu{position:fixed;top:8px;left:8px;background:#555;color:#fff;border-radius:4px;
+  padding:6px 10px;z-index:1001;border:none}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:998;display:none}
+
+/* 医生 / 患者列隐藏 */
 .doctor-hide .patient-explain{display:none}
 .patient-hide .doctor-order{display:none}
 
-/* ==========  移动端  ========== */
+/* ---------- 移动端 ---------- */
 @media(max-width:768px){
   .sidebar{position:fixed;top:0;bottom:0;z-index:999;transform:translateX(-100%)}
   .sidebar.open{transform:translateX(0)}
-  #btnMenu{display:block}
-  .controls button,.extra-controls button,#btnMenu,#btnCopy,#btnPDF,#btnRead{
-    flex:1 1 calc(50% - 8px); /* 双列 */
+  .overlay.show{display:block}
+  .controls button,.extra-controls button,#btnMenu{
+    flex:1 1 calc(50% - 8px)
   }
   textarea,input[type=file]{flex:1 1 100%}
   video{width:100%;height:auto}
@@ -57,35 +76,47 @@ button:hover{opacity:.9}
 </head>
 <body>
 
+<!-- 遮罩 -->
+<div class="overlay" id="overlay"></div>
+
+<!-- 汉堡按钮 -->
 <button id="btnMenu">☰</button>
 
-<div class="sidebar" id="sidebar">
-  <h3>目录</h3><nav id="toc"></nav>
-</div>
+<div class="app">
 
-<div class="main">
-  <div class="chat-container" id="chat"></div>
-
-  <div class="controls">
-    <button id="btnListen">开始录音</button>
-    <button id="btnDiagnose">获取诊断</button>
-    <button id="btnToggleView" title="医生/患者视图切换">切换视图</button>
-    <button id="btnCopy">复制报告</button>
-    <button id="btnPDF">导出 PDF</button>
-    <button id="btnRead">朗读速览</button>
+  <!-- 侧边栏 -->
+  <div class="sidebar" id="sidebar">
+    <button id="btnCloseSidebar">×</button>
+    <h3>目录</h3>
+    <nav id="toc"></nav>
   </div>
 
-  <div class="extra-controls">
-    <textarea id="manualText" placeholder="手动输入患者描述…"></textarea>
-    <button id="btnAddText">添加描述</button>
-    <input type="file" id="imgUpload" accept="image/*"/>
-    <button id="btnOpenCam">打开摄像头</button>
-    <button id="btnSnap">拍照识别</button>
-    <video id="videoPreview" autoplay muted></video>
-    <canvas id="camCanvas"></canvas>
+  <!-- 主内容 -->
+  <div class="main">
+    <div class="chat-container" id="chat"></div>
+
+    <div class="controls">
+      <button id="btnListen">开始录音</button>
+      <button id="btnDiagnose">获取诊断</button>
+      <button id="btnToggleView">切换视图</button>
+      <button id="btnCopy">复制报告</button>
+      <button id="btnPDF">导出 PDF</button>
+      <button id="btnRead">朗读速览</button>
+    </div>
+
+    <div class="extra-controls">
+      <textarea id="manualText" placeholder="手动输入患者描述…"></textarea>
+      <button id="btnAddText">添加描述</button>
+      <input type="file" id="imgUpload" accept="image/*"/>
+      <button id="btnOpenCam">打开摄像头</button>
+      <button id="btnSnap">拍照识别</button>
+      <video id="videoPreview" autoplay muted></video>
+      <canvas id="camCanvas"></canvas>
+    </div>
   </div>
 </div>
 
+<!-- 依赖 -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
@@ -93,68 +124,55 @@ button:hover{opacity:.9}
 <script>
 document.addEventListener('DOMContentLoaded',()=>{
 
-/* ============= 配置 ============= */
-const API_BASE='https://admin-your-medical.mefans.workers.dev'; // ← 修改你的域名
+/* ---------- 配置 ---------- */
+const API_BASE='https://admin-your-medical.mefans.workers.dev'; // ← 修改域名
 
-/* ============= DOM ============= */
+/* ---------- DOM ---------- */
 const $=id=>document.getElementById(id);
-const chatEl=$('chat'),tocEl=$('toc'),sidebar=$('sidebar');
-const btnMenu=$('btnMenu'),btnListen=$('btnListen'),btnDiagnose=$('btnDiagnose'),
-      btnToggle=$('btnToggleView'),btnCopy=$('btnCopy'),btnPDF=$('btnPDF'),btnRead=$('btnRead'),
-      btnAdd=$('btnAddText'),manual=$('manualText'),imgUp=$('imgUpload'),
-      btnCam=$('btnOpenCam'),btnSnap=$('btnSnap'),video=$('videoPreview'),canvas=$('camCanvas');
+const chat=$('chat'),toc=$('toc'),sidebar=$('sidebar'),overlay=$('overlay');
+const btnMenu=$('btnMenu'),btnClose=$('btnCloseSidebar');
+const btnListen=$('btnListen'),btnDiag=$('btnDiagnose'),btnToggle=$('btnToggleView');
+const btnCopy=$('btnCopy'),btnPDF=$('btnPDF'),btnRead=$('btnRead');
+const btnAdd=$('btnAddText'),manual=$('manualText'),imgUp=$('imgUpload');
+const btnCam=$('btnOpenCam'),btnSnap=$('btnSnap'),video=$('videoPreview'),canvas=$('camCanvas');
 
-/* ============= 状态 ============= */
-let stream=null,listening=false,view='doctor';
-const msgs=[];
+/* ---------- 状态 ---------- */
+let view='doctor',stream=null,listening=false,recog=null,msgs=[];
 
-/* ============= 工具 ============= */
+/* ---------- 工具 ---------- */
 const append=(role,text,loading=false)=>{
   const div=document.createElement('div');
   div.className=`bubble ${role}${loading?' loading':''}`;
   div.innerHTML=loading&&role==='assistant'?'诊断中…':text;
-  chatEl.appendChild(div);chatEl.scrollTop=chatEl.scrollHeight;
+  chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
   const m={role,text,el:div};msgs.push(m);return m;
 };
 const buildTOC=el=>{
-  tocEl.innerHTML='';
+  toc.innerHTML='';
   el.querySelectorAll('h1,h2').forEach(h=>{
-    const id='h_'+Math.random().toString(36).slice(2,8);h.id=id;
+    const id='h_'+Math.random().toString(36).slice(2,9);
+    h.id=id;
     const a=document.createElement('a');a.href='#'+id;a.textContent=h.textContent.replace(/^[0-9.]+\s*/,'');
-    tocEl.appendChild(a);
+    toc.appendChild(a);
   });
 };
-const toggleView=()=>{
-  view=view==='doctor'?'patient':'doctor';
+const openSidebar=()=>{sidebar.classList.add('open');overlay.classList.add('show');}
+const closeSidebar=()=>{sidebar.classList.remove('open');overlay.classList.remove('show');}
+const toggleView=()=>{view=view==='doctor'?'patient':'doctor';
   document.body.classList.toggle('doctor-hide',view==='patient');
-  document.body.classList.toggle('patient-hide',view==='doctor');
-};
-const copyReport=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');
-  if(!last)return alert('暂无报告');
-  navigator.clipboard.writeText(last.text||last.el.textContent).then(()=>alert('已复制'));
-};
-const exportPDF=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');
-  if(!last)return alert('暂无报告');
-  html2pdf().set({margin:10,filename:'report.pdf',html2canvas:{scale:2}})
-           .from(last.el).save();
-};
-const readSummary=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');
-  if(!last)return alert('暂无报告');
-  const t=last.el.querySelector('ul li')?.textContent||last.el.textContent.slice(0,150);
-  const s=window.speechSynthesis;s.cancel();
-  const u=new SpeechSynthesisUtterance(t);u.lang='zh-CN';s.speak(u);
-};
+  document.body.classList.toggle('patient-hide',view==='doctor');};
 
-/* ============= 语音识别 ============= */
+/* ---------- 事件 ---------- */
+btnMenu.onclick=openSidebar;
+btnClose.onclick=closeSidebar;
+overlay.onclick=closeSidebar;
+
+/* ---------- 语音 ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let recog=null;
 if(SR){recog=new SR();recog.lang='zh-CN';recog.continuous=true;
   recog.onresult=e=>{
-    const txt=Array.from(e.results).slice(e.resultIndex).map(r=>r[0].transcript).join('');
-    append('patient',txt);
+    const t=Array.from(e.results).slice(e.resultIndex).map(r=>r[0].transcript).join('');
+    append('patient',t);
   };
 }
 btnListen.onclick=()=>{
@@ -163,78 +181,82 @@ btnListen.onclick=()=>{
   listening?recog.start():recog.stop();
 };
 
-/* ============= 手动输入 ============= */
-btnAdd.onclick=()=>{const t=manual.value.trim();if(t)append('patient',t);manual.value='';};
+/* ---------- 手动输入 ---------- */
+btnAdd.onclick=()=>{const t=manual.value.trim();if(t)append('patient',t);manual.value='';manual.blur();};
 
-/* ============= OCR ============= */
+/* ---------- OCR ---------- */
 imgUp.onchange=async()=>{
   const f=imgUp.files[0];if(!f)return;
-  const h=append('patient','正在识别本地图像…',true);
+  const h=append('patient','正在识别…',true);
   const {data:{text}}=await Tesseract.recognize(f,'chi_sim');h.el.remove();append('patient',text);imgUp.value='';
 };
 
-/* ============= 摄像头 ============= */
+/* ---------- 摄像头 ---------- */
 btnCam.onclick=async()=>{
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;
-    video.style.display='none';btnCam.textContent='打开摄像头';return;}
-  try{stream=await navigator.mediaDevices.getUserMedia({video:true});
-    video.srcObject=stream;video.style.display='block';btnCam.textContent='关闭摄像头';}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;video.style.display='none';btnCam.textContent='打开摄像头';return;}
+  try{stream=await navigator.mediaDevices.getUserMedia({video:true});video.srcObject=stream;video.style.display='block';btnCam.textContent='关闭摄像头';}
   catch(e){alert('无法访问摄像头：'+e.message);}
 };
 btnSnap.onclick=()=>{
   if(!stream)return alert('请先打开摄像头');
   canvas.width=video.videoWidth;canvas.height=video.videoHeight;
   canvas.getContext('2d').drawImage(video,0,0);
-  const h=append('patient','正在识别拍照图像…',true);
+  const h=append('patient','识别中…',true);
   canvas.toBlob(async blob=>{
-    const {data:{text}}=await Tesseract.recognize(blob,'chi_sim');
-    h.el.remove();append('patient',text);
+    const {data:{text}}=await Tesseract.recognize(blob,'chi_sim');h.el.remove();append('patient',text);
   },'image/png');
 };
 
-/* ============= 诊断请求 ============= */
-btnDiagnose.onclick=async()=>{
+/* ---------- 诊断 ---------- */
+btnDiag.onclick=async()=>{
   const transcript=msgs.filter(m=>m.role==='patient').map(m=>m.text).join('\n');
-  if(!transcript)return alert('请先输入患者描述');
+  if(!transcript)return alert('请先输入内容');
   const code=prompt('请输入 13 位授权码');if(!code)return;
   const bubble=append('assistant','',true);let md='';
   let resp;
-  try{resp=await fetch(`${API_BASE}/api/medical-diagnosis`,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({code,transcript})});
-  }catch(e){bubble.el.textContent='网络错误：'+e.message;bubble.el.classList.remove('loading');return;}
-
+  try{resp=await fetch(`${API_BASE}/api/medical-diagnosis`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,transcript})});}
+  catch(e){bubble.el.textContent='网络错误：'+e.message;bubble.el.classList.remove('loading');return;}
   if(resp.status===401){bubble.el.textContent='授权失败';bubble.el.classList.remove('loading');return;}
   if(!resp.ok){bubble.el.textContent='错误 '+resp.status;bubble.el.classList.remove('loading');return;}
 
-  const reader=resp.body.pipeThrough(new TextDecoderStream()).getReader();
-  let buf='';
+  const reader=resp.body.pipeThrough(new TextDecoderStream()).getReader(),buf=[];
+  let buffer='';
   while(true){
-    const {value,done}=await reader.read();if(done)break;buf+=value;
-    let idx;while((idx=buf.indexOf('\n\n'))!==-1){
-      const chunk=buf.slice(0,idx).trim();buf=buf.slice(idx+2);
+    const {value,done}=await reader.read();if(done)break;
+    buffer+=value;
+    let idx;
+    while((idx=buffer.indexOf('\n\n'))!==-1){
+      const chunk=buffer.slice(0,idx).trim();buffer=buffer.slice(idx+2);
       if(!chunk.startsWith('data:'))continue;
       const p=chunk.slice(5).trim();if(p==='[DONE]')continue;
-      const obj=JSON.parse(p);if(obj.content)md+=obj.content;
+      md+=JSON.parse(p).content;
     }
   }
-  bubble.el.classList.remove('loading');bubble.el.innerHTML=marked.parse(md.trim());
-  bubble.text=md.trim();
+  bubble.el.classList.remove('loading');bubble.el.innerHTML=marked.parse(md.trim());bubble.text=md.trim();
   bubble.el.querySelectorAll('table tr').forEach(tr=>{
     const [d,p]=tr.children;if(p){d.classList.add('doctor-order');p.classList.add('patient-explain');}
   });
   buildTOC(bubble.el);if(view==='patient')toggleView();
+  chat.scrollTop=chat.scrollHeight;
 };
 
-/* ============= 侧边栏 & 其余按钮 ============= */
-btnMenu.onclick=()=>sidebar.classList.toggle('open');
-btnToggle.onclick=toggleView;btnCopy.onclick=copyReport;
-btnPDF.onclick=exportPDF;btnRead.onclick=readSummary;
+/* ---------- 复制 / PDF / 朗读 ---------- */
+btnCopy.onclick=()=>{
+  const last=[...msgs].reverse().find(m=>m.role==='assistant');if(!last)return alert('暂无报告');
+  navigator.clipboard.writeText(last.text||last.el.textContent).then(()=>alert('已复制'));
+};
+btnPDF.onclick=()=>{
+  const last=[...msgs].reverse().find(m=>m.role==='assistant');if(!last)return alert('暂无报告');
+  html2pdf().set({margin:10,filename:'report.pdf',html2canvas:{scale:2}}).from(last.el).save();
+};
+btnRead.onclick=()=>{
+  const last=[...msgs].reverse().find(m=>m.role==='assistant');if(!last)return alert('暂无报告');
+  const t=last.el.querySelector('ul li')?.textContent||last.el.textContent.slice(0,150);
+  const s=window.speechSynthesis;s.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='zh-CN';s.speak(u);
+};
+btnToggle.onclick=toggleView;
 
-/* ============= 虚拟键盘适配 ============= */
-manual.addEventListener('focus',()=>manual.scrollIntoView({block:'center'}));
-
-/* 欢迎 */
+/* ---------- 欢迎 ---------- */
 append('assistant','欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
 
 });
