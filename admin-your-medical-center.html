@@ -21,9 +21,14 @@
     #pager button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; }
     /* 详情弹窗 */
     #detailModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:2000; }
-    #detailModal .modal-content { background:#fff; width:90%; max-width:600px; max-height:80%; overflow:auto; border-radius:8px; padding:16px; }
+    #detailModal .modal-content { position:relative; background:#fff; width:90%; max-width:600px; max-height:80%; overflow:auto; border-radius:8px; padding:16px; }
     #detailModal .modal-content h2 { margin-top:0; }
     #detailModal .close-btn { position:absolute; top:12px; right:12px; font-size:20px; background:none; border:none; cursor:pointer; }
+    /* 操作按钮 */
+    .btnPreview, .btnEdit, .btnDel { margin-right:6px; padding:4px 8px; border:none; border-radius:4px; cursor:pointer; }
+    .btnPreview { background:#1890ff; color:#fff; }
+    .btnEdit    { background:#52c41a; color:#fff; }
+    .btnDel     { background:#fa541c; color:#fff; }
   </style>
 </head>
 <body>
@@ -39,13 +44,11 @@
   <div id="controls">
     <input type="text" id="filterCode" placeholder="按访问码过滤" />
     <button id="btnFilter">应用筛选</button>
-
     <!-- 扩展：日期范围筛选 -->
     <!--
     <label>开始日期：<input type="date" id="startDate" /></label>
     <label>结束日期：<input type="date" id="endDate" /></label>
     -->
-
     <button id="btnExport">导出当前页 CSV</button>
   </div>
 
@@ -56,10 +59,11 @@
         <th>访问码</th>
         <th>病情记录</th>
         <th>诊断报告</th>
+        <th>操作</th>
       </tr>
     </thead>
     <tbody>
-      <tr class="empty"><td colspan="4">加载中…</td></tr>
+      <tr class="empty"><td colspan="5">加载中…</td></tr>
     </tbody>
   </table>
 
@@ -69,17 +73,13 @@
     <button id="btnNext">下一页 &raquo;</button>
   </div>
 
-  <!-- 详情弹窗 -->
+  <!-- 详情 / 编辑 弹窗 -->
   <div id="detailModal">
     <div class="modal-content">
       <button class="close-btn" id="modalClose">&times;</button>
-      <h2>对话详情</h2>
-      <p><strong>访问码：</strong><span id="detailCode"></span></p>
-      <p><strong>创建时间：</strong><span id="detailTime"></span></p>
-      <h3>病情记录</h3>
-      <pre id="detailTranscript" style="white-space:pre-wrap;"></pre>
-      <h3>诊断报告</h3>
-      <pre id="detailDiagnosis" style="white-space:pre-wrap;"></pre>
+      <div id="modalBody">
+        <!-- 内容由脚本动态注入：预览或编辑表单 -->
+      </div>
     </div>
   </div>
 
@@ -91,10 +91,9 @@
     const btnPrev  = document.getElementById('btnPrev');
     const btnNext  = document.getElementById('btnNext');
     const curPage  = document.getElementById('curPage');
-    const pageSize = 10;  // 可调整每页显示条数
+    const pageSize = 10;
     let page = 1, lastList = [];
 
-    /** 格式化为北京时间 */
     function fmtTimeBeijing(iso){
       return new Date(iso).toLocaleString('zh-CN',{
         timeZone:'Asia/Shanghai',
@@ -103,9 +102,8 @@
       });
     }
 
-    /** 加载数据 */
     async function loadConversations(){
-      tbody.innerHTML = '<tr class="empty"><td colspan="4">加载中…</td></tr>';
+      tbody.innerHTML = '<tr class="empty"><td colspan="5">加载中…</td></tr>';
       try {
         let url = `${API_BASE}/admin/api/conversations?page=${page}&pageSize=${pageSize}`;
         const codeFilter = filterIn.value.trim();
@@ -116,44 +114,56 @@
         lastList = list;
         renderTable(list);
       } catch(e){
-        tbody.innerHTML = `<tr class="empty"><td colspan="4">加载失败：${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr class="empty"><td colspan="5">加载失败：${e.message}</td></tr>`;
       }
       curPage.textContent = page;
     }
 
-    /** 渲染表格 */
     function renderTable(list){
-      if(list.length === 0){
-        tbody.innerHTML = '<tr class="empty"><td colspan="4">无匹配记录</td></tr>';
+      if(!list.length){
+        tbody.innerHTML = '<tr class="empty"><td colspan="5">无匹配记录</td></tr>';
         return;
       }
       tbody.innerHTML = '';
-      list.forEach((item,idx) => {
+      list.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${fmtTimeBeijing(item.created_at)}</td>
           <td>${item.access_code}</td>
           <td title="${item.transcript}">${item.transcript.slice(0,30)}…</td>
           <td title="${item.diagnosis}">${item.diagnosis.slice(0,30)}…</td>
+          <td>
+            <button class="btnPreview">预览</button>
+            <button class="btnEdit">编辑</button>
+            <button class="btnDel">删除</button>
+          </td>
         `;
-        // 点击行查看详情
-        tr.style.cursor = 'pointer';
-        tr.addEventListener('click',()=> showDetail(item));
+        // 预览
+        tr.querySelector('.btnPreview').addEventListener('click', ()=> showPreview(item));
+        // 编辑
+        tr.querySelector('.btnEdit').addEventListener('click', ()=> showEditForm(item));
+        // 删除
+        tr.querySelector('.btnDel').addEventListener('click', async ()=>{
+          if(!confirm('确定要删除这条记录？')) return;
+          await fetch(`${API_BASE}/admin/api/conversations/${item.id}`, {
+            method:'DELETE', credentials:'include'
+          });
+          loadConversations();
+        });
         tbody.appendChild(tr);
       });
     }
 
-    /** 导出 CSV */
     function exportCSV(){
-      if(lastList.length === 0) return alert('当前无可导出数据');
+      if(!lastList.length) return alert('当前无可导出数据');
       const header = ['创建时间','访问码','病情记录','诊断报告'];
-      const rows = lastList.map(item=>[
-        fmtTimeBeijing(item.created_at),
-        item.access_code,
-        `"${item.transcript.replace(/"/g,'""')}"`,
-        `"${item.diagnosis.replace(/"/g,'""')}"`
+      const rows = lastList.map(it=>[
+        fmtTimeBeijing(it.created_at),
+        it.access_code,
+        `"${it.transcript.replace(/"/g,'""')}"`,
+        `"${it.diagnosis.replace(/"/g,'""')}"`
       ]);
-      let csv = header.join(',') + '\n' + rows.map(r=>r.join(',')).join('\n');
+      const csv = header.join(',') + '\n' + rows.map(r=>r.join(',')).join('\n');
       const blob = new Blob([csv],{type:'text/csv'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -161,31 +171,62 @@
       a.click(); URL.revokeObjectURL(url);
     }
 
-    /** 详情弹窗 */
     const modal      = document.getElementById('detailModal');
-    const detailCode = document.getElementById('detailCode');
-    const detailTime = document.getElementById('detailTime');
-    const detailTrans= document.getElementById('detailTranscript');
-    const detailDiag = document.getElementById('detailDiagnosis');
-    function showDetail(item){
-      detailCode.textContent = item.access_code;
-      detailTime.textContent = fmtTimeBeijing(item.created_at);
-      detailTrans.textContent= item.transcript;
-      detailDiag.textContent = item.diagnosis;
+    const modalBody  = document.getElementById('modalBody');
+    const closeBtn   = document.getElementById('modalClose');
+    closeBtn.addEventListener('click', ()=> modal.style.display='none');
+    modal.addEventListener('click', e=> { if(e.target===modal) modal.style.display='none'; });
+
+    // 预览
+    function showPreview(item){
+      modalBody.innerHTML = `
+        <h2>对话详情</h2>
+        <p><strong>访问码：</strong>${item.access_code}</p>
+        <p><strong>创建时间：</strong>${fmtTimeBeijing(item.created_at)}</p>
+        <h3>病情记录</h3>
+        <pre style="white-space:pre-wrap;">${item.transcript}</pre>
+        <h3>诊断报告</h3>
+        <pre style="white-space:pre-wrap;">${item.diagnosis}</pre>
+      `;
       modal.style.display = 'flex';
     }
-    document.getElementById('modalClose').addEventListener('click',()=> modal.style.display='none');
-    modal.addEventListener('click',e=>{ if(e.target===modal) modal.style.display='none'; });
 
-    // 绑定事件
-    document.getElementById('btnRefresh').addEventListener('click',()=> { page=1; loadConversations(); });
-    document.getElementById('btnFilter' ).addEventListener('click',()=> { page=1; loadConversations(); });
-    document.getElementById('btnLogout' ).addEventListener('click',()=> window.location.href='/cdn-cgi/access/logout');
-    document.getElementById('btnExport' ).addEventListener('click',exportCSV);
-    btnPrev.addEventListener('click',()=>{ if(page>1){ page--; loadConversations(); } });
-    btnNext.addEventListener('click',()=>{ page++; loadConversations(); });
+    // 编辑
+    function showEditForm(item){
+      modalBody.innerHTML = `
+        <h2>编辑对话</h2>
+        <label>病情记录：</label><br>
+        <textarea id="editTranscript" style="width:100%;height:80px;">${item.transcript}</textarea><br><br>
+        <label>诊断报告：</label><br>
+        <textarea id="editDiagnosis" style="width:100%;height:120px;">${item.diagnosis}</textarea><br><br>
+        <button id="saveEdit" style="margin-right:8px;">保存</button>
+        <button id="cancelEdit">取消</button>
+      `;
+      modal.style.display = 'flex';
+      document.getElementById('cancelEdit').onclick = ()=> modal.style.display='none';
+      document.getElementById('saveEdit' ).onclick = async ()=>{
+        const t = document.getElementById('editTranscript').value.trim();
+        const d = document.getElementById('editDiagnosis').value.trim();
+        await fetch(`${API_BASE}/admin/api/conversations/${item.id}`, {
+          method:'PATCH',
+          credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ transcript:t, diagnosis:d })
+        });
+        modal.style.display='none';
+        loadConversations();
+      };
+    }
 
-    // 首次加载
+    // 绑定
+    document.getElementById('btnRefresh').addEventListener('click', ()=> { page=1; loadConversations(); });
+    document.getElementById('btnFilter' ).addEventListener('click', ()=> { page=1; loadConversations(); });
+    document.getElementById('btnLogout' ).addEventListener('click', ()=> window.location.href='/cdn-cgi/access/logout');
+    document.getElementById('btnExport' ).addEventListener('click', exportCSV);
+    btnPrev.addEventListener('click', ()=> { if(page>1){ page--; loadConversations(); } });
+    btnNext.addEventListener('click', ()=> { page++; loadConversations(); });
+
+    // 初始加载
     loadConversations();
   })();
   </script>
