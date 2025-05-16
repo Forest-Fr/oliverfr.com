@@ -17,17 +17,21 @@ body{background:var(--bg);display:flex;min-height:100vh;flex-direction:column}
 .sidebar{position:fixed;top:0;bottom:0;left:0;width:220px;background:#fff;
   border-right:1px solid #ddd;overflow:auto;transition:transform .3s ease;z-index:999}
 .sidebar h3{margin:12px 0 8px;padding-left:48px;font-size:15px;color:#666;font-weight:600}
+#toc section{border-bottom:1px solid #eee;padding-bottom:4px;margin-bottom:6px}
 #toc a{display:block;padding:6px 12px 6px 36px;font-size:13px;color:#555;text-decoration:none}
 #toc a:hover{background:#f5f5f5}
 #btnCloseSidebar{position:absolute;top:10px;right:10px;width:28px;height:28px;border:none;
-  border-radius:50%;background:#fff;color:#666;font-size:18px;cursor:pointer;line-height:28px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;background:#fff;color:#444;font-size:18px;cursor:pointer;
   box-shadow:0 0 4px rgba(0,0,0,.25)}
-#btnCloseSidebar:hover{background:#eee;color:#333}
+#btnCloseSidebar:hover{background:#eee;color:#000}
 
 /* ---------- 主区 ---------- */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .chat-container{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
 .bubble{max-width:70%;padding:12px;border-radius:8px;word-break:break-word}
+.bubble ul{padding-left:1.2em;margin:.4em 0}          /* 黑点不再跑出去 */
+.bubble li{list-style-position:inside}
 .patient{background:var(--patient);align-self:flex-start}
 .assistant{background:var(--assistant);align-self:flex-end}
 .loading{opacity:.6}
@@ -39,6 +43,7 @@ video{display:none;width:200px;height:150px;border:1px solid #ccc;border-radius:
 canvas{display:none}
 button{padding:10px;border:none;border-radius:4px;font-size:14px;cursor:pointer}
 button:hover{opacity:.9}
+
 /* 按钮配色 */
 #btnListen{background:var(--primary);color:#fff}
 #btnDiagnose{background:var(--success);color:#fff}
@@ -48,6 +53,8 @@ button:hover{opacity:.9}
 #btnCopy{background:#2f54eb;color:#fff}
 #btnPDF{background:#fa541c;color:#fff}
 #btnRead{background:#d46b08;color:#fff}
+
+.retry-btn{margin-left:8px;padding:2px 8px;font-size:12px;border-radius:4px;border:none;background:#1890ff;color:#fff;cursor:pointer}
 
 /* 汉堡 / overlay */
 #btnMenu{position:fixed;top:8px;left:8px;background:#555;color:#fff;border-radius:4px;
@@ -64,15 +71,16 @@ button:hover{opacity:.9}
   .sidebar.open{transform:translateX(0)}
   .overlay.show{display:block}
   .controls button,.extra-controls button,#btnMenu{flex:1 1 calc(50% - 8px)}
-  textarea,input[type=file]{flex:1 1 100%}
-      #btnCloseSidebar {
+
+
+       #btnCloseSidebar {
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1; /* 避免 line-height 影响垂直居中 */
   
 }
-
+  textarea,input[type=file]{flex:1 1 100%}
   video{width:100%;height:auto}
 }
 </style>
@@ -91,7 +99,7 @@ button:hover{opacity:.9}
   <div class="sidebar" id="sidebar">
     <button id="btnCloseSidebar">×</button>
     <h3>目录</h3>
-    <nav id="toc"></nav>
+    <div id="toc"></div>
   </div>
 
   <!-- 主内容 -->
@@ -128,7 +136,7 @@ button:hover{opacity:.9}
 document.addEventListener('DOMContentLoaded',()=>{
 
 /* ---------- 配置 ---------- */
-const API_BASE='https://admin-your-medical.mefans.workers.dev'; // ← 按需修改
+const API_BASE='https://admin-your-medical.mefans.workers.dev'; // ← 修改域名
 
 /* ---------- DOM ---------- */
 const $=id=>document.getElementById(id);
@@ -141,8 +149,9 @@ const btnCam=$('btnOpenCam'),btnSnap=$('btnSnap'),video=$('videoPreview'),canvas
 
 /* ---------- 状态 ---------- */
 let view='doctor',stream=null,listening=false,recog=null,msgs=[];
+let lastReq=null;         // 存最近一次诊断请求 {code, transcript}
 
-/* ---------- 工具 ---------- */
+/* ---------- 工具 & 目录 ---------- */
 const append=(role,text,loading=false)=>{
   const div=document.createElement('div');
   div.className=`bubble ${role}${loading?' loading':''}`;
@@ -150,15 +159,21 @@ const append=(role,text,loading=false)=>{
   chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
   const m={role,text,el:div};msgs.push(m);return m;
 };
-const buildTOC=el=>{
-  toc.innerHTML='';
+
+function buildTOC(el){
+  const section=document.createElement('section');
+  section.innerHTML=`<strong>${new Date().toLocaleTimeString()}</strong>`;
+  const nav=document.createElement('nav');
+  section.appendChild(nav);
+
   el.querySelectorAll('h1,h2').forEach(h=>{
     const id='h_'+Math.random().toString(36).slice(2,9);h.id=id;
     const a=document.createElement('a');a.href='#'+id;
-    a.textContent=h.textContent.replace(/^[0-9.]+\s*/,'');
-    toc.appendChild(a);
+    a.textContent=h.textContent.replace(/^[0-9.]+\\s*/,'');
+    nav.appendChild(a);
   });
-};
+  toc.prepend(section);
+}
 
 /* ---------- 侧栏 ---------- */
 const openSidebar=()=>{sidebar.classList.add('open');overlay.classList.add('show');}
@@ -166,27 +181,20 @@ const closeSidebar=()=>{sidebar.classList.remove('open');overlay.classList.remov
 btnMenu.onclick=openSidebar;btnClose.onclick=closeSidebar;overlay.onclick=closeSidebar;
 
 /* ---------- 视图切换 ---------- */
-const updateViewBtn=()=>{btnToggle.textContent=view==='doctor'?'患者视图':'医生视图';};
-const toggleView=()=>{
-  if(view==='doctor'){ // 切到患者视图
-    view='patient';
-    document.body.classList.remove('doctor-hide');
-    document.body.classList.add('patient-hide');
-  }else{               // 切到医生视图
-    view='doctor';
-    document.body.classList.remove('patient-hide');
-    document.body.classList.add('doctor-hide');
-  }
+function updateViewBtn(){btnToggle.textContent=view==='doctor'?'患者视图':'医生视图';}
+function toggleView(){
+  if(view==='doctor'){view='patient';document.body.classList.add('patient-hide');document.body.classList.remove('doctor-hide');}
+  else{view='doctor';document.body.classList.add('doctor-hide');document.body.classList.remove('patient-hide');}
   updateViewBtn();
-};
+}
 updateViewBtn();btnToggle.onclick=toggleView;
 
 /* ---------- 语音 ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){recog=new SR();recog.lang='zh-CN';recog.continuous=true;
   recog.onresult=e=>{
-    const t=Array.from(e.results).slice(e.resultIndex).map(r=>r[0].transcript).join('');
-    append('patient',t);
+    const txt=Array.from(e.results).slice(e.resultIndex).map(r=>r[0].transcript).join('');
+    append('patient',txt);
   };
 }
 btnListen.onclick=()=>{
@@ -195,17 +203,15 @@ btnListen.onclick=()=>{
   listening?recog.start():recog.stop();
 };
 
-/* ---------- 手动输入 ---------- */
+/* ---------- OCR / 摄像头 / 输入 ---------- */
 btnAdd.onclick=()=>{const t=manual.value.trim();if(t)append('patient',t);manual.value='';manual.blur();};
 
-/* ---------- OCR ---------- */
 imgUp.onchange=async()=>{
   const f=imgUp.files[0];if(!f)return;
   const h=append('patient','正在识别…',true);
   const {data:{text}}=await Tesseract.recognize(f,'chi_sim');h.el.remove();append('patient',text);imgUp.value='';
 };
 
-/* ---------- 摄像头 ---------- */
 btnCam.onclick=async()=>{
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;video.style.display='none';btnCam.textContent='打开摄像头';return;}
   try{stream=await navigator.mediaDevices.getUserMedia({video:true});video.srcObject=stream;video.style.display='block';btnCam.textContent='关闭摄像头';}
@@ -217,58 +223,81 @@ btnSnap.onclick=()=>{
   canvas.getContext('2d').drawImage(video,0,0);
   const h=append('patient','识别中…',true);
   canvas.toBlob(async blob=>{
-    const {data:{text}}=await Tesseract.recognize(blob,'chi_sim');h.el.remove();append('patient',text);
+    const {data:{text}}=await Tesseract.recognize(blob,'chi_sim');
+    h.el.remove();append('patient',text);
   },'image/png');
 };
 
-/* ---------- 诊断 ---------- */
-btnDiag.onclick=async()=>{
-  const transcript=msgs.filter(m=>m.role==='patient').map(m=>m.text).join('\n');
-  if(!transcript)return alert('请先输入内容');
-  const code=prompt('请输入 13 位授权码');if(!code)return;
-  const bubble=append('assistant','',true);let md='';
-  let resp;
-  try{resp=await fetch(`${API_BASE}/api/medical-diagnosis`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,transcript})});}
-  catch(e){bubble.el.textContent='网络错误：'+e.message;bubble.el.classList.remove('loading');return;}
-  if(resp.status===401){bubble.el.textContent='授权失败';bubble.el.classList.remove('loading');return;}
-  if(!resp.ok){bubble.el.textContent='错误 '+resp.status;bubble.el.classList.remove('loading');return;}
+/* ---------- 诊断逻辑（支持重试） ---------- */
+async function runDiagnosis(code, transcript, bubble=null){
+  if(!bubble) bubble=append('assistant','',true);
+  lastReq={code,transcript};
 
-  const reader=resp.body.pipeThrough(new TextDecoderStream()).getReader(),buf=[];
-  let buffer='';
+  let resp;
+  try{
+    resp=await fetch(\`\${API_BASE}/api/medical-diagnosis\`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({code,transcript})
+    });
+  }catch(e){
+    return showRetry(bubble,'网络错误:'+e.message);
+  }
+  if(resp.status===401) return showRetry(bubble,'授权失败');
+  if(!resp.ok)          return showRetry(bubble,'错误 '+resp.status);
+
+  /* -- 流式解析 -- */
+  let md=''; const reader=resp.body.pipeThrough(new TextDecoderStream()).getReader(); let buf='';
   while(true){
-    const {value,done}=await reader.read();if(done)break;
-    buffer+=value;
-    let idx;
-    while((idx=buffer.indexOf('\n\n'))!==-1){
-      const chunk=buffer.slice(0,idx).trim();buffer=buffer.slice(idx+2);
+    const {value,done}=await reader.read(); if(done)break;
+    buf+=value;
+    let idx; while((idx=buf.indexOf('\\n\\n'))!==-1){
+      const chunk=buf.slice(0,idx).trim();buf=buf.slice(idx+2);
       if(!chunk.startsWith('data:'))continue;
-      const p=chunk.slice(5).trim();if(p==='[DONE]')continue;
+      const p=chunk.slice(5).trim(); if(p==='[DONE]')continue;
       md+=JSON.parse(p).content;
     }
   }
-  bubble.el.classList.remove('loading');bubble.el.innerHTML=marked.parse(md.trim());bubble.text=md.trim();
+
+  bubble.el.classList.remove('loading');
+  bubble.el.innerHTML=marked.parse(md.trim());
+  bubble.text=md.trim();
   bubble.el.querySelectorAll('table tr').forEach(tr=>{
     const [d,p]=tr.children;if(p){d.classList.add('doctor-order');p.classList.add('patient-explain');}
   });
-  buildTOC(bubble.el);if(view==='patient')toggleView();
+  buildTOC(bubble.el); if(view==='patient')toggleView();
   chat.scrollTop=chat.scrollHeight;
+}
+
+function showRetry(bubble,msg){
+  bubble.el.innerHTML=\`\${msg} <button class="retry-btn">重试</button>\`;
+  bubble.el.classList.remove('loading');
+  bubble.el.querySelector('.retry-btn').onclick=()=>{if(lastReq)runDiagnosis(lastReq.code,lastReq.transcript,bubble);};
+}
+
+btnDiag.onclick=()=>{
+  const transcript=msgs.filter(m=>m.role==='patient').map(m=>m.text).join('\\n');
+  if(!transcript)return alert('请先输入内容');
+  const code=prompt('请输入 13 位授权码'); if(!code) return;
+  runDiagnosis(code,transcript);
 };
 
-/* ---------- 复制 / PDF / 朗读 ---------- */
+/* ---------- 辅助功能 ---------- */
 btnCopy.onclick=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');if(!last)return alert('暂无报告');
+  const last=[...msgs].reverse().find(m=>m.role==='assistant');
+  if(!last)return alert('暂无报告');
   navigator.clipboard.writeText(last.text||last.el.textContent).then(()=>alert('已复制'));
 };
 btnPDF.onclick=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');if(!last)return alert('暂无报告');
+  const last=[...msgs].reverse().find(m=>m.role==='assistant');
+  if(!last)return alert('暂无报告');
   html2pdf().set({margin:10,filename:'report.pdf',html2canvas:{scale:2}}).from(last.el).save();
 };
 btnRead.onclick=()=>{
-  const last=[...msgs].reverse().find(m=>m.role==='assistant');if(!last)return alert('暂无报告');
+  const last=[...msgs].reverse().find(m=>m.role==='assistant');
+  if(!last)return alert('暂无报告');
   const t=last.el.querySelector('ul li')?.textContent||last.el.textContent.slice(0,150);
   const s=window.speechSynthesis;s.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='zh-CN';s.speak(u);
 };
-btnToggle.onclick=toggleView;
 
 /* ---------- 欢迎 ---------- */
 append('assistant','欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
