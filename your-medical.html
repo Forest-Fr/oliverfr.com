@@ -93,6 +93,31 @@ button:hover{opacity:.9}
 
 }
 
+      /* ======= 桌面端：侧栏宽度折叠，不遮挡正文 ======= */
+@media (min-width:769px){
+
+  /* 侧栏用宽度变化，不再平移 */
+  .sidebar{
+    width:220px;
+    transform:none!important;
+    transition:width .25s ease;
+  }
+  .sidebar.collapsed{width:26px;}
+
+  /* 折叠后隐藏内部内容，仅保留按钮 */
+  .sidebar.collapsed h3,
+  .sidebar.collapsed #toc{display:none;}
+
+  /* 主区 margin-left 随侧栏宽度同步 */
+  .main{margin-left:220px;transition:margin-left .25s ease;}
+  .sidebar.collapsed ~ .main{margin-left:26px;}
+}
+
+/* 折叠按钮仍沿右侧居中（相对于当前宽度） */
+#btnCollapse{
+  right:-13px;     /* 保持贴边 */
+}
+
 /* ----- 桌面端 (≥769) ----- */
 @media(min-width:769px){
   /* 汉堡 / 关闭 / 遮罩桌面隐藏 */
