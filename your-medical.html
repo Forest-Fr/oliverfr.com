@@ -9,34 +9,46 @@
 <style>
 :root{--bg:#f0f2f5;--patient:#e6f7ff;--assistant:#f6ffed;
       --primary:#1890ff;--success:#52c41a;--purple:#722ed1;--orange:#fa8c16}
+
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto}
-body{background:var(--bg);display:flex;min-height:100vh;flex-direction:column}
-.app{flex:1;display:flex;overflow:hidden}
+
+body   {background:var(--bg);display:flex;min-height:100vh;flex-direction:column}
+.app   {flex:1;display:flex;overflow:hidden}
 
 /* ---------- 侧栏 ---------- */
 .sidebar{position:fixed;top:0;bottom:0;left:0;width:220px;background:#fff;
-  border-right:1px solid #ddd;overflow:auto;transition:transform .3s ease;z-index:999}
+  border-right:1px solid #ddd;overflow:auto;transition:width .25s ease,transform .25s ease;z-index:999}
 .sidebar h3{margin:12px 0 8px;padding-left:48px;font-size:15px;color:#666;font-weight:600}
 #toc section{border-bottom:1px solid #eee;padding-bottom:4px;margin-bottom:6px}
 #toc a{display:block;padding:6px 12px 6px 36px;font-size:13px;color:#555;text-decoration:none}
 #toc a:hover{background:#f5f5f5}
-#btnCloseSidebar{position:absolute;top:10px;right:10px;width:28px;height:28px;border:none;
+
+#btnCloseSidebar{position:absolute;top:10px;right:10px;width:28px;height:28px;
   display:flex;align-items:center;justify-content:center;
-  border-radius:50%;background:#fff;color:#444;font-size:18px;cursor:pointer;
+  border:none;border-radius:50%;background:#fff;color:#444;font-size:18px;cursor:pointer;
   box-shadow:0 0 4px rgba(0,0,0,.25)}
 #btnCloseSidebar:hover{background:#eee;color:#000}
 
+/* 折叠按钮（桌面可见） */
+#btnCollapse{
+  position:absolute;top:50%;right:-13px;translate:0 -50%;
+  width:26px;height:26px;border:none;border-radius:50%;
+  background:#666;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:14px;z-index:1000;transition:transform .25s}
+.sidebar.collapsed #btnCollapse{transform:rotate(180deg)}
+
 /* ---------- 主区 ---------- */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;transition:margin-left .25s ease}
 .chat-container{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
 .bubble{max-width:70%;padding:12px;border-radius:8px;word-break:break-word}
-.bubble ul{padding-left:1.2em;margin:.4em 0}          /* 黑点不再跑出去 */
+.bubble ul{padding-left:1.2em;margin:.4em 0}
 .bubble li{list-style-position:inside}
 .patient{background:var(--patient);align-self:flex-start}
 .assistant{background:var(--assistant);align-self:flex-end}
 .loading{opacity:.6}
 
-.controls,.extra-controls{padding:12px;background:#fff;border-top:1px solid #ddd;display:flex;flex-wrap:wrap;gap:8px}
+.controls,.extra-controls{padding:12px;background:#fff;border-top:1px solid #ddd;
+  display:flex;flex-wrap:wrap;gap:8px}
 textarea{flex:1 1 100%;height:60px;padding:8px;border:1px solid #ccc;border-radius:4px;resize:none}
 input[type=file]{flex:1}
 video{display:none;width:200px;height:150px;border:1px solid #ccc;border-radius:4px}
@@ -45,83 +57,63 @@ button{padding:10px;border:none;border-radius:4px;font-size:14px;cursor:pointer}
 button:hover{opacity:.9}
 
 /* 按钮配色 */
-#btnListen{background:var(--primary);color:#fff}
-#btnDiagnose{background:var(--success);color:#fff}
-#btnAddText{background:var(--purple);color:#fff}
-#btnOpenCam,#btnSnap{background:var(--orange);color:#fff}
-#btnToggleView{background:#13c2c2;color:#fff}
-#btnCopy{background:#2f54eb;color:#fff}
-#btnPDF{background:#fa541c;color:#fff}
-#btnRead{background:#d46b08;color:#fff}
+#btnListen     {background:var(--primary);color:#fff}
+#btnDiagnose   {background:var(--success);color:#fff}
+#btnAddText    {background:var(--purple); color:#fff}
+#btnOpenCam,
+#btnSnap       {background:var(--orange); color:#fff}
+#btnToggleView {background:#13c2c2;     color:#fff}
+#btnCopy       {background:#2f54eb;     color:#fff}
+#btnPDF        {background:#fa541c;     color:#fff}
+#btnRead       {background:#d46b08;     color:#fff}
 
-.retry-btn{margin-left:8px;padding:2px 8px;font-size:12px;border-radius:4px;border:none;background:#1890ff;color:#fff;cursor:pointer}
+.retry-btn{margin-left:8px;padding:2px 8px;font-size:12px;border-radius:4px;border:none;
+  background:#1890ff;color:#fff;cursor:pointer}
 
-/* 汉堡 / overlay */
+/* 汉堡与遮罩 */
 #btnMenu{position:fixed;top:8px;left:8px;background:#555;color:#fff;border-radius:4px;
   padding:6px 10px;border:none;z-index:1001}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:998;display:none}
+.overlay.show{display:block}
 
 /* 医生 / 患者列隐藏 */
 .doctor-hide .patient-explain{display:none}
-.patient-hide .doctor-order{display:none}
+.patient-hide .doctor-order  {display:none}
 
-/* ---------- 移动端 ---------- */
+/* ---------- 移动端 (<769px) ---------- */
 @media(max-width:768px){
-  .sidebar{transform:translateX(-100%)}
-  .sidebar.open{transform:translateX(0)}
-  .overlay.show{display:block}
-  .controls button,.extra-controls button,#btnMenu{flex:1 1 calc(50% - 8px)}
+  .sidebar           {transform:translateX(-100%)}
+  .sidebar.open      {transform:translateX(0)}
+  .controls button,
+  .extra-controls button,
+  #btnMenu           {flex:1 1 calc(50% - 8px)}
+  textarea,input[type=file]{flex:1 1 100%}
+  video{width:100%;height:auto}
 
-
-       #btnCloseSidebar {
+ #btnCloseSidebar {
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1; /* 避免 line-height 影响垂直居中 */
-  
-}
-  textarea,input[type=file]{flex:1 1 100%}
-  video{width:100%;height:auto}
+  }
+
+  /* 折叠按钮隐藏 */
+  #btnCollapse{display:none}
 }
 
-/* ======== 桌面端固定展开侧栏，隐藏汉堡 / 关闭按钮 / 遮罩 ======== */
-@media (min-width: 769px) {
+/* ---------- 桌面端 (>=769px) ---------- */
+@media(min-width:769px){
+  /* 侧栏可折叠；正文右移 */
+  .main              {margin-left:220px}
+  .sidebar.collapsed + .main,
+  .sidebar.collapsed ~ .main{margin-left:48px}
+
+  /* 侧栏默认展开，无遮罩；汉堡/关闭按钮隐藏 */
   #btnMenu,
   #btnCloseSidebar,
-  .overlay { display: none !important; }
-
-  .sidebar {                   /* 始终可见 */
-    transform: none !important;
-  }
+  .overlay           {display:none!important}
 }
 
-/* 统一定义：只要 .show 就显示遮罩（移动端用） */
-.overlay.show {
-  display: block;
-}
-/* ======= Desktop push-right & collapsible ======= */
-@media (min-width:769px){
-  .sidebar       { position:fixed; left:0; top:0; bottom:0;
-                   width:220px;   transition:width .25s ease; }
-  .sidebar.collapsed { width:48px; }
-
-  /* 主区域整体右移；随侧栏宽度平滑变化 */
-  .main { margin-left:220px; transition:margin-left .25s ease; }
-  .sidebar.collapsed ~ .main { margin-left:48px; }
-
-  /* 汉堡和遮罩隐藏；×按钮也隐藏（用箭头） */
-  #btnMenu, .overlay, #btnCloseSidebar { display:none !important; }
-}
-
-/* 收缩按钮样式（放在侧栏左边缘居中） */
-#btnCollapse {
-  position:absolute; top:50%; right:-13px; translate:0 -50%;
-  width:26px; height:26px; border-radius:50%; border:none;
-  background:#666; color:#fff; cursor:pointer; z-index:1000;
-  display:flex; align-items:center; justify-content:center;
-  font-size:14px; transition:transform .25s;
-}
-.sidebar.collapsed #btnCollapse { transform:rotate(180deg); }
 
 </style>
 </head>
@@ -170,92 +162,85 @@ button:hover{opacity:.9}
   </div>
 </div>
 
-
-<!-- 依赖 -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
 <script>
-/* =======================  医疗 Copilot 主脚本 v2 ======================= */
-document.addEventListener('DOMContentLoaded', () => {
+/* ============ 医疗 Copilot 主脚本 v2.1 (全部放闭包内) ============ */
+document.addEventListener('DOMContentLoaded',()=>{
+  /* ----- 基础配置 ----- */
+  const API_BASE='https://admin-your-medical.mefans.workers.dev';
+  const DEBUG=false,log=(...a)=>DEBUG&&console.log('[DEBUG]',...a);
 
-  /* ---------- 基础配置 ---------- */
-  const API_BASE = 'https://admin-your-medical.mefans.workers.dev';   // ← 按需修改
-  const DEBUG    = false;
-  const log = (...a)=>DEBUG&&console.log('[DEBUG]',...a);
+  /* ----- Toast ----- */
+  const toast=m=>{const d=document.createElement('div');Object.assign(d.style,
+    {position:'fixed',top:'20px',left:'50%',transform:'translateX(-50%)',
+     background:'#ff4d4f',color:'#fff',padding:'6px 12px',borderRadius:'4px',zIndex:2000,fontSize:'13px'});
+    d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2500);};
 
-  /* ---------- Toast ---------- */
-  const toast = msg => {
-    const d=document.createElement('div');
-    Object.assign(d.style,{position:'fixed',top:'20px',left:'50%',transform:'translateX(-50%)',
-      background:'#ff4d4f',color:'#fff',padding:'6px 12px',borderRadius:'4px',zIndex:2e3,fontSize:'13px'});
-    d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2500);
-  };
-
-  /* ---------- DOM ---------- */
-  const $ = id => document.getElementById(id);
+  /* ----- DOM ----- */
+  const $=id=>document.getElementById(id);
   const chat=$('chat'),tocBox=$('toc'),sidebar=$('sidebar'),overlay=$('overlay');
-  const btnMenu=$('btnMenu'),btnClose=$('btnCloseSidebar');
+  const btnMenu=$('btnMenu'),btnClose=$('btnCloseSidebar'),btnCollapse=$('btnCollapse');
   const btnListen=$('btnListen'),btnDiag=$('btnDiagnose'),btnToggle=$('btnToggleView');
   const btnAdd=$('btnAddText'),btnCopy=$('btnCopy'),btnPDF=$('btnPDF'),btnRead=$('btnRead');
   const btnCam=$('btnOpenCam'),btnSnap=$('btnSnap'),imgUp=$('imgUpload');
   const manual=$('manualText'),video=$('videoPreview'),canvas=$('camCanvas');
 
-  /* ---------- 状态 ---------- */
+  /* ----- 状态 ----- */
   let view='doctor',stream=null,recog=null,msgs=[],lastReq=null;
 
-  /* ---------- 工具 ---------- */
+  /* ----- 工具 ----- */
   const append=(role,html,loading=false)=>{
-    const div=document.createElement('div');
-    div.className=`bubble ${role}${loading?' loading':''}`;
+    const div=document.createElement('div');div.className=`bubble ${role}${loading?' loading':''}`;
     div.innerHTML=html;chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
     const m={role,text:html,el:div};msgs.push(m);return m;
   };
-
-  /** 目录生成：只给新报告插一段，不改旧 id **/
-  function buildTOC(bubbleEl){
+  const buildTOC=el=>{
     const sec=document.createElement('section');
     sec.innerHTML=`<strong>${new Date().toLocaleTimeString()}</strong>`;
     const nav=document.createElement('nav');sec.appendChild(nav);
-
-    bubbleEl.querySelectorAll('h1,h2').forEach(h=>{
-      if(!h.id) h.id='h_'+Math.random().toString(36).slice(2,9);   // 只没 id 时才赋
+    el.querySelectorAll('h1,h2').forEach(h=>{
+      if(!h.id)h.id='h_'+Math.random().toString(36).slice(2,9);
       const a=document.createElement('a');a.href='#'+h.id;
-      a.textContent=h.textContent.replace(/^[0-9.]+\s*/,'');
-      nav.appendChild(a);
-    });
-    tocBox.prepend(sec);
-  }
+      a.textContent=h.textContent.replace(/^[0-9.]+\s*/,'');nav.appendChild(a);
+    });tocBox.prepend(sec);
+  };
 
-  /* ---------- 侧栏 (移动端) ---------- */
+  /* ----- 侧栏交互 ----- */
   btnMenu?.addEventListener('click',()=>{sidebar.classList.add('open');overlay.classList.add('show');});
-  btnClose?.addEventListener('click', closeSB);
-  overlay?.addEventListener('click', closeSB);
+  btnClose?.addEventListener('click',closeSB);overlay?.addEventListener('click',closeSB);
   function closeSB(){sidebar.classList.remove('open');overlay.classList.remove('show');}
 
-  /* ---------- 视图切换 ---------- */
-  function applyView(){
-    document.body.classList.toggle('patient-hide',view==='patient');
-    document.body.classList.toggle('doctor-hide', view==='doctor');
-    btnToggle.textContent = view==='doctor'?'患者视图':'医生视图';
+  /* 折叠按钮（桌面） */
+  btnCollapse?.addEventListener('click',()=>sidebar.classList.toggle('collapsed'));
+
+  /* 桌面/移动自适应 */
+  function syncLayout(){
+    const desk=window.innerWidth>=769;
+    if(desk){sidebar.classList.remove('open');overlay.classList.remove('show');}
+    else   {sidebar.classList.remove('collapsed');}
   }
+  window.addEventListener('resize',syncLayout);syncLayout();
+
+  /* ----- 视图切换 ----- */
+  const applyView=()=>{document.body.classList.toggle('patient-hide',view==='patient');
+    document.body.classList.toggle('doctor-hide',view==='doctor');
+    btnToggle.textContent=view==='doctor'?'患者视图':'医生视图';
+  };
   btnToggle?.addEventListener('click',()=>{view=view==='doctor'?'patient':'doctor';applyView();});
   applyView();
 
-  /* ---------- 语音识别 ---------- */
+  /* ----- 语音识别 ----- */
   btnListen?.addEventListener('click',()=>{
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR) return toast('浏览器不支持语音识别');
+    if(!SR)return toast('浏览器不支持语音识别');
     if(!recog){recog=new SR();recog.lang='zh-CN';recog.continuous=true;
-      recog.onresult=e=>{
-        const txt=Array.from(e.results).slice(e.resultIndex).map(r=>r[0].transcript).join('');
-        append('patient',txt);
-      };
-    }
-    const listening = btnListen.dataset.on==='1';
-    if(listening){recog.stop();btnListen.dataset.on='0';btnListen.textContent='开始录音';}
-    else{recog.start();btnListen.dataset.on='1';btnListen.textContent='停止录音';}
+      recog.onresult=e=>{const t=[...e.results].slice(e.resultIndex).map(r=>r[0].transcript).join('');append('patient',t);};}
+    const on=btnListen.dataset.on==='1';
+    if(on){recog.stop();btnListen.dataset.on='0';btnListen.textContent='开始录音';}
+    else {recog.start();btnListen.dataset.on='1';btnListen.textContent='停止录音';}
   });
 
   /* ---------- 手动输入 ---------- */
