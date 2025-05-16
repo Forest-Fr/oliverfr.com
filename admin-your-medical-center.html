@@ -39,44 +39,79 @@
     #detailModal .close-btn { position:absolute; top:12px; right:12px; font-size:20px; background:none; border:none; cursor:pointer; }
 
     /* 移动端卡片式布局 & 调整 Pager 水平排列 & 去掉右侧灰边 */
-    @media (max-width: 768px) {
-      /* 让 header, controls, pager 在窄屏下仍水平排列 */
-      header, #controls, #pager { flex-direction: row; justify-content: space-between; }
-      header .actions, #controls { width:auto; }
-      header .actions button, #controls button { flex:none; margin:0; }
+@media (max-width: 768px) {
+  /* 禁止页面水平滚动，防止灰边 */
+  html, body {
+    overflow-x: hidden;
+  }
 
-      /* 隐藏原始表头 */
-      #convTable thead { display: none; }
-      /* 卡片列表 */
-      #convTable, #convTable tbody, #convTable tr { display: block; width:100%; }
-      #convTable tr {
-        margin-bottom:1em;
-        border:1px solid #ddd;
-        border-radius:4px;
-        background:#fff;
-        padding:0.5em;
-      }
-      #convTable td {
-        display:flex;
-        justify-content:space-between;
-        padding:0.5em 0;
-        border:none;
-        border-bottom:1px solid #eee;
-      }
-      #convTable td:last-of-type { border-bottom:none; }
-      #convTable td::before {
-        content: attr(data-label);
-        font-weight:600;
-        color:#333;
-        margin-right:8px;
-      }
-      /* 移除桌面 min-width 限制，避免左右灰边 */
-      #convTable { min-width: auto; }
-      /* 确保滚动容器没有额外 padding/margin */
-      .table-container { padding:0; margin:0; }
-      /* Pager 水平居中 */
-      #pager { justify-content:center; width:100%; padding:0 16px; }
-    }
+  /* 让 header, controls, pager 在窄屏下仍水平排列 */
+  header, #controls, #pager {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  header .actions, #controls {
+    width: auto;
+  }
+  header .actions button, #controls button {
+    flex: none;
+    margin: 0;
+  }
+
+  /* 隐藏原始表头 */
+  #convTable thead { display: none; }
+
+  /* 卡片列表 */
+  #convTable,
+  #convTable tbody,
+  #convTable tr {
+    display: block;
+    width: 100%;
+  }
+  #convTable tr {
+    margin-bottom: 1em;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    padding: 0.5em;
+  }
+  #convTable td {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5em 0;
+    border: none;
+    border-bottom: 1px solid #eee;
+  }
+  #convTable td:last-of-type {
+    border-bottom: none;
+  }
+  #convTable td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #333;
+    margin-right: 8px;
+  }
+  /* 移除桌面 min-width 限制 */
+  #convTable {
+    min-width: auto;
+  }
+
+  /* 确保滚动容器占满全屏，无额外 padding/margin */
+  .table-container {
+    width: 100vw;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto; /* 保留横向滑动能力 */
+  }
+
+  /* Pager 水平居中 */
+  #pager {
+    justify-content: center;
+    width: 100%;
+    padding: 0 16px;
+  }
+}
+
   </style>
 </head>
 <body>
