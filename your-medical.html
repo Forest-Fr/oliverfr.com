@@ -99,6 +99,29 @@ button:hover{opacity:.9}
 .overlay.show {
   display: block;
 }
+/* ======= Desktop push-right & collapsible ======= */
+@media (min-width:769px){
+  .sidebar       { position:fixed; left:0; top:0; bottom:0;
+                   width:220px;   transition:width .25s ease; }
+  .sidebar.collapsed { width:48px; }
+
+  /* 主区域整体右移；随侧栏宽度平滑变化 */
+  .main { margin-left:220px; transition:margin-left .25s ease; }
+  .sidebar.collapsed ~ .main { margin-left:48px; }
+
+  /* 汉堡和遮罩隐藏；×按钮也隐藏（用箭头） */
+  #btnMenu, .overlay, #btnCloseSidebar { display:none !important; }
+}
+
+/* 收缩按钮样式（放在侧栏左边缘居中） */
+#btnCollapse {
+  position:absolute; top:50%; right:-13px; translate:0 -50%;
+  width:26px; height:26px; border-radius:50%; border:none;
+  background:#666; color:#fff; cursor:pointer; z-index:1000;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; transition:transform .25s;
+}
+.sidebar.collapsed #btnCollapse { transform:rotate(180deg); }
 
 </style>
 </head>
@@ -117,7 +140,10 @@ button:hover{opacity:.9}
     <button id="btnCloseSidebar">×</button>
     <h3>目录</h3>
     <div id="toc"></div>
-  </div>
+
+    <!-- 折叠按钮：桌面端显示，移动端已在 CSS 隐藏 -->
+    <button id="btnCollapse">❬</button>
+  </div><!-- sidebar -->
 
   <!-- 主内容 -->
   <div class="main">
@@ -143,6 +169,7 @@ button:hover{opacity:.9}
     </div>
   </div>
 </div>
+
 
 <!-- 依赖 -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
@@ -355,6 +382,31 @@ btnMenu?.addEventListener('click', () => {
     overlay.classList.add('show');
   }
 });
+
+      /* ======= 折叠按钮 & 自适应 ======= */
+const btnCollapse=document.createElement('button');
+btnCollapse.id='btnCollapse';
+btnCollapse.title='折叠/展开目录';
+btnCollapse.textContent='❬';            // → ❬ ❭
+sidebar.appendChild(btnCollapse);
+
+/* 点击切换宽度 */
+btnCollapse.addEventListener('click',()=>{
+  sidebar.classList.toggle('collapsed');
+});
+
+/* 首次进入或窗口缩放时同步状态：桌面推右，移动端恢复 */
+function syncLayout(){
+  const desktop = window.innerWidth >= 769;
+  if(!desktop){
+    sidebar.classList.remove('collapsed');           // 移动端保持正常宽
+    document.body.classList.remove('desktop');       // 标记可选
+  }else{
+    document.body.classList.add('desktop');
+  }
+}
+window.addEventListener('resize', syncLayout);
+syncLayout();                  // 首次执行
 
 /* ============ 额外：桌面端隐藏汉堡 ============ */
 /* 在 CSS 中添加：
