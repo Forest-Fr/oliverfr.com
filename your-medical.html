@@ -66,8 +66,10 @@ button:hover{opacity:.9}
   .controls button,.extra-controls button,#btnMenu{flex:1 1 calc(50% - 8px)}
   textarea,input[type=file]{flex:1 1 100%}
       #btnCloseSidebar {
-    top: -14px;
-    right: -14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1; /* 避免 line-height 影响垂直居中 */
   
 }
 
