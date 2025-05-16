@@ -46,11 +46,11 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
   <script>
- (function(){
-  // —— 1. 配置 Worker 端点 —— 
+(function(){
+  // — 1. 配置 Worker 中转地址 —
   const WORKER_ENDPOINT = 'https://admin-your-medical.mefans.workers.dev';
 
-  // —— 2. 全局引用 & 状态 —— 
+  // — 2. 全局引用 & 状态 —
   const chatEl      = document.getElementById('chat');
   const btnListen   = document.getElementById('btnListen');
   const btnDiagnose = document.getElementById('btnDiagnose');
@@ -63,19 +63,21 @@
   const canvas      = document.getElementById('camCanvas');
 
   let stream=null, listening=false, recognition=null;
-  const messages=[];
+  const messages=[]; // 存放 { role, text, el }
 
+  // — 3. 追加消息函数 —
   function appendMessage(role, text, loading=false) {
     const div = document.createElement('div');
     div.className = 'bubble '+role+(loading?' loading':'');
     div.textContent = loading ? (role==='assistant'?'诊断中…':text) : text;
     chatEl.appendChild(div);
     chatEl.scrollTop = chatEl.scrollHeight;
-    messages.push({role,text,el:div});
-    return messages[messages.length-1];
+    const msg = { role, text, el: div };
+    messages.push(msg);
+    return msg;
   }
 
-  // —— 3. 语音识别 —— 
+  // — 4. 语音识别 初始化 & 按钮 —
   const SpeechRecognition = window.SpeechRecognition||window.webkitSpeechRecognition;
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
@@ -96,7 +98,7 @@
     listening ? recognition.start() : recognition.stop();
   });
 
-  // —— 4. 手动输入 —— 
+  // — 5. 手动输入 描述 —
   btnAddText.addEventListener('click', () => {
     const text = manualText.value.trim();
     if (!text) return;
@@ -104,60 +106,70 @@
     manualText.value = '';
   });
 
-  // —— 5. 本地文件 OCR —— 
+  // — 6. 本地文件 OCR —
   imgUpload.addEventListener('change', async () => {
     const file = imgUpload.files[0];
     if (!file) return;
-    appendMessage('patient', '正在识别本地图像…', true);
-    const { data: { text } } = await Tesseract.recognize(file, 'chi_sim');
+    appendMessage('patient','正在识别本地图像…', true);
+    const { data:{ text } } = await Tesseract.recognize(file,'chi_sim');
     const last = messages.pop(); chatEl.removeChild(last.el);
     appendMessage('patient', text);
     imgUpload.value = '';
   });
 
-  // —— 6. 实时拍照 OCR —— 
+  // — 7. 实时摄像头 OCR —
   btnOpenCam.addEventListener('click', async () => {
     if (stream) {
       stream.getTracks().forEach(t=>t.stop());
-      stream = null; video.style.display='none'; btnOpenCam.textContent='打开摄像头';
-      return;
-    }
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video:true });
-      video.srcObject = stream; video.style.display='block'; btnOpenCam.textContent='关闭摄像头';
-    } catch (e) {
-      alert('无法访问摄像头：'+e.message);
+      stream = null;
+      video.style.display='none';
+      btnOpenCam.textContent='打开摄像头';
+    } else {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({video:true});
+        video.srcObject = stream;
+        video.style.display='block';
+        btnOpenCam.textContent='关闭摄像头';
+      } catch (e) {
+        alert('无法访问摄像头：'+e.message);
+      }
     }
   });
   btnSnap.addEventListener('click', async () => {
     if (!stream) return alert('请先打开摄像头');
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    appendMessage('patient', '正在识别拍照图像…', true);
+    canvas.width = video.videoWidth;
+    canvas.height= video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video,0,0);
+    appendMessage('patient','正在识别拍照图像…', true);
     canvas.toBlob(async blob => {
-      const { data:{ text } } = await Tesseract.recognize(blob, 'chi_sim');
+      const { data:{ text } } = await Tesseract.recognize(blob,'chi_sim');
       const last = messages.pop(); chatEl.removeChild(last.el);
       appendMessage('patient', text);
     }, 'image/png');
   });
 
-  // —— 7. 获取诊断建议（流式 SSE） —— 
+  // — 8. 获取诊断建议：严格解析 SSE，只取 data: 内容 —
   btnDiagnose.addEventListener('click', async () => {
+    // 收集所有 patient 消息
     const transcript = messages
-      .filter(m=>m.role==='patient')
-      .map(m=>m.text).join('\n');
+      .filter(m => m.role==='patient')
+      .map(m => m.text)
+      .join('\n');
     if (!transcript) return alert('请先输入患者描述');
 
-    const code = prompt('请连接VPN输入 13 位授权码调用gpt API');
+    // 输入授权码
+    const code = prompt('请输入 13 位授权码');
     if (!code) return;
 
+    // loading 占位
     const placeholder = appendMessage('assistant','', true);
 
+    // 发给 Worker
     const resp = await fetch(WORKER_ENDPOINT + '/api/medical-diagnosis', {
       method: 'POST',
-      mode:   'cors',
       headers:{ 'Content-Type':'application/json' },
-      body:   JSON.stringify({ code, transcript })
+      body: JSON.stringify({ code, transcript })
     });
     if (resp.status === 401) {
       placeholder.el.textContent = '授权失败，请检查授权码';
@@ -170,21 +182,32 @@
       return;
     }
 
+    // 解析 SSE
     const reader = resp.body.getReader();
-    const decoder= new TextDecoder();
-    let done=false;
-    while (!done) {
-      const { value, done: d } = await reader.read();
-      done = d;
-      const chunk = decoder.decode(value||new Uint8Array(), { stream: !d });
-      placeholder.el.textContent += chunk;
-      placeholder.el.classList.remove('loading');
-      chatEl.scrollTop = chatEl.scrollHeight;
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();  // 剩余不完整部分
+
+      for (const part of parts) {
+        const m = part.match(/^data:\s*(.+)$/m);
+        if (!m) continue;
+        const chunk = m[1];
+        if (chunk === '[DONE]') continue;
+        placeholder.el.textContent += chunk;
+        placeholder.el.classList.remove('loading');
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
     }
   });
 
-  // —— 8. 初次欢迎 —— 
-  appendMessage('assistant', '欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
+  // — 9. 初次欢迎 —
+  appendMessage('assistant','欢迎使用医疗 Copilot，可语音、手动、上传或拍照描述病情。');
 })();
   </script>
 
