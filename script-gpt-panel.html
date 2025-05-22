@@ -1,53 +1,187 @@
-<!doctype html><html lang="zh-CN"><head>
-<meta charset="utf-8"><title>Script‑GPT 使用日志</title>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Script‑GPT 使用日志</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1.5.9/css/pico.min.css"></head><body>
+<style>
+/* ==== 视觉基调 ===================================================== */
+*,::before,::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c-primary:#0f1a24;
+  --c-grey:#566673;
+  --c-bg:#f5f7fa;
+  --c-border:#d7dee5;
+  --c-text:#1b1f24;
+  --radius:8px;
+  --shadow:0 4px 12px rgba(0,0,0,.08)
+}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+     background:var(--c-bg);color:var(--c-text);padding:24px}
+h1{font-size:28px;margin-bottom:16px;font-weight:700}
+.note{font-size:14px;color:var(--c-grey);margin-right:12px}
 
-<h2>Script‑GPT 使用日志</h2>
-<p id="status"></p>
-<button id="loginBtn" class="contrast">GitHub 登录</button>
-<button id="logoutBtn" class="secondary small hidden">退出</button>
+button,input{font-size:16px;line-height:1}
+.btn{padding:10px 18px;border:none;border-radius:var(--radius);cursor:pointer;user-select:none}
+.btn.dark{background:var(--c-primary);color:#fff}
+.btn.grey{background:var(--c-grey);color:#fff}
+.btn.red{background:#d2333e;color:#fff}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+input[type="text"]{padding:10px;border:1px solid var(--c-border);border-radius:var(--radius);width:240px}
 
-<input id="kw" placeholder="搜索 prompt…" style="width:18rem;margin-top:1.2rem">
-<button id="search" class="secondary small">搜索</button>
+table{width:100%;border-collapse:collapse;margin-top:24px;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+th,td{padding:10px 14px;border-bottom:1px solid var(--c-border);font-size:14px}
+th{background:#eef1f5;text-align:left;font-weight:600}
+tbody tr:last-child td{border-bottom:none}
 
-<table id="tbl" style="margin-top:1rem"><thead>
-<tr><th>时间</th><th>IP</th><th>Prompt</th><th>模型</th><th>Token</th><th>USD</th><th>操作</th></tr>
-</thead><tbody></tbody></table>
-<nav id="pages" class="pagination"></nav>
+.pagination{display:flex;flex-wrap:wrap;gap:6px;margin-top:20px}
+.pagination .btn{flex:0 0 44px;text-align:center;padding:8px 0}
+.pagination .active{background:var(--c-primary)!important}
+
+#authArea, #adminArea{max-width:980px;margin:auto;text-align:center}
+#adminArea{margin-top:16px}
+
+/* 移动端 */
+@media(max-width:680px){
+  body{padding:16px}
+  h1{font-size:22px}
+  input[type="text"]{width:100%}
+  table,thead,tr{display:block}
+  thead{display:none}
+  tbody tr{display:block;margin-bottom:14px;border:1px solid var(--c-border);border-radius:var(--radius)}
+  tbody td{display:flex;justify-content:space-between;border:none;padding:8px 12px}
+  tbody td::before{content:attr(data-label);font-weight:600;color:var(--c-grey)}
+}
+</style>
+</head>
+<body>
+
+<h1>Script‑GPT 使用日志</h1>
+
+<!-- ===== 未登录视图 ===== -->
+<div id="authArea">
+  <button id="loginBtn" class="btn dark">GitHub 登录</button>
+</div>
+
+<!-- ===== 后台视图 ===== -->
+<div id="adminArea" hidden>
+  <div style="margin-bottom:14px;text-align:left">
+    <span id="userEmail" class="note"></span>
+    <button id="logoutBtn" class="btn grey">退出</button>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    <input id="kwInput" type="text" placeholder="搜索 Prompt 关键字">
+    <button id="searchBtn" class="btn grey">搜索</button>
+  </div>
+
+  <table id="logTable">
+    <thead>
+      <tr><th>时间</th><th>IP</th><th>Prompt</th><th>模型</th><th>Token</th><th>USD</th><th>操作</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="pager" class="pagination"></div>
+</div>
 
 <script>
-const API="https://script-gpt.mefans.workers.dev/admin-api";
-const SIZE=20,$=id=>document.getElementById(id);
-const loginBtn=$("loginBtn"),logoutBtn=$("logoutBtn"),status=$("status");
-const kw=$("kw"),search=$("search"),tbody=$("tbl").querySelector("tbody"),pages=$("pages");
-const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',
-  year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+/* ===== 配置 ===== */
+const API="https://script-gpt.mefans.workers.dev/admin-api";               // 按需修改
+const PAGE_SIZE = 20;
 
-loginBtn.onclick=()=>location.href=API+"/auth/login";
-logoutBtn.onclick=()=>fetch(API+"/auth/logout",{credentials:"include"}).then(()=>location.reload());
+/* ===== DOM ===== */
+const authArea  = document.getElementById('authArea');
+const adminArea = document.getElementById('adminArea');
+const loginBtn  = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const userEmail = document.getElementById('userEmail');
+const kwInput   = document.getElementById('kwInput');
+const searchBtn = document.getElementById('searchBtn');
+const tbody     = document.querySelector('#logTable tbody');
+const pager     = document.getElementById('pager');
 
-let cur=1,q="";
-async function load(p=1,k=""){cur=p;q=k;
-  const r=await fetch(`${API}/usages?page=${p}&kw=${encodeURIComponent(k)}`,
-                       {credentials:"include"}); if(r.status===401){status.textContent="未登录";return;}
-  const {list,total}=await r.json();
-  logoutBtn.classList.remove("hidden");loginBtn.classList.add("hidden");
-  tbody.innerHTML=list.map(o=>`
-    <tr>
-      <td>${fmt.format(new Date(o.created_at))}</td><td>${o.ip||""}</td>
-      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${o.prompt}">${o.prompt}</td>
-      <td>${o.model}</td><td>${o.cost_tokens}</td><td>${o.cost_usd}</td>
-      <td><button class="contrast small" onclick="del('${o.id}')">删</button></td>
-    </tr>`).join("")||"<tr><td colspan=7>暂无记录</td></tr>";
-  pages.innerHTML="";const pg=Math.ceil(total/SIZE);
-  for(let i=1;i<=pg;i++){const b=document.createElement("button");b.textContent=i;
-    if(i===p)b.disabled=true;b.onclick=()=>load(i,q);pages.appendChild(b);}
+/* ===== 登录、退出 ===== */
+loginBtn.onclick  = () => location.href = API + "/auth/login";
+logoutBtn.onclick = async () => { await fetch(API + "/auth/logout",{credentials:'include'}); location.reload(); };
+
+/* ===== 会话检测 ===== */
+let currentPage = 1, totalPages = 0;
+(async () => {
+  const res = await fetch(API + "/me", { credentials:'include' });
+  if (!res.ok) { showAuth(); return; }
+
+  const { email } = await res.json();
+  userEmail.textContent = "已登录：" + email;
+  showAdmin();
+  loadLogs();
+})();
+
+/* ===== 监听搜索 ===== */
+searchBtn.onclick = () => { currentPage = 1; loadLogs(); };
+kwInput.addEventListener('keydown', e => { if (e.key === 'Enter') searchBtn.click(); });
+kwInput.addEventListener('input', () => { if (!kwInput.value.trim()) { currentPage=1; loadLogs(); }});
+
+/* ===== 主函数：加载日志 ===== */
+async function loadLogs(page = currentPage) {
+  const kw = kwInput.value.trim();
+  const url = new URL(API + "/usages", location.origin);
+  url.searchParams.set("page", page);
+  if (kw) url.searchParams.set("kw", kw);
+
+  tbody.innerHTML = `<tr><td colspan="7">加载中…</td></tr>`;
+
+  const r = await fetch(url, { credentials:'include' });
+  if (!r.ok) { tbody.innerHTML = `<tr><td colspan="7">加载失败：${r.status}</td></tr>`; return; }
+  const { list, total } = await r.json();
+  totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+  currentPage = page > totalPages ? totalPages : page;
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7">暂无数据</td></tr>`;
+  } else {
+    tbody.innerHTML = list.map(row => `
+      <tr>
+        <td data-label="时间">${new Date(row.created_at).toLocaleString()}</td>
+        <td data-label="IP">${row.ip}</td>
+        <td data-label="Prompt" style="max-width:240px;word-break:break-all;">${row.prompt || ''}</td>
+        <td data-label="模型">${row.model}</td>
+        <td data-label="Token">${row.total_tokens}</td>
+        <td data-label="USD">${row.usd}</td>
+        <td data-label="操作">
+          <button class="btn red" onclick="delLog(${row.id})">删</button>
+        </td>
+      </tr>`).join('');
+  }
+  renderPager();
 }
-search.onclick=()=>load(1,kw.value.trim());
-kw.addEventListener("input",()=>!kw.value.trim()&&load(1,""));
-window.del=id=>confirm("确定删除？")&&fetch(API+"/usages/"+id,{method:"DELETE",credentials:"include"})
-               .then(()=>load(cur,q));
-load();
+
+/* ===== 删除 ===== */
+async function delLog(id){
+  if(!confirm("确定删除该记录？")) return;
+  const r = await fetch(API + "/usages/" + id, { method:"DELETE", credentials:"include" });
+  if(r.ok) loadLogs(); else alert("删除失败");
+}
+
+/* ===== 分页渲染 ===== */
+function renderPager(){
+  pager.innerHTML = '';
+  for(let p=1; p<=totalPages; p++){
+    const b = document.createElement('button');
+    b.className = 'btn' + (p===currentPage ? ' active' : ' grey');
+    b.textContent = p;
+    b.onclick = () => { currentPage = p; loadLogs(); };
+    pager.appendChild(b);
+  }
+}
+
+/* ===== 显示区域 ===== */
+function showAuth(){ authArea.hidden=false; adminArea.hidden=true; }
+function showAdmin(){ authArea.hidden=true; adminArea.hidden=false; }
+
+/* ===== 删除按钮在全局可见 ===== */
+window.delLog = delLog;
 </script>
-</body></html>
+</body>
+</html>
