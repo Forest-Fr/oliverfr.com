@@ -1,0 +1,53 @@
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8"><title>Script‑GPT 使用日志</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1.5.9/css/pico.min.css"></head><body>
+
+<h2>Script‑GPT 使用日志</h2>
+<p id="status"></p>
+<button id="loginBtn" class="contrast">GitHub 登录</button>
+<button id="logoutBtn" class="secondary small hidden">退出</button>
+
+<input id="kw" placeholder="搜索 prompt…" style="width:18rem;margin-top:1.2rem">
+<button id="search" class="secondary small">搜索</button>
+
+<table id="tbl" style="margin-top:1rem"><thead>
+<tr><th>时间</th><th>IP</th><th>Prompt</th><th>模型</th><th>Token</th><th>USD</th><th>操作</th></tr>
+</thead><tbody></tbody></table>
+<nav id="pages" class="pagination"></nav>
+
+<script>
+const API="https://script-gpt.mefans.workers.dev/admin-api";
+const SIZE=20,$=id=>document.getElementById(id);
+const loginBtn=$("loginBtn"),logoutBtn=$("logoutBtn"),status=$("status");
+const kw=$("kw"),search=$("search"),tbody=$("tbl").querySelector("tbody"),pages=$("pages");
+const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',
+  year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+loginBtn.onclick=()=>location.href=API+"/auth/login";
+logoutBtn.onclick=()=>fetch(API+"/auth/logout",{credentials:"include"}).then(()=>location.reload());
+
+let cur=1,q="";
+async function load(p=1,k=""){cur=p;q=k;
+  const r=await fetch(`${API}/usages?page=${p}&kw=${encodeURIComponent(k)}`,
+                       {credentials:"include"}); if(r.status===401){status.textContent="未登录";return;}
+  const {list,total}=await r.json();
+  logoutBtn.classList.remove("hidden");loginBtn.classList.add("hidden");
+  tbody.innerHTML=list.map(o=>`
+    <tr>
+      <td>${fmt.format(new Date(o.created_at))}</td><td>${o.ip||""}</td>
+      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${o.prompt}">${o.prompt}</td>
+      <td>${o.model}</td><td>${o.cost_tokens}</td><td>${o.cost_usd}</td>
+      <td><button class="contrast small" onclick="del('${o.id}')">删</button></td>
+    </tr>`).join("")||"<tr><td colspan=7>暂无记录</td></tr>";
+  pages.innerHTML="";const pg=Math.ceil(total/SIZE);
+  for(let i=1;i<=pg;i++){const b=document.createElement("button");b.textContent=i;
+    if(i===p)b.disabled=true;b.onclick=()=>load(i,q);pages.appendChild(b);}
+}
+search.onclick=()=>load(1,kw.value.trim());
+kw.addEventListener("input",()=>!kw.value.trim()&&load(1,""));
+window.del=id=>confirm("确定删除？")&&fetch(API+"/usages/"+id,{method:"DELETE",credentials:"include"})
+               .then(()=>load(cur,q));
+load();
+</script>
+</body></html>
