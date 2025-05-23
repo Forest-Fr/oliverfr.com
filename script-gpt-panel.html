@@ -97,7 +97,8 @@
     useEffect(fetchLogs, [search, page, pageSize]);
 
     const handleDelete = async (code) => {
-      if (!confirm(\`确定删除 "\${code}" ?\`)) return;
+  if (!confirm("确定删除 \"" + code + "\" ?")) return;
+
       await fetch(\`\${API_BASE}/\${encodeURIComponent(code)}\`,{method:"DELETE"});
       fetchLogs();
     };
