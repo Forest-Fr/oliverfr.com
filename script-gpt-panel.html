@@ -1,187 +1,227 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<title>Script‑GPT 使用日志</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-/* ==== 视觉基调 ===================================================== */
-*,::before,::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --c-primary:#0f1a24;
-  --c-grey:#566673;
-  --c-bg:#f5f7fa;
-  --c-border:#d7dee5;
-  --c-text:#1b1f24;
-  --radius:8px;
-  --shadow:0 4px 12px rgba(0,0,0,.08)
-}
-html,body{height:100%}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-     background:var(--c-bg);color:var(--c-text);padding:24px}
-h1{font-size:28px;margin-bottom:16px;font-weight:700}
-.note{font-size:14px;color:var(--c-grey);margin-right:12px}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>管理后台 — 授权码日志</title>
+  <!-- 引入 Icon -->
+  <script src="https://unpkg.com/@heroicons/react/outline.js"></script>
+  <!-- React / ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- Babel for in-browser JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    /* ------- 全局重置 & 布局 ------- */
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: Arial, sans-serif; background:#f0f2f5; color:#333; }
+    .container { max-width:1200px; margin:1rem auto; padding:1rem; }
+    button { cursor:pointer; }
 
-button,input{font-size:16px;line-height:1}
-.btn{padding:10px 18px;border:none;border-radius:var(--radius);cursor:pointer;user-select:none}
-.btn.dark{background:var(--c-primary);color:#fff}
-.btn.grey{background:var(--c-grey);color:#fff}
-.btn.red{background:#d2333e;color:#fff}
-.btn[disabled]{opacity:.55;cursor:not-allowed}
-input[type="text"]{padding:10px;border:1px solid var(--c-border);border-radius:var(--radius);width:240px}
+    /* ------- 搜索 & 分页 ------- */
+    .toolbar { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; }
+    .toolbar input, .toolbar select { padding:.5rem .75rem; border:1px solid #ccc; border-radius:4px; }
+    .pagination { display:flex; align-items:center; gap:.5rem; margin-top:1rem; }
+    .pagination button { padding:.5rem; border:1px solid #ccc; border-radius:4px; background:#fff; }
+    .pagination button:disabled { opacity:.5; cursor:not-allowed; }
 
-table{width:100%;border-collapse:collapse;margin-top:24px;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
-th,td{padding:10px 14px;border-bottom:1px solid var(--c-border);font-size:14px}
-th{background:#eef1f5;text-align:left;font-weight:600}
-tbody tr:last-child td{border-bottom:none}
+    /* ------- 表格样式 ------- */
+    table { width:100%; border-collapse:collapse; background:#fff; }
+    th, td { padding:.75rem 1rem; border-bottom:1px solid #eee; text-align:left; }
+    thead { background:#fafafa; }
+    @media(max-width:768px){
+      table { display:none; }
+    }
 
-.pagination{display:flex;flex-wrap:wrap;gap:6px;margin-top:20px}
-.pagination .btn{flex:0 0 44px;text-align:center;padding:8px 0}
-.pagination .active{background:var(--c-primary)!important}
+    /* ------- 卡片样式（移动端） ------- */
+    .cards { display:none; }
+    @media(max-width:768px){
+      .cards { display:block; }
+      .card { background:#fff; border-radius:6px; padding:1rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+      .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem; }
+      .card-body { font-size:.9rem; color:#555; white-space:pre-wrap; }
+    }
 
-#authArea, #adminArea{max-width:980px;margin:auto;text-align:center}
-#adminArea{margin-top:16px}
+    /* ------- 按钮 & 图标 ------- */
+    .icon-btn { background:none; border:none; padding:0; }
+    .icon-btn svg { width:1.25rem; height:1.25rem; }
 
-/* 移动端 */
-@media(max-width:680px){
-  body{padding:16px}
-  h1{font-size:22px}
-  input[type="text"]{width:100%}
-  table,thead,tr{display:block}
-  thead{display:none}
-  tbody tr{display:block;margin-bottom:14px;border:1px solid var(--c-border);border-radius:var(--radius)}
-  tbody td{display:flex;justify-content:space-between;border:none;padding:8px 12px}
-  tbody td::before{content:attr(data-label);font-weight:600;color:var(--c-grey)}
-}
-</style>
+    /* ------- 弹窗 ------- */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; }
+    .modal { background:#fff; border-radius:6px; width:90%; max-width:400px; padding:1rem; box-shadow:0 2px 8px rgba(0,0,0,.2); }
+    .modal-header { font-size:1.125rem; margin-bottom:.5rem; }
+    .modal textarea { width:100%; height:120px; padding:.5rem; border:1px solid #ccc; border-radius:4px; resize:none; }
+    .modal-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:.75rem; }
+    .btn { padding:.5rem .75rem; border-radius:4px; border:1px solid transparent; }
+    .btn-primary { background:#1976d2; color:#fff; }
+    .btn-secondary { background:#f5f5f5; color:#333; }
+    .btn-danger { background:#d32f2f; color:#fff; }
+  </style>
 </head>
 <body>
+  <div id="root" class="container"></div>
 
-<h1>Script‑GPT 使用日志</h1>
+  <script type="text/babel">
+  const { useState, useEffect } = React;
+  const { PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } = heroicons;
 
-<!-- ===== 未登录视图 ===== -->
-<div id="authArea">
-  <button id="loginBtn" class="btn dark">GitHub 登录</button>
-</div>
+  const API_BASE = "https://script-gpt.mefans.workers.dev/admin-api/logs";
 
-<!-- ===== 后台视图 ===== -->
-<div id="adminArea" hidden>
-  <div style="margin-bottom:14px;text-align:left">
-    <span id="userEmail" class="note"></span>
-    <button id="logoutBtn" class="btn grey">退出</button>
-  </div>
+  function AdminDashboard() {
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [total, setTotal] = useState(0);
+    const [editing, setEditing] = useState(null);
+    const [noteDraft, setNoteDraft] = useState("");
 
-  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-    <input id="kwInput" type="text" placeholder="搜索 Prompt 关键字">
-    <button id="searchBtn" class="btn grey">搜索</button>
-  </div>
+    const fetchLogs = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ q: search, page, pageSize });
+        const res = await fetch(\`\${API_BASE}?\${params}\`);
+        const json = await res.json();
+        setLogs(json.data);
+        setTotal(json.total);
+      } catch(e){
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  <table id="logTable">
-    <thead>
-      <tr><th>时间</th><th>IP</th><th>Prompt</th><th>模型</th><th>Token</th><th>USD</th><th>操作</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    useEffect(fetchLogs, [search, page, pageSize]);
 
-  <div id="pager" class="pagination"></div>
-</div>
+    const handleDelete = async (code) => {
+      if (!confirm(\`确定删除 "\${code}" ?\`)) return;
+      await fetch(\`\${API_BASE}/\${encodeURIComponent(code)}\`,{method:"DELETE"});
+      fetchLogs();
+    };
 
-<script>
-/* ===== 配置 ===== */
-const API="https://script-gpt.mefans.workers.dev/admin-api";               // 按需修改
-const PAGE_SIZE = 20;
+    const handleSave = async () => {
+      setLoading(true);
+      await fetch(\`\${API_BASE}/\${encodeURIComponent(editing.code)}\`, {
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ note: noteDraft })
+      });
+      setEditing(null);
+      fetchLogs();
+    };
 
-/* ===== DOM ===== */
-const authArea  = document.getElementById('authArea');
-const adminArea = document.getElementById('adminArea');
-const loginBtn  = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const userEmail = document.getElementById('userEmail');
-const kwInput   = document.getElementById('kwInput');
-const searchBtn = document.getElementById('searchBtn');
-const tbody     = document.querySelector('#logTable tbody');
-const pager     = document.getElementById('pager');
+    const totalPages = Math.ceil(total/pageSize) || 1;
 
-/* ===== 登录、退出 ===== */
-loginBtn.onclick  = () => location.href = API + "/auth/login";
-logoutBtn.onclick = async () => { await fetch(API + "/auth/logout",{credentials:'include'}); location.reload(); };
+    return (
+      <>
+        {/* 工具栏 */}
+        <div className="toolbar">
+          <div style={{position:"relative",flex:"1"}}>
+            <SearchIcon className="icon-btn" style={{position:"absolute",left:8,top:8,color:"#888"}}/>
+            <input
+              className="pl-10 w-full"
+              placeholder="搜索授权码或备注…"
+              value={search}
+              onChange={e=>{ setPage(1); setSearch(e.target.value); }}
+            />
+          </div>
+          <select value={pageSize} onChange={e=>{ setPage(1); setPageSize(+e.target.value); }}>
+            {[10,20,50].map(n=><option key={n} value={n}>{n} / 页</option>)}
+          </select>
+        </div>
 
-/* ===== 会话检测 ===== */
-let currentPage = 1, totalPages = 0;
-(async () => {
-  const res = await fetch(API + "/me", { credentials:'include' });
-  if (!res.ok) { showAuth(); return; }
+        {/* 桌面表格 */}
+        <table>
+          <thead>
+            <tr>
+              <th>授权码</th>
+              <th>最后使用</th>
+              <th>IP</th>
+              <th>备注</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading
+              ? <tr><td colSpan="5" style={{textAlign:"center",padding:"1rem"}}>加载中…</td></tr>
+              : logs.length === 0
+                ? <tr><td colSpan="5" style={{textAlign:"center",padding:"1rem"}}>无记录</td></tr>
+                : logs.map(log=>(
+                    <tr key={log.code}>
+                      <td>{log.code}</td>
+                      <td>{log.last_used_at||"—"}</td>
+                      <td>{log.ip||"—"}</td>
+                      <td style={{whiteSpace:"pre-wrap"}}>{log.note||"—"}</td>
+                      <td>
+                        <button className="icon-btn" title="编辑" onClick={()=>{
+                          setEditing(log);
+                          setNoteDraft(log.note||"");
+                        }}><PencilIcon/></button>
+                        <button className="icon-btn" title="删除" onClick={()=>handleDelete(log.code)}><TrashIcon/></button>
+                      </td>
+                    </tr>
+                  ))
+            }
+          </tbody>
+        </table>
 
-  const { email } = await res.json();
-  userEmail.textContent = "已登录：" + email;
-  showAdmin();
-  loadLogs();
-})();
+        {/* 移动卡片 */}
+        <div className="cards">
+          {loading
+            ? <div style={{textAlign:"center",padding:"1rem"}}>加载中…</div>
+            : logs.length===0
+              ? <div style={{textAlign:"center",padding:"1rem"}}>无记录</div>
+              : logs.map(log=>(
+                  <div className="card" key={log.code}>
+                    <div className="card-header">
+                      <strong>{log.code}</strong>
+                      <div>
+                        <button className="icon-btn" onClick={()=>{
+                          setEditing(log);
+                          setNoteDraft(log.note||"");
+                        }}><PencilIcon/></button>
+                        <button className="icon-btn" onClick={()=>handleDelete(log.code)}><TrashIcon/></button>
+                      </div>
+                    </div>
+                    <div className="card-body">
+                      <div>最后使用：{log.last_used_at||"—"}</div>
+                      <div>IP：{log.ip||"—"}</div>
+                      <div>{log.note||"—"}</div>
+                    </div>
+                  </div>
+                ))
+          }
+        </div>
 
-/* ===== 监听搜索 ===== */
-searchBtn.onclick = () => { currentPage = 1; loadLogs(); };
-kwInput.addEventListener('keydown', e => { if (e.key === 'Enter') searchBtn.click(); });
-kwInput.addEventListener('input', () => { if (!kwInput.value.trim()) { currentPage=1; loadLogs(); }});
+        {/* 分页 */}
+        <div className="pagination">
+          <button disabled={page<=1} onClick={()=>setPage(p=>p-1)}><ChevronLeftIcon/></button>
+          <span>第 {page} / {totalPages} 页</span>
+          <button disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}><ChevronRightIcon/></button>
+        </div>
 
-/* ===== 主函数：加载日志 ===== */
-async function loadLogs(page = currentPage) {
-  const kw = kwInput.value.trim();
-  const url = new URL(API + "/usages", location.origin);
-  url.searchParams.set("page", page);
-  if (kw) url.searchParams.set("kw", kw);
-
-  tbody.innerHTML = `<tr><td colspan="7">加载中…</td></tr>`;
-
-  const r = await fetch(url, { credentials:'include' });
-  if (!r.ok) { tbody.innerHTML = `<tr><td colspan="7">加载失败：${r.status}</td></tr>`; return; }
-  const { list, total } = await r.json();
-  totalPages = Math.ceil(total / PAGE_SIZE) || 1;
-  currentPage = page > totalPages ? totalPages : page;
-
-  if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="7">暂无数据</td></tr>`;
-  } else {
-    tbody.innerHTML = list.map(row => `
-      <tr>
-        <td data-label="时间">${new Date(row.created_at).toLocaleString()}</td>
-        <td data-label="IP">${row.ip}</td>
-        <td data-label="Prompt" style="max-width:240px;word-break:break-all;">${row.prompt || ''}</td>
-        <td data-label="模型">${row.model}</td>
-        <td data-label="Token">${row.total_tokens}</td>
-        <td data-label="USD">${row.usd}</td>
-        <td data-label="操作">
-          <button class="btn red" onclick="delLog(${row.id})">删</button>
-        </td>
-      </tr>`).join('');
+        {/* 编辑弹窗 */}
+        {editing && (
+          <div className="modal-backdrop">
+            <div className="modal">
+              <div className="modal-header">编辑备注 — {editing.code}</div>
+              <textarea
+                value={noteDraft}
+                onChange={e=>setNoteDraft(e.target.value)}
+              />
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={()=>setEditing(null)}>取消</button>
+                <button className="btn btn-primary" onClick={handleSave}>保存</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
   }
-  renderPager();
-}
 
-/* ===== 删除 ===== */
-async function delLog(id){
-  if(!confirm("确定删除该记录？")) return;
-  const r = await fetch(API + "/usages/" + id, { method:"DELETE", credentials:"include" });
-  if(r.ok) loadLogs(); else alert("删除失败");
-}
-
-/* ===== 分页渲染 ===== */
-function renderPager(){
-  pager.innerHTML = '';
-  for(let p=1; p<=totalPages; p++){
-    const b = document.createElement('button');
-    b.className = 'btn' + (p===currentPage ? ' active' : ' grey');
-    b.textContent = p;
-    b.onclick = () => { currentPage = p; loadLogs(); };
-    pager.appendChild(b);
-  }
-}
-
-/* ===== 显示区域 ===== */
-function showAuth(){ authArea.hidden=false; adminArea.hidden=true; }
-function showAdmin(){ authArea.hidden=true; adminArea.hidden=false; }
-
-/* ===== 删除按钮在全局可见 ===== */
-window.delLog = delLog;
-</script>
+  ReactDOM.createRoot(document.getElementById("root")).render(<AdminDashboard />);
+  </script>
 </body>
 </html>
