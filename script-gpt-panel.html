@@ -14,7 +14,7 @@
     .toolbar { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; }
     .toolbar .search { position:relative; flex:1; }
     .toolbar .search span { position:absolute; left:8px; top:8px; font-size:1.2rem; color:#888; }
-    .toolbar .search input { width:100%; padding:.5rem  .75rem .5rem 2.5rem; border:1px solid #ccc; border-radius:4px; }
+    .toolbar .search input { width:100%; padding:.5rem .75rem .5rem 2.5rem; border:1px solid #ccc; border-radius:4px; }
     .toolbar select { padding:.5rem .75rem; border:1px solid #ccc; border-radius:4px; }
 
     /* —— 桌面表格 —— */
@@ -62,59 +62,71 @@
 <body>
   <div id="root" class="container"></div>
 
+  <!-- React / ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
   <script type="text/babel">
   const { useState, useEffect } = React;
-const API_BASE = "https://oliverfr.com/admin-api/logs";
+  const API_BASE = "https://oliverfr.com/admin-api/logs";
 
-function AdminDashboard() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [total, setTotal] = useState(0);
+  function AdminDashboard() {
+    const [logs, setLogs]           = useState([]);
+    const [loading, setLoading]     = useState(false);
+    const [search, setSearch]       = useState("");
+    const [page, setPage]           = useState(1);
+    const [pageSize, setPageSize]   = useState(10);
+    const [total, setTotal]         = useState(0);
+    const [editing, setEditing]     = useState(null);
+    const [noteDraft, setNoteDraft] = useState("");
+    const [preview, setPreview]     = useState({ open:false, code:"" });
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ q: search, page, pageSize });
-        const res = await fetch(`${API_BASE}?${params}`);
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        const json = await res.json();
-        setLogs(json.data);
-        setTotal(json.total);
-      } catch (err) {
-        console.error("拉日志失败：", err);
-      } finally {
-        setLoading(false);
+    // 拉列表
+    useEffect(() => {
+      async function load() {
+        setLoading(true);
+        try {
+          const params = new URLSearchParams({ q:search, page, pageSize });
+          const res = await fetch(`${API_BASE}?${params.toString()}`);
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const { data, total } = await res.json();
+          setLogs(data);
+          setTotal(total);
+        } catch(err) {
+          console.error("拉日志失败：", err);
+        } finally {
+          setLoading(false);
+        }
       }
-    }
-    load();
-  }, [search, page, pageSize]);
+      load();
+    }, [search, page, pageSize]);
 
-    // 格式化北京时间
-    const fmtTime = ts=>{
-      if (!ts) return "—";
-      return new Intl.DateTimeFormat("zh-CN", {
-        year:"numeric",month:"2-digit",day:"2-digit",
-        hour:"2-digit",minute:"2-digit",second:"2-digit",
-        hour12:false, timeZone:"Asia/Shanghai"
-      }).format(new Date(ts));
-    };
+    // 北京时间格式化
+    const fmtTime = ts => ts
+      ? new Intl.DateTimeFormat("zh-CN", {
+          year:"numeric",month:"2-digit",day:"2-digit",
+          hour:"2-digit",minute:"2-digit",second:"2-digit",
+          hour12:false, timeZone:"Asia/Shanghai"
+        }).format(new Date(ts))
+      : "—";
 
-    const handleDelete = async code=>{
+    // 删除
+    const handleDelete = async code => {
       if (!confirm(`确定删除 "${code}"？`)) return;
-      await fetch(`${API_BASE}/${encodeURIComponent(code)}`,{method:"DELETE"});
+      await fetch(`${API_BASE}/${encodeURIComponent(code)}`, { method:"DELETE" });
       setPage(1);
     };
 
-    const handleSave = async ()=>{
+    // 保存备注
+    const handleSave = async () => {
+      if (!editing) return;
       setLoading(true);
       await fetch(`${API_BASE}/${encodeURIComponent(editing.code)}`, {
         method:"PATCH",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ note:noteDraft })
+        body: JSON.stringify({ note:noteDraft })
       });
       setEditing(null);
       setPage(1);
@@ -127,14 +139,14 @@ function AdminDashboard() {
       <div className="toolbar">
         <div className="search">
           <span>🔍</span>
-          <input 
+          <input
             placeholder="搜索授权码或备注…"
             value={search}
             onChange={e=>{ setPage(1); setSearch(e.target.value); }}
           />
         </div>
         <select value={pageSize} onChange={e=>{ setPage(1); setPageSize(+e.target.value); }}>
-          {[10,20,50].map(n=><option key={n} value={n}>{n} / 页</option>)}
+          {[10,20,50].map(n=> <option key={n} value={n}>{n} / 页</option>)}
         </select>
       </div>
 
@@ -143,15 +155,9 @@ function AdminDashboard() {
         <table>
           <thead>
             <tr>
-              <th>授权码</th>
-              <th>使用时间</th>
-              <th>IP</th>
-              <th>Prompt</th>
-              <th>Tokens (in/com/total)</th>
-              <th>Cost (USD)</th>
-              <th>备注</th>
-              <th>完整代码</th>
-              <th>操作</th>
+              <th>授权码</th><th>使用时间</th><th>IP</th><th>Prompt</th>
+              <th>Tokens (in/com/total)</th><th>Cost (USD)</th><th>备注</th>
+              <th>完整代码</th><th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -170,9 +176,7 @@ function AdminDashboard() {
                     <td style={{whiteSpace:"pre-wrap"}}>{log.note||"—"}</td>
                     <td className="code-cell">
                       <div>
-                        {log.full_code 
-                          ? log.full_code 
-                          : log.resultHtml||"—"}
+                        {log.full_code || log.resultHtml || "—"}
                       </div>
                       {log.full_code &&
                         <button className="btn btn-secondary"
@@ -180,11 +184,12 @@ function AdminDashboard() {
                         >预览</button>}
                     </td>
                     <td className="actions">
-                      <button className="btn btn-secondary" onClick={()=>{
-                        setEditing(log);
-                        setNoteDraft(log.note||"");
-                      }}>✏️</button>
-                      <button className="btn btn-secondary" onClick={()=>handleDelete(log.code)}>🗑️</button>
+                      <button className="btn btn-secondary"
+                        onClick={()=>{ setEditing(log); setNoteDraft(log.note||""); }}
+                      >✏️</button>
+                      <button className="btn btn-secondary"
+                        onClick={()=>handleDelete(log.code)}
+                      >🗑️</button>
                     </td>
                   </tr>
                 ))
@@ -204,7 +209,7 @@ function AdminDashboard() {
                 <div className="card-header">
                   <strong>{log.code}</strong>
                   <div>
-                    <button onClick={()=>setEditing(log)}>✏️</button>
+                    <button onClick={()=>{ setEditing(log); setNoteDraft(log.note||""); }}>✏️</button>
                     <button onClick={()=>handleDelete(log.code)}>🗑️</button>
                   </div>
                 </div>
@@ -281,8 +286,7 @@ function AdminDashboard() {
     </>;
   }
 
-  ReactDOM.createRoot(document.getElementById("root"))
-           .render(<AdminDashboard />);
+  ReactDOM.createRoot(document.getElementById("root")).render(<AdminDashboard />);
   </script>
 </body>
 </html>
