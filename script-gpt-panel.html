@@ -66,35 +66,32 @@
   const { useState, useEffect } = React;
   const API_BASE = "https://script-gpt.mefans.workers.dev/admin-api/logs";
 
-  function AdminDashboard() {
-    const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [search, setSearch] = useState("");
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
-    const [total, setTotal] = useState(0);
-    const [editing, setEditing] = useState(null);
-    const [noteDraft, setNoteDraft] = useState("");
-    const [preview, setPreview] = useState({ open:false, code:"" });
+function AdminDashboard() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
-    // 拉日志
-    useEffect(()=>{
-      (async()=>{
-        setLoading(true);
-        try {
-          const params = new URLSearchParams({ q:search, page, pageSize });
-          const res = await fetch(`${API_BASE}?${params}`);
-          if (!res.ok) throw new Error(res.statusText);
-          const json = await res.json();
-          setLogs(json.data);
-          setTotal(json.total);
-        } catch(e){
-          console.error("拉日志失败：", e);
-        } finally {
-          setLoading(false);
-        }
-      })();
-    }, [search,page,pageSize]);
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ q: search, page, pageSize });
+        const res = await fetch(`${API_BASE}?${params}`);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const json = await res.json();
+        setLogs(json.data);
+        setTotal(json.total);
+      } catch (err) {
+        console.error("拉日志失败：", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [search, page, pageSize]);
 
     // 格式化北京时间
     const fmtTime = ts=>{
