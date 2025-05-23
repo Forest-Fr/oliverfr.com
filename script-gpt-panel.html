@@ -65,7 +65,7 @@
   const { useState, useEffect } = React;
   const { PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } = heroicons;
 
-  const API_BASE = "https://script-gpt.mefans.workers.dev/admin-api/codes";
+  const API_BASE = "https://script-gpt.mefans.workers.dev/admin-api/logs";
 
 
   function AdminDashboard() {
@@ -98,7 +98,8 @@
     useEffect(fetchLogs, [search, page, pageSize]);
 
     const handleDelete = async (code) => {
-  if (!confirm("确定删除 \"" + code + "\" ?")) return;
+if (!confirm('确定删除 "' + code + '"？')) return;
+
 
       await fetch(\`\${API_BASE}/\${encodeURIComponent(code)}\`,{method:"DELETE"});
       fetchLogs();
