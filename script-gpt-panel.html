@@ -61,172 +61,202 @@
 <body>
   <div id="root" class="container"></div>
 
-  <script type="text/babel">
-  const { useState, useEffect } = React;
-  const { PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } = heroicons;
+<script type="text/babel">
+const { useState, useEffect } = React;
+const {
+  PencilIcon,
+  TrashIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  SearchIcon
+} = heroicons;
 
-  const API_BASE = "https://script-gpt.mefans.workers.dev/admin-api/logs";
+// 一定要换成你自己绑定的域名
+const API_BASE = "https://oliverfr.com/admin-api/logs";
 
+function AdminDashboard() {
+  const [logs,    setLogs]    = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search,  setSearch]  = useState("");
+  const [page,    setPage]    = useState(1);
+  const [pageSize,setPageSize]= useState(10);
+  const [total,   setTotal]   = useState(0);
+  const [editing, setEditing] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
-  function AdminDashboard() {
-    const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [search, setSearch] = useState("");
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
-    const [total, setTotal] = useState(0);
-    const [editing, setEditing] = useState(null);
-    const [noteDraft, setNoteDraft] = useState("");
-
-   const fetchLogs = async () => {
-  setLoading(true);
-  try {
-    const params = new URLSearchParams({ q: search, page, pageSize });
-    const qs  = params.toString();                       // 把参数序列化成 "q=xx&page=1&pageSize=10"
-    const res = await fetch(API_BASE + "?" + qs);        // ← 不要在这一行末尾写“/”
-    const json = await res.json();
-    setLogs(json.data);
-    setTotal(json.total);
-  } catch(e){
-    console.error(e);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-    useEffect(fetchLogs, [search, page, pageSize]);
-
-    const handleDelete = async (code) => {
-if (!confirm('确定删除 "' + code + '"？')) return;
-
-
-      await fetch(\`\${API_BASE}/\${encodeURIComponent(code)}\`,{method:"DELETE"});
-      fetchLogs();
-    };
-
-    const handleSave = async () => {
-      setLoading(true);
-      await fetch(\`\${API_BASE}/\${encodeURIComponent(editing.code)}\`, {
-        method:"PATCH",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ note: noteDraft })
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q:        search,
+        page:     page,
+        pageSize: pageSize
       });
-      setEditing(null);
-      fetchLogs();
-    };
+      const res  = await fetch(`${API_BASE}?${params.toString()}`);
+      const json = await res.json();
+      setLogs(json.data);
+      setTotal(json.total);
+    } catch(e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const totalPages = Math.ceil(total/pageSize) || 1;
+  useEffect(fetchLogs, [search, page, pageSize]);
 
-    return (
-      <>
-        {/* 工具栏 */}
-        <div className="toolbar">
-          <div style={{position:"relative",flex:"1"}}>
-            <SearchIcon className="icon-btn" style={{position:"absolute",left:8,top:8,color:"#888"}}/>
-            <input
-              className="pl-10 w-full"
-              placeholder="搜索授权码或备注…"
-              value={search}
-              onChange={e=>{ setPage(1); setSearch(e.target.value); }}
-            />
-          </div>
-          <select value={pageSize} onChange={e=>{ setPage(1); setPageSize(+e.target.value); }}>
-            {[10,20,50].map(n=><option key={n} value={n}>{n} / 页</option>)}
-          </select>
+  const handleDelete = async (code) => {
+    if (!confirm('确定删除 "' + code + '"？')) return;
+    await fetch(`${API_BASE}/${encodeURIComponent(code)}`, {
+      method: "DELETE"
+    });
+    fetchLogs();
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    await fetch(`${API_BASE}/${encodeURIComponent(editing.code)}`, {
+      method:  "PATCH",
+      headers: { "Content-Type":"application/json" },
+      body:    JSON.stringify({ note: noteDraft })
+    });
+    setEditing(null);
+    fetchLogs();
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total/pageSize));
+
+  return (
+    <>
+      {/* —— 工具栏 —— */}
+      <div className="toolbar">
+        <div style={{ position:"relative", flex:1 }}>
+          <SearchIcon
+            className="icon-btn"
+            style={{ position:"absolute", left:8, top:8, color:"#888" }}
+          />
+          <input
+            style={{ paddingLeft: "2rem", width:"100%" }}
+            placeholder="搜索授权码或备注…"
+            value={search}
+            onChange={e => { setPage(1); setSearch(e.target.value); }}
+          />
         </div>
+        <select
+          value={pageSize}
+          onChange={e => { setPage(1); setPageSize(Number(e.target.value)); }}
+        >
+          {[10,20,50].map(n =>
+            <option key={n} value={n}>{n} / 页</option>
+          )}
+        </select>
+      </div>
 
-        {/* 桌面表格 */}
-        <table>
-          <thead>
-            <tr>
-              <th>授权码</th>
-              <th>最后使用</th>
-              <th>IP</th>
-              <th>备注</th>
-              <th>操作</th>
+      {/* —— 桌面表格 —— */}
+      <table>
+        <thead>
+          <tr>
+            <th>授权码</th><th>最后使用</th><th>IP</th><th>备注</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan="5" style={{ textAlign:"center", padding:"1rem" }}>
+              加载中…
+            </td></tr>
+          ) : logs.length === 0 ? (
+            <tr><td colSpan="5" style={{ textAlign:"center", padding:"1rem" }}>
+              无记录
+            </td></tr>
+          ) : logs.map(log => (
+            <tr key={log.code}>
+              <td>{log.code}</td>
+              <td>{log.last_used_at || "—"}</td>
+              <td>{log.ip          || "—"}</td>
+              <td style={{ whiteSpace:"pre-wrap" }}>{log.note || "—"}</td>
+              <td>
+                <button
+                  className="icon-btn"
+                  title="编辑"
+                  onClick={()=>{ setEditing(log); setNoteDraft(log.note||""); }}
+                ><PencilIcon/></button>
+                <button
+                  className="icon-btn"
+                  title="删除"
+                  onClick={()=>handleDelete(log.code)}
+                ><TrashIcon/></button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {loading
-              ? <tr><td colSpan="5" style={{textAlign:"center",padding:"1rem"}}>加载中…</td></tr>
-              : logs.length === 0
-                ? <tr><td colSpan="5" style={{textAlign:"center",padding:"1rem"}}>无记录</td></tr>
-                : logs.map(log=>(
-                    <tr key={log.code}>
-                      <td>{log.code}</td>
-                      <td>{log.last_used_at||"—"}</td>
-                      <td>{log.ip||"—"}</td>
-                      <td style={{whiteSpace:"pre-wrap"}}>{log.note||"—"}</td>
-                      <td>
-                        <button className="icon-btn" title="编辑" onClick={()=>{
-                          setEditing(log);
-                          setNoteDraft(log.note||"");
-                        }}><PencilIcon/></button>
-                        <button className="icon-btn" title="删除" onClick={()=>handleDelete(log.code)}><TrashIcon/></button>
-                      </td>
-                    </tr>
-                  ))
-            }
-          </tbody>
-        </table>
+          ))}
+        </tbody>
+      </table>
 
-        {/* 移动卡片 */}
-        <div className="cards">
-          {loading
-            ? <div style={{textAlign:"center",padding:"1rem"}}>加载中…</div>
-            : logs.length===0
-              ? <div style={{textAlign:"center",padding:"1rem"}}>无记录</div>
-              : logs.map(log=>(
-                  <div className="card" key={log.code}>
-                    <div className="card-header">
-                      <strong>{log.code}</strong>
-                      <div>
-                        <button className="icon-btn" onClick={()=>{
-                          setEditing(log);
-                          setNoteDraft(log.note||"");
-                        }}><PencilIcon/></button>
-                        <button className="icon-btn" onClick={()=>handleDelete(log.code)}><TrashIcon/></button>
-                      </div>
-                    </div>
-                    <div className="card-body">
-                      <div>最后使用：{log.last_used_at||"—"}</div>
-                      <div>IP：{log.ip||"—"}</div>
-                      <div>{log.note||"—"}</div>
-                    </div>
-                  </div>
-                ))
-          }
-        </div>
-
-        {/* 分页 */}
-        <div className="pagination">
-          <button disabled={page<=1} onClick={()=>setPage(p=>p-1)}><ChevronLeftIcon/></button>
-          <span>第 {page} / {totalPages} 页</span>
-          <button disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}><ChevronRightIcon/></button>
-        </div>
-
-        {/* 编辑弹窗 */}
-        {editing && (
-          <div className="modal-backdrop">
-            <div className="modal">
-              <div className="modal-header">编辑备注 — {editing.code}</div>
-              <textarea
-                value={noteDraft}
-                onChange={e=>setNoteDraft(e.target.value)}
-              />
-              <div className="modal-actions">
-                <button className="btn btn-secondary" onClick={()=>setEditing(null)}>取消</button>
-                <button className="btn btn-primary" onClick={handleSave}>保存</button>
+      {/* —— 移动卡片 —— */}
+      <div className="cards">
+        {loading ? (
+          <div style={{ textAlign:"center", padding:"1rem" }}>加载中…</div>
+        ) : logs.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"1rem" }}>无记录</div>
+        ) : logs.map(log => (
+          <div className="card" key={log.code}>
+            <div className="card-header">
+              <strong>{log.code}</strong>
+              <div>
+                <button className="icon-btn"
+                  onClick={()=>{ setEditing(log); setNoteDraft(log.note||""); }}
+                ><PencilIcon/></button>
+                <button className="icon-btn"
+                  onClick={()=>handleDelete(log.code)}
+                ><TrashIcon/></button>
               </div>
             </div>
+            <div className="card-body">
+              <div>最后使用：{log.last_used_at||"—"}</div>
+              <div>IP：{log.ip||"—"}</div>
+              <div>{log.note||"—"}</div>
+            </div>
           </div>
-        )}
-      </>
-    );
-  }
+        ))}
+      </div>
 
-  ReactDOM.createRoot(document.getElementById("root")).render(<AdminDashboard />);
-  </script>
+      {/* —— 分页 —— */}
+      <div className="pagination">
+        <button disabled={page<=1} onClick={()=>setPage(p=>p-1)}>
+          <ChevronLeftIcon/>
+        </button>
+        <span>第 {page} / {totalPages} 页</span>
+        <button disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>
+          <ChevronRightIcon/>
+        </button>
+      </div>
+
+      {/* —— 编辑弹窗 —— */}
+      {editing && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-header">编辑备注 — {editing.code}</div>
+            <textarea
+              value={noteDraft}
+              onChange={e => setNoteDraft(e.target.value)}
+            />
+            <div className="modal-actions">
+              <button className="btn btn-secondary"
+                onClick={()=>setEditing(null)}
+              >取消</button>
+              <button className="btn btn-primary" onClick={handleSave}>
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root"))
+         .render(<AdminDashboard />);
+</script>
+
 </body>
 </html>
