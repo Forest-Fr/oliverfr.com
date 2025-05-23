@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>管理后台 — 授权码日志</title>
+  <!-- React / ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- Babel for in-browser JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    /* 全局 & 布局略，和之前完全一致 */
+    * { box-sizing:border-box; margin:0; padding:0 }
+    body { font-family:Arial,sans-serif; background:#f0f2f5; color:#333 }
+    .container { max-width:1200px; margin:1rem auto; padding:1rem }
+    /* …（省略其余样式，跟之前一模一样）… */
+    button { cursor:pointer; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; position:relative }
+    .toolbar input, .toolbar select { padding:.5rem .75rem; border:1px solid #ccc; border-radius:4px; }
+    .pagination { display:flex; align-items:center; gap:.5rem; margin-top:1rem; }
+    .pagination button { padding:.5rem; border:1px solid #ccc; border-radius:4px; background:#fff; }
+    .pagination button:disabled { opacity:.5; cursor:not-allowed; }
+    table { width:100%; border-collapse:collapse; background:#fff }
+    th,td { padding:.75rem 1rem; border-bottom:1px solid #eee; text-align:left }
+    thead { background:#fafafa }
+    @media(max-width:768px){
+      table { display:none }
+      .cards { display:block }
+      .cards .card { /* … */ }
+    }
+    .cards { display:none }
+    .icon-btn { background:none; border:none; padding:0; font-size:1.25rem }
+    .modal-backdrop { /* … */ } .modal { /* … */ }
+    /* …其余样式同前… */
+  </style>
+</head>
+<body>
+  <div id="root" class="container"></div>
+
+  <script type="text/babel">
+  const { useState, useEffect } = React;
+
+  function AdminDashboard() {
+    const [logs, setLogs]       = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch]   = useState("");
+    const [page, setPage]       = useState(1);
+    const [pageSize, setPageSize]= useState(10);
+    const [total, setTotal]     = useState(0);
+    const [editing, setEditing] = useState(null);
+    const [noteDraft, setNoteDraft] = useState("");
+
+    // **动态** 指向当前域名的 /admin-api/logs
+    const API_BASE = window.location.origin + "/admin-api/logs";
+
+    async function fetchLogs() {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ q:search, page, pageSize });
+        const res  = await fetch(`${API_BASE}?${params.toString()}`);
+        if (!res.ok) throw new Error(res.status + " " + res.statusText);
+        const json = await res.json();
+        setLogs(json.data);
+        setTotal(json.total);
+      } catch (e) {
+        console.error("拉日志失败:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // **正确** 使用 useEffect，不要直接传 async 函数
+    useEffect(() => {
+      fetchLogs();
+    }, [search, page, pageSize]);
+
+    const handleDelete = async (code) => {
+      if (!confirm(`确定删除 "${code}"？`)) return;
+      await fetch(`${API_BASE}/${encodeURIComponent(code)}`, { method:"DELETE" });
+      fetchLogs();
+    };
+
+    const handleSave = async () => {
+      setLoading(true);
+      await fetch(`${API_BASE}/${encodeURIComponent(editing.code)}`, {
+        method:"PATCH",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ note: noteDraft })
+      });
+      setEditing(null);
+      fetchLogs();
+    };
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return (
+      <>
+        {/* —— 工具栏 —— */}
+        <div className="toolbar">
+          {/* 搜索改成 🔍 */}
+          <button className="icon-btn" disabled>🔍</button>
+          <input
+            style={{ paddingLeft:"2rem", width:"100%" }}
+            placeholder="搜索授权码或备注…"
+            value={search}
+            onChange={e => { setPage(1); setSearch(e.target.value); }}
+          />
+          <select value={pageSize}
+                  onChange={e => { setPage(1); setPageSize(+e.target.value); }}>
+            {[10,20,50].map(n => (
+              <option key={n} value={n}>{n} / 页</option>
+            ))}
+          </select>
+        </div>
+
+        {/* —— 桌面表格 —— */}
+        <table>
+          <thead>
+            <tr>
+              <th>授权码</th><th>最后使用</th><th>IP</th><th>备注</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading
+              ? <tr><td colSpan="5" style={{textAlign:"center",padding:"1rem"}}>加载中…</td></tr>
+              : logs.length===0
+                ? <tr><td colSpan="5" style={{textAlign:"center",padding:"1rem"}}>无记录</td></tr>
+                : logs.map(log=>(
+                  <tr key={log.code}>
+                    <td>{log.code}</td>
+                    <td>{log.last_used_at||"—"}</td>
+                    <td>{log.ip||"—"}</td>
+                    <td style={{whiteSpace:"pre-wrap"}}>{log.note||"—"}</td>
+                    <td>
+                      {/* 编辑 ✏️ 删除 🗑 */}
+                      <button className="icon-btn"
+                              title="编辑"
+                              onClick={()=>{ setEditing(log); setNoteDraft(log.note||""); }}>
+                        ✏️
+                      </button>
+                      <button className="icon-btn"
+                              title="删除"
+                              onClick={()=>handleDelete(log.code)}>
+                        🗑
+                      </button>
+                    </td>
+                  </tr>
+                ))
+            }
+          </tbody>
+        </table>
+
+        {/* —— 移动卡片 —— */}
+        <div className="cards">
+          {loading
+            ? <div style={{textAlign:"center",padding:"1rem"}}>加载中…</div>
+            : logs.length===0
+              ? <div style={{textAlign:"center",padding:"1rem"}}>无记录</div>
+              : logs.map(log=>(
+                <div className="card" key={log.code}>
+                  <div className="card-header">
+                    <strong>{log.code}</strong>
+                    <div>
+                      <button className="icon-btn" onClick={()=>{ setEditing(log); setNoteDraft(log.note||""); }}>✏️</button>
+                      <button className="icon-btn" onClick={()=>handleDelete(log.code)}>🗑</button>
+                    </div>
+                  </div>
+                  <div className="card-body">
+                    <div>最后使用：{log.last_used_at||"—"}</div>
+                    <div>IP：{log.ip||"—"}</div>
+                    <div>{log.note||"—"}</div>
+                  </div>
+                </div>
+              ))
+          }
+        </div>
+
+        {/* —— 分页：◀️ ▶️ —— */}
+        <div className="pagination">
+          <button disabled={page<=1} onClick={()=>setPage(p=>p-1)}>◀️</button>
+          <span>第 {page} / {totalPages} 页</span>
+          <button disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>▶️</button>
+        </div>
+
+        {/* —— 编辑弹窗 —— */}
+        {editing && (
+          <div className="modal-backdrop">
+            <div className="modal">
+              <div className="modal-header">编辑备注 — {editing.code}</div>
+              <textarea
+                value={noteDraft}
+                onChange={e=>setNoteDraft(e.target.value)}
+              />
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={()=>setEditing(null)}>取消</button>
+                <button className="btn btn-primary"  onClick={handleSave}>保存</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<AdminDashboard />);
+  </script>
+</body>
+</html>
