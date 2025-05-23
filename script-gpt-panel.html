@@ -77,21 +77,22 @@
     const [editing, setEditing] = useState(null);
     const [noteDraft, setNoteDraft] = useState("");
 
-    const fetchLogs = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ q: search, page, pageSize });
-        const qs  = params.toString();                       // 把参数序列化成 "q=xx&page=1&pageSize=10"
-  const res = await fetch(API_BASE + "?" + qs);        /
-        const json = await res.json();
-        setLogs(json.data);
-        setTotal(json.total);
-      } catch(e){
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
+   const fetchLogs = async () => {
+  setLoading(true);
+  try {
+    const params = new URLSearchParams({ q: search, page, pageSize });
+    const qs  = params.toString();                       // 把参数序列化成 "q=xx&page=1&pageSize=10"
+    const res = await fetch(API_BASE + "?" + qs);        // ← 不要在这一行末尾写“/”
+    const json = await res.json();
+    setLogs(json.data);
+    setTotal(json.total);
+  } catch(e){
+    console.error(e);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     useEffect(fetchLogs, [search, page, pageSize]);
 
