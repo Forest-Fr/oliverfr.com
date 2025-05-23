@@ -81,7 +81,8 @@
       setLoading(true);
       try {
         const params = new URLSearchParams({ q: search, page, pageSize });
-        const res = await fetch(\`\${API_BASE}?\${params}\`);
+        const qs  = params.toString();                       // 把参数序列化成 "q=xx&page=1&pageSize=10"
+  const res = await fetch(API_BASE + "?" + qs);        /
         const json = await res.json();
         setLogs(json.data);
         setTotal(json.total);
