@@ -58,6 +58,105 @@
     .btn { padding:.5rem .75rem; border-radius:4px; border:1px solid transparent; cursor:pointer; }
     .btn-primary { background:#1976d2; color:#fff; }
     .btn-secondary { background:#f5f5f5; color:#333; }
+
+/* —— 授权码弹窗 —— */
+.auth-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.auth-modal {
+  background: #fff;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  text-align: center;
+}
+.auth-modal h2 {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+.auth-modal p {
+  margin-bottom: 1.5rem;
+  color: #666;
+  font-size: 0.95rem;
+}
+.auth-modal .input-group {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+.auth-modal .input-group input {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+.auth-modal .input-group .toggle-eye {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #888;
+}
+.auth-modal .btn-confirm {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  background: #1976d2;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.auth-modal .error {
+  margin-top: 1rem;
+  color: #d9534f;
+  font-size: 0.9rem;
+}
+
+
+/* —— 手机端（≤768px）弹窗—— */
+@media (max-width: 768px) {
+  .auth-modal {
+    padding: 1.5rem;
+    width: 95%;
+    max-width: none;
+    border-radius: 6px;
+  }
+  .auth-modal h2 {
+    font-size: 1.25rem;
+  }
+  .auth-modal p {
+    font-size: 0.9rem;
+  }
+  .auth-modal .input-group input {
+    padding: 0.5rem 2.25rem 0.5rem 0.5rem;
+    font-size: 0.95rem;
+  }
+  .auth-modal .input-group .toggle-eye {
+    right: 0.5rem;
+    font-size: 1.1rem;
+  }
+  .auth-modal .btn-confirm {
+    width: 100%;
+    padding: 0.65rem;
+    font-size: 1rem;
+  }
+  .auth-modal .error {
+    font-size: 0.85rem;
+  }
+}
+
   </style>
 </head>
 <body>
@@ -69,11 +168,12 @@
   <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <script type="text/babel">
+ <script type="text/babel">
   const { useState, useEffect } = React;
   const API_BASE = "https://oliverfr.com/admin-api/logs";
 
-  function AdminDashboard() {
+  // —— 原封不动 —— 你的 AdminDashboard 逻辑
+  function AdminDashboard({ auth }) {
     const [logs, setLogs]           = useState([]);
     const [loading, setLoading]     = useState(false);
     const [search, setSearch]       = useState("");
@@ -84,13 +184,15 @@
     const [noteDraft, setNoteDraft] = useState("");
     const [preview, setPreview]     = useState({ open:false, code:"" });
 
-    // 拉列表
+    // 拉列表（加上 Authorization 头）
     useEffect(() => {
       async function load() {
         setLoading(true);
         try {
           const params = new URLSearchParams({ q:search, page, pageSize });
-          const res = await fetch(`${API_BASE}?${params.toString()}`);
+          const res = await fetch(`${API_BASE}?${params.toString()}`, {
+            headers: { "Authorization": `Bearer ${auth}` }
+          });
           if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
           const { data, total } = await res.json();
           setLogs(data);
@@ -102,7 +204,7 @@
         }
       }
       load();
-    }, [search, page, pageSize]);
+    }, [auth, search, page, pageSize]);
 
     // 北京时间格式化
     const fmtTime = ts => ts
@@ -116,7 +218,10 @@
     // 删除
     const handleDelete = async code => {
       if (!confirm(`确定删除 "${code}"？`)) return;
-      await fetch(`${API_BASE}/${encodeURIComponent(code)}`, { method:"DELETE" });
+      await fetch(`${API_BASE}/${encodeURIComponent(code)}`, {
+        method:"DELETE",
+        headers: { "Authorization": `Bearer ${auth}` }
+      });
       setPage(1);
     };
 
@@ -126,7 +231,10 @@
       setLoading(true);
       await fetch(`${API_BASE}/${encodeURIComponent(editing.code)}`, {
         method:"PATCH",
-        headers:{"Content-Type":"application/json"},
+        headers:{
+          "Content-Type":"application/json",
+          "Authorization": `Bearer ${auth}`
+        },
         body: JSON.stringify({ note:noteDraft })
       });
       setEditing(null);
@@ -156,7 +264,7 @@
         <table>
           <thead>
             <tr>
-              <th>使用时间</th><th>IP</th><th>Prompt</th>
+              <th>授权码</th><th>使用时间</th><th>IP</th><th>Prompt</th>
               <th>Tokens (in/com/total)</th><th>Cost (USD)</th><th>备注</th>
               <th>完整代码</th><th>操作</th>
             </tr>
@@ -275,19 +383,72 @@
               <pre style={{whiteSpace:"pre-wrap"}}>{preview.code}</pre>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-primary" onClick={()=>{
-                navigator.clipboard.writeText(preview.code).then(()=>{
-                  alert("已复制到剪贴板");
-                });
-              }}>复制</button>
+              <button className="btn btn-primary" onClick={()=>{navigator.clipboard.writeText(preview.code).then(()=>alert("已复制到剪贴板"));}}>复制</button>
             </div>
           </div>
         </div>
       )}
     </>;
+
   }
 
-  ReactDOM.createRoot(document.getElementById("root")).render(<AdminDashboard />);
+  // —— 新增：授权弹窗组件 —— 
+  function AuthModal({ onConfirm, error }) {
+    const [code, setCode] = useState("");
+    const [show, setShow] = useState(false);
+    return (
+      <div className="auth-backdrop">
+        <div className="auth-modal">
+          <h2>请输入授权码</h2>
+          <p>只有通过授权后，才能查看此后台内容。</p>
+          <div className="input-group">
+            <input
+              type={show ? "text" : "password"}
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              placeholder="授权码"
+            />
+            <button className="toggle-eye" onClick={() => setShow(s => !s)}>
+              {show ? "🙈" : "👁️"}
+            </button>
+          </div>
+          <button className="btn-confirm" onClick={() => onConfirm(code)}>确认</button>
+          {error && <div className="error">{error}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  // —— 新增：最外层 Main 入口 —— 
+  function Main() {
+    const [authCode, setAuthCode] = useState(sessionStorage.getItem("authCode")||"");
+    const [error, setError] = useState("");
+    const [validated, setValidated] = useState(false);
+
+    // 验证函数：尝试拉一次数据
+    const validate = async code => {
+      try {
+        const res = await fetch(`${API_BASE}?page=1&pageSize=1`, {
+          headers: { "Authorization": `Bearer ${code}` }
+        });
+        if (!res.ok) throw new Error();
+        sessionStorage.setItem("authCode", code);
+        setValidated(true);
+      } catch {
+        setError("授权码无效，请重试");
+        sessionStorage.removeItem("authCode");
+      }
+    };
+
+    if (!validated) {
+      return <AuthModal onConfirm={validate} error={error} />;
+    }
+    return <AdminDashboard auth={authCode} />;
+  }
+
+  // —— 渲染 Main 而不是直接 AdminDashboard —— 
+
+
   </script>
 </body>
 </html>
