@@ -1,9 +1,9 @@
 User-agent: *
 Disallow: /https://oliverfr.com/admin-mefan-articles.html
 Disallow: /https://oliverfr.com/admin-mefan-fr-runs.html
-Disallow: https://oliverfr.com/admin-cv-hub.html
+Disallow: /https://oliverfr.com/admin-cv-hub.html
 Disallow: /https://oliverfr.com/admin-your-medical-center.html
-
+Disallow: /oliverfr.com/script-gpt-panel.html
 
 
 
