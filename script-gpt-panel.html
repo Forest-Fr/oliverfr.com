@@ -447,8 +447,11 @@
   }
 
   // —— 渲染 Main 而不是直接 AdminDashboard —— 
-
-
+  ReactDOM.createRoot(
+    document.getElementById("root")
+  ).render(
+    <Main />
+  );
   </script>
 </body>
 </html>
