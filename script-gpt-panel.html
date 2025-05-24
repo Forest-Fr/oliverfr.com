@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -69,251 +68,226 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script type="text/babel">
-const API_BASE = "https://oliverfr.com/admin-api/logs";
-function AdminDashboard() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [editing, setEditing] = useState(null);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [preview, setPreview] = useState({
-    open: false,
-    code: ""
-  });
 
-  // 拉列表
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({
-          q: search,
-          page,
-          pageSize
-        });
-        const res = await fetch(`${API_BASE}?${params.toString()}`);
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        const {
-          data,
-          total
-        } = await res.json();
-        setLogs(data);
-        setTotal(total);
-      } catch (err) {
-        console.error("拉日志失败：", err);
-      } finally {
-        setLoading(false);
+  <script type="text/babel">
+  const { useState, useEffect } = React;
+  const API_BASE = "https://oliverfr.com/admin-api/logs";
+
+  function AdminDashboard() {
+    const [logs, setLogs]           = useState([]);
+    const [loading, setLoading]     = useState(false);
+    const [search, setSearch]       = useState("");
+    const [page, setPage]           = useState(1);
+    const [pageSize, setPageSize]   = useState(10);
+    const [total, setTotal]         = useState(0);
+    const [editing, setEditing]     = useState(null);
+    const [noteDraft, setNoteDraft] = useState("");
+    const [preview, setPreview]     = useState({ open:false, code:"" });
+
+    // 拉列表
+    useEffect(() => {
+      async function load() {
+        setLoading(true);
+        try {
+          const params = new URLSearchParams({ q:search, page, pageSize });
+          const res = await fetch(`${API_BASE}?${params.toString()}`);
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const { data, total } = await res.json();
+          setLogs(data);
+          setTotal(total);
+        } catch(err) {
+          console.error("拉日志失败：", err);
+        } finally {
+          setLoading(false);
+        }
       }
-    }
-    load();
-  }, [search, page, pageSize]);
+      load();
+    }, [search, page, pageSize]);
 
-  // 北京时间格式化
-  const fmtTime = ts => ts ? new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Shanghai"
-  }).format(new Date(ts)) : "—";
+    // 北京时间格式化
+    const fmtTime = ts => ts
+      ? new Intl.DateTimeFormat("zh-CN", {
+          year:"numeric",month:"2-digit",day:"2-digit",
+          hour:"2-digit",minute:"2-digit",second:"2-digit",
+          hour12:false, timeZone:"Asia/Shanghai"
+        }).format(new Date(ts))
+      : "—";
 
-  // 删除
-  const handleDelete = async code => {
-    if (!confirm(`确定删除 "${code}"？`)) return;
-    await fetch(`${API_BASE}/${encodeURIComponent(code)}`, {
-      method: "DELETE"
-    });
-    setPage(1);
-  };
-
-  // 保存备注
-  const handleSave = async () => {
-    if (!editing) return;
-    setLoading(true);
-    await fetch(`${API_BASE}/${encodeURIComponent(editing.code)}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        note: noteDraft
-      })
-    });
-    setEditing(null);
-    setPage(1);
-  };
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: "toolbar"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "search"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDD0D"), /*#__PURE__*/React.createElement("input", {
-    placeholder: "\u641C\u7D22\u6388\u6743\u7801\u6216\u5907\u6CE8\u2026",
-    value: search,
-    onChange: e => {
+    // 删除
+    const handleDelete = async code => {
+      if (!confirm(`确定删除 "${code}"？`)) return;
+      await fetch(`${API_BASE}/${encodeURIComponent(code)}`, { method:"DELETE" });
       setPage(1);
-      setSearch(e.target.value);
-    }
-  })), /*#__PURE__*/React.createElement("select", {
-    value: pageSize,
-    onChange: e => {
-      setPage(1);
-      setPageSize(+e.target.value);
-    }
-  }, [10, 20, 50].map(n => /*#__PURE__*/React.createElement("option", {
-    key: n,
-    value: n
-  }, n, " / \u9875")))), /*#__PURE__*/React.createElement("div", {
-    className: "table-wrapper"
-  }, /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "\u6388\u6743\u7801"), /*#__PURE__*/React.createElement("th", null, "\u4F7F\u7528\u65F6\u95F4"), /*#__PURE__*/React.createElement("th", null, "IP"), /*#__PURE__*/React.createElement("th", null, "Prompt"), /*#__PURE__*/React.createElement("th", null, "Tokens (in/com/total)"), /*#__PURE__*/React.createElement("th", null, "Cost (USD)"), /*#__PURE__*/React.createElement("th", null, "\u5907\u6CE8"), /*#__PURE__*/React.createElement("th", null, "\u5B8C\u6574\u4EE3\u7801"), /*#__PURE__*/React.createElement("th", null, "\u64CD\u4F5C"))), /*#__PURE__*/React.createElement("tbody", null, loading ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
-    colSpan: "9",
-    style: {
-      textAlign: "center",
-      padding: "1rem"
-    }
-  }, "\u52A0\u8F7D\u4E2D\u2026")) : logs.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
-    colSpan: "9",
-    style: {
-      textAlign: "center",
-      padding: "1rem"
-    }
-  }, "\u65E0\u8BB0\u5F55")) : logs.map(log => /*#__PURE__*/React.createElement("tr", {
-    key: log.id || log.code
-  }, /*#__PURE__*/React.createElement("td", null, log.code), /*#__PURE__*/React.createElement("td", null, fmtTime(log.timestamp || log.last_used_at)), /*#__PURE__*/React.createElement("td", null, log.ip || "—"), /*#__PURE__*/React.createElement("td", {
-    style: {
-      whiteSpace: "pre-wrap",
-      maxWidth: "120px"
-    }
-  }, log.prompt || "—"), /*#__PURE__*/React.createElement("td", null, `${log.prompt_tokens || "—"}/${log.completion_tokens || "—"}/${log.total_tokens || "—"}`), /*#__PURE__*/React.createElement("td", null, log.cost_usd != null ? log.cost_usd.toFixed(6) : "—"), /*#__PURE__*/React.createElement("td", {
-    style: {
-      whiteSpace: "pre-wrap"
-    }
-  }, log.note || "—"), /*#__PURE__*/React.createElement("td", {
-    className: "code-cell"
-  }, /*#__PURE__*/React.createElement("div", null, log.full_code || log.resultHtml || "—"), log.full_code && /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-secondary",
-    onClick: () => setPreview({
-      open: true,
-      code: log.full_code
-    })
-  }, "\u9884\u89C8")), /*#__PURE__*/React.createElement("td", {
-    className: "actions"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-secondary",
-    onClick: () => {
-      setEditing(log);
-      setNoteDraft(log.note || "");
-    }
-  }, "\u270F\uFE0F"), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-secondary",
-    onClick: () => handleDelete(log.code)
-  }, "\uD83D\uDDD1\uFE0F"))))))), /*#__PURE__*/React.createElement("div", {
-    className: "cards"
-  }, loading ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: "1rem"
-    }
-  }, "\u52A0\u8F7D\u4E2D\u2026") : logs.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: "1rem"
-    }
-  }, "\u65E0\u8BB0\u5F55") : logs.map(log => /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    key: log.id || log.code
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "card-header"
-  }, /*#__PURE__*/React.createElement("strong", null, log.code), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setEditing(log);
-      setNoteDraft(log.note || "");
-    }
-  }, "\u270F\uFE0F"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => handleDelete(log.code)
-  }, "\uD83D\uDDD1\uFE0F"))), /*#__PURE__*/React.createElement("div", {
-    className: "card-body"
-  }, /*#__PURE__*/React.createElement("div", null, "\u4F7F\u7528\uFF1A", fmtTime(log.timestamp || log.last_used_at)), /*#__PURE__*/React.createElement("div", null, "IP\uFF1A", log.ip || "—"), /*#__PURE__*/React.createElement("div", null, "Prompt\uFF1A", log.prompt || "—"), /*#__PURE__*/React.createElement("div", null, "Tokens\uFF1A", `${log.prompt_tokens || "—"}/${log.completion_tokens || "—"}/${log.total_tokens || "—"}`), /*#__PURE__*/React.createElement("div", null, "Cost\uFF1A", log.cost_usd != null ? log.cost_usd.toFixed(6) : "—"), /*#__PURE__*/React.createElement("div", null, "\u5907\u6CE8\uFF1A", log.note || "—"), log.full_code && /*#__PURE__*/React.createElement("div", {
-    className: "card-footer"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-secondary",
-    onClick: () => setPreview({
-      open: true,
-      code: log.full_code
-    })
-  }, "\u67E5\u770B\u4EE3\u7801")))))), /*#__PURE__*/React.createElement("div", {
-    className: "pagination"
-  }, /*#__PURE__*/React.createElement("button", {
-    disabled: page <= 1,
-    onClick: () => setPage(p => p - 1)
-  }, "\u25C0\uFE0F"), /*#__PURE__*/React.createElement("span", null, "\u7B2C ", page, " / ", totalPages, " \u9875"), /*#__PURE__*/React.createElement("button", {
-    disabled: page >= totalPages,
-    onClick: () => setPage(p => p + 1)
-  }, "\u25B6\uFE0F")), editing && /*#__PURE__*/React.createElement("div", {
-    className: "modal-backdrop"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "modal"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "modal-header"
-  }, "\u7F16\u8F91\u5907\u6CE8 \u2014 ", editing.code, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-secondary",
-    onClick: () => setEditing(null)
-  }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "1rem"
-    }
-  }, /*#__PURE__*/React.createElement("textarea", {
-    style: {
-      width: "100%",
-      height: "120px",
-      padding: ".5rem",
-      border: "1px solid #ccc",
-      borderRadius: "4px"
-    },
-    value: noteDraft,
-    onChange: e => setNoteDraft(e.target.value)
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "modal-footer"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-secondary",
-    onClick: () => setEditing(null)
-  }, "\u53D6\u6D88"), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary",
-    onClick: handleSave
-  }, "\u4FDD\u5B58")))), preview.open && /*#__PURE__*/React.createElement("div", {
-    className: "modal-backdrop"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "modal"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "modal-header"
-  }, "\u5B8C\u6574\u4EE3\u7801\u9884\u89C8", /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-secondary",
-    onClick: () => setPreview({
-      open: false,
-      code: ""
-    })
-  }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-    className: "modal-body"
-  }, /*#__PURE__*/React.createElement("pre", {
-    style: {
-      whiteSpace: "pre-wrap"
-    }
-  }, preview.code)), /*#__PURE__*/React.createElement("div", {
-    className: "modal-footer"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary",
-    onClick: () => {
-      navigator.clipboard.writeText(preview.code).then(() => {
-        alert("已复制到剪贴板");
+    };
+
+    // 保存备注
+    const handleSave = async () => {
+      if (!editing) return;
+      setLoading(true);
+      await fetch(`${API_BASE}/${encodeURIComponent(editing.code)}`, {
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ note:noteDraft })
       });
-    }
-  }, "\u590D\u5236")))));
-}
-ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(AdminDashboard, null));
+      setEditing(null);
+      setPage(1);
+    };
+
+    const totalPages = Math.max(1, Math.ceil(total/pageSize));
+
+    return <>
+      {/* 工具栏 */}
+      <div className="toolbar">
+        <div className="search">
+          <span>🔍</span>
+          <input
+            placeholder="搜索授权码或备注…"
+            value={search}
+            onChange={e=>{ setPage(1); setSearch(e.target.value); }}
+          />
+        </div>
+        <select value={pageSize} onChange={e=>{ setPage(1); setPageSize(+e.target.value); }}>
+          {[10,20,50].map(n=> <option key={n} value={n}>{n} / 页</option>)}
+        </select>
+      </div>
+
+      {/* 桌面表格 */}
+      <div className="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>授权码</th><th>使用时间</th><th>IP</th><th>Prompt</th>
+              <th>Tokens (in/com/total)</th><th>Cost (USD)</th><th>备注</th>
+              <th>完整代码</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading
+              ? <tr><td colSpan="9" style={{textAlign:"center",padding:"1rem"}}>加载中…</td></tr>
+              : logs.length===0
+                ? <tr><td colSpan="9" style={{textAlign:"center",padding:"1rem"}}>无记录</td></tr>
+                : logs.map(log=>(
+                  <tr key={log.id||log.code}>
+                    <td>{log.code}</td>
+                    <td>{fmtTime(log.timestamp||log.last_used_at)}</td>
+                    <td>{log.ip||"—"}</td>
+                    <td style={{whiteSpace:"pre-wrap",maxWidth:"120px"}}>{log.prompt||"—"}</td>
+                    <td>{`${log.prompt_tokens||"—"}/${log.completion_tokens||"—"}/${log.total_tokens||"—"}`}</td>
+                    <td>{log.cost_usd!=null?log.cost_usd.toFixed(6):"—"}</td>
+                    <td style={{whiteSpace:"pre-wrap"}}>{log.note||"—"}</td>
+                    <td className="code-cell">
+                      <div>
+                        {log.full_code || log.resultHtml || "—"}
+                      </div>
+                      {log.full_code &&
+                        <button className="btn btn-secondary"
+                          onClick={()=>setPreview({open:true,code:log.full_code})}
+                        >预览</button>}
+                    </td>
+                    <td className="actions">
+                      <button className="btn btn-secondary"
+                        onClick={()=>{ setEditing(log); setNoteDraft(log.note||""); }}
+                      >✏️</button>
+                      <button className="btn btn-secondary"
+                        onClick={()=>handleDelete(log.code)}
+                      >🗑️</button>
+                    </td>
+                  </tr>
+                ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      {/* 移动卡片 */}
+      <div className="cards">
+        {loading
+          ? <div style={{textAlign:"center",padding:"1rem"}}>加载中…</div>
+          : logs.length===0
+            ? <div style={{textAlign:"center",padding:"1rem"}}>无记录</div>
+            : logs.map(log=>(
+              <div className="card" key={log.id||log.code}>
+                <div className="card-header">
+                  <strong>{log.code}</strong>
+                  <div>
+                    <button onClick={()=>{ setEditing(log); setNoteDraft(log.note||""); }}>✏️</button>
+                    <button onClick={()=>handleDelete(log.code)}>🗑️</button>
+                  </div>
+                </div>
+                <div className="card-body">
+                  <div>使用：{fmtTime(log.timestamp||log.last_used_at)}</div>
+                  <div>IP：{log.ip||"—"}</div>
+                  <div>Prompt：{log.prompt||"—"}</div>
+                  <div>Tokens：{`${log.prompt_tokens||"—"}/${log.completion_tokens||"—"}/${log.total_tokens||"—"}`}</div>
+                  <div>Cost：{log.cost_usd!=null?log.cost_usd.toFixed(6):"—"}</div>
+                  <div>备注：{log.note||"—"}</div>
+                  {log.full_code &&
+                    <div className="card-footer">
+                      <button className="btn btn-secondary"
+                        onClick={()=>setPreview({open:true,code:log.full_code})}
+                      >查看代码</button>
+                    </div>}
+                </div>
+              </div>
+            ))
+        }
+      </div>
+
+      {/* 分页 */}
+      <div className="pagination">
+        <button disabled={page<=1} onClick={()=>setPage(p=>p-1)}>◀️</button>
+        <span>第 {page} / {totalPages} 页</span>
+        <button disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>▶️</button>
+      </div>
+
+      {/* 编辑备注弹窗 */}
+      {editing && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-header">
+              编辑备注 — {editing.code}
+              <button className="btn btn-secondary" onClick={()=>setEditing(null)}>✕</button>
+            </div>
+            <div style={{padding:"1rem"}}>
+              <textarea
+                style={{width:"100%",height:"120px",padding:".5rem",border:"1px solid #ccc",borderRadius:"4px"}}
+                value={noteDraft}
+                onChange={e=>setNoteDraft(e.target.value)}
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={()=>setEditing(null)}>取消</button>
+              <button className="btn btn-primary" onClick={handleSave}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 代码预览弹窗 */}
+      {preview.open && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-header">
+              完整代码预览
+              <button className="btn btn-secondary" onClick={()=>setPreview({open:false,code:""})}>✕</button>
+            </div>
+            <div className="modal-body">
+              <pre style={{whiteSpace:"pre-wrap"}}>{preview.code}</pre>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={()=>{
+                navigator.clipboard.writeText(preview.code).then(()=>{
+                  alert("已复制到剪贴板");
+                });
+              }}>复制</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>;
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<AdminDashboard />);
+  </script>
+</body>
+</html>
