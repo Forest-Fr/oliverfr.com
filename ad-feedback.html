@@ -33,7 +33,7 @@
   <label>广告花费（USD）</label>
   <input id="spend" type="number" step="0.01" value="0.00" />
 
-<button onclick="evaluateAd()">立即评分</button>
+  <button onclick="evaluateAd()">立即评分</button>
 
   <div id="result" class="result" style="display:none;">
     <div>CTR: <span id="ctr" class="highlight"></span></div>
@@ -45,55 +45,61 @@
   </div>
 
   <script>
-    const endpoint = 'https://ad-score-worker.mefans.workers.dev'; // 替换为你的 Cloudflare Worker 地址
+    const endpoint = 'https://ad-score-worker.mefans.workers.dev'; // 你的 Worker 地址
+    const campaignName = "MeFan Pro 通勤女款"; // 与数据库中保持一致
 
-async function evaluateAd() {
-  const clicks = parseInt(document.getElementById("clicks").value || 0);
-  const impressions = parseInt(document.getElementById("impressions").value || 0);
-  const conversions = parseInt(document.getElementById("conversions").value || 0);
-  const spend = parseFloat(document.getElementById("spend").value || 0);
+    async function evaluateAd() {
+      const clicks = parseInt(document.getElementById("clicks").value || 0);
+      const impressions = parseInt(document.getElementById("impressions").value || 0);
+      const conversions = parseInt(document.getElementById("conversions").value || 0);
+      const spend = parseFloat(document.getElementById("spend").value || 0);
 
-  // ✅ 含 Supabase 写入所需所有字段
-  const payload = {
-    campaign_name: "MeFan Pro 通勤女款",
-    platform: "facebook",
-    creative_text: "嘈杂地铁外面，静谧音乐里面",
-    image_url: "https://oliverfr.com/images/fb01.jpg",
-    clicks,
-    impressions,
-    conversions,
-    spend_usd: spend
-  };
+      const payload = {
+        campaign_name: campaignName,
+        platform: "facebook",
+        creative_text: "嘈杂地铁外面，静谧音乐里面",
+        image_url: "https://oliverfr.com/images/fb01.jpg",
+        clicks,
+        impressions,
+        conversions,
+        spend_usd: spend
+      };
 
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-    const data = await res.json();
+        const data = await res.json();
 
-    document.getElementById("ctr").textContent = (data.ctr * 100).toFixed(2) + "%";
-    document.getElementById("cvr").textContent = (data.cvr * 100).toFixed(2) + "%";
-    document.getElementById("roas").textContent = data.roas.toFixed(2);
-    document.getElementById("score").textContent = data.score;
-    document.getElementById("rating").textContent = data.rating;
+        document.getElementById("ctr").textContent = (data.ctr * 100).toFixed(2) + "%";
+        document.getElementById("cvr").textContent = (data.cvr * 100).toFixed(2) + "%";
+        document.getElementById("roas").textContent = data.roas.toFixed(2);
+        document.getElementById("score").textContent = data.score;
+        document.getElementById("rating").textContent = data.rating;
 
-    document.getElementById("rating").className = data.rating === 'A' ? 'highlight good' : 'highlight bad';
-    document.getElementById("result").style.display = "block";
+        document.getElementById("rating").className = data.rating === 'A' ? 'highlight good' : 'highlight bad';
+        document.getElementById("result").style.display = "block";
+      } catch (err) {
+        alert("评分失败：" + err.message);
+        console.error("错误详情:", err);
+      }
+    }
 
-    console.log("写入 Supabase 结果:", data.supabase_status, data.supabase_data);
-  } catch (err) {
-    alert("发生错误：" + err.message);
-    console.error("错误详情:", err);
-  }
-}
-
-function markBad() {
-  alert("该广告素材已标记为低效（此操作仅前端提示，可扩展存入数据库）");
-}
-
+    function markBad() {
+      alert("该广告素材已标记为低效（此操作已写入数据库）");
+      fetch(`${endpoint}/flag`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaign_name: campaignName })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("🔴 标记结果：", data);
+      });
+    }
   </script>
 </body>
 </html>
