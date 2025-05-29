@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>广告评分反馈系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2em; background: #f5f7fa; color: #333; }
+    h1 { margin-bottom: 1em; }
+    label { display: block; margin: 1em 0 0.3em; }
+    input { width: 100%; padding: 0.5em; font-size: 1em; margin-bottom: 1em; }
+    button { padding: 0.6em 1.2em; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .result { margin-top: 2em; padding: 1em; border: 1px solid #ccc; background: #fff; border-radius: 6px; }
+    .highlight { font-size: 1.2em; font-weight: bold; }
+    .bad { color: red; }
+    .good { color: green; }
+    .mark-btn { margin-top: 1em; background: #dc3545; }
+  </style>
+</head>
+<body>
+  <h1>广告评分反馈系统</h1>
+
+  <label>点击数（clicks）</label>
+  <input id="clicks" type="number" value="0" />
+
+  <label>曝光数（impressions）</label>
+  <input id="impressions" type="number" value="0" />
+
+  <label>转化数（conversions）</label>
+  <input id="conversions" type="number" value="0" />
+
+  <label>广告花费（USD）</label>
+  <input id="spend" type="number" step="0.01" value="0.00" />
+
+  <button onclick="evaluate()">立即评分</button>
+
+  <div id="result" class="result" style="display:none;">
+    <div>CTR: <span id="ctr" class="highlight"></span></div>
+    <div>CVR: <span id="cvr" class="highlight"></span></div>
+    <div>ROAS: <span id="roas" class="highlight"></span></div>
+    <div>综合得分: <span id="score" class="highlight"></span></div>
+    <div>评级: <span id="rating" class="highlight"></span></div>
+    <button class="mark-btn" onclick="markBad()">🔻 标记为低效素材</button>
+  </div>
+
+  <script>
+    const endpoint = 'https://ad-score-worker.mefans.workers.dev'; // 替换为你的 Cloudflare Worker 地址
+
+    async function evaluate() {
+      const clicks = parseInt(document.getElementById("clicks").value || 0);
+      const impressions = parseInt(document.getElementById("impressions").value || 0);
+      const conversions = parseInt(document.getElementById("conversions").value || 0);
+      const spend = parseFloat(document.getElementById("spend").value || 0);
+
+      // ✅ 含 Supabase 写入所需所有字段
+      const payload = {
+        campaign_name: "MeFan Pro 通勤女款",
+        platform: "facebook",
+        creative_text: "嘈杂地铁外面，静谧音乐里面",
+        image_url: "https://oliverfr.com/images/fb01.jpg",
+        clicks,
+        impressions,
+        conversions,
+        spend_usd: spend
+      };
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        document.getElementById("ctr").textContent = (data.ctr * 100).toFixed(2) + "%";
+        document.getElementById("cvr").textContent = (data.cvr * 100).toFixed(2) + "%";
+        document.getElementById("roas").textContent = data.roas.toFixed(2);
+        document.getElementById("score").textContent = data.score;
+        document.getElementById("rating").textContent = data.rating;
+
+        document.getElementById("rating").className = data.rating === 'A' ? 'highlight good' : 'highlight bad';
+        document.getElementById("result").style.display = "block";
+
+        console.log("写入 Supabase 结果:", data.supabase_status, data.supabase_data);
+      } catch (err) {
+        alert("发生错误：" + err.message);
+        console.error("错误详情:", err);
+      }
+    }
+
+    function markBad() {
+      alert("该广告素材已标记为低效（此操作仅前端提示，可扩展存入数据库）");
+    }
+  </script>
+</body>
+</html>
