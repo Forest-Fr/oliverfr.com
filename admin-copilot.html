@@ -1,4 +1,4 @@
-<!-- admin-mefan-articles.html ―― 2025-06-XX 修复版 -->
+<!-- admin-mefan-articles.html ―― 2025-06-10 彻底修复版 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -6,6 +6,8 @@
   <title>文章后台管理</title>
   <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+
+  <!-- ===== 样式部分（与 A 版几乎相同，只做了细微格式调整） ===== -->
   <style>
     body {
       font-family: Arial,Helvetica,sans-serif;
@@ -40,6 +42,7 @@
       width: 100%;
       margin: 5px 0;
     }
+    /* 表格样式 */
     table {
       width: 100%;
       max-width: 960px;
@@ -63,6 +66,7 @@
       text-overflow: ellipsis;
       max-width: 340px;
     }
+    /* 管理条 */
     .admin-bar {
       display: flex;
       justify-content: space-between;
@@ -84,6 +88,7 @@
       justify-content: flex-end;
       margin: 5px;
     }
+    /* 预览弹窗 */
     #previewModal {
       position: fixed;
       top: 10%;
@@ -101,12 +106,14 @@
     #markdownContent {
       white-space: pre-wrap;
     }
+    /* 移动端响应式 */
     @media (max-width: 768px) {
       .admin-bar {
         flex-direction: column;
         align-items: stretch;
       }
-      .btn, textarea {
+      .btn,
+      textarea {
         width: 100%;
         margin: 5px 0;
       }
@@ -142,7 +149,7 @@
     }
   </style>
 
-  <!-- 第三方脚本只加载一次 -->
+  <!-- ===== 只加载一次 Supabase、marked、Editor.js 相关脚本 ===== -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@editorjs/paragraph@2.11.0/dist/bundle.js"></script>
@@ -152,32 +159,30 @@
 
   <h1>📰 文章后台管理</h1>
 
-  <!-- 登录区 -->
+  <!-- ==== 登录区 ==== -->
   <div id="authArea">
     <button id="loginBtn" class="btn">使用 GitHub 登录</button>
   </div>
 
-  <!-- 管理区（初始隐藏） -->
+  <!-- ==== 管理区（初始隐藏） ==== -->
   <div id="adminArea" class="hidden">
-    <!-- 顶部搜索 / 退出 -->
+    <!-- 搜索 + 退出 -->
     <div class="admin-bar">
       <input type="text" id="searchInput" placeholder="搜索标题关键词…">
       <div>
-        <button id="searchBtn" class="btn" style="width: auto">🔍 搜索</button>
-        <button id="logoutBtn" class="btn" style="width: auto">退出登录</button>
+        <button id="searchBtn" class="btn">🔍 搜索</button>
+        <button id="logoutBtn" class="btn">退出登录</button>
       </div>
     </div>
 
-    <!-- 新增 / 编辑 -->
+    <!-- 新增/编辑区域 -->
     <h2>🆕 新增/编辑文章</h2>
     <input type="text" id="newTitle" placeholder="标题">
-    <textarea id="seoDescriptionInput" placeholder="SEO 描述 (可选)"></textarea>
-    <input type="text" id="keywordsInput" placeholder="SEO 关键词 (用逗号分隔, 可选)">
     <div style="display: flex; gap: 10px; margin: 5px 0">
-      <button id="toggleToEditor" class="btn" style="width: auto">📐 可视化模式</button>
-      <button id="toggleToTextarea" class="btn hidden" style="width: auto">🖊 Markdown 模式</button>
+      <button id="toggleToEditor" class="btn">📐 可视化模式</button>
+      <button id="toggleToTextarea" class="btn hidden">🖊 Markdown 模式</button>
     </div>
-    <div id="editorContainer" class="hidden" style="border: 1px solid #ccc; min-height: 200px; padding: 10px; background: #fff"></div>
+    <div id="editorContainer" class="hidden" style="border:1px solid #ccc; min-height: 200px; padding:10px; background:#fff"></div>
     <textarea id="newContent" placeholder="支持 Markdown 格式的内容"></textarea>
     <input type="file" id="coverInput" accept="image/*">
     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0">
@@ -187,21 +192,13 @@
       <button id="aiBtn" class="btn">AI 生成文章结构+SEO</button>
     </div>
 
-    <!-- 列表 -->
+    <!-- 文章列表 -->
     <div style="overflow-x: auto; width: 100%">
       <table id="articlesTable">
         <thead>
           <tr>
-            <th>标题</th>
-            <th>作者</th>
-            <th>内容</th>
-            <th>SEO 描述</th>
-            <th>SEO 关键词</th>
-            <th>创建时间</th>
-            <th>更新时间</th>
-            <th>星期</th>
-            <th>封面</th>
-            <th>操作</th>
+            <th>标题</th><th>作者</th><th>内容</th><th>创建时间</th>
+            <th>更新时间</th><th>星期</th><th>封面</th><th>操作</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -217,478 +214,442 @@
     </div>
   </div>
 
+  <!-- ===== 引导器：动态加载 Editor.js，加载完毕后执行 main() ===== -->
   <script>
-    /********************************************************
-     *            一、立即绑定“登录/登出”事件               *
-     ********************************************************/
-    // Supabase 运行时常量
-    const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';
-    const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-    const ADMIN_EMAIL = 'oliveroogle@gmail.com'; // 允许登录邮箱
-
-    // 创建 Supabase 客户端
-    const supa = supabase.createClient(WORKER_BASE, ANON_KEY);
-
-    // 直接绑定“使用 GitHub 登录”与“退出登录”按钮
-    document.getElementById('loginBtn').onclick = () => {
-      supa.auth.signInWithOAuth({
-        provider: 'github',
-        options: { redirectTo: location.href }
-      });
-    };
-    document.getElementById('logoutBtn').onclick = async () => {
-      await supa.auth.signOut();
-      location.reload();
-    };
-
-    /********************************************************
-     *       二、等 DOM 完全就绪后检查登录状态并初始化 UI     *
-     ********************************************************/
-    document.addEventListener('DOMContentLoaded', initAuthAndUI);
-
-    async function initAuthAndUI() {
-      // 1. 解析 OAuth 回调（如果有），以便在移动端或多次刷新时能正确拿到 session
-      try {
-        const { data, error } = await supa.auth.getSessionFromUrl({ storeSession: true });
-        if (error) console.warn('OAuth 解析失败:', error);
-        if (data?.session) {
-          history.replaceState(null, '', location.pathname);
-        }
-      } catch (e) {
-        console.error('OAuth 处理异常:', e);
+    (function loadEditorJS(runCallback) {
+      // 如果已经加载过 EditorJS，就直接执行回调
+      if (window.EditorJS) {
+        runCallback();
+        return;
       }
+      // 否则创建一个 <script> 动态引入 EditorJS 核心包
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2';
+      s.onload = runCallback;
+      s.onerror = () => console.error('EditorJS 加载失败');
+      document.head.appendChild(s);
+    })(function main() {
+      /********************************************************
+       * 1. 常量 & 工具函数
+       ********************************************************/
+      const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';
+      // 请替换为你自己的 Supabase anon key
+      const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6…';
+      // 允许登录的管理员邮箱
+      const ADMIN_EMAIL = 'oliveroogle@gmail.com';
 
-      // 2. 直接获取当前会话
-      const { data: { session } } = await supa.auth.getSession();
-      if (session?.user?.email === ADMIN_EMAIL) {
-        // 已登录且邮箱匹配管理员，显示后台管理区
-        document.getElementById('authArea').classList.add('hidden');
-        document.getElementById('adminArea').classList.remove('hidden');
-        bindPostAuthLogic(); // 绑定后续所有后台逻辑
-      }
-      // 否则仍然显示“使用 GitHub 登录”按钮
-    }
+      // 创建 Supabase 客户端
+      const supa = supabase.createClient(WORKER_BASE, ANON_KEY);
 
-    /********************************************************
-     *     三、登录后才执行的所有后台管理业务逻辑函数绑定     *
-     ********************************************************/
-    function bindPostAuthLogic() {
-      // 一些工具函数
-      const toBJ       = () => new Date(Date.now() + 288e5).toISOString().replace('Z', '+08:00');
-      const fmt        = s => new Date(s).toLocaleString('zh-CN', { hour12: false });
-      const wk         = s => '日一二三四五六'[new Date(s).getDay()];
-      const esc        = str => (str || '').replace(/[&<>"']/g, c =>
-        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
-      );
-      const escapeHTML = esc;
+      // 简单的 DOM 工具函数
+      const $ = id => document.getElementById(id);
+      const toBJ = () => new Date(Date.now() + 288e5).toISOString().replace('Z','+08:00');
+      const fmt = s => new Date(s).toLocaleString('zh-CN',{hour12:false});
+      const wk = s => ['日','一','二','三','四','五','六'][new Date(s).getDay()];
+      const esc = str => (str||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 
-      // DOM 缓存
-      const btnE          = document.getElementById('toggleToEditor');
-      const btnT          = document.getElementById('toggleToTextarea');
-      const editorDiv     = document.getElementById('editorContainer');
-      const mdArea        = document.getElementById('newContent');
-      const titleInp      = document.getElementById('newTitle');
-      const seoDescInp    = document.getElementById('seoDescriptionInput');
-      const keywordsInp   = document.getElementById('keywordsInput');
-      const tbBody        = document.querySelector('#articlesTable tbody');
-      const aiBtn         = document.getElementById('aiBtn');
-      const genBtn        = document.getElementById('generateStaticHtmlBtn');
-      const coverInput    = document.getElementById('coverInput');
-      const searchInput   = document.getElementById('searchInput');
-      const searchBtn     = document.getElementById('searchBtn');
-      const submitBtn     = document.getElementById('submitBtn');
-      const cancelEditBtn = document.getElementById('cancelEditBtn');
+      /********************************************************
+       * 2. DOM 引用 & 运行状态变量
+       ********************************************************/
+      const loginBtn   = $('loginBtn');
+      const logoutBtn  = $('logoutBtn');
+      const authArea   = $('authArea');
+      const adminArea  = $('adminArea');
+      const searchBtn  = $('searchBtn');
+      const searchInput= $('searchInput');
+      const titleInp   = $('newTitle');
+      const mdArea     = $('newContent');
+      const seoDescInp = $('seoDescriptionInput');   // 如果你要保留 SEO 描述输入框
+      const keywordsInp= $('keywordsInput');         // 如果你要保留 SEO 关键词输入框
+      const btnE       = $('toggleToEditor');
+      const btnT       = $('toggleToTextarea');
+      const editorDiv  = $('editorContainer');
+      const submitBtn  = $('submitBtn');
+      const cancelEditBtn = $('cancelEditBtn');
+      const aiBtn      = $('aiBtn');
+      const genBtn     = $('generateStaticHtmlBtn');
+      const coverInput = $('coverInput');
+      const tbBody     = document.querySelector('#articlesTable tbody');
 
-      let editor     = null;
-      let editingId  = null;
-      let page       = 1;
-      let limit      = 5;
-      let loading    = false;
-      let authJwt    = '';
+      let editor      = null;     // Editor.js 实例
+      let editingId   = null;     // 正在编辑的文章 ID
+      let page        = 1;        // 分页
+      let limit       = 5;        // 每次加载多少条
+      let loading     = false;    // 正在加载中的状态
+      let authJwt     = '';       // supa 的 access token
 
-      // 3.1 再次拉取 session，拿到 access_token
-      (async () => {
-        const { data: { session } } = await supa.auth.getSession();
-        if (session?.access_token) {
-          authJwt = session.access_token;
-        }
-      })();
-
-      /********************************
-       *  3.2 可视化编辑器动态加载与切换
-       ********************************/
-      btnE.onclick = async () => {
-        // 如果已经有实例，先 destroy
-        if (editor) {
-          await editor.destroy();
-        }
-        // 第一次点击才去加载 EditorJS 核心包
-        if (!window.EditorJS) {
-          try {
-            await loadEditorJS();
-          } catch (e) {
-            console.error('EditorJS 加载失败:', e);
-            return;
-          }
-        }
-        editorDiv.classList.remove('hidden');
-        mdArea.classList.add('hidden');
-        btnE.classList.add('hidden');
-        btnT.classList.remove('hidden');
-
-        const tools = {};
-        if (window.ParagraphTool || window.Paragraph) {
-          tools.paragraph = { class: window.ParagraphTool || window.Paragraph, inlineToolbar: true };
-        }
-        if (window.HeaderTool || window.Header) {
-          tools.header = { class: window.HeaderTool || window.Header, inlineToolbar: true };
-        }
-
-        editor = new window.EditorJS({
-          holder: 'editorContainer',
-          tools,
-          data: {
-            blocks: [
-              { type: 'paragraph', data: { text: mdArea.value.replace(/\n/g, '<br>') } }
-            ]
-          }
+      /********************************************************
+       * 3. 先立即绑定“登录/登出”按钮点击事件（保证按钮立刻可点）
+       ********************************************************/
+      loginBtn.onclick = () => {
+        supa.auth.signInWithOAuth({
+          provider: 'github',
+          options: { redirectTo: location.href }
         });
       };
+      logoutBtn.onclick = async () => {
+        await supa.auth.signOut();
+        location.reload();
+      };
 
-      btnT.onclick = destroyEditor;
-      async function destroyEditor() {
-        if (!editor) return;
+      /********************************************************
+       * 4. DOMContentLoaded：页面 DOM 全部就绪后，检查登录状态
+       ********************************************************/
+      document.addEventListener('DOMContentLoaded', async () => {
+        // 4.1 先去解析 URL 里的 OAuth 回调（若有），以便拿到 session
         try {
-          const saved = await editor.save();
-          mdArea.value = saved.blocks.map(b => b.data.text || '').join('\n\n');
-          await editor.destroy();
-        } catch (e) {
-          console.warn(e);
+          const { data, error } = await supa.auth.getSessionFromUrl({ storeSession: true });
+          if (error) console.warn('OAuth 解析失败:', error);
+          if (data?.session) {
+            // 如果成功拿回 session，就把 URL 去掉 query 部分
+            history.replaceState(null, '', location.pathname);
+          }
+        } catch(e) {
+          console.error('OAuth 异常:', e);
         }
-        editor = null;
-        editorDiv.classList.add('hidden');
-        mdArea.classList.remove('hidden');
-        btnE.classList.remove('hidden');
-        btnT.classList.add('hidden');
-      }
 
-      function loadEditorJS() {
-        return new Promise((resolve, reject) => {
-          if (window.EditorJS) {
-            resolve();
+        // 4.2 再获取一下当前 session，看看是不是已经登录过
+        const { data: { session } } = await supa.auth.getSession();
+        if (session?.user?.email === ADMIN_EMAIL) {
+          // 如果已经登录，且邮箱是管理员，直接隐藏“登录区”，显示“管理区”
+          authArea.classList.add('hidden');
+          adminArea.classList.remove('hidden');
+          // 保存 authJwt
+          authJwt = session.access_token;
+          // 绑定登录后的所有业务逻辑
+          bindAfterLoginLogic();
+        }
+        // 否则保持“登录区”可见，点击按钮就能进行 OAuth 登录
+      });
+
+      /********************************************************
+       * 5. 登录后绑定所有后台管理业务逻辑
+       ********************************************************/
+      function bindAfterLoginLogic() {
+        /*********** 5.1 可视化 / Markdown 切换 ***********/
+        btnE.onclick = async () => {
+          // 如果尚未加载 EditorJS 核心包，就报错提示
+          if (!window.EditorJS) {
+            alert('Editor.js 尚未加载，请检查网络或 CDN 链接');
             return;
           }
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2';
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('EditorJS 加载失败'));
-          document.head.appendChild(script);
-        });
-      }
+          // 如果已有实例，先 destroy
+          if (editor) {
+            await editor.destroy();
+          }
+          // 切换到可视化编辑器
+          editorDiv.classList.remove('hidden');
+          mdArea.classList.add('hidden');
+          btnE.classList.add('hidden');
+          btnT.classList.remove('hidden');
 
-      /********************************
-       *  3.3 文章的新增 / 编辑 / 删除 / 预览 等 CRUD
-       ********************************/
-      submitBtn.onclick = async () => {
-        const title   = titleInp.value.trim();
-        const content = editor
-          ? (await editor.save()).blocks.map(b => b.data.text || '').join('\n\n').trim()
-          : mdArea.value.trim();
-        if (!title || !content) {
-          return alert('标题/内容不能为空');
-        }
+          // 动态给工具列表赋值
+          const tools = {};
+          if (window.ParagraphTool) {
+            tools.paragraph = { class: window.ParagraphTool, inlineToolbar: true };
+          }
+          if (window.HeaderTool) {
+            tools.header = { class: window.HeaderTool, inlineToolbar: true };
+          }
 
-        const { data: { user } } = await supa.auth.getUser();
-        const row = {
-          title,
-          content,
-          seo_description: seoDescInp.value.trim(),
-          keywords:        keywordsInp.value.trim(),
-          author_email:    user?.email || '',
-          updated_at:      toBJ()
+          // 创建 EditorJS 实例
+          editor = new window.EditorJS({
+            holder: 'editorContainer',
+            tools,
+            data: {
+              blocks: [
+                { type: 'paragraph', data: { text: mdArea.value.replace(/\n/g, '<br>') } }
+              ]
+            }
+          });
+        };
+        btnT.onclick = async () => {
+          if (!editor) return;
+          try {
+            // 保存编辑器里的内容回到 textarea
+            const saved = await editor.save();
+            mdArea.value = saved.blocks.map(b => b.data.text || '').join('\n\n');
+            await editor.destroy();
+          } catch(e) {
+            console.warn(e);
+          }
+          editor = null;
+          editorDiv.classList.add('hidden');
+          mdArea.classList.remove('hidden');
+          btnE.classList.remove('hidden');
+          btnT.classList.add('hidden');
         };
 
-        // 上传封面
-        if (coverInput.files[0]) {
-          const file = coverInput.files[0];
-          const { data: uploadData, error: uploadErr } = await supa.storage
-            .from('articles')
-            .upload(`covers/${Date.now()}_${file.name}`, file, { upsert: true });
-          if (uploadErr) {
-            return alert('封面上传失败: ' + uploadErr.message);
+        /*********** 5.2 文章提交 / 更新 ***********/
+        submitBtn.onclick = async () => {
+          const title   = titleInp.value.trim();
+          const content = editor
+            ? (await editor.save()).blocks.map(b => b.data.text || '').join('\n\n').trim()
+            : mdArea.value.trim();
+          if (!title || !content) {
+            return alert('标题/内容不能为空');
           }
-          row.cover_url = supa.storage.from('articles').getPublicUrl(uploadData.path).data.publicUrl;
-        }
 
-        // 写入或更新
-        let err;
-        if (editingId) {
-          ({ error: err } = await supa.from('articles').update(row).eq('id', editingId));
-        } else {
-          row.created_at = row.updated_at;
-          ({ error: err } = await supa.from('articles').insert([row]));
-        }
-        if (err) {
-          return alert(err.message);
-        }
+          const { data: { user } } = await supa.auth.getUser();
+          const row = {
+            title,
+            content,
+            author_email: user?.email || '',
+            updated_at: toBJ()
+            // 如果你保留了 SEO 描述、关键词，就在这里一并写入 row.seo_description、row.keywords
+          };
+          // 上传封面图片
+          if (coverInput.files[0]) {
+            const file = coverInput.files[0];
+            const { data: upData, error: upErr } = await supa.storage
+              .from('articles')
+              .upload(`covers/${Date.now()}_${file.name}`, file, { upsert: true });
+            if (upErr) {
+              return alert('封面上传失败：' + upErr.message);
+            }
+            row.cover_url = supa.storage.from('articles').getPublicUrl(upData.path).data.publicUrl;
+          }
 
-        // 向量同步（失败不影响主流程）
-        try {
-          await fetch(`${'/api/rag'}/embed`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': authJwt ? `Bearer ${authJwt}` : 'Bearer x'
-            },
-            body: JSON.stringify({ text: content })
-          });
-          console.info('✅ 向量同步成功');
-        } catch (e) {
-          console.warn('⚠️ 向量同步失败（不影响文章保存）:', e);
-        }
+          let err;
+          if (editingId) {
+            // 更新
+            ({ error: err } = await supa.from('articles').update(row).eq('id', editingId));
+          } else {
+            // 插入
+            row.created_at = row.updated_at;
+            ({ error: err } = await supa.from('articles').insert([row]));
+          }
+          if (err) {
+            return alert(err.message);
+          }
 
-        cancelEditBtn.click();
-        loadArticles(true);
-      };
-
-      cancelEditBtn.onclick = () => {
-        titleInp.value       = '';
-        mdArea.value         = '';
-        seoDescInp.value     = '';
-        keywordsInp.value    = '';
-        editingId            = null;
-        destroyEditor();
-        cancelEditBtn.classList.add('hidden');
-      };
-
-      window.editArticle = r => {
-        titleInp.value       = r.title;
-        mdArea.value         = r.content;
-        seoDescInp.value     = r.seo_description || '';
-        keywordsInp.value    = r.keywords || '';
-        editingId            = r.id;
-        cancelEditBtn.classList.remove('hidden');
-        destroyEditor();
-        window.scrollTo(0, 0);
-      };
-
-      window.deleteArticle = async id => {
-        if (!confirm('确定删除？')) return;
-        const { error } = await supa.from('articles').delete().eq('id', id);
-        if (error) {
-          alert(error.message);
-        } else {
+          // 文章保存成功后清空“编辑状态”
+          $('cancelEditBtn').click();
           loadArticles(true);
-        }
-      };
+        };
 
-      window.previewArticle = r => {
-        document.getElementById('previewTitle').textContent = r.title;
-        document.getElementById('previewCover').src         = r.cover_url || '';
-        document.getElementById('markdownContent').innerHTML = marked.parse(r.content || '');
-        document.getElementById('previewModal').classList.remove('hidden');
-      };
-      window.closePreview = () => {
-        document.getElementById('previewModal').classList.add('hidden');
-      };
+        cancelEditBtn.onclick = () => {
+          titleInp.value = '';
+          mdArea.value = '';
+          editingId = null;
+          // 如果当前是可视化模式，则销毁
+          if (editor) {
+            btnT.onclick();
+          }
+          cancelEditBtn.classList.add('hidden');
+        };
 
-      /********************************
-       *  3.4 文章列表 & 无限滚动 & 搜索
-       ********************************/
-      searchBtn.onclick = () => loadArticles(true, searchInput.value.trim());
-      window.addEventListener('scroll', () => {
-        if (!loading && window.innerHeight + window.scrollY > document.body.offsetHeight - 80) {
-          loadArticles();
-        }
-      });
+        /*********** 5.3 编辑 / 删除 / 预览 ***********/
+        window.editArticle = r => {
+          titleInp.value = r.title;
+          mdArea.value = r.content;
+          editingId = r.id;
+          cancelEditBtn.classList.remove('hidden');
+          // 如果当前是 EditorJS 模式，先销毁
+          if (editor) btnT.onclick();
+          window.scrollTo(0,0);
+        };
+        window.deleteArticle = async id => {
+          if (!confirm('确定删除？')) return;
+          const { error } = await supa.from('articles').delete().eq('id', id);
+          if (error) {
+            alert(error.message);
+          } else {
+            loadArticles(true);
+          }
+        };
+        window.previewArticle = r => {
+          $('previewTitle').textContent = r.title;
+          $('previewCover').src = r.cover_url || '';
+          $('markdownContent').innerHTML = marked.parse(r.content || '');
+          $('previewModal').classList.remove('hidden');
+        };
+        window.closePreview = () => {
+          $('previewModal').classList.add('hidden');
+        };
 
-      async function loadArticles(reset = false, kw = '') {
-        if (loading) return;
-        loading = true;
-        if (reset) {
-          tbBody.innerHTML = '';
-          page = 1;
-        }
-
-        let q = supa.from('articles')
+        /*********** 5.4 文章列表加载 & 无限滚动 & 搜索 ***********/
+        searchBtn.onclick = () => loadArticles(true, searchInput.value.trim());
+        window.addEventListener('scroll', () => {
+          if (!loading && window.innerHeight + window.scrollY > document.body.offsetHeight - 80) {
+            loadArticles();
+          }
+        });
+        async function loadArticles(reset=false, kw='') {
+          if (loading) return;
+          loading = true;
+          if (reset) {
+            tbBody.innerHTML = '';
+            page = 1;
+          }
+          let q = supa.from('articles')
                     .select('*')
                     .order('created_at', { ascending: false })
-                    .range((page - 1) * limit, page * limit - 1);
-        if (kw) {
-          q = q.ilike('title', '%' + kw + '%');
-        }
-
-        const { data = [], error } = await q;
-        if (error) {
-          alert(error.message);
+                    .range((page - 1)*limit, page*limit - 1);
+          if (kw) {
+            q = q.ilike('title', '%' + kw + '%');
+          }
+          const { data = [], error } = await q;
+          if (error) {
+            alert(error.message);
+            loading = false;
+            return;
+          }
+          data.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td data-label="标题">${esc(r.title)}</td>
+              <td data-label="作者">${esc(r.author_email || '')}</td>
+              <td data-label="内容">${esc((r.content||'').slice(0,60))}…</td>
+              <td data-label="创建时间">${fmt(r.created_at)}</td>
+              <td data-label="更新时间">${fmt(r.updated_at)}</td>
+              <td data-label="星期">星期${wk(r.created_at)}</td>
+              <td data-label="封面">${r.cover_url ? `<img src="${r.cover_url}" style="height:40px">` : ''}</td>
+              <td data-label="操作">
+                <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,"&#39;")})'>预览</button>
+                <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,"&#39;")})'>编辑</button>
+                <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
+              </td>`;
+            tbBody.appendChild(tr);
+          });
+          if (data.length === limit) {
+            page++;
+          }
           loading = false;
-          return;
         }
 
-        data.forEach(r => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td data-label="标题">${esc(r.title)}</td>
-            <td class="author" data-label="作者">${esc(r.author_email || '')}</td>
-            <td class="content" data-label="内容">${esc((r.content || '').slice(0, 60))}…</td>
-            <td data-label="SEO 描述">${esc(r.seo_description || '')}</td>
-            <td data-label="SEO 关键词">${esc(r.keywords || '')}</td>
-            <td data-label="创建时间">${fmt(r.created_at)}</td>
-            <td data-label="更新时间">${fmt(r.updated_at)}</td>
-            <td data-label="星期">星期${wk(r.created_at)}</td>
-            <td data-label="封面">${r.cover_url ? `<img src="${r.cover_url}" style="height:40px">` : ''}</td>
-            <td data-label="操作">
-              <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g, "&#39;")})'>预览</button>
-              <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g, "&#39;")})'>编辑</button>
-              <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
-            </td>
-          `;
-          tbBody.appendChild(tr);
-        });
+        /*********** 5.5 AI 生成文章结构 & SEO ***********/
+        aiBtn.onclick = async () => {
+          const topic = titleInp.value.trim();
+          if (!topic) {
+            return alert('请先输入标题');
+          }
+          try {
+            const resp = await fetch('https://gpt.mefans.workers.dev/gpt', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ topic })
+            });
+            const j = await resp.json();
+            // 解析返回结果
+            let article = j.article_body || j.article || j.content || '';
+            let seoDesc = j.seo_description || '';
+            let kws     = j.keywords || '';
+            if (!article && typeof j === 'string') {
+              try {
+                const inner = JSON.parse(j);
+                article = inner.article_body || inner.article || inner.content || '';
+                seoDesc = inner.seo_description || '';
+                kws     = inner.keywords || '';
+              } catch (_) {}
+            }
 
-        if (data.length === limit) {
-          page++;
-        }
-        loading = false;
-      }
+            mdArea.value = article;
+            seoDescInp.value = seoDesc;      // 如果保留 SEO 描述输入框
+            keywordsInp.value = kws;         // 如果保留 SEO 关键词输入框
 
-      /********************************
-       *  3.5 AI 生成文章 & SEO
-       ********************************/
-      aiBtn.onclick = async () => {
-        const topic = titleInp.value.trim();
-        if (!topic) {
-          return alert('请先输入标题');
-        }
-        try {
-          const j = await fetch('https://gpt.mefans.workers.dev/gpt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ topic })
-          }).then(r => r.json());
+            if (editor) {
+              await editor.blocks.clear();
+              await editor.blocks.insert('paragraph', { text: article.replace(/\n/g, '<br>') });
+            }
+            alert('✅ AI 内容已生成，请检查并调整');
+          } catch(e) {
+            alert('❌ GPT 生成失败：' + e.message);
+          }
+        };
 
-          let article = j.article_body || j.article || j.content || '';
-          let seoDesc = j.seo_description || '';
-          let kws     = j.keywords || '';
-
-          if (!article && typeof j === 'string') {
-            try {
-              const inner = JSON.parse(j);
-              article = inner.article_body || inner.article || inner.content || '';
-              seoDesc = inner.seo_description || '';
-              kws     = inner.keywords || '';
-            } catch (_) {}
+        /*********** 5.6 生成静态 HTML 并上传 GitHub ***********/
+        genBtn.onclick = async () => {
+          const title   = titleInp.value.trim();
+          const content = editor
+            ? (await editor.save()).blocks.map(b=>b.data.text||'').join('\n\n').trim()
+            : mdArea.value.trim();
+          if (!title || !content) {
+            return alert('请填写标题和内容');
           }
 
-          mdArea.value       = article;
-          seoDescInp.value   = seoDesc;
-          keywordsInp.value  = kws;
+          const createdAt = toBJ().split('T')[0];
+          const slug      = title.toLowerCase()
+                                 .replace(/\s+/g, '-')
+                                 .replace(/[^\w\-]/g, '');
+          const coverUrl  = `https://oliverfr.com/covers/${slug}-cover.jpg`;
+          const ogImage   = `https://oliverfr.com/og-images/${slug}-og.jpg`;
+          const logoUrl   = `https://oliverfr.com/assets/logo.png`;
 
-          if (editor) {
-            await editor.blocks.clear();
-            await editor.blocks.insert('paragraph', { text: article.replace(/\n/g, '<br>') });
-          }
-
-          alert('✅ AI 内容已生成，请检查编辑区和 SEO 区域！');
-        } catch (e) {
-          alert('❌ GPT 生成失败：' + e.message);
-        }
-      };
-
-      /********************************
-       *  3.6 生成静态 HTML 并上传 GitHub
-       ********************************/
-      genBtn.onclick = async () => {
-        const title   = titleInp.value.trim();
-        const content = editor
-          ? (await editor.save()).blocks.map(b => b.data.text || '').join('\n\n').trim()
-          : mdArea.value.trim();
-        if (!title || !content) {
-          return alert('请填写标题和内容');
-        }
-
-        const seoDesc   = seoDescInp.value.trim() || content.slice(0, 150).replace(/\n/g, ' ').trim();
-        const keywords  = keywordsInp.value.trim() || `MeFan, ${title}`;
-        const createdAt = toBJ().split('T')[0];
-        const slug      = title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\-]/g, '');
-        const coverUrl  = `https://oliverfr.com/covers/${slug}-cover.jpg`;
-        const ogImageUrl= `https://oliverfr.com/og-images/${slug}-og.jpg`;
-        const logoUrl   = `https://oliverfr.com/assets/logo.png`;
-
-        // 确保模板字符串完整
-        const html = `<!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="UTF-8" />
-<title>${escapeHTML(title)} | MeFan 技术博客</title>
-<meta name="description" content="${escapeHTML(seoDesc)}" />
-<meta name="keywords" content="${escapeHTML(keywords)}" />
-<meta name="viewport" content="width=device-width,initial-scale=1.0" />
-<meta name="robots" content="index, follow" />
-<link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
-<meta property="og:type" content="article" />
-<meta property="og:title" content="${escapeHTML(title)}" />
-<meta property="og:description" content="${escapeHTML(seoDesc)}" />
-<meta property="og:image" content="${ogImageUrl}" />
-<meta property="og:url" content="https://oliverfr.com/articles/${slug}.html" />
-<meta property="og:site_name" content="MeFan Tech" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="${escapeHTML(title)}" />
-<meta name="twitter:description" content="${escapeHTML(seoDesc)}" />
-<meta name="twitter:image" content="${ogImageUrl}" />
-<script type="application/ld+json">${JSON.stringify({
-  "@context": "https://schema.org",
-  "@type": "Article",
-  headline:        title,
-  description:     seoDesc,
-  keywords:        keywords,
-  image:           ogImageUrl,
-  author:          { "@type": "Person", name: "Oliver F." },
-  publisher:       {
-    "@type": "Organization",
-    name:      "MeFan Solutions",
-    logo:      { "@type": "ImageObject", url: logoUrl }
-  },
-  datePublished:   createdAt,
-  dateModified:    createdAt,
-  mainEntityOfPage: {
-    "@type": "WebPage",
-    "@id":   `https://oliverfr.com/articles/${slug}.html`
-  }
-}, null, 2)}</script>
-<style>
-  body { font-family:Arial,sans-serif; margin:40px auto; max-width:700px; line-height:1.6; }
-  h1 { font-size:28px; margin-bottom:20px; }
-  .meta { color:#888; font-size:14px; margin-bottom:20px; }
-  img { max-width:100%; margin:20px 0; }
-  .logo { display:block; margin:0 auto 20px; height:60px; }
-</style>
+          // 用模板字符串小心闭合所有花括号、反引号
+          const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>${esc(title)} | MeFan 技术博客</title>
+  <meta name="description" content="${esc(title)}" />
+  <meta name="keywords" content="${esc(title)}" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="${esc(title)}" />
+  <meta property="og:description" content="${esc(title)}" />
+  <meta property="og:image" content="${ogImage}" />
+  <meta property="og:url" content="https://oliverfr.com/articles/${slug}.html" />
+  <meta property="og:site_name" content="MeFan 技术博客" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${esc(title)}" />
+  <meta name="twitter:description" content="${esc(title)}" />
+  <meta name="twitter:image" content="${ogImage}" />
+  <script type="application/ld+json">${JSON.stringify({
+    "@context":"https://schema.org",
+    "@type":"Article",
+    headline: title,
+    description: title,
+    image: ogImage,
+    author: { "@type":"Person", name:"Oliver F." },
+    publisher: {
+      "@type":"Organization",
+      name:"MeFan Solutions",
+      logo:{ "@type":"ImageObject", url:logoUrl }
+    },
+    datePublished: createdAt,
+    dateModified: createdAt,
+    mainEntityOfPage: { "@type":"WebPage", "@id":`https://oliverfr.com/articles/${slug}.html` }
+  }, null, 2)}</script>
+  <style>
+    body { font-family: Arial,sans-serif; margin:40px auto; max-width:700px; line-height:1.6; }
+    h1 { font-size:28px; margin-bottom:20px; }
+    .meta { color:#888; font-size:14px; margin-bottom:20px; }
+    img { max-width:100%; margin:20px 0; }
+    .logo { display:block; margin:0 auto 20px; height:60px; }
+  </style>
 </head>
 <body>
   <img src="${logoUrl}" alt="MeFan Logo" class="logo" />
-  <h1>${escapeHTML(title)}</h1>
+  <h1>${esc(title)}</h1>
   <div class="meta">release date：${createdAt} ｜ Author：Oliver F.</div>
-  <img src="${coverUrl}" alt="${escapeHTML(title)} 封面图" />
+  <img src="${coverUrl}" alt="${esc(title)} 封面" />
   ${marked.parse(content)}
 </body>
 </html>`;
 
-        try {
-          const res = await fetch('https://upload-articlejs.mefans.workers.dev/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ slug, html })
-          }).then(r => r.json());
+          try {
+            const res = await fetch('https://upload-articlejs.mefans.workers.dev/', {
+              method: 'POST',
+              headers: { 'Content-Type':'application/json' },
+              body: JSON.stringify({ slug, html })
+            }).then(r => r.json());
 
-          if (res.success) {
-            alert('✅ 已发布上线：' + res.url);
-          } else {
-            alert('❌ 发布失败：' + (res.message || JSON.stringify(res)));
+            if (res.success) {
+              alert('✅ 已发布上线：' + res.url);
+            } else {
+              alert('❌ 发布失败：' + (res.message || JSON.stringify(res)));
+            }
+          } catch(e) {
+            alert('❌ 网络异常：' + e.message);
           }
-        } catch (e) {
-          alert('❌ 网络异常：' + e.message);
-        }
-      };
+        };
 
-    } // bindPostAuthLogic() End
+      } // bindAfterLoginLogic 结束
+
+    }); // main() 结束
 
   </script>
 </body>
