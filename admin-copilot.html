@@ -1,4 +1,4 @@
-<!-- admin-mefan-articles.html ―― 完整修复版 -->
+<!-- admin-mefan-articles.html ―― 最终修复版（登录按钮立即可用） -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -143,7 +143,7 @@
     }
   </style>
 
-  <!-- 只引入一次下面这三行 -->
+  <!-- SUPABASE SDK & 其他第三方依赖 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@editorjs/paragraph@2.11.0/dist/bundle.js"></script>
@@ -157,7 +157,7 @@
     <button id="loginBtn" class="btn">使用 GitHub 登录</button>
   </div>
 
-  <!-- 管理区 -->
+  <!-- 管理区（初始时隐藏） -->
   <div id="adminArea" class="hidden">
     <!-- 顶部搜索 / 退出 -->
     <div class="admin-bar">
@@ -187,7 +187,7 @@
       <button id="aiBtn" class="btn">AI 生成文章结构+SEO</button>
     </div>
 
-    <!-- 列表 -->
+    <!-- 文章列表 -->
     <div style="overflow-x: auto; width: 100%">
       <table id="articlesTable">
         <thead>
@@ -219,32 +219,72 @@
 
   <script>
     /********************************************************
-     *                  动态加载 Editor.js                  *
+     *          第一部分：立即绑定登录/登出事件              *
      ********************************************************/
-    (function loadEditorJS(callback) {
-      if (window.EditorJS) {
-        callback();
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2';
-      script.onload = callback;
-      document.head.appendChild(script);
-    })(main);
+    // 1.1 Supabase 运行时常量（与 Worker 区别，只替换为你自己的地址 & ANON KEY）
+    const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';
+    const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+    const ADMIN_EMAIL = 'oliveroogle@gmail.com'; // 允许登陆的邮箱
+
+    // 1.2 创建 Supabase 客户端
+    const supa = supabase.createClient(WORKER_BASE, ANON_KEY);
+
+    // 1.3 统一 CORS 响应（用于可能的 Worker 请求，或者后续补充）
+    //     （注意：这里只是占位，将来在 Worker 里也许需要同样处理）
+    const $ = id => document.getElementById(id);
+
+    // 1.4 立即给“使用 GitHub 登录”和“退出登录”按钮绑定事件
+    const loginBtn  = $('loginBtn');
+    const logoutBtn = $('logoutBtn');
+
+    loginBtn.onclick = () => {
+      // 直接发起 OAuth 登录，不需要等编辑器加载
+      supa.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: location.href }
+      });
+    };
+    logoutBtn.onclick = async () => {
+      await supa.auth.signOut();
+      location.reload();
+    };
 
     /********************************************************
-     *                    主入口 main()                     *
+     *      第二部分：等 DOM 全部就绪后再初始化页面 UI        *
      ********************************************************/
-    function main() {
-      /* === 1. 运行时常量 === */
-      const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev'; // Cloudflare Worker 代理
-      const RAG_URL     = '/api/rag';   // 向量检索 Worker 路由
-      const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';  // Supabase anon key
-      const ADMIN_EMAIL = 'oliveroogle@gmail.com'; // 允许登录的管理员邮箱
+    document.addEventListener('DOMContentLoaded', initAuthAndUI);
 
-      /* === 2. 工具函数 & DOM 缓存 === */
-      const supa       = supabase.createClient(WORKER_BASE, ANON_KEY);
-      const $          = id => document.getElementById(id);
+    async function initAuthAndUI() {
+      // 2.1 先试着从 URL 中解析 OAuth 回调
+      try {
+        const { data, error } = await supa.auth.getSessionFromUrl({ storeSession: true });
+        if (error) console.warn('OAuth 解析失败:', error);
+        // 如果有 session，则把 URL 里面的 code/hash 之类移掉
+        if (data?.session) {
+          history.replaceState(null, '', location.pathname);
+        }
+      } catch (e) {
+        console.error('OAuth 处理异常:', e);
+      }
+
+      // 2.2 再去拿当前 session
+      const { data: { session } } = await supa.auth.getSession();
+      if (session?.user?.email === ADMIN_EMAIL) {
+        // 管理员已经登录，展示后台，隐藏登录区
+        $('authArea').classList.add('hidden');
+        $('adminArea').classList.remove('hidden');
+
+        // 进入后续逻辑：加载文章、绑定 CRUD、AI 按钮等等
+        bindPostAuthLogic();
+      }
+      // 如果不是管理员或没登录，就继续显示“使用 GitHub 登录”按钮
+    }
+
+    /********************************************************
+     *         第三部分：在登录后绑定所有后台功能逻辑        *
+     ********************************************************/
+    function bindPostAuthLogic() {
+      /* === 1. 工具函数 & DOM 缓存 === */
       const toBJ       = () => new Date(Date.now() + 288e5).toISOString().replace('Z', '+08:00');
       const fmt        = s => new Date(s).toLocaleString('zh-CN', { hour12: false });
       const wk         = s => '日一二三四五六'[new Date(s).getDay()];
@@ -253,6 +293,7 @@
       );
       const escapeHTML = esc;
 
+      // DOM 元素缓存
       const btnE          = $('toggleToEditor');
       const btnT          = $('toggleToTextarea');
       const editorDiv     = $('editorContainer');
@@ -268,8 +309,6 @@
       const searchBtn     = $('searchBtn');
       const submitBtn     = $('submitBtn');
       const cancelEditBtn = $('cancelEditBtn');
-      const loginBtn      = $('loginBtn');
-      const logoutBtn     = $('logoutBtn');
 
       let editor     = null;
       let editingId  = null;
@@ -278,9 +317,27 @@
       let loading    = false;
       let authJwt    = '';
 
-      /* === 3. 可视化编辑器切换 === */
+      /********************************
+       * 3.1 再次获取 session，拿到 access_token
+       ********************************/
+      (async () => {
+        const { data: { session } } = await supa.auth.getSession();
+        if (session?.access_token) {
+          authJwt = session.access_token;
+        }
+      })();
+
+      /********************************
+       * 3.2 可视化编辑器切换
+       ********************************/
       btnE.onclick = async () => {
-        if (editor) await editor.destroy();
+        if (editor) {
+          await editor.destroy();
+        }
+        // 如果第一次点击“可视化模式”，且 EditorJS 还没加载，就动态加载
+        if (!window.EditorJS) {
+          await loadEditorJS();
+        }
         editorDiv.classList.remove('hidden');
         mdArea.classList.add('hidden');
         btnE.classList.add('hidden');
@@ -322,44 +379,24 @@
         btnT.classList.add('hidden');
       }
 
-      /* === 4. 认证 & 初始化 === */
-      (async () => {
-        try {
-          // 4.1 处理 OAuth 回调
-          const { data, error } = await supa.auth.getSessionFromUrl({ storeSession: true });
-          if (error) console.warn('OAuth 解析失败:', error);
-          if (data?.session) {
-            // 去掉 URL 上的 code/hash
-            history.replaceState(null, '', location.pathname);
+      // 动态加载 Editor.js 核心包，返回一个 Promise
+      function loadEditorJS() {
+        return new Promise((resolve, reject) => {
+          if (window.EditorJS) {
+            resolve();
+            return;
           }
-        } catch (e) {
-          console.error('OAuth 处理异常:', e);
-        }
-
-        // 4.2 获取当前会话
-        const { data: { session } } = await supa.auth.getSession();
-        if (session?.access_token) authJwt = session.access_token;
-
-        // 4.3 如果已登录且邮箱为管理员
-        if (session?.user?.email === ADMIN_EMAIL) {
-          $('authArea').classList.add('hidden');
-          $('adminArea').classList.remove('hidden');
-          loadArticles(true);
-        }
-      })();
-
-      loginBtn.onclick = () => {
-        supa.auth.signInWithOAuth({
-          provider: 'github',
-          options: { redirectTo: location.href }
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('EditorJS 加载失败'));
+          document.head.appendChild(script);
         });
-      };
-      logoutBtn.onclick = async () => {
-        await supa.auth.signOut();
-        location.reload();
-      };
+      }
 
-      /* === 5. 文章 CRUD === */
+      /********************************
+       * 3.3 CRUD: 提交/取消/编辑/删除/预览
+       ********************************/
       submitBtn.onclick = async () => {
         const title   = titleInp.value.trim();
         const content = editor
@@ -379,7 +416,7 @@
           updated_at:      toBJ()
         };
 
-        // 5.1 上传封面图（如果有）
+        // 上传封面
         if (coverInput.files[0]) {
           const file = coverInput.files[0];
           const { data: uploadData, error: uploadErr } = await supa.storage
@@ -391,7 +428,7 @@
           row.cover_url = supa.storage.from('articles').getPublicUrl(uploadData.path).data.publicUrl;
         }
 
-        // 5.2 写入或更新文章
+        // 写入或更新
         let err;
         if (editingId) {
           ({ error: err } = await supa.from('articles').update(row).eq('id', editingId));
@@ -403,7 +440,7 @@
           return alert(err.message);
         }
 
-        // 5.3 同步向量到 RAG
+        // 向量同步（可选失败不影响）
         try {
           await fetch(`${RAG_URL}/embed`, {
             method: 'POST',
@@ -463,7 +500,9 @@
         $('previewModal').classList.add('hidden');
       };
 
-      /* === 6. 文章列表 & 无限滚动 === */
+      /********************************
+       * 3.4 列表 & 无限滚动 & 搜索
+       ********************************/
       searchBtn.onclick = () => loadArticles(true, searchInput.value.trim());
       window.addEventListener('scroll', () => {
         if (!loading && window.innerHeight + window.scrollY > document.body.offsetHeight - 80) {
@@ -519,7 +558,9 @@
         loading = false;
       }
 
-      /* === 7. AI 生成文章 & SEO === */
+      /********************************
+       * 3.5 AI 生成文章 & SEO
+       ********************************/
       aiBtn.onclick = async () => {
         const topic = titleInp.value.trim();
         if (!topic) {
@@ -542,7 +583,7 @@
               article = inner.article_body || inner.article || inner.content || '';
               seoDesc = inner.seo_description || '';
               kws     = inner.keywords || '';
-            } catch (_) { }
+            } catch (_) {}
           }
 
           mdArea.value      = article;
@@ -560,7 +601,9 @@
         }
       };
 
-      /* === 8. 生成静态 HTML 并上传 GitHub === */
+      /********************************
+       * 3.6 生成静态 HTML 并上传 GitHub
+       ********************************/
       genBtn.onclick = async () => {
         const title   = titleInp.value.trim();
         const content = editor
@@ -578,7 +621,7 @@
         const ogImageUrl= `https://oliverfr.com/og-images/${slug}-og.jpg`;
         const logoUrl   = `https://oliverfr.com/assets/logo.png`;
 
-        // 核心：确保下面的模板字符串 **完整闭合**，不缺少任何反引号或分号
+        // 确保模板字符串完整闭合
         const html = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8" />
 <title>${escapeHTML(title)} | MeFan 技术博客</title>
