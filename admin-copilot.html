@@ -425,7 +425,7 @@ genBtn.onclick = async () => {
   const ogImageUrl= `https://oliverfr.com/og-images/${slug}-og.jpg`;
   const logoUrl   = `https://oliverfr.com/assets/logo.png`;
 
- const html = `<!DOCTYPE html>
+const html = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8" />
 <title>${escapeHTML(title)} | MeFan 技术博客</title>
 <meta name="description" content="${escapeHTML(seoDesc)}" />
@@ -458,7 +458,7 @@ genBtn.onclick = async () => {
   },
   datePublished:createdAt,
   dateModified:createdAt,
- mainEntityOfPage:{ "@type":"WebPage", "@id":"https://oliverfr.com/articles/"+slug+".html" }
+  mainEntityOfPage:{ "@type":"WebPage", "@id":"https://oliverfr.com/articles/"+slug+".html" }
 },null,2)}</script>
 <style>
 body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6}
@@ -473,6 +473,7 @@ img{max-width:100%;margin:20px 0}
 <img src="${coverUrl}" alt="${escapeHTML(title)} 封面图" />
 ${marked.parse(content)}
 </body></html>`;
+
 
 
   try {
