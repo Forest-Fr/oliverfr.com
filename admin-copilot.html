@@ -425,7 +425,7 @@ genBtn.onclick = async () => {
   const ogImageUrl= `https://oliverfr.com/og-images/${slug}-og.jpg`;
   const logoUrl   = `https://oliverfr.com/assets/logo.png`;
 
-  const html = `<!DOCTYPE html>
+ const html = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8" />
 <title>${escapeHTML(title)} | MeFan 技术博客</title>
 <meta name="description" content="${escapeHTML(seoDesc)}" />
@@ -444,18 +444,22 @@ genBtn.onclick = async () => {
 <meta name="twitter:description" content="${escapeHTML(seoDesc)}" />
 <meta name="twitter:image" content="${ogImageUrl}" />
 <script type="application/ld+json">${JSON.stringify({
-  "@context": "https://schema.org",
-  "@type": "Article",
-  headline:      title,
-  description:   seoDesc,
+  "@context":"https://schema.org",
+  "@type":"Article",
+  headline:title,
+  description:seoDesc,
   keywords,
-  image:         ogImageUrl,
-  author:        { "@type": "Person", name: "Oliver F." },
-  publisher:     { "@type": "Organization", name: "MeFan Solutions", logo: { "@type": "ImageObject", url: logoUrl } },
-  datePublished: createdAt,
-  dateModified:  createdAt,
-  mainEntityOfPage: { "@type": "WebPage", "@id": `https://oliverfr.com/articles/${slug}.html` }
-}, null, 2)}</script>
+  image:ogImageUrl,
+  author:{ "@type":"Person", name:"Oliver F." },
+  publisher:{
+    "@type":"Organization",
+    name:"MeFan Solutions",
+    logo:{ "@type":"ImageObject", url:logoUrl }
+  },
+  datePublished:createdAt,
+  dateModified:createdAt,
+  mainEntityOfPage:{ "@type":"WebPage", "@id":`https://oliverfr.com/articles/${slug}.html` }
+},null,2)}</script>
 <style>
 body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6}
 h1{font-size:28px;margin-bottom:20px}
@@ -469,6 +473,7 @@ img{max-width:100%;margin:20px 0}
 <img src="${coverUrl}" alt="${escapeHTML(title)} 封面图" />
 ${marked.parse(content)}
 </body></html>`;
+
 
   try {
     const res = await fetch('https://upload-articlejs.mefans.workers.dev/', {
