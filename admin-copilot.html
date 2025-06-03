@@ -315,30 +315,26 @@
   <h1>${esc(title)}</h1>
   <div class="meta">release date：${createdAt} ｜ author：Oliver F.</div>
   <img src="${coverUrl}" alt="${esc(title)} 封面图" />
-  ${marked.parse(content)}
-</body>
-</html>`; 
-    // ^^^ 别忘了这个反引号和分号 “`;`”
+ ${marked.parse(content)}
+</body></html>`;          // 反引号 + 分号  ←←←  必不可少！！
 
-    try {
-      const res = await fetch('https://upload-articlejs.mefans.workers.dev/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, html })
-      }).then(r => r.json());
+// --- ★ 下面才开始可执行代码，能安全写注释 ------------------
+try {
+  const res = await fetch('https://upload-articlejs.mefans.workers.dev/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:   JSON.stringify({ slug, html })
+  }).then(r => r.json());
 
-      if (res.success) {
-        alert('✅ 已发布上线：' + res.url);
-      } else {
-        alert('❌ 发布失败：' + (res.message || JSON.stringify(res)));
-      }
-    } catch (e) {
-      alert('❌ 网络异常：' + e.message);
-    }
-  }; // <-- 这里关闭了 genBtn.onclick
+  if (res.success) {
+    alert('✅ 已发布上线：' + res.url);
+  } else {
+    alert('❌ 发布失败：' + (res.message || JSON.stringify(res)));
+  }
+} catch (e) {
+  alert('❌ 网络异常：' + e.message);
+}
 
-  // ***** 下面是所有 “登录 / CRUD / AI 生成 / 页面初始化” 等代码的最后结束标志 *****
-}); // <<< 这里关闭了 loadEditorJS(...) 的匿名 main 函数，千万不要遗漏
 </script>
 
 </body>
