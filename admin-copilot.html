@@ -315,25 +315,24 @@
   <h1>${esc(title)}</h1>
   <div class="meta">release date：${createdAt} ｜ author：Oliver F.</div>
   <img src="${coverUrl}" alt="${esc(title)} 封面图" />
- ${marked.parse(content)}
-</body></html>`;          // 反引号 + 分号  ←←←  必不可少！！
+${marked.parse(content)}
+</body></html>`;          // ★ 必须闭合
 
-// --- ★ 下面才开始可执行代码，能安全写注释 ------------------
+// -------------- 下面才是可执行 JS --------------
+// 任何注释写在这里
 try {
   const res = await fetch('https://upload-articlejs.mefans.workers.dev/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:   JSON.stringify({ slug, html })
+    body  : JSON.stringify({ slug, html })
   }).then(r => r.json());
 
-  if (res.success) {
-    alert('✅ 已发布上线：' + res.url);
-  } else {
-    alert('❌ 发布失败：' + (res.message || JSON.stringify(res)));
-  }
+  if (res.success) alert('✅ 已发布上线：' + res.url);
+  else             alert('❌ 发布失败：' + (res.message || JSON.stringify(res)));
 } catch (e) {
   alert('❌ 网络异常：' + e.message);
 }
+
 
 </script>
 
