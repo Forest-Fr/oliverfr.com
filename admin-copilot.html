@@ -1,4 +1,4 @@
-<!-- admin-mefan-articles.html ―― 最终修复版（登录按钮立即可用） -->
+<!-- admin-mefan-articles.html ―― 2025-06-XX 修复版 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -136,20 +136,20 @@
         flex: 1;
         margin-right: 10px;
       }
-      #submitBtn,
-      #cancelEditBtn {
+      #submitBtn, #cancelEditBtn {
         width: 100%;
       }
     }
   </style>
 
-  <!-- SUPABASE SDK & 其他第三方依赖 -->
+  <!-- 第三方脚本只加载一次 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@editorjs/paragraph@2.11.0/dist/bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.7.0/dist/bundle.js"></script>
 </head>
 <body>
+
   <h1>📰 文章后台管理</h1>
 
   <!-- 登录区 -->
@@ -157,7 +157,7 @@
     <button id="loginBtn" class="btn">使用 GitHub 登录</button>
   </div>
 
-  <!-- 管理区（初始时隐藏） -->
+  <!-- 管理区（初始隐藏） -->
   <div id="adminArea" class="hidden">
     <!-- 顶部搜索 / 退出 -->
     <div class="admin-bar">
@@ -187,7 +187,7 @@
       <button id="aiBtn" class="btn">AI 生成文章结构+SEO</button>
     </div>
 
-    <!-- 文章列表 -->
+    <!-- 列表 -->
     <div style="overflow-x: auto; width: 100%">
       <table id="articlesTable">
         <thead>
@@ -219,47 +219,38 @@
 
   <script>
     /********************************************************
-     *          第一部分：立即绑定登录/登出事件              *
+     *            一、立即绑定“登录/登出”事件               *
      ********************************************************/
-    // 1.1 Supabase 运行时常量（与 Worker 区别，只替换为你自己的地址 & ANON KEY）
-    const WORKER_BASE = 'https://copilot-router.mefans.workers.dev';
+    // Supabase 运行时常量
+    const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev';
     const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-    const ADMIN_EMAIL = 'oliveroogle@gmail.com'; // 允许登陆的邮箱
+    const ADMIN_EMAIL = 'oliveroogle@gmail.com'; // 允许登录邮箱
 
-    // 1.2 创建 Supabase 客户端
+    // 创建 Supabase 客户端
     const supa = supabase.createClient(WORKER_BASE, ANON_KEY);
 
-    // 1.3 统一 CORS 响应（用于可能的 Worker 请求，或者后续补充）
-    //     （注意：这里只是占位，将来在 Worker 里也许需要同样处理）
-    const $ = id => document.getElementById(id);
-
-    // 1.4 立即给“使用 GitHub 登录”和“退出登录”按钮绑定事件
-    const loginBtn  = $('loginBtn');
-    const logoutBtn = $('logoutBtn');
-
-    loginBtn.onclick = () => {
-      // 直接发起 OAuth 登录，不需要等编辑器加载
+    // 直接绑定“使用 GitHub 登录”与“退出登录”按钮
+    document.getElementById('loginBtn').onclick = () => {
       supa.auth.signInWithOAuth({
         provider: 'github',
         options: { redirectTo: location.href }
       });
     };
-    logoutBtn.onclick = async () => {
+    document.getElementById('logoutBtn').onclick = async () => {
       await supa.auth.signOut();
       location.reload();
     };
 
     /********************************************************
-     *      第二部分：等 DOM 全部就绪后再初始化页面 UI        *
+     *       二、等 DOM 完全就绪后检查登录状态并初始化 UI     *
      ********************************************************/
     document.addEventListener('DOMContentLoaded', initAuthAndUI);
 
     async function initAuthAndUI() {
-      // 2.1 先试着从 URL 中解析 OAuth 回调
+      // 1. 解析 OAuth 回调（如果有），以便在移动端或多次刷新时能正确拿到 session
       try {
         const { data, error } = await supa.auth.getSessionFromUrl({ storeSession: true });
         if (error) console.warn('OAuth 解析失败:', error);
-        // 如果有 session，则把 URL 里面的 code/hash 之类移掉
         if (data?.session) {
           history.replaceState(null, '', location.pathname);
         }
@@ -267,24 +258,22 @@
         console.error('OAuth 处理异常:', e);
       }
 
-      // 2.2 再去拿当前 session
+      // 2. 直接获取当前会话
       const { data: { session } } = await supa.auth.getSession();
       if (session?.user?.email === ADMIN_EMAIL) {
-        // 管理员已经登录，展示后台，隐藏登录区
-        $('authArea').classList.add('hidden');
-        $('adminArea').classList.remove('hidden');
-
-        // 进入后续逻辑：加载文章、绑定 CRUD、AI 按钮等等
-        bindPostAuthLogic();
+        // 已登录且邮箱匹配管理员，显示后台管理区
+        document.getElementById('authArea').classList.add('hidden');
+        document.getElementById('adminArea').classList.remove('hidden');
+        bindPostAuthLogic(); // 绑定后续所有后台逻辑
       }
-      // 如果不是管理员或没登录，就继续显示“使用 GitHub 登录”按钮
+      // 否则仍然显示“使用 GitHub 登录”按钮
     }
 
     /********************************************************
-     *         第三部分：在登录后绑定所有后台功能逻辑        *
+     *     三、登录后才执行的所有后台管理业务逻辑函数绑定     *
      ********************************************************/
     function bindPostAuthLogic() {
-      /* === 1. 工具函数 & DOM 缓存 === */
+      // 一些工具函数
       const toBJ       = () => new Date(Date.now() + 288e5).toISOString().replace('Z', '+08:00');
       const fmt        = s => new Date(s).toLocaleString('zh-CN', { hour12: false });
       const wk         = s => '日一二三四五六'[new Date(s).getDay()];
@@ -293,22 +282,22 @@
       );
       const escapeHTML = esc;
 
-      // DOM 元素缓存
-      const btnE          = $('toggleToEditor');
-      const btnT          = $('toggleToTextarea');
-      const editorDiv     = $('editorContainer');
-      const mdArea        = $('newContent');
-      const titleInp      = $('newTitle');
-      const seoDescInp    = $('seoDescriptionInput');
-      const keywordsInp   = $('keywordsInput');
+      // DOM 缓存
+      const btnE          = document.getElementById('toggleToEditor');
+      const btnT          = document.getElementById('toggleToTextarea');
+      const editorDiv     = document.getElementById('editorContainer');
+      const mdArea        = document.getElementById('newContent');
+      const titleInp      = document.getElementById('newTitle');
+      const seoDescInp    = document.getElementById('seoDescriptionInput');
+      const keywordsInp   = document.getElementById('keywordsInput');
       const tbBody        = document.querySelector('#articlesTable tbody');
-      const aiBtn         = $('aiBtn');
-      const genBtn        = $('generateStaticHtmlBtn');
-      const coverInput    = $('coverInput');
-      const searchInput   = $('searchInput');
-      const searchBtn     = $('searchBtn');
-      const submitBtn     = $('submitBtn');
-      const cancelEditBtn = $('cancelEditBtn');
+      const aiBtn         = document.getElementById('aiBtn');
+      const genBtn        = document.getElementById('generateStaticHtmlBtn');
+      const coverInput    = document.getElementById('coverInput');
+      const searchInput   = document.getElementById('searchInput');
+      const searchBtn     = document.getElementById('searchBtn');
+      const submitBtn     = document.getElementById('submitBtn');
+      const cancelEditBtn = document.getElementById('cancelEditBtn');
 
       let editor     = null;
       let editingId  = null;
@@ -317,9 +306,7 @@
       let loading    = false;
       let authJwt    = '';
 
-      /********************************
-       * 3.1 再次获取 session，拿到 access_token
-       ********************************/
+      // 3.1 再次拉取 session，拿到 access_token
       (async () => {
         const { data: { session } } = await supa.auth.getSession();
         if (session?.access_token) {
@@ -328,15 +315,21 @@
       })();
 
       /********************************
-       * 3.2 可视化编辑器切换
+       *  3.2 可视化编辑器动态加载与切换
        ********************************/
       btnE.onclick = async () => {
+        // 如果已经有实例，先 destroy
         if (editor) {
           await editor.destroy();
         }
-        // 如果第一次点击“可视化模式”，且 EditorJS 还没加载，就动态加载
+        // 第一次点击才去加载 EditorJS 核心包
         if (!window.EditorJS) {
-          await loadEditorJS();
+          try {
+            await loadEditorJS();
+          } catch (e) {
+            console.error('EditorJS 加载失败:', e);
+            return;
+          }
         }
         editorDiv.classList.remove('hidden');
         mdArea.classList.add('hidden');
@@ -379,7 +372,6 @@
         btnT.classList.add('hidden');
       }
 
-      // 动态加载 Editor.js 核心包，返回一个 Promise
       function loadEditorJS() {
         return new Promise((resolve, reject) => {
           if (window.EditorJS) {
@@ -395,7 +387,7 @@
       }
 
       /********************************
-       * 3.3 CRUD: 提交/取消/编辑/删除/预览
+       *  3.3 文章的新增 / 编辑 / 删除 / 预览 等 CRUD
        ********************************/
       submitBtn.onclick = async () => {
         const title   = titleInp.value.trim();
@@ -440,9 +432,9 @@
           return alert(err.message);
         }
 
-        // 向量同步（可选失败不影响）
+        // 向量同步（失败不影响主流程）
         try {
-          await fetch(`${RAG_URL}/embed`, {
+          await fetch(`${'/api/rag'}/embed`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -491,17 +483,17 @@
       };
 
       window.previewArticle = r => {
-        $('previewTitle').textContent = r.title;
-        $('previewCover').src         = r.cover_url || '';
-        $('markdownContent').innerHTML = marked.parse(r.content || '');
-        $('previewModal').classList.remove('hidden');
+        document.getElementById('previewTitle').textContent = r.title;
+        document.getElementById('previewCover').src         = r.cover_url || '';
+        document.getElementById('markdownContent').innerHTML = marked.parse(r.content || '');
+        document.getElementById('previewModal').classList.remove('hidden');
       };
       window.closePreview = () => {
-        $('previewModal').classList.add('hidden');
+        document.getElementById('previewModal').classList.add('hidden');
       };
 
       /********************************
-       * 3.4 列表 & 无限滚动 & 搜索
+       *  3.4 文章列表 & 无限滚动 & 搜索
        ********************************/
       searchBtn.onclick = () => loadArticles(true, searchInput.value.trim());
       window.addEventListener('scroll', () => {
@@ -546,20 +538,22 @@
             <td data-label="星期">星期${wk(r.created_at)}</td>
             <td data-label="封面">${r.cover_url ? `<img src="${r.cover_url}" style="height:40px">` : ''}</td>
             <td data-label="操作">
-              <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g,"&#39;")})'>预览</button>
-              <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g,"&#39;")})'>编辑</button>
+              <button class="btn" onclick='previewArticle(${JSON.stringify(r).replace(/'/g, "&#39;")})'>预览</button>
+              <button class="btn" onclick='editArticle(${JSON.stringify(r).replace(/'/g, "&#39;")})'>编辑</button>
               <button class="btn" onclick="deleteArticle('${r.id}')">删除</button>
             </td>
           `;
           tbBody.appendChild(tr);
         });
 
-        if (data.length === limit) page++;
+        if (data.length === limit) {
+          page++;
+        }
         loading = false;
       }
 
       /********************************
-       * 3.5 AI 生成文章 & SEO
+       *  3.5 AI 生成文章 & SEO
        ********************************/
       aiBtn.onclick = async () => {
         const topic = titleInp.value.trim();
@@ -586,9 +580,9 @@
             } catch (_) {}
           }
 
-          mdArea.value      = article;
-          seoDescInp.value  = seoDesc;
-          keywordsInp.value = kws;
+          mdArea.value       = article;
+          seoDescInp.value   = seoDesc;
+          keywordsInp.value  = kws;
 
           if (editor) {
             await editor.blocks.clear();
@@ -602,7 +596,7 @@
       };
 
       /********************************
-       * 3.6 生成静态 HTML 并上传 GitHub
+       *  3.6 生成静态 HTML 并上传 GitHub
        ********************************/
       genBtn.onclick = async () => {
         const title   = titleInp.value.trim();
@@ -621,7 +615,7 @@
         const ogImageUrl= `https://oliverfr.com/og-images/${slug}-og.jpg`;
         const logoUrl   = `https://oliverfr.com/assets/logo.png`;
 
-        // 确保模板字符串完整闭合
+        // 确保模板字符串完整
         const html = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8" />
 <title>${escapeHTML(title)} | MeFan 技术博客</title>
@@ -657,7 +651,7 @@
   dateModified:    createdAt,
   mainEntityOfPage: {
     "@type": "WebPage",
-    "@id":   "https://oliverfr.com/articles/" + slug + ".html"
+    "@id":   `https://oliverfr.com/articles/${slug}.html`
   }
 }, null, 2)}</script>
 <style>
@@ -693,7 +687,9 @@
           alert('❌ 网络异常：' + e.message);
         }
       };
-    }
+
+    } // bindPostAuthLogic() End
+
   </script>
 </body>
 </html>
