@@ -143,7 +143,7 @@
     }
   </style>
 
-  <!-- 仅引入一套 supabase-js、marked、Editor.js -->
+  <!-- 只引入一次下面这三行 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@editorjs/paragraph@2.11.0/dist/bundle.js"></script>
@@ -230,46 +230,46 @@
       script.src = 'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2';
       script.onload = callback;
       document.head.appendChild(script);
-    })(main); // 加载完 Editor.js 后执行 main()
+    })(main);
 
     /********************************************************
-     *                       主入口 main()                  *
+     *                    主入口 main()                     *
      ********************************************************/
     function main() {
       /* === 1. 运行时常量 === */
       const WORKER_BASE = 'https://oliverfr-articles-proxy.mefans.workers.dev'; // Cloudflare Worker 代理
-      const RAG_URL     = '/api/rag';   // 向量检索 Worker 路由（embed/chat）
-      const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdX…';  // Supabase anon key
+      const RAG_URL     = '/api/rag';   // 向量检索 Worker 路由
+      const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';  // Supabase anon key
       const ADMIN_EMAIL = 'oliveroogle@gmail.com'; // 允许登录的管理员邮箱
 
       /* === 2. 工具函数 & DOM 缓存 === */
-      const supa         = supabase.createClient(WORKER_BASE, ANON_KEY);
-      const $            = id => document.getElementById(id);
-      const toBJ         = () => new Date(Date.now() + 288e5).toISOString().replace('Z', '+08:00');
-      const fmt          = s => new Date(s).toLocaleString('zh-CN', { hour12: false });
-      const wk           = s => '日一二三四五六'[new Date(s).getDay()];
-      const esc          = str => (str || '').replace(/[&<>"']/g, c =>
+      const supa       = supabase.createClient(WORKER_BASE, ANON_KEY);
+      const $          = id => document.getElementById(id);
+      const toBJ       = () => new Date(Date.now() + 288e5).toISOString().replace('Z', '+08:00');
+      const fmt        = s => new Date(s).toLocaleString('zh-CN', { hour12: false });
+      const wk         = s => '日一二三四五六'[new Date(s).getDay()];
+      const esc        = str => (str || '').replace(/[&<>"']/g, c =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
       );
-      const escapeHTML   = esc;
+      const escapeHTML = esc;
 
-      const btnE         = $('toggleToEditor');
-      const btnT         = $('toggleToTextarea');
-      const editorDiv    = $('editorContainer');
-      const mdArea       = $('newContent');
-      const titleInp     = $('newTitle');
-      const seoDescInp   = $('seoDescriptionInput');
-      const keywordsInp  = $('keywordsInput');
-      const tbBody       = document.querySelector('#articlesTable tbody');
-      const aiBtn        = $('aiBtn');
-      const genBtn       = $('generateStaticHtmlBtn');
-      const coverInput   = $('coverInput');
-      const searchInput  = $('searchInput');
-      const searchBtn    = $('searchBtn');
-      const submitBtn    = $('submitBtn');
-      const cancelEditBtn= $('cancelEditBtn');
-      const loginBtn     = $('loginBtn');
-      const logoutBtn    = $('logoutBtn');
+      const btnE          = $('toggleToEditor');
+      const btnT          = $('toggleToTextarea');
+      const editorDiv     = $('editorContainer');
+      const mdArea        = $('newContent');
+      const titleInp      = $('newTitle');
+      const seoDescInp    = $('seoDescriptionInput');
+      const keywordsInp   = $('keywordsInput');
+      const tbBody        = document.querySelector('#articlesTable tbody');
+      const aiBtn         = $('aiBtn');
+      const genBtn        = $('generateStaticHtmlBtn');
+      const coverInput    = $('coverInput');
+      const searchInput   = $('searchInput');
+      const searchBtn     = $('searchBtn');
+      const submitBtn     = $('submitBtn');
+      const cancelEditBtn = $('cancelEditBtn');
+      const loginBtn      = $('loginBtn');
+      const logoutBtn     = $('logoutBtn');
 
       let editor     = null;
       let editingId  = null;
@@ -285,6 +285,7 @@
         mdArea.classList.add('hidden');
         btnE.classList.add('hidden');
         btnT.classList.remove('hidden');
+
         const tools = {};
         if (window.ParagraphTool || window.Paragraph) {
           tools.paragraph = { class: window.ParagraphTool || window.Paragraph, inlineToolbar: true };
@@ -292,10 +293,15 @@
         if (window.HeaderTool || window.Header) {
           tools.header = { class: window.HeaderTool || window.Header, inlineToolbar: true };
         }
+
         editor = new window.EditorJS({
           holder: 'editorContainer',
           tools,
-          data: { blocks: [ { type: 'paragraph', data: { text: mdArea.value.replace(/\n/g, '<br>') } } ] }
+          data: {
+            blocks: [
+              { type: 'paragraph', data: { text: mdArea.value.replace(/\n/g, '<br>') } }
+            ]
+          }
         });
       };
 
@@ -323,6 +329,7 @@
           const { data, error } = await supa.auth.getSessionFromUrl({ storeSession: true });
           if (error) console.warn('OAuth 解析失败:', error);
           if (data?.session) {
+            // 去掉 URL 上的 code/hash
             history.replaceState(null, '', location.pathname);
           }
         } catch (e) {
@@ -571,7 +578,7 @@
         const ogImageUrl= `https://oliverfr.com/og-images/${slug}-og.jpg`;
         const logoUrl   = `https://oliverfr.com/assets/logo.png`;
 
-        // 核心：模板字符串 **必须** 正确闭合
+        // 核心：确保下面的模板字符串 **完整闭合**，不缺少任何反引号或分号
         const html = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8" />
 <title>${escapeHTML(title)} | MeFan 技术博客</title>
@@ -591,38 +598,41 @@
 <meta name="twitter:description" content="${escapeHTML(seoDesc)}" />
 <meta name="twitter:image" content="${ogImageUrl}" />
 <script type="application/ld+json">${JSON.stringify({
-  "@context":"https://schema.org",
-  "@type":"Article",
-  headline:      title,
-  description:   seoDesc,
-  keywords:      keywords,
-  image:         ogImageUrl,
-  author:        { "@type":"Person", name:"Oliver F." },
-  publisher:     {
-    "@type":"Organization",
+  "@context": "https://schema.org",
+  "@type": "Article",
+  headline:        title,
+  description:     seoDesc,
+  keywords:        keywords,
+  image:           ogImageUrl,
+  author:          { "@type": "Person", name: "Oliver F." },
+  publisher:       {
+    "@type": "Organization",
     name:      "MeFan Solutions",
-    logo:      { "@type":"ImageObject", url: logoUrl }
+    logo:      { "@type": "ImageObject", url: logoUrl }
   },
-  datePublished: createdAt,
-  dateModified:  createdAt,
+  datePublished:   createdAt,
+  dateModified:    createdAt,
   mainEntityOfPage: {
-    "@type":"WebPage",
+    "@type": "WebPage",
     "@id":   "https://oliverfr.com/articles/" + slug + ".html"
   }
 }, null, 2)}</script>
 <style>
-body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6}
-h1{font-size:28px;margin-bottom:20px}
-.meta{color:#888;font-size:14px;margin-bottom:20px}
-img{max-width:100%;margin:20px 0}
-.logo{display:block;margin:0 auto 20px;height:60px}
-</style></head><body>
-<img src="${logoUrl}" alt="MeFan Logo" class="logo" />
-<h1>${escapeHTML(title)}</h1>
-<div class="meta">release date：${createdAt} ｜ Author：Oliver F.</div>
-<img src="${coverUrl}" alt="${escapeHTML(title)} 封面图" />
-${marked.parse(content)}
-</body></html>`;
+  body { font-family:Arial,sans-serif; margin:40px auto; max-width:700px; line-height:1.6; }
+  h1 { font-size:28px; margin-bottom:20px; }
+  .meta { color:#888; font-size:14px; margin-bottom:20px; }
+  img { max-width:100%; margin:20px 0; }
+  .logo { display:block; margin:0 auto 20px; height:60px; }
+</style>
+</head>
+<body>
+  <img src="${logoUrl}" alt="MeFan Logo" class="logo" />
+  <h1>${escapeHTML(title)}</h1>
+  <div class="meta">release date：${createdAt} ｜ Author：Oliver F.</div>
+  <img src="${coverUrl}" alt="${escapeHTML(title)} 封面图" />
+  ${marked.parse(content)}
+</body>
+</html>`;
 
         try {
           const res = await fetch('https://upload-articlejs.mefans.workers.dev/', {
