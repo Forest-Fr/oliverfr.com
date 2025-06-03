@@ -433,40 +433,44 @@ const html = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1.0" />
 <meta name="robots" content="index, follow" />
 <link rel="canonical" href="https://oliverfr.com/articles/${slug}.html" />
+<!-- ✅ OG 标签 -->
 <meta property="og:type" content="article" />
 <meta property="og:title" content="${escapeHTML(title)}" />
 <meta property="og:description" content="${escapeHTML(seoDesc)}" />
 <meta property="og:image" content="${ogImageUrl}" />
 <meta property="og:url" content="https://oliverfr.com/articles/${slug}.html" />
 <meta property="og:site_name" content="MeFan Tech" />
+<!-- ✅ Twitter 卡片 -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${escapeHTML(title)}" />
 <meta name="twitter:description" content="${escapeHTML(seoDesc)}" />
 <meta name="twitter:image" content="${ogImageUrl}" />
+<!-- ✅ 结构化数据 -->
 <script type="application/ld+json">${JSON.stringify({
-  "@context":"https://schema.org",
-  "@type":"Article",
-  headline:title,
-  description:seoDesc,
-  keywords,
-  image:ogImageUrl,
-  author:{ "@type":"Person", name:"Oliver F." },
-  publisher:{
-    "@type":"Organization",
-    name:"MeFan Solutions",
-    logo:{ "@type":"ImageObject", url:logoUrl }
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": title,
+  "description": seoDesc,
+  "keywords": keywords,
+  "image": ogImageUrl,
+  "author": { "@type": "Person", "name": "Oliver F." },
+  "publisher": {
+    "@type": "Organization",
+    "name": "MeFan Solutions",
+    "logo": { "@type": "ImageObject", "url": logoUrl }
   },
-  datePublished:createdAt,
-  dateModified:createdAt,
-  mainEntityOfPage:{ "@type":"WebPage", "@id":"https://oliverfr.com/articles/"+slug+".html" }
-},null,2)}</script>
+  "datePublished": createdAt,
+  "dateModified": createdAt,
+  "mainEntityOfPage": { "@type": "WebPage", "@id": `https://oliverfr.com/articles/${slug}.html` }
+}, null, 2)}</script>
 <style>
 body{font-family:Arial,sans-serif;margin:40px auto;max-width:700px;line-height:1.6}
 h1{font-size:28px;margin-bottom:20px}
 .meta{color:#888;font-size:14px;margin-bottom:20px}
 img{max-width:100%;margin:20px 0}
 .logo{display:block;margin:0 auto 20px;height:60px}
-</style></head><body>
+</style></head>
+<body>
 <img src="${logoUrl}" alt="MeFan Logo" class="logo" />
 <h1>${escapeHTML(title)}</h1>
 <div class="meta">release date：${createdAt} ｜ Author：Oliver F.</div>
