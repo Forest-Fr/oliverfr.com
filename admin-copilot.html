@@ -264,6 +264,90 @@ function initAdmin(){
   /* ------ 生成静态 HTML（略，完全保留你之前的实现） ------ */
   genBtn.onclick=async()=>{ /* ……保持原逻辑即可…… */ };
 }
+
+
+
+/* =============== 仅补丁，其他逻辑不动 =============== */
+
+/* 1. 保证 EditorJS 载入完毕再继续 */
+function loadEditor() {
+  return new Promise((res, rej) => {
+    if (window.EditorJS) return res();
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2';
+    s.onload = () => res();
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+(async () => {
+  /* 等脚本 */
+  await loadEditor();
+
+  /* DOM refs */
+  const mdArea = document.getElementById('newContent');
+  const btnE = document.getElementById('toggleToEditor');
+  const btnT = document.getElementById('toggleToTextarea');
+  const editorDiv = document.getElementById('editorContainer');
+
+  let editor = null;   // 真正的 EditorJS 实例
+
+  /* helper: 销毁并清理 */
+  async function destroyEditor() {
+    if (editor) {
+      try { await editor.destroy(); } catch(_) {}
+      editor = null;
+    }
+    editorDiv.classList.add('hidden');
+    mdArea.classList.remove('hidden');
+    btnE.classList.remove('hidden');
+    btnT.classList.add('hidden');
+  }
+
+  /* 可视化模式 */
+  btnE.onclick = async () => {
+    await destroyEditor();
+    editorDiv.classList.remove('hidden');
+    mdArea.classList.add('hidden');
+    btnE.classList.add('hidden');
+    btnT.classList.remove('hidden');
+
+    editor = new EditorJS({
+      holder: 'editorContainer',
+      autofocus: true,
+      tools: {
+        paragraph: window.ParagraphTool || window.Paragraph,
+        header   : window.Header      || window.HeaderTool,
+      },
+      data: { blocks: [{ type:'paragraph', data:{ text: mdArea.value.replace(/\n/g,'<br>') } }] }
+    });
+  };
+
+  /* Markdown 模式 */
+  btnT.onclick = destroyEditor;
+
+  /* ---- 给全局可能会用到 editor.save() 的地方打补丁 ---- */
+  window.safeSave = async () => {
+    if (!editor) return mdArea.value.trim();
+    const data = await editor.save();
+    return data.blocks.map(b => b.data.text || '').join('\n\n').trim();
+  };
+
+  /* 提交按钮示例，把原来的 editor.save() 改成 safeSave() */
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.onclick = async () => {
+    const title   = document.getElementById('newTitle').value.trim();
+    const content = await window.safeSave();
+    if (!title || !content) { alert('标题/内容不能为空'); return; }
+    /* 下面保持你原来的 supabase 插入逻辑即可 */
+  };
+
+  /* 最后：解除按钮初始 disabled 状态（可选） */
+  [btnE, btnT, submitBtn].forEach(b => b.removeAttribute('disabled'));
+})();
+
+
 </script>
 </body>
 </html>
