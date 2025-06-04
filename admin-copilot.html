@@ -183,7 +183,18 @@ $('toggleToTextarea').onclick=async()=>{
   $('editorContainer').classList.add('hidden');
   $('newContent').classList.remove('hidden');
   $('newContent').value=await safeSave();
-  if(editor){await editor.destroy();editor=null;}
+  if(editor) {
+try {
+const d = await editor.save();
+$('newContent').value = d.blocks?.length
+ ? d.blocks.map(b=>b.data.text||'').join('\n\n')
+ : '';
+ } catch(e){ console.warn(e); }
+     await editor.destroy();
+     editor=null;
+   }
+$('editorContainer').innerHTML='';          // 把空 div 清掉
+$('editorContainer').style.display='none';  // 双保险
 };
 
 /* ============= Ⅲ. 列表加载 / 分页 / 预览 / 删除 / 编辑 ============= */
