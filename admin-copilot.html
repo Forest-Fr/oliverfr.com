@@ -154,7 +154,7 @@ const toBJ= () => new Date(Date.now() + 288e5).toISOString();
 
 /* ---------- Supabase ---------- */
 const ENDPOINT = 'https://copilot-router.mefans.workers.dev';    // ←改成你的 Worker
-const ANON_KEY = 'REPLACE_WITH_ANON_KEY';                        // ←改成你的 anon key
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';                        // ←改成你的 anon key
 const ADMIN_EMAIL = 'oliveroogle@gmail.com';
 
 const supa = supabase.createClient(ENDPOINT, ANON_KEY);
