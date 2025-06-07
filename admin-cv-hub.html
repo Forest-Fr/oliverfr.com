@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>AI管理后台 — 职业助理</n  </title>
+  <title>AI管理后台 — 职业助理</title>
   <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -62,7 +62,11 @@
       </div>
     </div>
   </div>
-  <div id="previewModal"><button id="closePreview">×</button><h2 style="margin-top:0">预览</h2><div id="previewContent" style="line-height:1.8"></div></div>
+  <div id="previewModal">
+    <button id="closePreview">×</button>
+    <h2 style="margin-top:0">预览详情</h2>
+    <div id="previewContent" style="line-height:1.8"></div>
+  </div>
   <div id="modalOverlay"></div>
   <div id="editorModal">
     <h2>编辑 & 配置</h2>
@@ -79,7 +83,7 @@
     <button id="saveEdit">保存</button><button id="cancelEdit">取消</button>
   </div>
 <script>
-const API_BASE="",pageSize=10;
+const API_BASE="/admin-api",pageSize=10;
 let currentPage=1,totalCount=0,lastSearch="",editingId=null,selectedModules=[];
 const searchEl=document.getElementById('search'),tableBody=document.getElementById('tableBody'),prevPageBtn=document.getElementById('prevPage'),nextPageBtn=document.getElementById('nextPage'),pageInfoEl=document.getElementById('pageInfo');
 const modalOverlay=document.getElementById('modalOverlay'),editorModal=document.getElementById('editorModal'),editOrigEl=document.getElementById('editOriginal'),editEditEl=document.getElementById('editEdited'),saveEditBtn=document.getElementById('saveEdit'),cancelBtn=document.getElementById('cancelEdit');
@@ -87,12 +91,34 @@ const previewModal=document.getElementById('previewModal'),closePreview=document
 const moduleTags=document.querySelectorAll('#moduleTags .tag'),styleEl=document.getElementById('style'),lengthEl=document.getElementById('length');
 const fmt=n=>n<10?'0'+n:n;function formatBeijing(iso){const d=new Date(iso);d.setHours(d.getHours()+8);return`${d.getFullYear()}-${fmt(d.getMonth()+1)}-${fmt(d.getDate())} ${fmt(d.getHours())}:${fmt(d.getMinutes())}`;}
 function bindEvents(){searchEl.onkeypress=e=>{if(e.key==='Enter'){lastSearch=searchEl.value.trim();currentPage=1;fetchAndRender();}};prevPageBtn.onclick=()=>{if(currentPage>1){currentPage--;fetchAndRender();}};nextPageBtn.onclick=()=>{if(currentPage*pageSize<totalCount){currentPage++;fetchAndRender();}};cancelBtn.onclick=closeEditor;modalOverlay.onclick=e=>{if(e.target===modalOverlay){closeEditor();closePreviewModal();}};saveEditBtn.onclick=saveEdit;closePreview.onclick=closePreviewModal;moduleTags.forEach(tag=>tag.onclick=()=>{tag.classList.toggle('selected');const v=tag.dataset.value;if(tag.classList.contains('selected'))selectedModules.push(v);else selectedModules=selectedModules.filter(x=>x!==v);});}
-async function fetchAndRender(){try{const r=await fetch(`${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,{credentials:'include'});if(!r.ok)throw'';const{total,data}=await r.json();totalCount=total;pageInfoEl.textContent=`${currentPage}/${Math.ceil(totalCount/pageSize)||1}`;prevPageBtn.disabled=currentPage<=1;nextPageBtn.disabled=currentPage*pageSize>=totalCount;tableBody.innerHTML=data.length?data.map((row,i)=>`<tr><td>${row.id.slice(0,8)}</td><td>${row.user_id}</td><td>${formatBeijing(row.created_at)}</td><td>${(row.modules||[]).join(', ')}</td><td>${row.style||''}</td><td>${row.length||''}</td><td>${row.prompt_tokens||0}</td><td>${row.completion_tokens||0}</td><td>${row.total_tokens||0}</td><td>$${(row.billing_cost||0).toFixed(4)}</td><td>${row.ip_address||''}</td><td><button class="btn-preview" data-index="${i}">预览</button><button class="btn-edit" data-id="${row.id}">编辑</button><button class="btn-delete" data-id="${row.id}">删除</button></td></tr>`).join(''):'<tr><td colspan="12" style="text-align:center;color:#888">暂无数据</td></tr>';}catch(e){alert('加载失败')}document.querySelectorAll('.btn-preview').forEach(b=>b.onclick=()=>{const rec=data[+b.dataset.index];markdownPrv.innerHTML=marked.parse(rec.original_text||'');openPreviewModal();});document.querySelectorAll('.btn-edit').forEach(b=>b.onclick=()=>openEditor(b.dataset.id));document.querySelectorAll('.btn-delete').forEach(b=>b.onclick=()=>delResume(b.dataset.id));}
+async function fetchAndRender(){
+  try{
+    const r=await fetch(`${API_BASE}/list-resumes?page=${currentPage}&size=${pageSize}&search=${encodeURIComponent(lastSearch)}`,{credentials:'include'});
+    if(!r.ok) throw '';
+    const{total,data}=await r.json();
+    totalCount=total;
+    pageInfoEl.textContent=`${currentPage}/${Math.ceil(totalCount/pageSize)||1}`;
+    prevPageBtn.disabled=currentPage<=1;
+    nextPageBtn.disabled=currentPage*pageSize>=totalCount;
+    tableBody.innerHTML=data.length?data.map((row,i)=>`<tr><td>${row.id.slice(0,8)}</td><td>${row.user_id}</td><td>${formatBeijing(row.created_at)}</td><td>${(row.modules||[]).join(', ')}</td><td>${row.style||''}</td><td>${row.length||''}</td><td>${row.prompt_tokens||0}</td><td>${row.completion_tokens||0}</td><td>${row.total_tokens||0}</td><td>$${(row.billing_cost||0).toFixed(4)}</td><td>${row.ip_address||''}</td><td><button class="btn-preview" data-index="${i}">预览</button><button class="btn-edit" data-id="${row.id}">编辑</button><button class="btn-delete" data-id="${row.id}">删除</button></td></tr>`).join(''):'<tr><td colspan="12" style="text-align:center;color:#888">暂无数据</td></tr>';
+    // 绑定行内事件
+    document.querySelectorAll('.btn-preview').forEach((b,index)=>{
+      b.addEventListener('click',()=>{
+        const rec=data[index];
+        const html=marked.parse(rec.original_text||'');
+        markdownPrv.innerHTML=html;
+        previewContent.innerHTML=html + `<div style="margin-top:1rem"><p><strong>Usage:</strong> prompt ${rec.prompt_tokens}, completion ${rec.completion_tokens}, total ${rec.total_tokens}</p><p><strong>Cost:</strong> $${(rec.billing_cost||0).toFixed(4)}</p><p><strong>IP:</strong> ${rec.ip_address}</p></div>`;
+        modalOverlay.style.display='block';previewModal.style.display='block';
+      });
+    });
+    document.querySelectorAll('.btn-edit').forEach(b=>b.addEventListener('click',()=>openEditor(b.dataset.id)));
+    document.querySelectorAll('.btn-delete').forEach(b=>b.addEventListener('click',()=>delResume(b.dataset.id)));
+  }catch(e){alert('加载失败');console.error(e);}  
+}
 async function openEditor(id){const r=await fetch(`${API_BASE}/get-resume?id=${id}`,{credentials:'include'}),rec=await r.json();editingId=rec.id;editOrigEl.value=rec.original_text||'';editEditEl.value=rec.edited_text||'';selectedModules=rec.modules||[];moduleTags.forEach(tag=>tag.classList.toggle('selected',selectedModules.includes(tag.dataset.value)));styleEl.value=rec.style||'';lengthEl.value=rec.length||'';modalOverlay.style.display='block';editorModal.style.display='block';}
 function closeEditor(){editingId=null;editorModal.style.display='none';modalOverlay.style.display='none';}
 async function saveEdit(){saveEditBtn.disabled=true;try{const body={user_id:'admin',resume_id:editingId,text:editEditEl.value.trim(),extras:{modules:selectedModules,style:styleEl.value,length:lengthEl.value}};const r=await fetch(`${API_BASE}/edit-resume`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw await r.text();closeEditor();fetchAndRender();}catch(e){alert('保存失败:'+e);}finally{saveEditBtn.disabled=false;}}
 async function delResume(id){if(!confirm('确认删除？'))return;await fetch(`${API_BASE}/delete-resume?id=${id}`,{method:'DELETE',credentials:'include'});fetchAndRender();}
-function openPreviewModal(){modalOverlay.style.display='block';previewModal.style.display='block';}
 function closePreviewModal(){previewModal.style.display='none';modalOverlay.style.display='none';}
 bindEvents();fetchAndRender();
 </script>
