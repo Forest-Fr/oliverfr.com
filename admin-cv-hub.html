@@ -79,7 +79,7 @@
     <button id="saveEdit">保存</button><button id="cancelEdit">取消</button>
   </div>
 <script>
-const API_BASE="/admin-api",pageSize=10;
+const API_BASE="",pageSize=10;
 let currentPage=1,totalCount=0,lastSearch="",editingId=null,selectedModules=[];
 const searchEl=document.getElementById('search'),tableBody=document.getElementById('tableBody'),prevPageBtn=document.getElementById('prevPage'),nextPageBtn=document.getElementById('nextPage'),pageInfoEl=document.getElementById('pageInfo');
 const modalOverlay=document.getElementById('modalOverlay'),editorModal=document.getElementById('editorModal'),editOrigEl=document.getElementById('editOriginal'),editEditEl=document.getElementById('editEdited'),saveEditBtn=document.getElementById('saveEdit'),cancelBtn=document.getElementById('cancelEdit');
