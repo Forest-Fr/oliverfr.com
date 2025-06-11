@@ -15,30 +15,31 @@
 /* ========== 页面背景 & 字体 ========== */
 body {
   font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  background: #1a1a1a;
-  color: #e5e7eb;
+  background-color: #f0f2f5;    /* 淡灰背景 */
+  color: #333;
   height: 100vh;
   overflow: hidden;
 }
 
-/* ========== 授权弹窗 ========== */
+/* ========== 授权弹窗背景模糊 ========== */
 #authModal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
+/* 弹窗主体 */
 #authModal .modal-box {
-  position: relative;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 24px 32px;
   width: 90%;
   max-width: 400px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  padding: 24px 32px;
   text-align: center;
 }
 #authModal h2 {
@@ -49,8 +50,8 @@ body {
 #authModal p {
   font-size: 0.95rem;
   color: #555;
+  margin-bottom: 16px;
   line-height: 1.4;
-  margin-bottom: 24px;
 }
 #authModal input {
   width: 100%;
@@ -65,7 +66,7 @@ body {
   border-color: #3b82f6;
 }
 #authModal button {
-  margin-top: 24px;
+  margin-top: 16px;
   width: 100%;
   padding: 0.75rem;
   font-size: 1rem;
@@ -90,26 +91,33 @@ body {
   display: none;
 }
 
-/* ========== 主容器 ========== */
-.container {
-  max-width: 800px;
-  margin: 2rem auto;
-  background: #222;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  height: calc(100vh - 4rem);
+/* ========== 主界面容器 ========== */
+#mainUI {
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  background: #ffffff;          /* 卡片白底 */
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  height: calc(100% - 4rem);
+  display: flex;
+  flex-direction: column;
+}
 
-/* ========== 标题 ========== */
+/* 标题 */
 .container h1 {
   font-size: 1.75rem;
   margin-bottom: 1rem;
-  color: #e5e7eb;
+  color: #111;
 }
 
-/* ========== 控件区（开始/停止按钮） ========== */
+/* 控件区（开始/停止按钮） */
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -148,58 +156,56 @@ body {
   cursor: not-allowed;
 }
 
-/* ========== 骨架屏 ========== */
+/* 骨架屏 */
 .skeleton {
   height: 1.5rem;
-  background: #333;
+  background: #e5e7eb;
   border-radius: 4px;
   animation: pulse 1.6s infinite;
   margin-bottom: 1rem;
 }
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.4; }
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0.4; }
 }
 
-/* ========== 实时字幕区 ========== */
+/* 实时字幕区 */
 .grid {
   display: block;
-  height: calc(100% - 6rem);
+  flex: 1;
   overflow: hidden;
 }
 .box {
-  background: #2a2a2a;
+  background: #f9fafb;
   padding: 0.75rem;
   height: 100%;
   overflow-y: auto;
-  border: 1px solid #444;
+  border: 1px solid #ddd;
   border-radius: 6px;
   white-space: pre-wrap;
   word-break: break-word;
-  color: #e5e7eb;
+  color: #333;
 }
-/* 双栏布局（平板+） */
+/* 平板及以上两栏布局 */
 @media (min-width: 768px) {
   .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
-    height: calc(100% - 6rem);
   }
-  .box { height: auto; }
 }
 
   </style>
 </head>
 <body>
-  <!-- 授权弹窗 -->
-  <div id="authModal" style="...">
+ <!-- 授权弹窗 -->
+  <div id="authModal">
     <div class="modal-box">
       <h2>请输入授权码</h2>
       <p>验证成功后即可使用实时同传功能。</p>
       <input type="password" id="authInput" placeholder="授权码"/>
       <button id="authConfirm" disabled>确认</button>
-      <div id="authError" style="color:red;display:none;margin-top:4px;"></div>
+      <div class="error" id="authError"></div>
     </div>
   </div>
 
