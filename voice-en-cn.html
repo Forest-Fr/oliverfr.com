@@ -5,87 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>实时中英同传助手</title>
   <style>
-      /* —— 全局 —— */
+   /* —— 全局重置与背景 —— */
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: Arial, sans-serif;
-      margin: 0; padding: 1rem;
-      background: #f3f4f6;
+      font-family: 'Segoe UI','Helvetica Neue',Arial,sans-serif;
+      height: 100vh;
+      background: #333; /* 页面背景示意 */
+      color: #333;
     }
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: #fff;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
 
-    /* —— 授权 & 控件栏 —— */
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
+    /* —— 授权模态背景层 —— */
+    #authModal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
     }
-    .controls input,
-    .controls button {
-      flex: 1 1 100%;
-      min-height: 2.5rem;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      padding: 0.5rem;
-      font-size: 1rem;
+
+    /* —— 弹窗主体 —— */
+    #authModal .modal-box {
+      width: 90%; max-width: 400px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      padding: 24px 32px;
+      text-align: center;
+      position: relative;
     }
-    .controls input {
-      border-color: #888;
-    }
-    .controls button {
+
+    /* —— 关闭按钮 (可选) —— */
+    #authModal .close-btn {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 24px; height: 24px;
+      background: none;
       border: none;
-      color: #fff;
+      font-size: 24px;
+      color: #999;
       cursor: pointer;
     }
-    button.start { background: #3b82f6; }
-    button.stop  { background: #ef4444; }
+    #authModal .close-btn:hover { color: #666; }
 
-    /* —— 骨架屏 & 状态 —— */
-    .skeleton {
-      height: 2rem;
-      background: #e5e7eb;
-      border-radius: 4px;
-      animation: pulse 1.5s infinite;
-      margin-bottom: 1rem;
+    /* —— 标题与描述 —— */
+    .modal-box h2 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: #222;
     }
-    @keyframes pulse {
-      0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; }
-    }
-
-    /* —— 文本区 & 滚动 —— */
-    .grid { display: block; }
-    .box {
-      background: #f9fafb;
-      padding: 0.5rem;
-      height: 150px;         /* 手机端较低 */
-      overflow-y: auto;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px;
-      white-space: pre-wrap;
-      word-break: break-word;
+    .modal-box p {
+      font-size: 0.95rem;
+      color: #555;
+      margin-bottom: 24px;
+      line-height:1.4;
     }
 
-    /* —— 平板及以上两栏 —— */
-    @media (min-width: 768px) {
-      .controls input { flex: 2; }
-      .controls button { flex: 1; min-width: 120px; }
-      .grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-      }
-      .box {
-        height: 200px;
-      }
+    /* —— 输入框 —— */
+    .modal-box input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      transition: border-color .2s;
     }
+    .modal-box input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+
+    /* —— 确认按钮 —— */
+    .modal-box button {
+      margin-top: 24px;
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      color: #fff;
+      background: #3b82f6;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .modal-box button:disabled {
+      background: #8fbefc;
+      cursor: not-allowed;
+    }
+    .modal-box button:hover:not(:disabled) {
+      background: #2563eb;
+    }
+
+    /* —— 错误提示 —— */
+    .modal-box .error {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #d9534f;
+      display: none;
+    }
+  </style>
   </style>
 </head>
 <body>
