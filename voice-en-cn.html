@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>实时中英同传助手</title>
   <style>
-/* ========== 全局重置 ========== */
+/* =========================================
+   1. 全局重置 & 基础设置
+   ========================================= */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
-
-/* ========== 页面基础 ========== */
 body {
   font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f0f2f5;   /* 淡灰背景 */
+  background-color: #f0f2f5;
   color: #333;
   height: 100vh;
   overflow: hidden;
 }
 
-/* ========== 授权弹窗遮罩 & 模糊 ========== */
+/* =========================================
+   2. 授权弹窗：遮罩 + 模糊 + 卡片
+   ========================================= */
 #authModal {
   position: fixed;
-  inset: 0;
-  /* 白色 25% 半透明 */
-  background: rgba(255, 255, 255, 0.25);
-  /* 轻度高斯模糊 */
+  inset: 0; /* top/right/bottom/left: 0 */
+  background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex;
@@ -35,8 +35,6 @@ body {
   justify-content: center;
   z-index: 1000;
 }
-
-/* ========== 弹窗主体 ========== */
 #authModal .modal-box {
   width: 90%;
   max-width: 400px;
@@ -46,23 +44,17 @@ body {
   padding: 24px 32px;
   text-align: center;
 }
-
-/* 标题 */
 #authModal h2 {
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
   color: #222;
 }
-
-/* 描述文字 */
 #authModal p {
   font-size: 0.95rem;
   color: #555;
   margin-bottom: 1.5rem;
   line-height: 1.4;
 }
-
-/* 输入框 */
 #authModal input {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -75,15 +67,13 @@ body {
   outline: none;
   border-color: #3b82f6;
 }
-
-/* 确认按钮 */
 #authModal button {
   margin-top: 1.5rem;
   width: 100%;
   padding: 0.75rem;
   font-size: 1rem;
-  background: #3b82f6;
   color: #fff;
+  background: #3b82f6;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -96,8 +86,6 @@ body {
 #authModal button:hover:not(:disabled) {
   background: #2563eb;
 }
-
-/* 错误提示 */
 #authModal .error {
   margin-top: 0.5rem;
   font-size: 0.9rem;
@@ -105,12 +93,19 @@ body {
   display: none;
 }
 
-/* ========== 主界面布局 ========== */
+/* =========================================
+   3. 主界面容器
+   ========================================= */
+#pageContent {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 #mainUI {
   position: relative;
   width: 100%;
   height: 100%;
-  display: none;  /* 验证成功后 JS 显示 */
+  display: none; /* JS 授权成功后显示 */
 }
 .container {
   max-width: 900px;
@@ -124,15 +119,15 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
-
-/* 主标题 */
 .container h1 {
   font-size: 1.75rem;
   margin-bottom: 1rem;
   color: #111;
 }
 
-/* ========== 控件区（开始/停止同传） ========== */
+/* =========================================
+   4. 控件区（开始/停止按钮）
+   ========================================= */
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -143,7 +138,7 @@ body {
   flex: 1 1 48%;
   padding: 0.75rem 1rem;
   font-size: 1rem;
-  background: #ef4444;   /* 默认红色“开始” */
+  background: #ef4444;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -155,7 +150,7 @@ body {
   transition: background 0.2s, opacity 0.2s;
 }
 .controls button.stop {
-  background: #6b7280;   /* 灰色“停止” */
+  background: #6b7280;
 }
 .controls button.start:hover:not(:disabled) {
   background: #dc2626;
@@ -168,7 +163,9 @@ body {
   cursor: not-allowed;
 }
 
-/* ========== 骨架屏（首条翻译前占位） ========== */
+/* =========================================
+   5. 骨架屏（等待首条翻译）
+   ========================================= */
 .skeleton {
   height: 1.5rem;
   background: #e5e7eb;
@@ -181,7 +178,9 @@ body {
   50%      { opacity: 0.4; }
 }
 
-/* ========== 实时字幕区 ========== */
+/* =========================================
+   6. 实时字幕区
+   ========================================= */
 .grid {
   flex: 1;
   display: block;
@@ -199,7 +198,7 @@ body {
   color: #333;
 }
 
-/* 平板及以上两栏布局 */
+/* 双栏响应 */
 @media (min-width: 768px) {
   .grid {
     display: grid;
@@ -207,6 +206,7 @@ body {
     gap: 1rem;
   }
 }
+
 
 
   </style>
