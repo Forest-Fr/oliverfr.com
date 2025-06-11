@@ -236,24 +236,22 @@
   </div>
 
   <script>
-    const BASE        = "https://translate-assistant.mefans.workers.dev";
-    const API_VALIDATE= BASE + "/admin-api/validate-code";
-    const WS_URL      = BASE;
+    const API_VALIDATE = "https://translate-assistant.mefans.workers.dev/admin-api/validate-code";
+    const WS_URL       = "wss://translate-assistant.mefans.workers.dev";
 
-    const authModal   = document.getElementById('authModal');
-    const authInput   = document.getElementById('authInput');
-    const authConfirm = document.getElementById('authConfirm');
-    const authError   = document.getElementById('authError');
-    const btnStart    = document.getElementById('btnStart');
-    const btnStop     = document.getElementById('btnStop');
-    const skeleton    = document.getElementById('skeleton');
-    const outEn       = document.getElementById('outEn');
-    const outZh       = document.getElementById('outZh');
-    const pageContent = document.getElementById('pageContent');
+    const authModal    = document.getElementById('authModal');
+    const authInput    = document.getElementById('authInput');
+    const authConfirm  = document.getElementById('authConfirm');
+    const authError    = document.getElementById('authError');
+    const btnStart     = document.getElementById('btnStart');
+    const btnStop      = document.getElementById('btnStop');
+    const skeleton     = document.getElementById('skeleton');
+    const outEn        = document.getElementById('outEn');
+    const outZh        = document.getElementById('outZh');
 
     let socket, mediaRecorder;
 
-    // 初始：按钮禁用，页面内容可见，弹窗可见
+    // 初始禁用
     authConfirm.disabled = true;
     btnStart.disabled    = true;
     btnStop.disabled     = true;
@@ -291,7 +289,7 @@
       }
     });
 
-    // 初始化 WebSocket 连接
+    // 初始化 WebSocket
     function initWS() {
       socket = new WebSocket(WS_URL);
       socket.binaryType = 'arraybuffer';
@@ -313,16 +311,29 @@
       btnStop.disabled  = false;
       skeleton.style.display = '';
       try {
+        // 权限检查
+        if (navigator.permissions) {
+          const st = await navigator.permissions.query({ name:'microphone' }).catch(()=>null);
+          if (st?.state === 'denied') {
+            alert('请在浏览器设置中启用麦克风权限');
+            btnStart.disabled = false;
+            btnStop.disabled  = true;
+            return;
+          }
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-        mediaRecorder = new MediaRecorder(stream, { mimeType:'audio/webm' });
+        let opts = {};
+        if (MediaRecorder.isTypeSupported('audio/webm')) opts.mimeType = 'audio/webm';
+        mediaRecorder = new MediaRecorder(stream, opts);
         mediaRecorder.ondataavailable = e => {
-          if (socket.readyState === WebSocket.OPEN && e.data.size>0) {
+          if (socket.readyState===WebSocket.OPEN && e.data.size>0) {
             socket.send(e.data);
           }
         };
         mediaRecorder.start(250);
-      } catch {
-        alert('麦克风权限获取失败');
+      } catch (err) {
+        console.error('录音失败', err);
+        alert('无法获取麦克风权限，请检查设置');
         btnStart.disabled = false;
         btnStop.disabled  = true;
       }
@@ -330,14 +341,16 @@
 
     // 停止同传
     btnStop.addEventListener('click', () => {
-      if (mediaRecorder) mediaRecorder.stop();
+      if (mediaRecorder && mediaRecorder.state!=='inactive') {
+        mediaRecorder.stop();
+      }
       btnStart.disabled = false;
       btnStop.disabled  = true;
     });
 
-    // 辅助：追加文本并自动滚底
-    function appendText(el, txt) {
-      el.innerText += txt;
+    // 自动滚底
+    function appendText(el, text) {
+      el.innerText += text;
       el.scrollTop = el.scrollHeight;
     }
   </script>
