@@ -5,208 +5,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>实时中英同传助手</title>
   <style>
-/* =========================================
-   1. 全局重置 & 基础设置
-   ========================================= */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-body {
-  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f0f2f5;
-  color: #333;
-  height: 100vh;
-  overflow: hidden;
-}
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: url('your-page-background.jpg') no-repeat center / cover; /* 你的页面背景或内容 */
+      min-height: 100vh;
+      position: relative;
+    }
 
-/* =========================================
-   2. 授权弹窗：遮罩 + 模糊 + 卡片
-   ========================================= */
-#authModal {
-  position: fixed;
-  inset: 0; /* top/right/bottom/left: 0 */
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-#authModal .modal-box {
-  width: 90%;
-  max-width: 400px;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  padding: 24px 32px;
-  text-align: center;
-}
-#authModal h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-  color: #222;
-}
-#authModal p {
-  font-size: 0.95rem;
-  color: #555;
-  margin-bottom: 1.5rem;
-  line-height: 1.4;
-}
-#authModal input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  transition: border-color 0.2s;
-}
-#authModal input:focus {
-  outline: none;
-  border-color: #3b82f6;
-}
-#authModal button {
-  margin-top: 1.5rem;
-  width: 100%;
-  padding: 0.75rem;
-  font-size: 1rem;
-  color: #fff;
-  background: #3b82f6;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-#authModal button:disabled {
-  background: #8fbefc;
-  cursor: not-allowed;
-}
-#authModal button:hover:not(:disabled) {
-  background: #2563eb;
-}
-#authModal .error {
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-  color: #d9534f;
-  display: none;
-}
+    /* 主页面内容 */
+    #pageContent {
+      padding: 2rem;
+      /* 依旧可滚动、可见 */
+    }
 
-/* =========================================
-   3. 主界面容器
-   ========================================= */
-#pageContent {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-#mainUI {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: none; /* JS 授权成功后显示 */
-}
-.container {
-  max-width: 900px;
-  height: calc(100% - 4rem);
-  margin: 2rem auto;
-  background: #ffffff;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.container h1 {
-  font-size: 1.75rem;
-  margin-bottom: 1rem;
-  color: #111;
-}
+    /* 授权遮罩：白色半透 + 模糊 */
+    #authModal {
+      position: fixed; inset: 0;
+      background: rgba(255,255,255,0.25);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex; align-items:center; justify-content:center;
+      z-index: 1000;
+    }
+    #authModal .modal-box {
+      background: #fff;
+      border-radius:12px;
+      padding:24px 32px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.15);
+      width:90%; max-width:400px;
+      text-align:center;
+    }
+    #authModal h2 { font-size:1.5rem; margin-bottom:.5rem; }
+    #authModal p  { font-size:.95rem; color:#555; margin-bottom:1.5rem; }
+    #authModal input {
+      width:100%; padding:.75rem; font-size:1rem;
+      border:1px solid #ccc; border-radius:6px;
+    }
+    #authModal button {
+      margin-top:1rem; width:100%; padding:.75rem;
+      background:#3b82f6; color:#fff; border:none; border-radius:6px;
+      cursor:pointer;
+    }
+    #authModal button:disabled {
+      background:#8fbefc; cursor:not-allowed;
+    }
 
-/* =========================================
-   4. 控件区（开始/停止按钮）
-   ========================================= */
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-.controls button {
-  flex: 1 1 48%;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  transition: background 0.2s, opacity 0.2s;
-}
-.controls button.stop {
-  background: #6b7280;
-}
-.controls button.start:hover:not(:disabled) {
-  background: #dc2626;
-}
-.controls button.stop:hover:not(:disabled) {
-  background: #4b5563;
-}
-.controls button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* =========================================
-   5. 骨架屏（等待首条翻译）
-   ========================================= */
-.skeleton {
-  height: 1.5rem;
-  background: #e5e7eb;
-  border-radius: 4px;
-  animation: pulse 1.6s infinite;
-  margin-bottom: 1rem;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.4; }
-}
-
-/* =========================================
-   6. 实时字幕区
-   ========================================= */
-.grid {
-  flex: 1;
-  display: block;
-  overflow: hidden;
-}
-.box {
-  background: #f9fafb;
-  padding: 0.75rem;
-  height: 100%;
-  overflow-y: auto;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #333;
-}
-
-/* 双栏响应 */
-@media (min-width: 768px) {
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-}
-
+    /* 示例下方按钮（被模糊）只是为了示范背景 */
+    #pageContent button {
+      margin-top:2rem; padding:.5rem 1rem;
+      background:#ef4444; color:#fff; border:none; border-radius:4px;
+    }
 
 
   </style>
