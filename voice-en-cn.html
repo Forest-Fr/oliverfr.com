@@ -12,47 +12,57 @@
   box-sizing: border-box;
 }
 
-/* ========== 页面背景 & 字体 ========== */
+/* ========== 页面基础 ========== */
 body {
   font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f0f2f5;    /* 淡灰背景 */
+  background-color: #f0f2f5;   /* 淡灰背景 */
   color: #333;
   height: 100vh;
   overflow: hidden;
 }
 
-/* ========== 授权弹窗背景模糊 ========== */
+/* ========== 授权弹窗遮罩 & 模糊 ========== */
 #authModal {
-  position: fixed; inset: 0;
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  position: fixed;
+  inset: 0;
+  /* 白色 25% 半透明 */
+  background: rgba(255, 255, 255, 0.25);
+  /* 轻度高斯模糊 */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
-/* 弹窗主体 */
+
+/* ========== 弹窗主体 ========== */
 #authModal .modal-box {
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-  padding: 24px 32px;
   width: 90%;
   max-width: 400px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 24px 32px;
   text-align: center;
 }
+
+/* 标题 */
 #authModal h2 {
   font-size: 1.5rem;
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
   color: #222;
 }
+
+/* 描述文字 */
 #authModal p {
   font-size: 0.95rem;
   color: #555;
-  margin-bottom: 16px;
+  margin-bottom: 1.5rem;
   line-height: 1.4;
 }
+
+/* 输入框 */
 #authModal input {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -65,13 +75,15 @@ body {
   outline: none;
   border-color: #3b82f6;
 }
+
+/* 确认按钮 */
 #authModal button {
-  margin-top: 16px;
+  margin-top: 1.5rem;
   width: 100%;
   padding: 0.75rem;
   font-size: 1rem;
-  color: #fff;
   background: #3b82f6;
+  color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -84,40 +96,43 @@ body {
 #authModal button:hover:not(:disabled) {
   background: #2563eb;
 }
+
+/* 错误提示 */
 #authModal .error {
-  margin-top: 8px;
+  margin-top: 0.5rem;
   font-size: 0.9rem;
   color: #d9534f;
   display: none;
 }
 
-/* ========== 主界面容器 ========== */
+/* ========== 主界面布局 ========== */
 #mainUI {
   position: relative;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  display: none;  /* 验证成功后 JS 显示 */
 }
 .container {
   max-width: 900px;
+  height: calc(100% - 4rem);
   margin: 2rem auto;
-  background: #ffffff;          /* 卡片白底 */
+  background: #ffffff;
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  height: calc(100% - 4rem);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-/* 标题 */
+/* 主标题 */
 .container h1 {
   font-size: 1.75rem;
   margin-bottom: 1rem;
   color: #111;
 }
 
-/* 控件区（开始/停止按钮） */
+/* ========== 控件区（开始/停止同传） ========== */
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -128,6 +143,8 @@ body {
   flex: 1 1 48%;
   padding: 0.75rem 1rem;
   font-size: 1rem;
+  background: #ef4444;   /* 默认红色“开始” */
+  color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -137,16 +154,11 @@ body {
   gap: 0.5rem;
   transition: background 0.2s, opacity 0.2s;
 }
-.controls button.start {
-  background: #ef4444;
-  color: #fff;
+.controls button.stop {
+  background: #6b7280;   /* 灰色“停止” */
 }
 .controls button.start:hover:not(:disabled) {
   background: #dc2626;
-}
-.controls button.stop {
-  background: #6b7280;
-  color: #fff;
 }
 .controls button.stop:hover:not(:disabled) {
   background: #4b5563;
@@ -156,7 +168,7 @@ body {
   cursor: not-allowed;
 }
 
-/* 骨架屏 */
+/* ========== 骨架屏（首条翻译前占位） ========== */
 .skeleton {
   height: 1.5rem;
   background: #e5e7eb;
@@ -165,14 +177,14 @@ body {
   margin-bottom: 1rem;
 }
 @keyframes pulse {
-  0%,100% { opacity: 1; }
-  50%     { opacity: 0.4; }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
 }
 
-/* 实时字幕区 */
+/* ========== 实时字幕区 ========== */
 .grid {
-  display: block;
   flex: 1;
+  display: block;
   overflow: hidden;
 }
 .box {
@@ -186,6 +198,7 @@ body {
   word-break: break-word;
   color: #333;
 }
+
 /* 平板及以上两栏布局 */
 @media (min-width: 768px) {
   .grid {
@@ -194,6 +207,7 @@ body {
     gap: 1rem;
   }
 }
+
 
   </style>
 </head>
