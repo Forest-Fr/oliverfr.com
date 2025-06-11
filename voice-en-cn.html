@@ -5,16 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>实时中英同传助手</title>
   <style>
-    /* —— 1. 全局 & 主页面 —— */
-    * { margin:0; padding:0; box-sizing:border-box; }
+    /* =========================================
+       1. 全局重置 & 页面背景
+    ========================================= */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI','Helvetica Neue',Arial,sans-serif;
-      background: #f0f2f5;
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: #f0f2f5;  /* 整体浅灰背景 */
       color: #333;
       min-height: 100vh;
       overflow: auto;
+      position: relative;
     }
-    /* 你真正的页面内容，始终可见 */
+
+    /* =========================================
+       2. 主内容区 —— 永远可见
+    ========================================= */
     #pageContent {
       padding: 2rem;
     }
@@ -25,88 +31,178 @@
       border-radius: 12px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
       padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 4rem);
+      overflow: hidden;
     }
     .container h1 {
       font-size: 1.75rem;
       margin-bottom: 1rem;
     }
-    /* —— 2. 授权遮罩 —— */
+
+    /* =========================================
+       3. 授权弹窗遮罩层 —— 半透明+模糊
+    ========================================= */
     #authModal {
-      position: fixed; inset:0;
+      position: fixed;
+      inset: 0;
       background: rgba(255,255,255,0.15);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
-      display: flex; align-items:center; justify-content:center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       z-index: 1000;
     }
     #authModal .modal-box {
-      width:90%; max-width:400px;
-      background:#fff;
-      border-radius:12px;
-      padding:24px 32px;
-      box-shadow:0 8px 24px rgba(0,0,0,0.15);
-      text-align:center;
+      width: 90%;
+      max-width: 400px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px 32px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      text-align: center;
     }
-    #authModal h2 { font-size:1.5rem; margin-bottom:.5rem; }
-    #authModal p  { font-size:.95rem; color:#555; margin-bottom:1.5rem; line-height:1.4; }
+    #authModal h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #222;
+    }
+    #authModal p {
+      font-size: 0.95rem;
+      color: #555;
+      margin-bottom: 1.5rem;
+      line-height: 1.4;
+    }
     #authModal input {
-      width:100%; padding:.75rem; font-size:1rem;
-      border:1px solid #ccc; border-radius:6px;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      transition: border-color .2s;
     }
-    #authModal input:focus { outline:none; border-color:#3b82f6; }
+    #authModal input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
     #authModal button {
-      margin-top:1.5rem; width:100%; padding:.75rem;
-      font-size:1rem; background:#3b82f6; color:#fff;
-      border:none; border-radius:6px; cursor:pointer;
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .2s;
     }
     #authModal button:disabled {
-      background:#8fbefc; cursor:not-allowed;
+      background: #8fbefc;
+      cursor: not-allowed;
     }
     #authModal button:hover:not(:disabled) {
-      background:#2563eb;
+      background: #2563eb;
     }
     #authModal .error {
-      margin-top:.5rem; color:#d9534f; font-size:.9rem; display:none;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #d9534f;
+      display: none;
     }
 
-    /* —— 3. 同传按钮 & 区域（示例） —— */
+    /* =========================================
+       4. 控件区（开始/停止同传）
+    ========================================= */
     .controls {
-      display:flex; gap:.5rem; margin-bottom:1rem;
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
     }
     .controls button {
-      flex:1; padding:.75rem; font-size:1rem;
-      border:none; border-radius:6px; color:#fff; cursor:pointer;
-      transition:background .2s,opacity .2s;
+      flex: 1 1 48%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: background 0.2s, opacity 0.2s;
     }
-    .controls .start { background:#ef4444; }
-    .controls .start:hover { background:#dc2626; }
-    .controls .stop { background:#6b7280; }
-    .controls .stop:hover { background:#4b5563; }
-    .controls button:disabled { opacity:.5; cursor:not-allowed; }
+    .controls button.start:not(:disabled) {
+      background: #ef4444;
+    }
+    .controls button.start:not(:disabled):hover {
+      background: #dc2626;
+    }
+    .controls button.start:disabled {
+      background: #f8b2b2;
+    }
+    .controls button.stop:not(:disabled) {
+      background: #6b7280;
+    }
+    .controls button.stop:not(:disabled):hover {
+      background: #4b5563;
+    }
+    .controls button.stop:disabled {
+      background: #ccc;
+    }
+    .controls button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
 
-    /* 骨架屏 */
+    /* =========================================
+       5. 骨架屏（等待首条翻译）
+    ========================================= */
     .skeleton {
-      height:1.5rem; background:#e5e7eb;
-      border-radius:4px; animation:pulse 1.6s infinite;
-      margin-bottom:1rem;
+      height: 1.5rem;
+      background: #e5e7eb;
+      border-radius: 4px;
+      animation: pulse 1.6s infinite;
+      margin-bottom: 1rem;
     }
-    @keyframes pulse {0%,100%{opacity:1}50%{opacity:.4}}
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%     { opacity: 0.4; }
+    }
 
-    /* 字幕区 */
-    .grid { display:block; overflow:hidden; flex:1; }
-    .box {
-      background:#f9fafb; padding:.75rem;
-      border:1px solid #ddd; border-radius:6px;
-      white-space:pre-wrap; word-break:break-word;
-      color:#333; height:200px; overflow-y:auto;
+    /* =========================================
+       6. 实时字幕区
+    ========================================= */
+    .grid {
+      flex: 1;
+      display: block;
+      overflow: hidden;
     }
-    @media(min-width:768px) {
-      .grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .box {
+      background: #f9fafb;
+      padding: 0.75rem;
+      height: 100%;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #333;
+    }
+    @media (min-width: 768px) {
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- 主页面内容（永远在最底层） -->
+  <!-- 主页面内容 -->
   <div id="pageContent">
     <div class="container">
       <h1>实时中英同传助手</h1>
@@ -128,7 +224,7 @@
     </div>
   </div>
 
-  <!-- 授权弹窗遮罩（覆盖但不隐藏页面） -->
+  <!-- 授权弹窗遮罩 -->
   <div id="authModal">
     <div class="modal-box">
       <h2>请输入授权码</h2>
@@ -140,107 +236,110 @@
   </div>
 
   <script>
-    const BASE       = "https://translate-assistant.mefans.workers.dev";
-    const API_VALIDATE = BASE + "/admin-api/validate-code";
-    const WS_URL      = BASE;  // 根路径升级 WS
+    const BASE        = "https://translate-assistant.mefans.workers.dev";
+    const API_VALIDATE= BASE + "/admin-api/validate-code";
+    const WS_URL      = BASE;
 
-    const authModal   = document.getElementById("authModal");
-    const authInput   = document.getElementById("authInput");
-    const authConfirm = document.getElementById("authConfirm");
-    const authError   = document.getElementById("authError");
-    const mainUI      = document.getElementById("mainUI");
-    const btnStart    = document.getElementById("btnStart");
-    const btnStop     = document.getElementById("btnStop");
-    const skeleton    = document.getElementById("skeleton");
-    const outEn       = document.getElementById("outEn");
-    const outZh       = document.getElementById("outZh");
+    const authModal   = document.getElementById('authModal');
+    const authInput   = document.getElementById('authInput');
+    const authConfirm = document.getElementById('authConfirm');
+    const authError   = document.getElementById('authError');
+    const btnStart    = document.getElementById('btnStart');
+    const btnStop     = document.getElementById('btnStop');
+    const skeleton    = document.getElementById('skeleton');
+    const outEn       = document.getElementById('outEn');
+    const outZh       = document.getElementById('outZh');
+    const pageContent = document.getElementById('pageContent');
 
     let socket, mediaRecorder;
 
-    // 输入后启用确认按钮
-    authInput.addEventListener("input", () => {
+    // 初始：按钮禁用，页面内容可见，弹窗可见
+    authConfirm.disabled = true;
+    btnStart.disabled    = true;
+    btnStop.disabled     = true;
+
+    // 输入授权码后启用“确认”
+    authInput.addEventListener('input', () => {
       authConfirm.disabled = !authInput.value.trim();
-      authError.style.display = "none";
+      authError.style.display = 'none';
     });
 
-    // 授权校验
-    authConfirm.onclick = async () => {
-      const code = authInput.value.trim();
+    // 确认授权
+    authConfirm.addEventListener('click', async () => {
       authConfirm.disabled = true;
-      authError.style.display = "none";
       try {
         const resp = await fetch(API_VALIDATE, {
-          method: "POST",
-          headers: { "Content-Type":"application/json" },
-          body: JSON.stringify({ code })
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ code: authInput.value.trim() })
         });
-        const json = await resp.json();
-        if (!resp.ok || !json.ok) {
-          authError.textContent = "授权失败，请检查授权码";
-          authError.style.display = "";
+        const { ok } = await resp.json();
+        if (!ok) {
+          authError.textContent = '授权失败，请检查授权码';
+          authError.style.display = '';
+          authConfirm.disabled = false;
           return;
         }
         // 授权成功
-        authModal.style.display = "none";
-        mainUI.style.display   = "";
-        btnStart.disabled      = false;
+        authModal.style.display = 'none';
+        btnStart.disabled = false;
         initWS();
       } catch {
-        authError.textContent = "网络错误，请稍后重试";
-        authError.style.display = "";
-      } finally {
+        authError.textContent = '网络错误，请稍后重试';
+        authError.style.display = '';
         authConfirm.disabled = false;
       }
-    };
+    });
 
+    // 初始化 WebSocket 连接
     function initWS() {
       socket = new WebSocket(WS_URL);
+      socket.binaryType = 'arraybuffer';
       socket.onmessage = evt => {
         try {
           const msg = JSON.parse(evt.data);
-          if (skeleton.style.display !== "none") skeleton.style.display = "none";
-          if (msg.en) append(outEn, msg.en);
-          if (msg.zh) append(outZh, msg.zh);
+          if (skeleton.style.display !== 'none') skeleton.style.display = 'none';
+          if (msg.en) appendText(outEn, msg.en);
+          if (msg.zh) appendText(outZh, msg.zh);
         } catch {}
       };
-      socket.onerror = e => console.error("WS error", e);
-      socket.onclose = e => console.warn("WS closed", e);
+      socket.onerror = e => console.error('WS error', e);
+      socket.onclose = e => console.warn('WS closed', e);
     }
 
-    function append(el, txt) {
-      el.innerText += txt;
-      el.scrollTop = el.scrollHeight;
-    }
-
-    // 开始/停止同传
-    btnStart.onclick = async () => {
-      skeleton.style.display = "";
+    // 开始同传
+    btnStart.addEventListener('click', async () => {
+      btnStart.disabled = true;
+      btnStop.disabled  = false;
+      skeleton.style.display = '';
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-        mediaRecorder = new MediaRecorder(stream, { mimeType:"audio/webm" });
+        mediaRecorder = new MediaRecorder(stream, { mimeType:'audio/webm' });
         mediaRecorder.ondataavailable = e => {
-          if (socket.readyState === WebSocket.OPEN && e.data.size > 0) {
+          if (socket.readyState === WebSocket.OPEN && e.data.size>0) {
             socket.send(e.data);
           }
         };
         mediaRecorder.start(250);
-        btnStart.disabled = true;
-        btnStop.disabled  = false;
       } catch {
-        alert("无法获取麦克风权限");
+        alert('麦克风权限获取失败');
+        btnStart.disabled = false;
+        btnStop.disabled  = true;
       }
-    };
-    btnStop.onclick = () => {
+    });
+
+    // 停止同传
+    btnStop.addEventListener('click', () => {
       if (mediaRecorder) mediaRecorder.stop();
       btnStart.disabled = false;
       btnStop.disabled  = true;
-    };
-
-    // 初始：显示授权弹窗
-    window.addEventListener("DOMContentLoaded", () => {
-      authConfirm.disabled = true;
-      authModal.style.display = "flex";
     });
+
+    // 辅助：追加文本并自动滚底
+    function appendText(el, txt) {
+      el.innerText += txt;
+      el.scrollTop = el.scrollHeight;
+    }
   </script>
 </body>
 </html>
