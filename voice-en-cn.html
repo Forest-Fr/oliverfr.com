@@ -236,8 +236,11 @@
   </div>
 
   <script>
-    const API_VALIDATE = "https://translate-assistant.mefans.workers.dev/admin-api/validate-code";
-    const WS_URL       = "wss://translate-assistant.mefans.workers.dev";
+    // 验证接口保持原来
+  const API_VALIDATE = "https://translate-assistant.mefans.workers.dev/admin-api/validate-code";
+  // **WS 改到 /admin-api/ws**
+  const WS_URL =           "wss://translate-assistant.mefans.workers.dev/admin-api/ws";
+
 
     const authModal    = document.getElementById('authModal');
     const authInput    = document.getElementById('authInput');
@@ -291,8 +294,8 @@
 
     // 初始化 WebSocket
     function initWS() {
-      socket = new WebSocket(WS_URL);
-      socket.binaryType = 'arraybuffer';
+    socket = new WebSocket(WS_URL);
+    socket.binaryType = 'arraybuffer';
       socket.onmessage = evt => {
         try {
           const msg = JSON.parse(evt.data);
