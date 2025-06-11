@@ -5,128 +5,130 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>实时中英同传助手</title>
   <style>
-   /* =========================================
-       1. 全局重置 & 页面背景
-    ========================================= */
+    /* —— 1. 全局 & 主页面 —— */
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family: 'Segoe UI','Helvetica Neue',Arial,sans-serif;
-      background: #f0f2f5; /* 整体浅灰背景 */
+      background: #f0f2f5;
       color: #333;
       min-height: 100vh;
-      overflow: auto;      /* 允许滚动 */
-      position: relative;
+      overflow: auto;
     }
-
-    /* =========================================
-       2. 主内容区 —— 永远可见
-    ========================================= */
+    /* 你真正的页面内容，始终可见 */
     #pageContent {
       padding: 2rem;
     }
-    /* 示例卡片式容器 */
     .container {
       max-width: 900px;
       margin: auto;
-      background: #fff;
+      background: #ffffff;
       border-radius: 12px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
       padding: 1.5rem;
     }
-
-    /* =========================================
-       3. 授权弹窗遮罩层 —— 半透明+模糊
-    ========================================= */
+    .container h1 {
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+    }
+    /* —— 2. 授权遮罩 —— */
     #authModal {
-      position: fixed;
-      inset: 0; /* top/right/bottom/left:0 */
-      background: rgba(255,255,255,0.15);    /* 白色15%不透明 */
-      backdrop-filter: blur(6px);             /* 轻度模糊 */
+      position: fixed; inset:0;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items:center; justify-content:center;
       z-index: 1000;
     }
     #authModal .modal-box {
-      width: 90%;
-      max-width: 400px;
-      background: #fff;
-      border-radius: 12px;
-      padding: 24px 32px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-      text-align: center;
+      width:90%; max-width:400px;
+      background:#fff;
+      border-radius:12px;
+      padding:24px 32px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.15);
+      text-align:center;
     }
-    #authModal h2 {
-      font-size: 1.5rem;
-      margin-bottom: 0.5rem;
-      color: #222;
-    }
-    #authModal p {
-      font-size: 0.95rem;
-      color: #555;
-      margin-bottom: 1.5rem;
-      line-height: 1.4;
-    }
+    #authModal h2 { font-size:1.5rem; margin-bottom:.5rem; }
+    #authModal p  { font-size:.95rem; color:#555; margin-bottom:1.5rem; line-height:1.4; }
     #authModal input {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      transition: border-color .2s;
+      width:100%; padding:.75rem; font-size:1rem;
+      border:1px solid #ccc; border-radius:6px;
     }
-    #authModal input:focus {
-      outline: none;
-      border-color: #3b82f6;
-    }
+    #authModal input:focus { outline:none; border-color:#3b82f6; }
     #authModal button {
-      margin-top: 1.5rem;
-      width: 100%;
-      padding: 0.75rem;
-      font-size: 1rem;
-      background: #3b82f6;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background .2s;
+      margin-top:1.5rem; width:100%; padding:.75rem;
+      font-size:1rem; background:#3b82f6; color:#fff;
+      border:none; border-radius:6px; cursor:pointer;
     }
     #authModal button:disabled {
-      background: #8fbefc;
-      cursor: not-allowed;
+      background:#8fbefc; cursor:not-allowed;
     }
     #authModal button:hover:not(:disabled) {
-      background: #2563eb;
+      background:#2563eb;
     }
     #authModal .error {
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-      color: #d9534f;
-      display: none;
+      margin-top:.5rem; color:#d9534f; font-size:.9rem; display:none;
     }
 
-    /* =========================================
-       4. 同传界面样式（可选）—— 放到 pageContent 下
-    ========================================= */
+    /* —— 3. 同传按钮 & 区域（示例） —— */
     .controls {
-      display: flex; gap: 0.5rem; margin-bottom: 1rem;
+      display:flex; gap:.5rem; margin-bottom:1rem;
     }
     .controls button {
-      flex: 1; padding: 0.75rem;
-      font-size: 1rem; border: none; border-radius:6px;
-      cursor: pointer; color: #fff; transition: background .2s;
+      flex:1; padding:.75rem; font-size:1rem;
+      border:none; border-radius:6px; color:#fff; cursor:pointer;
+      transition:background .2s,opacity .2s;
     }
-    .controls .start { background: #ef4444; }
-    .controls .start:hover { background: #dc2626; }
-    .controls .stop { background: #6b7280; }
-    .controls .stop:hover { background: #4b5563; }
-    .controls button:disabled { opacity:0.5; cursor:not-allowed; }
+    .controls .start { background:#ef4444; }
+    .controls .start:hover { background:#dc2626; }
+    .controls .stop { background:#6b7280; }
+    .controls .stop:hover { background:#4b5563; }
+    .controls button:disabled { opacity:.5; cursor:not-allowed; }
 
+    /* 骨架屏 */
+    .skeleton {
+      height:1.5rem; background:#e5e7eb;
+      border-radius:4px; animation:pulse 1.6s infinite;
+      margin-bottom:1rem;
+    }
+    @keyframes pulse {0%,100%{opacity:1}50%{opacity:.4}}
+
+    /* 字幕区 */
+    .grid { display:block; overflow:hidden; flex:1; }
+    .box {
+      background:#f9fafb; padding:.75rem;
+      border:1px solid #ddd; border-radius:6px;
+      white-space:pre-wrap; word-break:break-word;
+      color:#333; height:200px; overflow-y:auto;
+    }
+    @media(min-width:768px) {
+      .grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    }
   </style>
 </head>
 <body>
- <!-- 授权弹窗 -->
+  <!-- 主页面内容（永远在最底层） -->
+  <div id="pageContent">
+    <div class="container">
+      <h1>实时中英同传助手</h1>
+      <div class="controls">
+        <button class="start" id="btnStart" disabled>🔴 开始同传</button>
+        <button class="stop" id="btnStop" disabled>■ 停止同传</button>
+      </div>
+      <div id="skeleton" class="skeleton" style="display:none;"></div>
+      <div class="grid">
+        <div>
+          <h2>英文译文</h2>
+          <div class="box" id="outEn"></div>
+        </div>
+        <div>
+          <h2>中文译文</h2>
+          <div class="box" id="outZh"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 授权弹窗遮罩（覆盖但不隐藏页面） -->
   <div id="authModal">
     <div class="modal-box">
       <h2>请输入授权码</h2>
@@ -134,21 +136,6 @@
       <input type="password" id="authInput" placeholder="授权码"/>
       <button id="authConfirm" disabled>确认</button>
       <div class="error" id="authError"></div>
-    </div>
-  </div>
-
-  <!-- 主界面 -->
-  <div class="container" id="mainUI" style="display:none;">
-    <!-- 同前版本 -->
-    <h1>实时中英同传助手</h1>
-    <div class="controls">
-      <button class="start" id="btnStart" disabled>🔴 开始同传</button>
-      <button class="stop" id="btnStop" disabled>■ 停止同传</button>
-    </div>
-    <div id="skeleton" class="skeleton" style="display:none;"></div>
-    <div class="grid">
-      <div><h2>英文译文</h2><div class="box" id="outEn"></div></div>
-      <div><h2>中文译文</h2><div class="box" id="outZh"></div></div>
     </div>
   </div>
 
