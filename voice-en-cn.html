@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>实时中英同传助手</title>
+  <style>
+    /* —— 全局 —— */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 1rem;
+      background: #f3f4f6;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+
+    /* —— 授权 & 控件栏 —— */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .controls input,
+    .controls button {
+      flex: 1 1 100%;
+      min-height: 2.5rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    .controls input {
+      border-color: #888;
+    }
+    .controls button {
+      border: none;
+      color: #fff;
+      cursor: pointer;
+    }
+    button.start { background: #3b82f6; }
+    button.stop  { background: #ef4444; }
+
+    /* —— 骨架屏 & 状态 —— */
+    .skeleton {
+      height: 2rem;
+      background: #e5e7eb;
+      border-radius: 4px;
+      animation: pulse 1.5s infinite;
+      margin-bottom: 1rem;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; }
+    }
+
+    /* —— 文本区 & 滚动 —— */
+    .grid { display: block; }
+    .box {
+      background: #f9fafb;
+      padding: 0.5rem;
+      height: 150px;         /* 手机端较低 */
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* —— 平板及以上两栏 —— */
+    @media (min-width: 768px) {
+      .controls input { flex: 2; }
+      .controls button { flex: 1; min-width: 120px; }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      .box {
+        height: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>实时中英同传助手</h1>
+
+    <!-- 授权码输入 -->
+    <div class="controls">
+      <input type="text" id="authCode" placeholder="请输入授权码" />
+      <button class="start" id="btnStart">🔒 验证并开始</button>
+      <button class="stop" id="btnStop" disabled>■ 停止同传</button>
+    </div>
+
+    <!-- 骨架屏，等候首条翻译时显示 -->
+    <div id="skeleton" class="skeleton" style="display:none;"></div>
+
+    <!-- 实时字幕 -->
+    <div class="grid">
+      <div>
+        <h2>英文译文</h2>
+        <div class="box" id="outEn"></div>
+      </div>
+      <div>
+        <h2>中文译文</h2>
+        <div class="box" id="outZh"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const authInput = document.getElementById('authCode');
+    const btnStart  = document.getElementById('btnStart');
+    const btnStop   = document.getElementById('btnStop');
+    const outEn     = document.getElementById('outEn');
+    const outZh     = document.getElementById('outZh');
+    const skeleton  = document.getElementById('skeleton');
+
+    let mediaRecorder, socket;
+
+    // 文本追加 + 自动滚底
+    function appendText(el, text) {
+      el.innerText += text;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    btnStart.onclick = async () => {
+      const code = authInput.value.trim();
+      if (!code) {
+        alert('请输入授权码');
+        return;
+      }
+      // 建立 WebSocket
+      socket = new WebSocket('wss://YOUR_WORKER_SUBDOMAIN.workers.dev');
+      socket.onopen = () => {
+        // 先发授权请求
+        socket.send(JSON.stringify({ type: 'auth', code }));
+      };
+      socket.onmessage = async evt => {
+        const msg = JSON.parse(evt.data);
+
+        // 授权结果
+        if (msg.type === 'auth') {
+          if (msg.success) {
+            // 隐藏授权输入，启用录音
+            authInput.disabled = true;
+            btnStart.disabled = true;
+            btnStop.disabled  = false;
+            skeleton.style.display = '';
+            // 启动麦克风采集
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            mediaRecorder.ondataavailable = e => {
+              if (e.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+                socket.send(e.data);
+              }
+            };
+            mediaRecorder.start(250);
+          } else {
+            alert('授权码错误');
+            socket.close();
+          }
+        }
+        // 首条翻译到来，取消骨架
+        else if (msg.en || msg.zh) {
+          skeleton.style.display = 'none';
+          if (msg.en) appendText(outEn, msg.en);
+          if (msg.zh) appendText(outZh, msg.zh);
+        }
+      };
+
+      socket.onerror = e => {
+        console.error(e);
+        alert('连接错误，请稍后重试');
+      };
+      socket.onclose = () => {
+        btnStart.disabled = false;
+        btnStop.disabled  = true;
+      };
+    };
+
+    btnStop.onclick = () => {
+      if (mediaRecorder) mediaRecorder.stop();
+      if (socket)      socket.close();
+    };
+  </script>
+</body>
+</html>
