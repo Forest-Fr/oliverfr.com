@@ -5,94 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>实时中英同传助手</title>
   <style>
-    /* —— 全局重置 —— */
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: Arial, sans-serif; background: #f3f4f6; }
-
-    /* —— 授权模态 —— */
-    #authModal {
-      position: fixed; inset:0;
-      background: rgba(0,0,0,0.4);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 1000;
-    }
-    #authModal .modal-box {
-      background: #fff;
-      padding: 1.5rem;
-      border-radius: 8px;
-      width: 90%; max-width: 360px;
-      text-align: center;
-    }
-    #authModal h2 { font-size:1.25rem; margin-bottom:.75rem; }
-    #authModal p  { font-size:.9rem; color:#555; margin-bottom:1rem; }
-    #authModal input {
-      width:100%; padding:.6rem; border:1px solid #ccc; border-radius:4px;
-      font-size:1rem; margin-bottom:1rem;
-    }
-    #authModal button {
-      width:100%; padding:.6rem; background:#3b82f6; color:#fff;
-      font-size:1rem; border:none; border-radius:4px; cursor:pointer;
-    }
-
-    /* —— 主界面 —— */
-    .container {
-      max-width:800px; margin:2rem auto; background:#fff;
-      padding:1rem; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);
-    }
-    h1 { font-size:1.5rem; margin-bottom:1rem; }
-
-    /* —— 控件 —— */
-    .controls {
-      display:flex; flex-direction:column; gap:.5rem; margin-bottom:1rem;
-    }
-    .controls button {
-      padding:.6rem; border:none; border-radius:4px;
-      color:#fff; font-size:1rem; cursor:pointer; flex:1 1 100%;
-    }
-    button.start { background:#3b82f6; }
-    button.stop  { background:#ef4444; }
-    @media(min-width:768px){
-      .controls { flex-direction:row; }
-      .controls button { flex:1 1 48%; }
-    }
-
-    /* —— 骨架屏 —— */
-    .skeleton {
-      height:2rem; background:#e5e7eb; border-radius:4px;
-      animation:pulse 1.5s infinite; margin-bottom:1rem;
-    }
-    @keyframes pulse {
-      0%{opacity:1}50%{opacity:.4}100%{opacity:1}
-    }
-
-    /* —— 字幕区 —— */
-    .grid { display:block; }
-    .box {
-      background:#f9fafb; padding:.5rem; height:150px;
-      overflow-y:auto; border:1px solid #e5e7eb; border-radius:4px;
-      white-space:pre-wrap; word-break:break-word;
-    }
-    @media(min-width:768px){
-      .grid {
-        display:grid; grid-template-columns:1fr 1fr; gap:1rem;
-      }
-      .box { height:200px; }
-    }
+    /* —— 略，保持之前的响应式、骨架屏等样式 —— */
+    /* ... 省略样式，请沿用上版本 ... */
   </style>
 </head>
 <body>
   <!-- 授权弹窗 -->
-  <div id="authModal">
+  <div id="authModal" style="...">
     <div class="modal-box">
       <h2>请输入授权码</h2>
       <p>验证成功后即可使用实时同传功能。</p>
       <input type="password" id="authInput" placeholder="授权码"/>
-      <button id="authConfirm">确认</button>
+      <button id="authConfirm" disabled>确认</button>
+      <div id="authError" style="color:red;display:none;margin-top:4px;"></div>
     </div>
   </div>
 
   <!-- 主界面 -->
   <div class="container" id="mainUI" style="display:none;">
+    <!-- 同前版本 -->
     <h1>实时中英同传助手</h1>
     <div class="controls">
       <button class="start" id="btnStart" disabled>🔴 开始同传</button>
@@ -100,79 +31,92 @@
     </div>
     <div id="skeleton" class="skeleton" style="display:none;"></div>
     <div class="grid">
-      <div>
-        <h2>英文译文</h2>
-        <div class="box" id="outEn"></div>
-      </div>
-      <div>
-        <h2>中文译文</h2>
-        <div class="box" id="outZh"></div>
-      </div>
+      <div><h2>英文译文</h2><div class="box" id="outEn"></div></div>
+      <div><h2>中文译文</h2><div class="box" id="outZh"></div></div>
     </div>
   </div>
 
   <script>
-    const WS_URL     = 'wss://translate-assistant.mefans.workers.dev';
-    const authModal  = document.getElementById('authModal');
-    const mainUI     = document.getElementById('mainUI');
-    const authInput  = document.getElementById('authInput');
-    const authConfirm= document.getElementById('authConfirm');
-    const btnStart   = document.getElementById('btnStart');
-    const btnStop    = document.getElementById('btnStop');
-    const skeleton   = document.getElementById('skeleton');
-    const outEn      = document.getElementById('outEn');
-    const outZh      = document.getElementById('outZh');
+    const BASE       = "https://translate-assistant.mefans.workers.dev";
+    const API_VALIDATE = BASE + "/admin-api/validate-code";
+    const WS_URL      = BASE;  // 根路径升级 WS
+
+    const authModal   = document.getElementById("authModal");
+    const authInput   = document.getElementById("authInput");
+    const authConfirm = document.getElementById("authConfirm");
+    const authError   = document.getElementById("authError");
+    const mainUI      = document.getElementById("mainUI");
+    const btnStart    = document.getElementById("btnStart");
+    const btnStop     = document.getElementById("btnStop");
+    const skeleton    = document.getElementById("skeleton");
+    const outEn       = document.getElementById("outEn");
+    const outZh       = document.getElementById("outZh");
 
     let socket, mediaRecorder;
 
-    // 授权验证
-    authConfirm.onclick = () => {
+    // 输入后启用确认按钮
+    authInput.addEventListener("input", () => {
+      authConfirm.disabled = !authInput.value.trim();
+      authError.style.display = "none";
+    });
+
+    // 授权校验
+    authConfirm.onclick = async () => {
       const code = authInput.value.trim();
-      if (!code) return alert('请输入授权码');
+      authConfirm.disabled = true;
+      authError.style.display = "none";
+      try {
+        const resp = await fetch(API_VALIDATE, {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify({ code })
+        });
+        const json = await resp.json();
+        if (!resp.ok || !json.ok) {
+          authError.textContent = "授权失败，请检查授权码";
+          authError.style.display = "";
+          return;
+        }
+        // 授权成功
+        authModal.style.display = "none";
+        mainUI.style.display   = "";
+        btnStart.disabled      = false;
+        initWS();
+      } catch {
+        authError.textContent = "网络错误，请稍后重试";
+        authError.style.display = "";
+      } finally {
+        authConfirm.disabled = false;
+      }
+    };
+
+    function initWS() {
       socket = new WebSocket(WS_URL);
-      socket.onopen = () => socket.send(JSON.stringify({ type:'auth', code }));
-      socket.onerror = () => alert('连接失败，请检查网络');
       socket.onmessage = evt => {
         try {
           const msg = JSON.parse(evt.data);
-          if (msg.type==='auth') {
-            if (msg.success) {
-              authModal.style.display = 'none';
-              mainUI.style.display   = '';
-              btnStart.disabled = false;
-              socket.onmessage = handleTranslate;
-            } else {
-              alert('授权失败，请检查授权码');
-              socket.close();
-            }
-          }
+          if (skeleton.style.display !== "none") skeleton.style.display = "none";
+          if (msg.en) append(outEn, msg.en);
+          if (msg.zh) append(outZh, msg.zh);
         } catch {}
       };
-    };
-
-    // 处理翻译结果
-    function handleTranslate(evt) {
-      try {
-        const msg = JSON.parse(evt.data);
-        if (skeleton.style.display!=='none') skeleton.style.display = 'none';
-        if (msg.en) appendText(outEn, msg.en);
-        if (msg.zh) appendText(outZh, msg.zh);
-      } catch{}
+      socket.onerror = e => console.error("WS error", e);
+      socket.onclose = e => console.warn("WS closed", e);
     }
 
-    function appendText(el, txt) {
+    function append(el, txt) {
       el.innerText += txt;
       el.scrollTop = el.scrollHeight;
     }
 
-    // 开始同传
+    // 开始/停止同传
     btnStart.onclick = async () => {
-      skeleton.style.display = '';
+      skeleton.style.display = "";
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-        mediaRecorder = new MediaRecorder(stream, { mimeType:'audio/webm' });
+        mediaRecorder = new MediaRecorder(stream, { mimeType:"audio/webm" });
         mediaRecorder.ondataavailable = e => {
-          if (e.data.size>0 && socket.readyState===WebSocket.OPEN) {
+          if (socket.readyState === WebSocket.OPEN && e.data.size > 0) {
             socket.send(e.data);
           }
         };
@@ -180,16 +124,20 @@
         btnStart.disabled = true;
         btnStop.disabled  = false;
       } catch {
-        alert('麦克风权限被拒绝');
+        alert("无法获取麦克风权限");
       }
     };
-
-    // 停止同传
     btnStop.onclick = () => {
       if (mediaRecorder) mediaRecorder.stop();
       btnStart.disabled = false;
       btnStop.disabled  = true;
     };
+
+    // 初始：显示授权弹窗
+    window.addEventListener("DOMContentLoaded", () => {
+      authConfirm.disabled = true;
+      authModal.style.display = "flex";
+    });
   </script>
 </body>
 </html>
