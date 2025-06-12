@@ -98,7 +98,7 @@
   </div>
 
   <script>
-// 在页面最上方插入 DEBUG 标记
+  // 在页面最上方插入 DEBUG 标记
     document.body.insertAdjacentHTML('afterbegin',
       '<div style="position:fixed;top:0;left:0;background:red;color:white;padding:4px;font-size:12px;z-index:9999;">[DEBUG BUILD]</div>'
     );
@@ -117,12 +117,15 @@
       const chatEl    = document.getElementById('chat');
       const modes     = document.getElementsByName('mode');
 
-      let socket, recorder;
-      let sessionId, authCode;
+      let socket = null, recorder = null;
+      let sessionId = '', authCode = '';
 
-      window.addEventListener('DOMContentLoaded', () => recBtn.disabled = true);
+      // 页面初始
+      window.addEventListener('DOMContentLoaded', () => {
+        recBtn.disabled = true;
+      });
 
-      // —————— 授权流程 ——————
+      // ========== 授权流程 ==========
       authInput.addEventListener('input', () => {
         authBtn.disabled = !authInput.value.trim();
         authErr.style.display = 'none';
@@ -153,10 +156,29 @@
         }
       });
 
-      // —————— WS + 录音逻辑 ——————
+      // ========== 绑定「录音按钮」事件 —— **只执行一次** ==========
+      // pointerdown/up & touchstart/end 都走同一套逻辑
+      recBtn.addEventListener('pointerdown', onPointerDown);
+      recBtn.addEventListener('pointerup',   onPointerUp);
+      recBtn.addEventListener('touchstart',  onPointerDown);
+      recBtn.addEventListener('touchend',    onPointerUp);
+
+      async function onPointerDown(e) {
+        if (recBtn.disabled || socket?.readyState !== 1) return;
+        await startRec();
+      }
+      function onPointerUp(e) {
+        stopRec();
+      }
+
+      // ========== WebSocket 初始化 & 切换模式 ==========
       function initSession(){
         chatEl.innerHTML = '';
-        if (socket) socket.close();
+        // 先把旧的关掉
+        if (socket) {
+          socket.close();
+          socket = null;
+        }
 
         const mode = [...modes].find(r=>r.checked).value;
         const url  = `${WS_BASE}?mode=${mode}&session=${sessionId}&auth=${authCode}`;
@@ -164,16 +186,18 @@
         socket = new WebSocket(url);
         socket.binaryType = 'arraybuffer';
 
-        socket.onopen  = () => {
-          console.log('WS readyState onopen:', socket.readyState);
+        socket.onopen = () => {
+          console.log('WS onopen ➞ readyState', socket.readyState);
           append('bot','🤖 [已连接]');
         };
         socket.onerror = e => {
-          console.error('WS.onerror:', e);
+          console.error('WS.onerror', e);
+          socket = null;
           append('bot','🤖 [服务异常]');
         };
         socket.onclose = e => {
-          console.log('WS.onclose, code:', e.code, 'reason:', e.reason);
+          console.log('WS.onclose', e.code, e.reason);
+          socket = null;
           append('bot','🤖 [已断开]');
         };
 
@@ -182,61 +206,69 @@
           if (typeof evt.data === 'string') {
             const msg = JSON.parse(evt.data);
             if (msg.who === '_meta') {
-              console.log('收到文本/_meta：', msg);
+              console.log('收到 _meta 帧：', msg);
             } else {
-              console.log('收到文本消息：', msg);
+              console.log('收到 文本消息：', msg);
               append(msg.who, msg.text);
             }
           }
           else if (evt.data instanceof ArrayBuffer) {
-            console.log('  音频帧长度(bytes):', evt.data.byteLength);
+            console.log('收到 音频帧，长度 bytes:', evt.data.byteLength);
             const blob = new Blob([evt.data], { type: 'audio/webm; codecs=opus' });
             const audioURL = URL.createObjectURL(blob);
             const audio = new Audio(audioURL);
-            audio.onerror   = e => console.error('  audio.onerror', e);
+            audio.onerror   = e => console.error('audio.onerror', e);
             audio.play()
-                 .then(()=> console.log('  play() success'))
-                 .catch(err=> console.error('  play() failed:', err));
+                 .then(()=> console.log('audio.play() 成功'))
+                 .catch(err=> console.error('audio.play() 失败', err));
           }
         };
 
+        // 切换模式时重新 initSession
         [...modes].forEach(r=>r.onchange = initSession);
+      }
 
-        // ———— 核心改动：一次性录完整段再发 ————
-        let chunks = [];
-        const startRec = async () => {
-          recBtn.classList.add('recording');
-          recBtn.textContent = '🛑 录音中...';
-          try {
-            const s = await navigator.mediaDevices.getUserMedia({audio:true});
-            recorder = new MediaRecorder(s);
-            chunks = [];
-            recorder.ondataavailable = e => chunks.push(e.data);
-            recorder.onstop = () => {
-              const blob = new Blob(chunks, { type:'audio/webm' });
-              if (socket.readyState === 1) socket.send(blob);
-            };
-            recorder.start();  // 直到 stop 时才结束
-            append('user','👤 [开始录音]');
-          } catch {
-            alert('请允许麦克风');
-          }
-        };
-        const stopRec = () => {
+      // ========== 录音逻辑：完整段录完再发 ==========
+      let chunks = [];
+      async function startRec(){
+        recBtn.classList.add('recording');
+        recBtn.textContent = '🛑 录音中...';
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+          recorder = new MediaRecorder(stream);
+          chunks = [];
+          recorder.ondataavailable = e => chunks.push(e.data);
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type:'audio/webm' });
+            if (socket?.readyState === 1) {
+              socket.send(blob);
+            }
+          };
+          recorder.start();
+          append('user','👤 [开始录音]');
+        } catch(err) {
+          console.error('startRec 出错', err);
+          // 恢复 UI
           recBtn.classList.remove('recording');
           recBtn.textContent = '🎤 按住说话';
+          alert('请允许麦克风');
+        }
+      }
+      function stopRec(){
+        try {
           if (recorder && recorder.state !== 'inactive') {
             recorder.stop();
             append('user','👤 [结束录音]');
           }
-        };
-        recBtn.addEventListener('pointerdown', startRec);
-        recBtn.addEventListener('pointerup',   stopRec);
-        recBtn.addEventListener('touchstart',  startRec);
-        recBtn.addEventListener('touchend',    stopRec);
+        } catch(err) {
+          console.error('stopRec 出错', err);
+        } finally {
+          recBtn.classList.remove('recording');
+          recBtn.textContent = '🎤 按住说话';
+        }
       }
 
-      // —————— 在对话框里追加一条记录 ——————
+      // ========== 在对话框里追加一条记录 ==========
       function append(who, txt){
         const d = document.createElement('div');
         d.className = 'msg ' + who;
