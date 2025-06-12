@@ -15,20 +15,33 @@
       padding:1rem;
     }
 
-    /* —— 授权弹窗 —— */
-    #authModal {
-      position:fixed; inset:0;
-      background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(2px);
-      z-index:100;
-      display:flex; align-items:center; justify-content:center;
-    }
-    #authModal .box {
-      width:90%; max-width:400px;
-      background:#fff; border-radius:12px;
-      padding:2rem; text-align:center;
-      box-shadow:0 8px 24px rgba(0,0,0,0.1);
-    }
+   /* ==== 授权弹窗遮罩层 —— 只拦截点击，不覆盖内容 ==== */
+#authModal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 去掉背景和模糊 */
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  z-index: 100;
+}
+
+/* 弹窗主体 */
+#authModal .box {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px 32px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  text-align: center;
+  /* 为 box 本身加个轻微半透明，以示弹窗在最上层 */
+  background-color: rgba(255,255,255,0.95);
+}
+
+/* 其余样式保持不变 */
+
     #authModal h2 { font-size:1.5rem; margin-bottom:1rem }
     #authModal input {
       width:100%; padding:.75rem; font-size:1rem;
