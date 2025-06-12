@@ -159,19 +159,21 @@
       socket.onclose = ()=> append('bot','🤖 [已断开]');
 
       socket.onmessage = async evt => {
-        // **调试用：打印原始数据**
+        // —— 调试：打印所有原始 WS 帧 —— 
         console.log('WS 收到：', evt.data);
 
         if (typeof evt.data === 'string') {
-          // 字符串消息：JSON.parse 并显示
+          // 文本或 _meta JSON
           const msg = JSON.parse(evt.data);
-          console.log('文本消息：', msg);
-          append(msg.who, msg.text);
-
-        } else if (evt.data instanceof ArrayBuffer) {
-          // 二进制消息：打印大小，再播放
+          console.log(msg.who==='_meta' ? 'Meta 帧：' : '文本消息：', msg);
+          if (msg.who !== '_meta') {
+            append(msg.who, msg.text);
+          }
+        }
+        else if (evt.data instanceof ArrayBuffer) {
+          // 实际音频二进制（MP3）
           console.log('音频帧大小：', evt.data.byteLength);
-          const blob = new Blob([evt.data], { type:'audio/webm' });
+          const blob = new Blob([evt.data], { type:'audio/mpeg' });
           const url  = URL.createObjectURL(blob);
           const audio = new Audio(url);
           audio.onended = ()=> URL.revokeObjectURL(url);
