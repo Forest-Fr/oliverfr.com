@@ -1,74 +1,88 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>管理后台 · 语音助手</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>🔑 管理后台 · 语音助手</title>
+  <script>
+    let session = null;
+
+    async function onLogin() {
+      // 依旧走 Supabase OAuth 登录，但登录完成后 Worker 已经知道 session
+      // 这里跳转到 validate-code 再回来（可选）
+      const code = prompt("请输入后台令牌（demo-key）");
+      if (!code) return;
+      const r = await fetch('/admin-api/validate-code', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ code })
+      });
+      const j = await r.json();
+      if (!r.ok) return alert('授权失败');
+      session = true;
+      document.getElementById('btn-login').style.display = 'none';
+      document.getElementById('btn-logout').style.display = 'inline-block';
+      loadRecords();
+    }
+
+    function onLogout() {
+      session = null;
+      document.getElementById('btn-login').style.display = 'inline-block';
+      document.getElementById('btn-logout').style.display = 'none';
+      document.querySelector('#records tbody').innerHTML =
+        '<tr><td colspan="6">请先登录</td></tr>';
+    }
+
+    async function loadRecords() {
+      const r = await fetch('/admin-api/records');
+      if (!r.ok) {
+        return document.querySelector('#records tbody').innerHTML =
+          `<tr><td colspan="6">加载失败：${r.statusText}</td></tr>`;
+      }
+      const data = await r.json();
+      if (!data.length) {
+        return document.querySelector('#records tbody').innerHTML =
+          `<tr><td colspan="6">暂无记录</td></tr>`;
+      }
+      document.querySelector('#records tbody').innerHTML = data.map(r => `
+        <tr>
+          <td>${new Date(r.created_at).toLocaleString('zh-CN')}</td>
+          <td>${r.original||''}</td>
+          <td>${r.translated_en||r.translated_zh||''}</td>
+          <td>${r.tokens}</td>
+          <td>${(r.cost||0).toFixed(4)}</td>
+          <td>${r.ip}</td>
+        </tr>
+      `).join('');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btn-login').onclick  = onLogin;
+      document.getElementById('btn-logout').onclick = onLogout;
+    });
+  </script>
   <style>
-    body { font-family:'Segoe UI',sans-serif; padding:1rem; }
-    .btn { padding:.5rem 1rem; border:none; background:#3b82f6; color:#fff; cursor:pointer; }
-    table { width:100%; border-collapse: collapse; margin-top:1rem; }
-    th, td { border:1px solid #ccc; padding:.5rem; text-align:left; }
+    body { font-family: 'Segoe UI',sans-serif; background:#f0f2f5; padding:1rem; }
+    h1 { font-size:1.5rem; }
+    button { padding:.6rem 1.2rem; margin-right:.5rem; }
+    table { border-collapse:collapse; width:100%; max-width:960px; margin-top:1rem;}
+    th,td { border:1px solid #ccc; padding:.5rem; }
+    th { background:#e5e7eb; }
   </style>
 </head>
 <body>
   <h1>🔑 管理后台 · 语音助手</h1>
-  <div id="auth-area">
-    <button id="btn-login" class="btn">🔒 输入后台令牌</button>
-  </div>
-  <div id="table-area" style="display:none">
-    <h2>📋 翻译记录</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>内容</th><th>创建时间</th><th>更新时间</th>
-          <th>Tokens</th><th>Cost</th><th>IP</th>
-        </tr>
-      </thead>
-      <tbody id="records"></tbody>
-    </table>
-  </div>
-
-  <script>
-    const btnLogin  = document.getElementById('btn-login');
-    const tableArea = document.getElementById('table-area');
-    const tbody     = document.getElementById('records');
-
-    let ADMIN_TOKEN = '';
-
-    btnLogin.addEventListener('click', async () => {
-      const token = prompt('请输入后台访问令牌：');
-      if (!token) return;
-      ADMIN_TOKEN = token.trim();
-      await loadRecords();
-    });
-
-    async function loadRecords() {
-      try {
-        const res = await fetch('/admin-api/records', {
-          headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN }
-        });
-        if (res.status === 401) {
-          alert('令牌错误，请重试');
-          return;
-        }
-        const data = await res.json();
-        tbody.innerHTML = data.map(r => `
-          <tr>
-            <td>${r.content||''}</td>
-            <td>${new Date(r.created_at).toLocaleString('zh-CN')}</td>
-            <td>${new Date(r.updated_at).toLocaleString('zh-CN')}</td>
-            <td>${r.tokens}</td>
-            <td>${r.cost}</td>
-            <td>${r.ip}</td>
-          </tr>`).join('');
-        document.getElementById('auth-area').style.display = 'none';
-        tableArea.style.display = '';
-      } catch (e) {
-        console.error(e);
-        alert('加载失败，请检查控制台');
-      }
-    }
-  </script>
+  <button id="btn-login">授权登录</button>
+  <button id="btn-logout" style="display:none;">退出登录</button>
+  <table id="records">
+    <thead>
+      <tr>
+        <th>创建时间</th><th>原文</th><th>应答</th>
+        <th>Tokens</th><th>Cost</th><th>IP</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="6">请先登录</td></tr>
+    </tbody>
+  </table>
 </body>
 </html>
