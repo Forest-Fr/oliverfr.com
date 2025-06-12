@@ -47,7 +47,7 @@
     #authModal {
       position:fixed;inset:0;
       display:flex;justify-content:center;align-items:center;
-      background:rgba(0,0,0,0); /* 不遮盖背景 */ 
+      background:rgba(0,0,0,0);
       z-index:1000;
     }
     #authModal .box {
@@ -114,10 +114,8 @@
     let socket, recorder;
     let sessionId, authCode;
 
-    // 初始锁定录音按钮
     window.addEventListener('DOMContentLoaded', ()=> recBtn.disabled = true);
 
-    // 授权逻辑
     authInput.addEventListener('input', ()=> {
       authBtn.disabled = !authInput.value.trim();
       authErr.style.display = 'none';
@@ -148,7 +146,6 @@
       }
     });
 
-    // 建立 WebSocket 会话并处理录音
     function initSession(){
       chatEl.innerHTML = '';
       if (socket) socket.close();
@@ -157,22 +154,28 @@
       socket = new WebSocket(`${WS_BASE}?mode=${mode}&session=${sessionId}&auth=${authCode}`);
       socket.binaryType = 'arraybuffer';
 
-      socket.onopen    = ()=> append('bot','🤖 [已连接]');
-      socket.onerror   = ()=> append('bot','🤖 [服务异常]');
-      socket.onclose   = ()=> append('bot','🤖 [已断开]');
+      socket.onopen  = ()=> append('bot','🤖 [已连接]');
+      socket.onerror = ()=> append('bot','🤖 [服务异常]');
+      socket.onclose = ()=> append('bot','🤖 [已断开]');
+
       socket.onmessage = async evt => {
-        // 文本消息
+        // **调试用：打印原始数据**
+        console.log('WS 收到：', evt.data);
+
         if (typeof evt.data === 'string') {
+          // 字符串消息：JSON.parse 并显示
           const msg = JSON.parse(evt.data);
+          console.log('文本消息：', msg);
           append(msg.who, msg.text);
-        }
-        // 二进制音频
-        else if (evt.data instanceof ArrayBuffer) {
+
+        } else if (evt.data instanceof ArrayBuffer) {
+          // 二进制消息：打印大小，再播放
+          console.log('音频帧大小：', evt.data.byteLength);
           const blob = new Blob([evt.data], { type:'audio/webm' });
           const url  = URL.createObjectURL(blob);
           const audio = new Audio(url);
           audio.onended = ()=> URL.revokeObjectURL(url);
-          audio.play();
+          audio.play().catch(err=> console.error('播放失败：', err));
         }
       };
 
@@ -207,7 +210,6 @@
       recBtn.addEventListener('touchend',    stopRec);
     }
 
-    // 追加对话气泡
     function append(who, txt){
       const d = document.createElement('div');
       d.className = 'msg ' + who;
