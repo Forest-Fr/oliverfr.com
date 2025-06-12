@@ -86,10 +86,10 @@
     import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm')
       .then(({ createClient }) => {
         const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev'
-        const SUPA_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'
+        const SUPA_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'  // 你的 anon key
 
         const supabase = createClient(
-          `${WORKER_BASE}/auth-proxy`, 
+          `${WORKER_BASE}/auth-proxy`,
           SUPA_ANON
         )
 
@@ -99,7 +99,19 @@
         const logoutBtn   = document.getElementById('logoutBtn')
         const recordsBody = document.getElementById('recordsBody')
 
-        // —— 1. 初查 & 订阅登录状态 —— 
+        // —— 1. 从 URL 中抓取 OAuth 重定向回来的 session —— 
+        supabase.auth.getSessionFromUrl({ storeSession: true })
+          .then(({ data: { session }, error }) => {
+            if (error) console.warn('getSessionFromUrl error', error)
+            handleSession(session)
+          })
+
+        // —— 2. 再订阅状态变化 —— 
+        supabase.auth.onAuthStateChange((_, { session }) => {
+          handleSession(session)
+        })
+
+        // —— 会统一触发的逻辑 —— 
         function handleSession(session) {
           if (session?.user) {
             authArea.style.display  = 'none'
@@ -107,29 +119,23 @@
             loadRecords(session.access_token)
           }
         }
-        supabase.auth.getSession().then(({ data:{ session } }) => {
-          handleSession(session)
-        })
-        supabase.auth.onAuthStateChange((_, { session }) => {
-          handleSession(session)
-        })
 
-        // —— 2. 登录 / 登出 —— 
-       loginBtn.onclick = () => supabase.auth.signInWithOAuth({
-  provider: 'github',
-  options: {
-    // 直接把登录后跳到主页面，让 SDK 在主页面从 URL 里自己获取 token
-    redirectTo: location.origin + '/translate-assistant.html'
-  }
-})
+        // —— 登录 / 登出 —— 
+        loginBtn.onclick = () => supabase.auth.signInWithOAuth({
+          provider: 'github',
+          options: {
+            // 登录完后重定向回当前管理页
+            redirectTo: location.origin + '/translate-assistant.html'
+          }
+        })
         logoutBtn.onclick = () => supabase.auth.signOut()
           .then(() => location.reload())
 
-        // —— 3. 拉记录 —— 
+        // —— 拉记录 —— 
         async function loadRecords(token) {
           recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>'
           const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
-            headers:{ Authorization:`Bearer ${token}` }
+            headers: { Authorization:`Bearer ${token}` }
           })
           if (!resp.ok) {
             recordsBody.innerHTML = `<tr><td colspan="6">拉取失败：${resp.status}</td></tr>`
@@ -153,6 +159,7 @@
         }
       })
   })
+</script>
 
 
 </script>
