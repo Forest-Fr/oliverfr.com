@@ -2,69 +2,84 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>双模式语音助手</title>
   <style>
-    /* —— 0. 全局重置 & 布局 —— */
+    /* —— Reset & Base —— */
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: 'Segoe UI','Helvetica Neue',Arial,sans-serif;
+      font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;
       background:#f0f2f5;
       color:#333;
       min-height:100vh;
       display:flex;
       align-items:center;
       justify-content:center;
-      padding:1rem;
     }
 
-    /* —— 1. 授权弹窗 —— */
+    /* —— 主界面 —— */
+    #main {
+      width:100%; max-width:500px;
+      background:#fff;
+      border-radius:12px;
+      padding:1.5rem;
+      box-shadow:0 8px 24px rgba(0,0,0,0.1);
+      position:relative;
+      z-index:1;
+    }
+    h1 { font-size:1.25rem; margin-bottom:1rem; }
+    .mode-switch { display:flex; gap:1rem; margin-bottom:1rem; }
+    .mode-switch label { cursor:pointer; user-select:none; }
+    .mode-switch input { margin-right:.25rem; }
+    #recBtn {
+      width:100%; padding:.75rem;
+      font-size:1rem; background:#3b82f6; color:#fff;
+      border:none; border-radius:6px; cursor:pointer;
+      transition:background .2s; margin-bottom:1rem;
+    }
+    #recBtn:disabled { background:#aac4f7; cursor:not-allowed; }
+    #recBtn:active:not(:disabled) { background:#2563eb; }
+    #chat {
+      height:200px; overflow-y:auto;
+      border:1px solid #ddd; border-radius:6px;
+      padding:.5rem; background:#fafafa;
+    }
+    .msg { margin-bottom:.5rem; line-height:1.4; }
+    .msg.user { color:#1f2937; }
+    .msg.bot  { color:#374151; }
+
+    /* —— 授权弹窗 —— */
     #authModal {
-      position:fixed;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      /* **背景全透明**，不做模糊 */
-      background:transparent;
-      backdrop-filter:none;
-      -webkit-backdrop-filter:none;
-      z-index: 1000;
+      position:fixed; inset:0;
+      /* 只拦截事件：让页面可视，但无法点到主界面 */
+      background:rgba(0,0,0,0);  
+      z-index:1000;
+      display:flex; align-items:center; justify-content:center;
     }
     #authModal .box {
-      width:90%; max-width:400px;
-      background: rgba(255,255,255,0.95); /* 稍微半透明，突出弹窗 */
+      background: rgba(255,255,255,0.95);
       border-radius:12px;
       padding:24px 32px;
       box-shadow:0 8px 24px rgba(0,0,0,0.15);
       text-align:center;
+      min-width:300px;
     }
     #authModal h2 {
-      font-size:1.5rem;
-      margin-bottom:1rem;
+      font-size:1.5rem; margin-bottom:1rem;
     }
     #authModal input {
-      width:100%;
-      padding:.75rem;
-      font-size:1rem;
-      border:1px solid #ccc;
-      border-radius:6px;
+      width:100%; padding:.75rem; font-size:1rem;
+      border:1px solid #ccc; border-radius:6px;
       margin-bottom:1rem;
     }
     #authModal button {
-      width:100%;
-      padding:.75rem;
-      font-size:1rem;
-      border:none;
-      border-radius:6px;
-      background:#3b82f6;
-      color:#fff;
-      cursor:pointer;
+      width:100%; padding:.75rem; font-size:1rem;
+      border:none; border-radius:6px;
+      background:#3b82f6; color:#fff; cursor:pointer;
       transition:background .2s;
     }
     #authModal button:disabled {
-      background:#8fbefc;
-      cursor:not-allowed;
+      background:#8fbefc; cursor:not-allowed;
     }
     #authModal button:not(:disabled):hover {
       background:#2563eb;
@@ -75,73 +90,22 @@
       margin-top:.5rem;
       font-size:.9rem;
     }
-
-    /* —— 2. 主界面 —— */
-    #main {
-      display:none;
-      width:100%; max-width:500px;
-      background:#fff;
-      border-radius:12px;
-      padding:1.5rem;
-      box-shadow:0 8px 24px rgba(0,0,0,0.1);
-      position:relative;
-      z-index:1;
-    }
-    h1 {
-      font-size:1.25rem;
-      margin-bottom:1rem;
-    }
-
-    /* —— 模式切换 —— */
-    .mode-switch {
-      display:flex; gap:1rem;
-      margin-bottom:1rem;
-      font-size:.95rem;
-    }
-    .mode-switch label {
-      cursor:pointer;
-      user-select:none;
-    }
-    .mode-switch input {
-      margin-right:.25rem;
-    }
-
-    /* —— 录音按钮 —— */
-    #recBtn {
-      width:100%;
-      padding:.75rem;
-      font-size:1rem;
-      background:#3b82f6;
-      color:#fff;
-      border:none;
-      border-radius:6px;
-      cursor:pointer;
-      transition:background .2s;
-      margin-bottom:1rem;
-    }
-    #recBtn:active {
-      background:#2563eb;
-    }
-
-    /* —— 聊天区域 —— */
-    #chat {
-      height:200px;
-      overflow-y:auto;
-      border:1px solid #ddd;
-      border-radius:6px;
-      padding:.5rem;
-      background:#fafafa;
-    }
-    .msg {
-      margin-bottom:.5rem;
-      line-height:1.4;
-    }
-    .msg.user { color:#1f2937; }
-    .msg.bot  { color:#374151; }
   </style>
 </head>
 <body>
-  <!-- 授权弹窗 -->
+
+  <!-- —— 主界面 —— -->
+  <div id="main">
+    <h1>语音助手</h1>
+    <div class="mode-switch">
+      <label><input type="radio" name="mode" value="chat" checked /> 对话模式</label>
+      <label><input type="radio" name="mode" value="trans" /> 同传模式</label>
+    </div>
+    <button id="recBtn" disabled>🎤 按住说话</button>
+    <div id="chat"></div>
+  </div>
+
+  <!-- —— 授权弹窗 —— -->
   <div id="authModal">
     <div class="box">
       <h2>请输入授权码</h2>
@@ -149,17 +113,6 @@
       <button id="authBtn" disabled>确认</button>
       <div id="authErr"></div>
     </div>
-  </div>
-
-  <!-- 主界面 -->
-  <div id="main">
-    <h1>语音助手</h1>
-    <div class="mode-switch">
-      <label><input type="radio" name="mode" value="chat" checked /> 对话模式</label>
-      <label><input type="radio" name="mode" value="trans" /> 同传模式</label>
-    </div>
-    <button id="recBtn">🎤 按住说话</button>
-    <div id="chat"></div>
   </div>
 
   <script>
@@ -180,30 +133,30 @@
 
     let socket, recorder;
 
-    // —— 1. 授权 —— 
+    // —— 1. 授权流程 —— 
     authInput.addEventListener('input', () => {
       authBtn.disabled = !authInput.value.trim();
       authErr.style.display = 'none';
     });
     authBtn.addEventListener('click', async () => {
       authBtn.disabled = true;
-      authErr.style.display = 'none';
       try {
-        const res = await fetch(AUTH_API, {
+        let r = await fetch(AUTH_API, {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ code: authInput.value.trim() })
         });
-        const j = await res.json();
-        if (res.ok && j.ok) {
+        let j = await r.json();
+        if (r.ok && j.ok) {
+          // 放行主界面
           authModal.style.display = 'none';
-          main.style.display      = 'block';
+          recBtn.disabled = false;
           initSession();
         } else {
           throw new Error('授权失败');
         }
-      } catch (err) {
-        authErr.textContent = err.message || '网络错误';
+      } catch (e) {
+        authErr.textContent = e.message||'网络错误';
         authErr.style.display = '';
       } finally {
         authBtn.disabled = false;
@@ -212,72 +165,64 @@
 
     // —— 2. 建 WS & 录音 —— 
     function initSession(){
-      // 清聊天
       chatEl.innerHTML = '';
-
-      // 当前模式
       const mode = Array.from(modeRadios).find(r=>r.checked).value;
-
-      // 2.1 建 WS
       if (socket) socket.close();
+
       socket = new WebSocket(WS_URL + '?mode=' + mode);
       socket.binaryType = 'arraybuffer';
       socket.onopen    = ()=> appendMsg('bot','🤖 [已连接]');
       socket.onmessage = evt => {
         if (typeof evt.data === 'string') {
-          const { user, bot } = JSON.parse(evt.data);
+          let {user,bot} = JSON.parse(evt.data);
           if (user) appendMsg('user', user);
           if (bot ) appendMsg('bot',  bot );
         } else {
-          // 直接播放音频
-          const url = URL.createObjectURL(new Blob([evt.data],{type:'audio/webm'}));
-          new Audio(url).play();
+          new Audio(URL.createObjectURL(evt.data)).play();
         }
       };
-      socket.onerror   = ()=> appendMsg('bot','🤖 [网络/服务器错误]');
-      socket.onclose   = ()=> appendMsg('bot','🤖 [已断开服务器]');
+      socket.onerror   = ()=> appendMsg('bot','🤖 [服务异常]');
+      socket.onclose   = ()=> appendMsg('bot','🤖 [已断开]');
 
-      // 2.2 点模式切换时重启 WS
-      Array.from(modeRadios).forEach(r=>{
-        r.onchange = initSession;
-      });
+      // 切模式重连
+      modeRadios.forEach(r=>r.onchange = initSession);
 
-      // 2.3 录音：按住 start，松开 stop
-      recBtn.onpointerdown = async () => {
+      // 录音
+      recBtn.onpointerdown = async ()=>{
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+          const stream = await navigator.mediaDevices.getUserMedia({audio:true});
           recorder = new MediaRecorder(stream);
-          recorder.ondataavailable = e => {
-            if (socket.readyState === WebSocket.OPEN) {
+          recorder.ondataavailable = e=>{
+            if (socket.readyState===1) {
               socket.send(e.data);
-              appendMsg('user','👤 [录音中…]');
             }
           };
           recorder.start(250);
+          appendMsg('user','👤 [开始录音]');
         } catch {
-          alert('请允许麦克风权限');
+          alert('请允许麦克风');
         }
       };
-      recBtn.onpointerup = () => {
-        if (recorder && recorder.state !== 'inactive') {
+      recBtn.onpointerup = ()=>{
+        if (recorder && recorder.state!=='inactive') {
           recorder.stop();
+          appendMsg('user','👤 [结束录音]');
         }
       };
     }
 
-    // —— 3. 聊天框 —— 
-    function appendMsg(who, txt){
-      const div = document.createElement('div');
-      div.className = 'msg ' + who;
-      div.textContent = txt;
-      chatEl.appendChild(div);
+    // 聊天打印
+    function appendMsg(who,text){
+      const d = document.createElement('div');
+      d.className = 'msg ' + who;
+      d.textContent = text;
+      chatEl.appendChild(d);
       chatEl.scrollTop = chatEl.scrollHeight;
     }
 
-    // 初始：只露出授权
-    window.addEventListener('DOMContentLoaded', ()=>{
-      main.style.display = 'none';
-      authModal.style.display = 'flex';
+    // 初始：主界面可见，录音按钮锁住
+    window.addEventListener('DOMContentLoaded', ()=> {
+      recBtn.disabled = true;
     });
   })();
   </script>
