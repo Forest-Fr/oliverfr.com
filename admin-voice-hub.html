@@ -81,71 +81,77 @@
   </div>
 
   <!-- 把脚本放到这里，保证上面所有元素都已经加载完 -->
-  <script type="module">
-    window.addEventListener('DOMContentLoaded', () => {
-      import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm')
-        .then(({ createClient }) => {
-          // ———— 配置 ————
-          const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev'
-          const SUPA_ANON   = '<YOUR-ANON-KEY>'  // 仅用于 GitHub OAuth
+<script type="module">
+  window.addEventListener('DOMContentLoaded', () => {
+    import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm')
+      .then(({ createClient }) => {
+        const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev'
+        const SUPA_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'
 
-          const supabase = createClient(
-            `${WORKER_BASE}/auth-proxy`, 
-            SUPA_ANON
-          )
+        const supabase = createClient(
+          `${WORKER_BASE}/auth-proxy`, 
+          SUPA_ANON
+        )
 
-          const authArea    = document.getElementById('authArea')
-          const adminArea   = document.getElementById('adminArea')
-          const loginBtn    = document.getElementById('loginBtn')
-          const logoutBtn   = document.getElementById('logoutBtn')
-          const recordsBody = document.getElementById('recordsBody')
+        const authArea    = document.getElementById('authArea')
+        const adminArea   = document.getElementById('adminArea')
+        const loginBtn    = document.getElementById('loginBtn')
+        const logoutBtn   = document.getElementById('logoutBtn')
+        const recordsBody = document.getElementById('recordsBody')
 
-          // 已登录？隐藏登录区，显示管理区
-          supabase.auth.getSession().then(({ data:{ session } }) => {
-            if (session && session.user) {
-              authArea.style.display  = 'none'
-              adminArea.style.display = 'block'
-              loadRecords(session.access_token)
-            }
-          })
-
-          // 登录
-          loginBtn.onclick = () => supabase.auth.signInWithOAuth({
-            provider:'github', options:{ redirectTo: location.href }
-          })
-
-          // 登出
-          logoutBtn.onclick = () => supabase.auth.signOut()
-            .then(() => location.reload())
-
-          // 拉数据
-          async function loadRecords(token) {
-            recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>'
-            const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
-              headers:{ Authorization:`Bearer ${token}` }
-            })
-            if (!resp.ok) {
-              recordsBody.innerHTML = `<tr><td colspan="6">拉取失败：${resp.status}</td></tr>`
-              return
-            }
-            const list = await resp.json()
-            if (!list.length) {
-              recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>'
-            } else {
-              recordsBody.innerHTML = list.map(r=>`
-                <tr>
-                  <td>${new Date(r.created_at).toLocaleString()}</td>
-                  <td>${r.original||''}</td>
-                  <td>${r.translated_en||''}</td>
-                  <td>${r.tokens_consumed||''}</td>
-                  <td>${r.cost_usd||''}</td>
-                  <td>${r.client_ip||''}</td>
-                </tr>
-              `).join('')
-            }
+        // —— 1. 初查 & 订阅登录状态
+        function handleSession(session) {
+          if (session?.user) {
+            authArea.style.display  = 'none'
+            adminArea.style.display = 'block'
+            loadRecords(session.access_token)
           }
+        }
+        supabase.auth.getSession().then(({ data:{ session } }) => {
+          handleSession(session)
         })
-    })
+        supabase.auth.onAuthStateChange((_, { session }) => {
+          handleSession(session)
+        })
+
+        // —— 2. 登录 / 登出
+        loginBtn.onclick = () => supabase.auth.signInWithOAuth({
+          provider:'github',
+          options:{ redirectTo:location.href }
+        })
+        logoutBtn.onclick = () => supabase.auth.signOut()
+          .then(() => location.reload())
+
+        // —— 3. 拉记录
+        async function loadRecords(token) {
+          recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>'
+          const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
+            headers:{ Authorization:`Bearer ${token}` }
+          })
+          if (!resp.ok) {
+            recordsBody.innerHTML = `<tr><td colspan="6">拉取失败：${resp.status}</td></tr>`
+            return
+          }
+          const list = await resp.json()
+          if (!list.length) {
+            recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>'
+          } else {
+            recordsBody.innerHTML = list.map(r=>`
+              <tr>
+                <td>${new Date(r.created_at).toLocaleString()}</td>
+                <td>${r.original||''}</td>
+                <td>${r.translated_en||''}</td>
+                <td>${r.tokens||''}</td>
+                <td>${r.cost||''}</td>
+                <td>${r.ip||''}</td>
+              </tr>
+            `).join('')
+          }
+        }
+      })
+  })
+</script>
+
   </script>
 </body>
 </html>
