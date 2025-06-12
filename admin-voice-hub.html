@@ -87,7 +87,7 @@
       const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
       const SUPA_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
 
-      // 初始化客户端，并让它自动从 URL hash 中提取 session
+      // 初始化 Supabase 客户端，自动从 URL hash 中提取 session
       const supabase = createClient(
         `${WORKER_BASE}/auth-proxy`,
         SUPA_ANON,
@@ -100,29 +100,30 @@
       const logoutBtn   = document.getElementById('logoutBtn');
       const recordsBody = document.getElementById('recordsBody');
 
-      // 1. 检查当前 session（OAuth 重定向后 detectSessionInUrl 已经存好了）
+      // —— 1. 检查初始 session
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       handleSession(initialSession);
 
-      // 2. 订阅后续登录状态变化
+      // —— 2. 订阅登录状态变化
       supabase.auth.onAuthStateChange((event, session) => {
         console.log('Auth event:', event, session);
         handleSession(session);
       });
 
-      // 3. 登录 / 登出
+      // —— 3. 登录 / 登出
       loginBtn.onclick = () => {
+        // **关键**：redirectTo 指定回到当前页面（含正确路径），避免落到 Worker /session 或根目录
+        const returnUrl = window.location.origin + window.location.pathname;
         supabase.auth.signInWithOAuth({
           provider: 'github',
-          options: { redirectTo: location.href }
+          options: { redirectTo: returnUrl }
         });
       };
       logoutBtn.onclick = () => {
-        supabase.auth.signOut()
-          .then(() => location.reload());
+        supabase.auth.signOut().then(() => location.reload());
       };
 
-      // Session 状态统一处理
+      // —— Session 处理
       function handleSession(session) {
         console.log('当前 Session:', session);
         if (session?.access_token) {
@@ -135,7 +136,7 @@
         }
       }
 
-      // 4. 拉取并渲染记录
+      // —— 4. 拉取并渲染记录
       async function loadRecords(token) {
         recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
         try {
@@ -150,11 +151,11 @@
             recordsBody.innerHTML = list.map(r => `
               <tr>
                 <td>${new Date(r.created_at).toLocaleString()}</td>
-                <td>${r.original  ?? ''}</td>
+                <td>${r.original    ?? ''}</td>
                 <td>${r.translated_en ?? ''}</td>
-                <td>${r.tokens    ?? ''}</td>
-                <td>${r.cost      ?? ''}</td>
-                <td>${r.ip        ?? ''}</td>
+                <td>${r.tokens      ?? ''}</td>
+                <td>${r.cost        ?? ''}</td>
+                <td>${r.ip          ?? ''}</td>
               </tr>
             `).join('');
           }
