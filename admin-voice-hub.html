@@ -115,13 +115,13 @@
         })
 
         // —— 2. 登录 / 登出 —— 
-        loginBtn.onclick = () => supabase.auth.signInWithOAuth({
-          provider: 'github',
-          options: {
-            // 直接回跳到管理页本身，避免 /session 404
-            redirectTo: location.origin + '/admin-voice-hub.html'
-          }
-        })
+       loginBtn.onclick = () => supabase.auth.signInWithOAuth({
+  provider: 'github',
+  options: {
+    // 直接把登录后跳到主页面，让 SDK 在主页面从 URL 里自己获取 token
+    redirectTo: location.origin + '/translate-assistant.html'
+  }
+})
         logoutBtn.onclick = () => supabase.auth.signOut()
           .then(() => location.reload())
 
