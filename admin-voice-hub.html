@@ -99,7 +99,7 @@
         const logoutBtn   = document.getElementById('logoutBtn')
         const recordsBody = document.getElementById('recordsBody')
 
-        // —— 1. 初查 & 订阅登录状态
+        // —— 1. 初查 & 订阅登录状态 —— 
         function handleSession(session) {
           if (session?.user) {
             authArea.style.display  = 'none'
@@ -114,15 +114,18 @@
           handleSession(session)
         })
 
-        // —— 2. 登录 / 登出
+        // —— 2. 登录 / 登出 —— 
         loginBtn.onclick = () => supabase.auth.signInWithOAuth({
-          provider:'github',
-          options:{ redirectTo:location.href }
+          provider: 'github',
+          options: {
+            // 直接回跳到管理页本身，避免 /session 404
+            redirectTo: location.origin + '/admin-voice-hub.html'
+          }
         })
         logoutBtn.onclick = () => supabase.auth.signOut()
           .then(() => location.reload())
 
-        // —— 3. 拉记录
+        // —— 3. 拉记录 —— 
         async function loadRecords(token) {
           recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>'
           const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
@@ -150,6 +153,8 @@
         }
       })
   })
+
+
 </script>
 
   </script>
