@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>双模式语音助手</title>
   <style>
-    /* —— 0. 全局 & 重置 —— */
+    /* —— 重置 & 布局 —— */
     * { margin:0; padding:0; box-sizing:border-box }
     body {
       font-family:'Segoe UI',Arial,sans-serif;
@@ -13,11 +13,11 @@
       display:flex; align-items:center; justify-content:center;
       min-height:100vh; padding:1rem;
     }
-    /* —— 授权模态 —— */
+    /* —— 授权弹窗 —— */
     #authModal {
       position:fixed; inset:0;
       background:rgba(255,255,255,0.15);
-      backdrop-filter:blur(3px);
+      backdrop-filter:blur(4px);
       display:flex; align-items:center; justify-content:center;
       z-index:100;
     }
@@ -42,14 +42,15 @@
       background:#8fbefc; cursor:not-allowed;
     }
     #authErr {
-      color:#d9534f; font-size:.9rem;
-      margin-top:.5rem; display:none;
+      color:#d9534f; margin-top:.5rem;
+      font-size:.9rem; display:none;
     }
     /* —— 主界面 —— */
     #main {
       display:none; width:100%; max-width:500px;
       background:#fff; padding:1.5rem;
       border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.1);
+      z-index:1;
     }
     h1 { font-size:1.25rem; margin-bottom:1rem }
     .mode-switch {
@@ -58,12 +59,12 @@
     }
     .mode-switch label { cursor:pointer; user-select:none }
     .mode-switch input { margin-right:.25rem }
+    /* —— 录音按钮 & 聊天区 —— */
     #recBtn {
       width:100%; padding:.75rem; font-size:1rem;
       background:#3b82f6; color:#fff; border:none;
-      border-radius:6px; cursor:pointer;
-      transition:background .2s; margin-bottom:1rem;
-      user-select:none;
+      border-radius:6px; cursor:pointer; transition:background .2s;
+      margin-bottom:1rem; user-select:none;
     }
     #recBtn:active { background:#2563eb }
     #chat {
@@ -78,6 +79,7 @@
 </head>
 <body>
 
+  <!-- 授权 -->
   <div id="authModal">
     <div class="box">
       <h2>请输入授权码</h2>
@@ -87,6 +89,7 @@
     </div>
   </div>
 
+  <!-- 主界面 -->
   <div id="main">
     <h1>语音助手</h1>
     <div class="mode-switch">
@@ -103,7 +106,7 @@
     const AUTH_API = BASE + '/admin-api/validate-code';
     const WS_API   = BASE.replace(/^http/, 'ws') + '/admin-api/ws';
 
-    // DOM
+    // 元素
     const authModal = document.getElementById('authModal');
     const authInput = document.getElementById('authInput');
     const authBtn   = document.getElementById('authBtn');
@@ -122,7 +125,6 @@
     });
     authBtn.addEventListener('click', async ()=>{
       authBtn.disabled = true;
-      authErr.style.display = 'none';
       try {
         const r = await fetch(AUTH_API, {
           method:'POST',
@@ -145,24 +147,24 @@
       }
     });
 
-    // —— WS 初始化 —— 
+    // —— 建 WS —— 
     function initWS(){
       chatEl.innerHTML = '';
       if (socket) socket.close();
 
-      // 拼 mode
       const mode = Array.from(modes).find(r=>r.checked).value;
       socket = new WebSocket(WS_API + '?mode=' + mode);
       socket.binaryType = 'arraybuffer';
 
       socket.onopen    = ()=> append('bot','[已连接]');
-      socket.onclose   = ()=> append('bot','[断开连接]');
+      socket.onclose   = ()=> append('bot','[已断开]');
       socket.onerror   = ()=> append('bot','[网络/服务器错误]');
       socket.onmessage = e=>{
-        if (typeof e.data==='string') {
-          const m = JSON.parse(e.data);
-          if (m.user) append('user', m.user);
-          if (m.bot ) append('bot',  m.bot );
+        if (typeof e.data === 'string') {
+          const msg = JSON.parse(e.data);
+          // 后端返回 {en, zh}
+          if (msg.en) append('bot','EN → '+ msg.en);
+          if (msg.zh) append('bot','ZH → '+ msg.zh);
         } else {
           // 音频流
           const blob = new Blob([e.data],{type:'audio/webm'});
@@ -171,40 +173,42 @@
       };
     }
 
-    // —— 按住录音 —— 
-    async function startRec(){
+    // —— 录音 —— 
+    async function startRec(e){
+      e.preventDefault();  // 一定要阻止默认滚动/长按菜单
       try {
         const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-        // 动态挑选 Safari/Chrome 支持的编码
-        const opts = {};
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-          opts.mimeType = 'audio/webm;codecs=opus';
-        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          opts.mimeType = 'audio/mp4';
-        }
+        const opts = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                   ? {mimeType:'audio/webm;codecs=opus'}
+                   : {};
         recorder = new MediaRecorder(stream, opts);
         recorder.ondataavailable = ev=>{
           if (socket && socket.readyState===1 && ev.data.size>0) {
             socket.send(ev.data);
+            append('user','[发送音频片段]');
           }
         };
         recorder.start(250);
         recBtn.textContent = '🎤 录音中…';
       } catch {
-        alert('请打开麦克风权限');
+        alert('请允许麦克风权限');
       }
     }
-    function stopRec(){
+    function stopRec(e){
+      e.preventDefault();
       if (recorder && recorder.state!=='inactive') recorder.stop();
       recBtn.textContent = '🎤 按住说话';
     }
 
-    recBtn.addEventListener('pointerdown', startRec);
-    recBtn.addEventListener('pointerup',   stopRec);
-    recBtn.addEventListener('pointerleave',stopRec);
-    recBtn.addEventListener('touchstart',  startRec);
-    recBtn.addEventListener('touchend',    stopRec);
+    // 手机 + 桌面都绑上
+    ['pointerdown','touchstart','mousedown'].forEach(ev=>
+      recBtn.addEventListener(ev, startRec, {passive:false})
+    );
+    ['pointerup','pointerleave','touchend','mouseup'].forEach(ev=>
+      recBtn.addEventListener(ev, stopRec, {passive:false})
+    );
 
+    // 切模式
     modes.forEach(r=> r.addEventListener('change', initWS));
 
     function append(who, txt){
