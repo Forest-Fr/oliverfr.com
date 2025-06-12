@@ -1,88 +1,151 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>🔑 管理后台 · 语音助手</title>
-  <script>
-    let session = null;
-
-    async function onLogin() {
-      // 依旧走 Supabase OAuth 登录，但登录完成后 Worker 已经知道 session
-      // 这里跳转到 validate-code 再回来（可选）
-      const code = prompt("请输入后台令牌（demo-key）");
-      if (!code) return;
-      const r = await fetch('/admin-api/validate-code', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code })
-      });
-      const j = await r.json();
-      if (!r.ok) return alert('授权失败');
-      session = true;
-      document.getElementById('btn-login').style.display = 'none';
-      document.getElementById('btn-logout').style.display = 'inline-block';
-      loadRecords();
-    }
-
-    function onLogout() {
-      session = null;
-      document.getElementById('btn-login').style.display = 'inline-block';
-      document.getElementById('btn-logout').style.display = 'none';
-      document.querySelector('#records tbody').innerHTML =
-        '<tr><td colspan="6">请先登录</td></tr>';
-    }
-
-    async function loadRecords() {
-      const r = await fetch('/admin-api/records');
-      if (!r.ok) {
-        return document.querySelector('#records tbody').innerHTML =
-          `<tr><td colspan="6">加载失败：${r.statusText}</td></tr>`;
-      }
-      const data = await r.json();
-      if (!data.length) {
-        return document.querySelector('#records tbody').innerHTML =
-          `<tr><td colspan="6">暂无记录</td></tr>`;
-      }
-      document.querySelector('#records tbody').innerHTML = data.map(r => `
-        <tr>
-          <td>${new Date(r.created_at).toLocaleString('zh-CN')}</td>
-          <td>${r.original||''}</td>
-          <td>${r.translated_en||r.translated_zh||''}</td>
-          <td>${r.tokens}</td>
-          <td>${(r.cost||0).toFixed(4)}</td>
-          <td>${r.ip}</td>
-        </tr>
-      `).join('');
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('btn-login').onclick  = onLogin;
-      document.getElementById('btn-logout').onclick = onLogout;
-    });
-  </script>
   <style>
-    body { font-family: 'Segoe UI',sans-serif; background:#f0f2f5; padding:1rem; }
-    h1 { font-size:1.5rem; }
-    button { padding:.6rem 1.2rem; margin-right:.5rem; }
-    table { border-collapse:collapse; width:100%; max-width:960px; margin-top:1rem;}
-    th,td { border:1px solid #ccc; padding:.5rem; }
-    th { background:#e5e7eb; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 1rem;
+    }
+    #container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #loginBtn { background: #24292e; color: #fff; }
+    #logoutBtn { background: #e53e3e; color: #fff; float: right; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    th {
+      background: #f7fafc;
+    }
   </style>
 </head>
 <body>
-  <h1>🔑 管理后台 · 语音助手</h1>
-  <button id="btn-login">授权登录</button>
-  <button id="btn-logout" style="display:none;">退出登录</button>
-  <table id="records">
-    <thead>
-      <tr>
-        <th>创建时间</th><th>原文</th><th>应答</th>
-        <th>Tokens</th><th>Cost</th><th>IP</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td colspan="6">请先登录</td></tr>
-    </tbody>
-  </table>
+  <div id="container">
+    <h1>🔑 管理后台 · 语音助手</h1>
+    <div id="authArea">
+      <button id="loginBtn">使用 GitHub 登录</button>
+    </div>
+    <div id="adminArea" style="display:none">
+      <button id="logoutBtn">退出登录</button>
+      <table>
+        <thead>
+          <tr>
+            <th>创建时间</th>
+            <th>原文</th>
+            <th>回答</th>
+            <th>Tokens</th>
+            <th>Cost</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody">
+          <tr><td colspan="6">加载中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    // ———— 配置 ————
+    const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev'
+    // 这里的 ANON_KEY 仅用于触发 Supabase OAuth
+    const SUPA_ANON   = '<YOUR-ANON-KEY>'  
+
+    // 注意：Supabase URL 写成 Worker 上的一个「Auth Proxy」路径
+    const supabase = createClient(
+      `${WORKER_BASE}/auth-proxy`, 
+      SUPA_ANON
+    )
+
+    const authArea  = document.getElementById('authArea')
+    const adminArea = document.getElementById('adminArea')
+    const loginBtn  = document.getElementById('loginBtn')
+    const logoutBtn = document.getElementById('logoutBtn')
+    const recordsBody = document.getElementById('recordsBody')
+
+    // — 登录 状态检测 — 
+    (async function(){
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session && session.user) {
+        // 已登录
+        authArea.style.display  = 'none'
+        adminArea.style.display = 'block'
+        loadRecords()
+      }
+    })()
+
+    // — 登录 / 登出 — 
+    loginBtn.onclick = () => {
+      supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: location.href }
+      })
+    }
+    logoutBtn.onclick = async () => {
+      await supabase.auth.signOut()
+      location.reload()
+    }
+
+    // — 通过 Worker 代理 拉取 translations — 
+    async function loadRecords() {
+      recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>'
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      })
+      if (!resp.ok) {
+        recordsBody.innerHTML = `<tr><td colspan="6">拉取失败：${resp.statusText}</td></tr>`
+        return
+      }
+      const list = await resp.json()
+      if (!Array.isArray(list) || list.length === 0) {
+        recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>'
+        return
+      }
+      recordsBody.innerHTML = list.map(r => `
+        <tr>
+          <td>${new Date(r.created_at).toLocaleString()}</td>
+          <td>${r.original || ''}</td>
+          <td>${r.translated_en || ''}</td>
+          <td>${r.tokens_consumed ?? ''}</td>
+          <td>${r.cost_usd ?? ''}</td>
+          <td>${r.client_ip ?? ''}</td>
+        </tr>
+      `).join('')
+    }
+  </script>
 </body>
 </html>
