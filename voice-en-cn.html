@@ -5,91 +5,89 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>双模式语音助手</title>
   <style>
-    * {margin:0; padding:0; box-sizing:border-box;}
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family:'Segoe UI','Arial',sans-serif;
+      font-family:'Segoe UI',sans-serif;
       background:#f0f2f5; color:#333;
       min-height:100vh;
       display:flex; justify-content:center; align-items:center;
       padding:1rem;
     }
-    /* 主界面 */
     #main {
-      width:100%; max-width:500px;
-      background:#fff; border-radius:12px;
-      padding:1.5rem; box-shadow:0 8px 24px rgba(0,0,0,0.1);
+      width:100%;max-width:500px;
+      background:#fff;border-radius:12px;
+      padding:1.5rem;box-shadow:0 8px 24px rgba(0,0,0,0.1);
       position:relative; z-index:1;
     }
-    h1 {font-size:1.25rem; margin-bottom:1rem;}
-    .mode-switch {display:flex; gap:1rem; margin-bottom:1rem;}
-    .mode-switch label {cursor:pointer; user-select:none;}
-    .mode-switch input {margin-right:.3rem;}
+    h1 { font-size:1.25rem; margin-bottom:1rem; }
+    .mode-switch { display:flex;gap:1rem;margin-bottom:1rem; }
+    .mode-switch label { cursor:pointer; user-select:none; }
+    .mode-switch input { margin-right:.3rem; }
+
+    /* 录音按钮 */
     #recBtn {
-      width:100%; padding:.75rem; font-size:1rem;
-      background:#3b82f6; color:#fff; border:none;
-      border-radius:6px; cursor:pointer; transition:background .2s;
+      width:100%;padding:.75rem;font-size:1rem;
+      background:#3b82f6;color:#fff;border:none;
+      border-radius:6px;cursor:pointer;transition:background .2s;
       margin-bottom:1rem;
     }
-    #recBtn:disabled {background:#aac4f7; cursor:not-allowed;}
-    #recBtn:active:not(:disabled) {background:#2563eb;}
+    #recBtn.recording { background:#dc2626; }
+    #recBtn:disabled { background:#aac4f7; cursor:not-allowed; }
+
     #chat {
-      height:240px; overflow-y:auto;
-      border:1px solid #ddd; border-radius:6px;
-      background:#fafafa; padding:.5rem;
+      height:240px;overflow-y:auto;
+      border:1px solid #ddd;border-radius:6px;
+      padding:.5rem;background:#fafafa;
     }
-    .msg {margin-bottom:.5rem; line-height:1.4;}
-    .msg.user {color:#1f2937;}
-    .msg.bot  {color:#374151;}
-    /* 授权弹窗 */
+    .msg { margin-bottom:.5rem; }
+    .msg.user { color:#1f2937; }
+    .msg.bot  { color:#374151; }
+
+    /* 授权弹窗：透明遮罩可见主界面 */
     #authModal {
-      position:fixed; inset:0;
-      display:flex; justify-content:center; align-items:center;
-      /* 透明遮罩，保证能看到页面 */
-      background:rgba(0,0,0,0);
+      position:fixed;inset:0;
+      display:flex;justify-content:center;align-items:center;
+      background:rgba(0,0,0,0); /* 不遮盖背景 */ 
       z-index:1000;
     }
     #authModal .box {
       background:rgba(255,255,255,0.95);
-      border-radius:12px; padding:24px 32px;
+      border-radius:12px;padding:24px 32px;
       box-shadow:0 8px 24px rgba(0,0,0,0.15);
-      text-align:center; min-width:320px;
+      text-align:center;min-width:320px;
     }
-    #authModal h2 {font-size:1.5rem; margin-bottom:1rem;}
+    #authModal h2 {font-size:1.5rem;margin-bottom:1rem;}
     #authModal input {
-      width:100%; padding:.75rem; font-size:1rem;
-      border:1px solid #ccc; border-radius:6px;
+      width:100%;padding:.75rem;font-size:1rem;
+      border:1px solid #ccc;border-radius:6px;
       margin-bottom:1rem;
     }
     #authModal button {
-      width:100%; padding:.75rem; font-size:1rem;
-      border:none; border-radius:6px;
-      background:#3b82f6; color:#fff; cursor:pointer;
+      width:100%;padding:.75rem;font-size:1rem;
+      border:none;border-radius:6px;
+      background:#3b82f6;color:#fff;cursor:pointer;
       transition:background .2s;
     }
-    #authModal button:disabled {background:#8fbefc; cursor:not-allowed;}
+    #authModal button:disabled {
+      background:#8fbefc;cursor:not-allowed;
+    }
     #authErr {
-      display:none; margin-top:.5rem;
-      color:#d9534f; font-size:.9rem;
+      color:#d9534f;margin-top:.5rem;font-size:.9rem;
+      display:none;
     }
   </style>
 </head>
 <body>
-  <!-- 主界面 -->
   <div id="main">
     <h1>语音助手</h1>
     <div class="mode-switch">
-      <label>
-        <input type="radio" name="mode" value="chat" checked/> 对话模式
-      </label>
-      <label>
-        <input type="radio" name="mode" value="trans"/> 同传模式
-      </label>
+      <label><input type="radio" name="mode" value="chat" checked/> 对话模式</label>
+      <label><input type="radio" name="mode" value="trans"/> 同传模式</label>
     </div>
     <button id="recBtn" disabled>🎤 按住说话</button>
     <div id="chat"></div>
   </div>
 
-  <!-- 授权弹窗 -->
   <div id="authModal">
     <div class="box">
       <h2>请输入授权码</h2>
@@ -101,11 +99,9 @@
 
   <script>
   (function(){
-    const BASE     = 'https://translate-assistant.mefans.workers.dev';
-    const AUTH_URL = BASE + '/admin-api/validate-code';
-    const WS_URL   = BASE.replace(/^http/,'ws') + '/admin-api/ws';
-    // 如果你已有 TTS 服务，把 URL 填在下面：
-    const TTS_URL  = 'https://your-tts-provider.example.com/tts';
+    const BASE   = 'https://translate-assistant.mefans.workers.dev';
+    const AUTH   = BASE + '/admin-api/validate-code';
+    const WS_BASE= BASE.replace(/^http/,'ws') + '/admin-api/ws';
 
     const authModal = document.getElementById('authModal');
     const authInput = document.getElementById('authInput');
@@ -114,32 +110,32 @@
     const main      = document.getElementById('main');
     const recBtn    = document.getElementById('recBtn');
     const chatEl    = document.getElementById('chat');
-    const modeEls   = document.getElementsByName('mode');
+    const modes     = document.getElementsByName('mode');
 
     let socket, recorder;
 
-    // —— 授权逻辑 —— 
-    authInput.addEventListener('input', () => {
+    // 授权
+    authInput.addEventListener('input', ()=> {
       authBtn.disabled = !authInput.value.trim();
       authErr.style.display = 'none';
     });
-    authBtn.addEventListener('click', async () => {
+    authBtn.addEventListener('click', async ()=>{
       authBtn.disabled = true;
       try {
-        const r = await fetch(AUTH_URL, {
+        let r = await fetch(AUTH, {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ code:authInput.value.trim() })
+          body: JSON.stringify({code:authInput.value.trim()})
         });
-        const j = await r.json();
-        if (r.ok && j.ok) {
+        let j = await r.json();
+        if(r.ok && j.ok) {
           authModal.style.display = 'none';
           recBtn.disabled = false;
           initSession();
         } else {
           throw new Error('授权失败');
         }
-      } catch (e) {
+      } catch(e) {
         authErr.textContent = e.message||'网络错误';
         authErr.style.display = '';
       } finally {
@@ -147,75 +143,85 @@
       }
     });
 
-    // —— 会话 & WS & 录音 —— 
+    // 建立会话 & WS & 录音
     function initSession(){
-      // 清空聊天记录
       chatEl.innerHTML = '';
-      // 关闭旧 WS
-      if (socket) socket.close();
+      if(socket) socket.close();
 
-      const mode = [...modeEls].find(r=>r.checked).value;
-      socket = new WebSocket(WS_URL + '?mode=' + mode);
+      const mode = [...modes].find(r=>r.checked).value;
+      socket = new WebSocket(WS_BASE + '?mode=' + mode);
       socket.binaryType = 'arraybuffer';
 
-      socket.onopen = () => appendMsg('bot','🤖 [已连接]');
-      socket.onclose= () => appendMsg('bot','🤖 [已断开]');
-      socket.onerror= ()=> appendMsg('bot','🤖 [服务异常]');
+      socket.onopen    = ()=> append('bot','🤖 [已连接]');
+      socket.onerror   = ()=> append('bot','🤖 [服务异常]');
+      socket.onclose   = ()=> append('bot','🤖 [已断开]');
       socket.onmessage = async evt => {
-        // 对话模式：先 text 再 TTS
-        if (mode==='chat' && typeof evt.data === 'string') {
-          const { user, bot } = JSON.parse(evt.data);
-          if (user) appendMsg('user', user);
-          if (bot) {
-            // 1) 播放 TTS
-            try {
-              const ttsResp = await fetch(TTS_URL, {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ text:bot })
-              });
-              const audioBlob = await ttsResp.blob();
-              await playAudio(audioBlob);
-            } catch {
-              // 如果 TTS 失败，直接贴文字
-            }
-            // 2) 再显示文字
-            appendMsg('bot', bot);
+        if(mode==='chat' && typeof evt.data==='string'){
+          let {user,bot} = JSON.parse(evt.data);
+          user && append('user', user);
+          if(bot){
+            // 内置 TTS
+            await speak(bot);
+            append('bot', bot);
           }
         }
-        // 同传模式：直接音频流
-        else if (mode==='trans' && evt.data instanceof ArrayBuffer) {
-          await playAudio(new Blob([evt.data],{type:'audio/webm'}));
+        else if(mode==='trans' && evt.data instanceof ArrayBuffer){
+          await play(new Blob([evt.data],{type:'audio/webm'}));
         }
       };
 
-      // 切换模式时重连
-      [...modeEls].forEach(r=>r.onchange = initSession);
+      // 切换模式
+      [...modes].forEach(r=>r.onchange = initSession);
 
-      // 录音
-      recBtn.onpointerdown = async () => {
+      // 录音手势——兼容 pointer+touch
+      const startRec = async ()=>{
+        recBtn.classList.add('recording');
+        recBtn.textContent = '🛑 录音中...';
         try {
-          const s = await navigator.mediaDevices.getUserMedia({ audio:true });
+          const s = await navigator.mediaDevices.getUserMedia({audio:true});
           recorder = new MediaRecorder(s);
-          recorder.ondataavailable = e => {
-            if (socket.readyState===1) socket.send(e.data);
+          recorder.ondataavailable = e=>{
+            if(socket.readyState===1) socket.send(e.data);
           };
           recorder.start(250);
-          appendMsg('user','👤 [开始录音]');
+          append('user','👤 [开始录音]');
         } catch {
-          alert('请允许麦克风权限');
+          alert('请允许麦克风');
         }
       };
-      recBtn.onpointerup = () => {
-        if (recorder && recorder.state!=='inactive') {
+      const stopRec = ()=>{
+        recBtn.classList.remove('recording');
+        recBtn.textContent = '🎤 按住说话';
+        if(recorder && recorder.state!=='inactive'){
           recorder.stop();
-          appendMsg('user','👤 [结束录音]');
+          append('user','👤 [结束录音]');
         }
       };
+      recBtn.addEventListener('pointerdown', startRec);
+      recBtn.addEventListener('pointerup',   stopRec);
+      recBtn.addEventListener('touchstart',  startRec);
+      recBtn.addEventListener('touchend',    stopRec);
     }
 
-    // 播放音频
-    function playAudio(blob){
+    // 显示文字
+    function append(who,txt){
+      const d = document.createElement('div');
+      d.className = 'msg ' + who;
+      d.textContent = txt;
+      chatEl.appendChild(d);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    // 浏览器内置 TTS
+    function speak(text){
+      return new Promise(res=>{
+        const u = new SpeechSynthesisUtterance(text);
+        u.onend = ()=> res();
+        speechSynthesis.speak(u);
+      });
+    }
+    // 播放二进制
+    function play(blob){
       return new Promise(res=>{
         const url = URL.createObjectURL(blob);
         const a   = new Audio(url);
@@ -224,16 +230,7 @@
       });
     }
 
-    // 追加消息
-    function appendMsg(by, txt){
-      const d = document.createElement('div');
-      d.className = 'msg ' + by;
-      d.textContent = txt;
-      chatEl.appendChild(d);
-      chatEl.scrollTop = chatEl.scrollHeight;
-    }
-
-    // 初始：页面可见但录音锁住
+    // 初始锁定录音
     window.addEventListener('DOMContentLoaded', ()=>{
       recBtn.disabled = true;
     });
