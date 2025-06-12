@@ -4,51 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>🔑 管理后台 · 语音助手</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 1rem;
-    }
-    #container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-    }
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    #loginBtn { background: #24292e; color: #fff; }
-    #logoutBtn { background: #e53e3e; color: #fff; float: right; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 0.5rem;
-      text-align: left;
-    }
-    th {
-      background: #f7fafc;
-    }
-  </style>
+  <style>/* ... 保留你原有的样式 ... */</style>
 </head>
 <body>
   <div id="container">
@@ -56,23 +12,14 @@
 
     <!-- 登录区 -->
     <div id="authArea">
-      <button id="loginBtn" type="button">使用 GitHub 登录</button>
+      <button id="loginBtn">使用 GitHub 登录</button>
     </div>
 
     <!-- 管理区 -->
     <div id="adminArea" style="display:none">
-      <button id="logoutBtn" type="button">退出登录</button>
+      <button id="logoutBtn">退出登录</button>
       <table>
-        <thead>
-          <tr>
-            <th>创建时间</th>
-            <th>原文</th>
-            <th>回答</th>
-            <th>Tokens</th>
-            <th>Cost</th>
-            <th>IP</th>
-          </tr>
-        </thead>
+        <thead>…</thead>
         <tbody id="recordsBody">
           <tr><td colspan="6">请先登录…</td></tr>
         </tbody>
@@ -80,91 +27,78 @@
     </div>
   </div>
 
-  <script type="module">
-    window.addEventListener('DOMContentLoaded', async () => {
-      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+  <script>
+  (function(){
+    const WORKER = location.origin;
+    const authArea    = document.getElementById('authArea');
+    const adminArea   = document.getElementById('adminArea');
+    const loginBtn    = document.getElementById('loginBtn');
+    const logoutBtn   = document.getElementById('logoutBtn');
+    const recordsBody = document.getElementById('recordsBody');
 
-      const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
-      const SUPA_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+    // 1. 登录跳转到 Worker → Supabase OAuth
+    loginBtn.onclick = () => {
+      location.href = 
+        `${WORKER}/auth-proxy/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(WORKER)}`;
+    };
 
-      const supabase = createClient(
-        `${WORKER_BASE}/auth-proxy`,
-        SUPA_ANON,
-        { auth: { detectSessionInUrl: true } }
-      );
-
-      const authArea    = document.getElementById('authArea');
-      const adminArea   = document.getElementById('adminArea');
-      const loginBtn    = document.getElementById('loginBtn');
-      const logoutBtn   = document.getElementById('logoutBtn');
-      const recordsBody = document.getElementById('recordsBody');
-
-      // —— 1. 初始 session 检查 ——  
-      const { data: { session: initial } } = await supabase.auth.getSession();
-      handleSession(initial);
-
-      // —— 2. 监听状态变化 ——  
-      supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth event:', event, session);
-        handleSession(session);
+    // 2. 登出：清 Cookie 并刷新
+    logoutBtn.onclick = async () => {
+      await fetch(`${WORKER}/auth-proxy/auth/v1/logout`, {
+        method: 'POST',
+        credentials: 'include'
       });
+      location.reload();
+    };
 
-      // —— 3. 登录 / 登出 ——  
-      loginBtn.onclick = () => {
-        supabase.auth.signInWithOAuth({
-          provider: 'github',
-          options: {
-            // **重定向到根页**，避免落到 /session 等自定义路由
-            redirectTo: window.location.origin
-          }
+    // 3. 检查是否已登录（看 Cookie）
+    async function checkLogin() {
+      const resp = await fetch(`${WORKER}/admin-api/check-session`, {
+        credentials: 'include'
+      });
+      return resp.ok;
+    }
+
+    // 4. 拉记录
+    async function loadRecords() {
+      recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
+      try {
+        const resp = await fetch(`${WORKER}/admin-api/records`, {
+          credentials: 'include'
         });
-      };
-      logoutBtn.onclick = () => {
-        supabase.auth.signOut().then(() => location.reload());
-      };
-
-      // —— Session 处理 ——  
-      function handleSession(session) {
-        console.log('当前 Session:', session);
-        if (session?.access_token) {
-          authArea.style.display  = 'none';
-          adminArea.style.display = 'block';
-          loadRecords(session.access_token);
+        if (!resp.ok) throw new Error(resp.status);
+        const list = await resp.json();
+        if (!list.length) {
+          recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
         } else {
-          authArea.style.display  = 'block';
-          adminArea.style.display = 'none';
+          recordsBody.innerHTML = list.map(r=>`
+            <tr>
+              <td>${new Date(r.created_at).toLocaleString()}</td>
+              <td>${r.original||''}</td>
+              <td>${r.translated_en||''}</td>
+              <td>${r.tokens||''}</td>
+              <td>${r.cost||''}</td>
+              <td>${r.ip||''}</td>
+            </tr>
+          `).join('');
         }
+      } catch(e) {
+        recordsBody.innerHTML = `<tr><td colspan="6">拉取失败：${e.message}</td></tr>`;
       }
+    }
 
-      // —— 拉记录并渲染 ——  
-      async function loadRecords(token) {
-        recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
-        try {
-          const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (!resp.ok) throw new Error(`状态 ${resp.status}`);
-          const list = await resp.json();
-          if (!list.length) {
-            recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
-          } else {
-            recordsBody.innerHTML = list.map(r => `
-              <tr>
-                <td>${new Date(r.created_at).toLocaleString()}</td>
-                <td>${r.original    ?? ''}</td>
-                <td>${r.translated_en ?? ''}</td>
-                <td>${r.tokens      ?? ''}</td>
-                <td>${r.cost        ?? ''}</td>
-                <td>${r.ip          ?? ''}</td>
-              </tr>
-            `).join('');
-          }
-        } catch (err) {
-          console.error('拉取记录失败：', err);
-          recordsBody.innerHTML = `<tr><td colspan="6">拉取失败：${err.message}</td></tr>`;
-        }
+    // 5. 初始化：检查登录状态
+    checkLogin().then(isLogin=>{
+      if (isLogin) {
+        authArea.style.display  = 'none';
+        adminArea.style.display = 'block';
+        loadRecords();
+      } else {
+        authArea.style.display  = 'block';
+        adminArea.style.display = 'none';
       }
     });
+  })();
   </script>
 </body>
 </html>
