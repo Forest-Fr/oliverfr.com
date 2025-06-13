@@ -106,17 +106,19 @@
   // 判断是否移动端
   const isMobile = /iPhone|iPad|iPod|Android|Mobile/.test(navigator.userAgent);
 
-  // —— 桌面弹窗回调：popup 在 /auth/callback 拿到 hash，postMessage 给 opener —— 
-  if (window.opener && window.location.hash.includes('access_token=')) {
-    const hash = window.location.hash.slice(1);
+  // —— 1. 桌面弹窗回调 —— 
+  // 如果 this window 是 popup（window.opener 存在）并且 URL 带 access_token，就 postMessage 回父窗口
+  if (window.opener && location.hash.includes('access_token=')) {
+    const hash = location.hash.slice(1);
     window.opener.postMessage({ type:'supabase-auth', hash }, '*');
     window.close();
     return;
   }
 
-  // —— 移动端同页回调：URL 带 #access_token，先 POST /auth/session 写 Cookie，再重载 —— 
-  if (!window.opener && window.location.hash.includes('access_token=')) {
-    const params = new URLSearchParams(window.location.hash.slice(1));
+  // —— 2. 移动端同页回调 —— 
+  // 如果 this window 不是 popup 且 URL 带 access_token，就是移动端隐式流跳回首页
+  if (!window.opener && location.hash.includes('access_token=')) {
+    const params = new URLSearchParams(location.hash.slice(1));
     await fetch(SESSION_URL, {
       method: 'POST',
       credentials: 'include',
@@ -127,9 +129,11 @@
         expires_in:    parseInt(params.get('expires_in')||'0',10)
       })
     });
-    // 清掉 hash，回到初始 URL 并重载
+    // 清掉 hash
     window.location.hash = '';
-    return window.location.href = '/admin-voice-hub.html';
+    // 跳回管理页
+    window.location.href = '/admin-voice-hub.html';
+    return;
   }
 
   // —— 封装带 credentials 的 fetch —— 
@@ -149,11 +153,13 @@
     adminArea.style.display = 'none';
   }
 
-  // —— 登录：桌面弹窗，手机重定向 —— 
+  // —— 登录：桌面弹窗，手机同页重定向 —— 
   loginBtn.onclick = () => {
     if (isMobile) {
+      // 移动端：直接在当前窗口发起 OAuth
       location.href = LOGIN_URL;
     } else {
+      // 桌面：弹窗发起 OAuth
       window.open(
         LOGIN_URL,
         'oauthPopup',
@@ -215,19 +221,19 @@
     const total = allRecords.length;
     const pages = Math.ceil(total/pageSize) || 1;
     pagination.innerHTML = '';
-    for(let i=1;i<=pages;i++){
-      const li=document.createElement('li');
+    for (let i=1; i<=pages; i++) {
+      const li = document.createElement('li');
       li.innerHTML = `<button${i===page?' class="active"':''}>${i}</button>`;
-      li.firstChild.onclick = ()=> loadPage(i);
+      li.firstChild.onclick = () => loadPage(i);
       pagination.appendChild(li);
     }
   }
 
   // —— 搜索过滤 —— 
-  searchIn.addEventListener('input', ()=> renderTable(allRecords));
+  searchIn.addEventListener('input', () => renderTable(allRecords));
 
   // —— 弹窗打开/关闭 —— 
-  function openModal(id){
+  function openModal(id) {
     activeRecord = allRecords.find(r=>r.id===id);
     modalBody.innerHTML = `
       <label>原文：
@@ -236,34 +242,35 @@
       <label>翻译：
         <textarea id="m_t" style="width:100%;height:4rem">${activeRecord.translated_en||''}</textarea>
       </label>`;
-    modalBackdrop.style.display='flex';
+    modalBackdrop.style.display = 'flex';
   }
-  modalClose.onclick = ()=> modalBackdrop.style.display='none';
+  modalClose.onclick = () => modalBackdrop.style.display = 'none';
 
   // —— 保存修改 —— 
-  modalSave.onclick = async ()=>{
+  modalSave.onclick = async () => {
     const o = document.getElementById('m_o').value;
     const t = document.getElementById('m_t').value;
-    await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`,{
+    await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
       method:'PATCH',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ original:o, translated_en:t })
     });
-    modalBackdrop.style.display='none';
+    modalBackdrop.style.display = 'none';
     loadPage(currentPage);
   };
 
   // —— 删除记录 —— 
-  modalDelete.onclick = async ()=>{
-    await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`,{
+  modalDelete.onclick = async () => {
+    await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
       method:'DELETE'
     });
-    modalBackdrop.style.display='none';
+    modalBackdrop.style.display = 'none';
     loadPage(currentPage);
   };
 
 })();
 </script>
+
 
 
 
