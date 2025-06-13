@@ -6,6 +6,7 @@
   <title>🔑 管理后台 · 语音助手</title>
   <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
   <style>
+    /* —————— 你的原有样式 —————— */
     body { margin:0; padding:0; font-family:'Segoe UI',sans-serif; background:#f0f2f5; }
     .container { max-width:960px; margin:1rem auto; padding:1rem; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
     h1 { font-size:1.5rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem; }
@@ -77,19 +78,22 @@
       </div>
     </div>
   </div>
-  
- <!-- 加载 Supabase JS SDK -->
+
+  <!-- —————— Frontend Script —————— -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    // —— 1. 初始化 Supabase —— 
+    // 1. 初始化 Supabase
     const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev'
-    const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'  // ← 你的 ANON KEY
+    const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg' // ← 替换成你的 ANON KEY
     const supa = createClient(WORKER_BASE, ANON_KEY, {
-      auth: { detectSessionInUrl: true, persistSession: true }
+      auth: {
+        detectSessionInUrl: true,
+        persistSession:     true
+      }
     })
 
-    // —— DOM 引用 —— 
+    // 2. DOM 引用
     const loginArea     = document.getElementById('loginArea')
     const loginBtn      = document.getElementById('loginBtn')
     const adminArea     = document.getElementById('adminArea')
@@ -108,13 +112,14 @@
     const pageSize   = 10
     let activeRecord = null
 
-    // —— 2. 处理 OAuth 回调 —— 
+    // 3. 处理 URL OAuth 回调（implicit / PKCE）
     await supa.auth.getSessionFromUrl({ storeSession: true })
 
-    // —— 3. 初始登录态检查 —— 
+    // 4. 初始登录态检查
     const {
       data: { session: initialSession }
     } = await supa.auth.getSession()
+
     if (initialSession) {
       loginArea.style.display = 'none'
       adminArea.style.display = 'block'
@@ -124,7 +129,7 @@
       adminArea.style.display = 'none'
     }
 
-    // —— 4. 监听登录/登出 —— 
+    // 5. 监听登录/登出
     supa.auth.onAuthStateChange((_, session) => {
       if (session) {
         loginArea.style.display = 'none'
@@ -136,7 +141,7 @@
       }
     })
 
-    // —— 5. 登录 & 登出 —— 
+    // 6. 登录 & 登出
     loginBtn.onclick = () => {
       supa.auth.signInWithOAuth({
         provider: 'github',
@@ -148,28 +153,30 @@
       location.reload()
     }
 
-    // —— 6. 加载记录 —— 
+    // 7. 加载第 page 页记录
     async function loadPage(page = 1) {
       recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>'
       try {
-        const from = (page - 1) * pageSize, to = page * pageSize - 1
+        const from = (page - 1) * pageSize
+        const to   = page * pageSize - 1
         const { data, error } = await supa
           .from('translations')
           .select('id,created_at,original,translated_en,mode,tokens,cost')
           .order('created_at', { ascending: false })
           .range(from, to)
+
         if (error) throw error
         allRecords = data || []
         renderTable(allRecords)
         renderPagination(page)
       } catch (e) {
-        console.error(e)
+        console.error('加载记录失败', e)
         loginArea.style.display = 'block'
         adminArea.style.display = 'none'
       }
     }
 
-    // —— 7. 渲染表格 —— 
+    // 8. 渲染表格
     function renderTable(list) {
       const kw   = searchIn.value.trim().toLowerCase()
       const rows = list.filter(r =>
@@ -194,7 +201,7 @@
       })
     }
 
-    // —— 8. 渲染分页 —— 
+    // 9. 渲染分页
     function renderPagination(page) {
       const total = allRecords.length
       const pages = Math.ceil(total / pageSize) || 1
@@ -207,10 +214,10 @@
       }
     }
 
-    // —— 9. 搜索过滤 —— 
+    // 10. 搜索过滤
     searchIn.addEventListener('input', () => renderTable(allRecords))
 
-    // —— 10. 弹窗 —— 
+    // 11. 弹窗 打开 & 关闭
     function openModal(id) {
       activeRecord = allRecords.find(r => r.id === id)
       modalBody.innerHTML = `
@@ -224,7 +231,7 @@
     }
     modalClose.onclick = () => modalBackdrop.style.display = 'none'
 
-    // —— 11. 保存修改 —— 
+    // 12. 保存修改
     modalSave.onclick = async () => {
       const o = document.getElementById('m_o').value
       const t = document.getElementById('m_t').value
@@ -232,31 +239,25 @@
         .from('translations')
         .update({ original: o, translated_en: t })
         .eq('id', activeRecord.id)
-      if (error) alert('更新失败：' + error.message)
+      if (error) alert('更新失败：'+error.message)
       else {
         modalBackdrop.style.display = 'none'
         loadPage(currentPage)
       }
     }
 
-    // —— 12. 删除记录 —— 
+    // 13. 删除记录
     modalDelete.onclick = async () => {
       const { error } = await supa
         .from('translations')
         .delete()
         .eq('id', activeRecord.id)
-      if (error) alert('删除失败：' + error.message)
+      if (error) alert('删除失败：'+error.message)
       else {
         modalBackdrop.style.display = 'none'
         loadPage(currentPage)
       }
     }
-</script>
-
-
-
-
-
-
+  </script>
 </body>
 </html>
