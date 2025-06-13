@@ -115,17 +115,20 @@
   let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
   // —— 登录跳转到 Worker OAuth —— 
-  loginBtn.onclick = () => {
-    const callbackUrl = `${BASE}/auth-proxy/auth/v1/callback`;
-    const nextPage    = window.location.pathname;
-    const redirectTo  = `${callbackUrl}?next=${encodeURIComponent(nextPage)}`;
-    const params = new URLSearchParams({
-      provider:      'github',
-      response_type: 'code',
-      redirect_to:   redirectTo
-    });
-    window.location.href = `${OAUTH_URL}?${params}`;
-  };
+  // —— 登录按钮 —— 
+loginBtn.onclick = () => {
+  const callbackHost = BASE + '/auth-proxy/auth/v1/callback';
+  // 一定要用完整路径（包括 hash 或 query）
+  const returnTo = encodeURIComponent(window.location.href);
+  const redirectTo = `${callbackHost}?next=${returnTo}`;
+  const params = new URLSearchParams({
+    provider:      'github',
+    response_type: 'code',
+    redirect_to:   redirectTo
+  });
+  window.location.href = `${OAUTH_URL}?${params}`;
+};
+
 
   // —— 登出（清 Cookie 后刷新） —— 
   logoutBtn.onclick = async () => {
