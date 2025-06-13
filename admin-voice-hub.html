@@ -81,114 +81,92 @@
  <script>
 (async function(){
   const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
-  const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' +
-                      encodeURIComponent(location.pathname + location.search);
+  const SESSION_URL = WORKER_BASE + '/auth/session';
+  const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' + encodeURIComponent(location.pathname + location.search);
+  const LOGOUT_URL  = WORKER_BASE + '/auth/logout';
   const RECORDS_URL = WORKER_BASE + '/admin-api/records';
 
-  // DOM
+  // DOM 元素
   const loginArea     = document.getElementById('loginArea');
   const loginBtn      = document.getElementById('loginBtn');
   const adminArea     = document.getElementById('adminArea');
   const logoutBtn     = document.getElementById('logoutBtn');
-  // … 其余 DOM 引用 …
+  const searchIn      = document.getElementById('searchInput');
+  const recordsBody   = document.getElementById('recordsBody');
+  const pagination    = document.getElementById('pagination');
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const modalClose    = document.getElementById('modalClose');
+  const modalBody     = document.getElementById('modalBody');
+  const modalSave     = document.getElementById('modalSave');
+  const modalDelete   = document.getElementById('modalDelete');
 
   let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
-  // 是否移动端
-  const isMobile = /iPhone|iPad|iPod|Android|Mobile/.test(navigator.userAgent);
-
-  // 带 Bearer 的 fetch
+  // 带凭证的 fetch
   function fetchWithCred(url, opts = {}) {
-    opts.headers = opts.headers || {};
-    const t = localStorage.getItem('GH_TOKEN');
-    if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+    opts.credentials = 'include';
     return fetch(url, opts);
   }
 
-  // —— 1. 处理 Hash（移动端重定向流） —— 
+  // 1. 如果 URL hash 里有 access_token，先 POST 到 /auth/session 并写入 Cookie
   const hash = window.location.hash;
   if (hash.includes('access_token=')) {
     const params = new URLSearchParams(hash.slice(1));
-    localStorage.setItem('GH_TOKEN', params.get('access_token'));
+    await fetchWithCred(SESSION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_token:  params.get('access_token'),
+        refresh_token: params.get('refresh_token'),
+        expires_in:    parseInt(params.get('expires_in') || '0', 10)
+      })
+    });
+    // 清除 hash 并重载页面，进入正常流程
     window.location.hash = '';
-    if (isMobile) {
-      initAfterLogin();
-      return;
-    }
+    return window.location.reload();
   }
 
-  // —— 2. 监听 postMessage（桌面弹窗流） —— 
-  window.addEventListener('message', e => {
-    if (e.data?.type === 'supabase-auth' && e.data.hash) {
-      const params = new URLSearchParams(e.data.hash);
-      localStorage.setItem('GH_TOKEN', params.get('access_token'));
-      initAfterLogin();
-    }
-  });
+  // 2. 检查会话（已登录 or 未登录）
+  const sessResp = await fetchWithCred(SESSION_URL, { method: 'GET' });
+  if (sessResp.ok) {
+    loginArea.style.display = 'none';
+    adminArea.style.display = 'block';
+    loadPage(currentPage);
+  } else {
+    loginArea.style.display = 'block';
+    adminArea.style.display = 'none';
+  }
 
-  // —— 3. 登录按钮 —— 
+  // 3. 登录跳转
   loginBtn.onclick = () => {
-    if (isMobile) {
-      // 移动：整页跳转
-      location.href = LOGIN_URL;
-    } else {
-      // 桌面：弹窗
-      window.open(LOGIN_URL, 'oauthPopup', 'width=500,height=600');
-    }
+    location.href = LOGIN_URL;
   };
 
-  // —— 4. 初始：隐藏管理区，显示登录区 —— 
-  loginArea.style.display = 'block';
-  adminArea.style.display = 'none';
-
-  // —— 5. 如果已有 token，校验一次 —— 
-  const existing = localStorage.getItem('GH_TOKEN');
-  if (existing) {
-    try {
-      const test = await fetchWithCred(`${RECORDS_URL}?limit=1&offset=0`);
-      if (test.ok) {
-        initAfterLogin();
-        return;
-      }
-    } catch {}
-    localStorage.removeItem('GH_TOKEN');
-  }
-
-  // —— 6. 登出 —— 
-  logoutBtn.onclick = () => {
-    localStorage.removeItem('GH_TOKEN');
+  // 4. 登出
+  logoutBtn.onclick = async () => {
+    await fetchWithCred(LOGOUT_URL, { method: 'POST' });
     location.reload();
   };
 
-  // —— 7. 登录后初始化界面 —— 
-  function initAfterLogin() {
-    loginArea.style.display = 'none';
-    adminArea.style.display = 'block';
-    loadPage(1);
-  }
-
-  // —— 8. 加载数据（和你原来完全一样） —— 
+  // 5. 加载数据
   async function loadPage(page = 1) {
-    currentPage = page;
     recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
     try {
       const resp = await fetchWithCred(
         `${RECORDS_URL}?limit=${pageSize}&offset=${(page-1)*pageSize}`
       );
-      if (!resp.ok) throw new Error();
+      if (!resp.ok) throw new Error('Unauthorized');
       const list = await resp.json();
       allRecords = list;
       renderTable(list);
       renderPagination(page);
     } catch {
-      // token 失效 → 回登录区
-      localStorage.removeItem('GH_TOKEN');
       loginArea.style.display = 'block';
       adminArea.style.display = 'none';
     }
   }
 
-  // —— 渲染表格 —— 
+  // 渲染表格
   function renderTable(list) {
     const f = searchIn.value.trim().toLowerCase();
     const rows = list.filter(r =>
@@ -212,7 +190,7 @@
     });
   }
 
-  // —— 渲染分页 —— 
+  // 渲染分页
   function renderPagination(page) {
     const total = allRecords.length;
     const pages = Math.ceil(total / pageSize) || 1;
@@ -220,15 +198,15 @@
     for (let i = 1; i <= pages; i++) {
       const li = document.createElement('li');
       li.innerHTML = `<button${i===page ? ' class="active"' : ''}>${i}</button>`;
-      li.firstChild.onclick = () => loadPage(i);
+      li.firstChild.onclick = () => { currentPage = i; loadPage(i); };
       pagination.appendChild(li);
     }
   }
 
-  // —— 搜索过滤 —— 
+  // 搜索过滤
   searchIn.addEventListener('input', () => renderTable(allRecords));
 
-  // —— 弹窗打开/关闭 —— 
+  // 弹窗打开
   function openModal(id) {
     activeRecord = allRecords.find(r => r.id === id);
     modalBody.innerHTML = `
@@ -243,7 +221,7 @@
   }
   modalClose.onclick = () => modalBackdrop.style.display = 'none';
 
-  // —— 保存修改 —— 
+  // 保存修改
   modalSave.onclick = async () => {
     const o = document.getElementById('m_o').value;
     const t = document.getElementById('m_t').value;
@@ -256,7 +234,7 @@
     loadPage(currentPage);
   };
 
-  // —— 删除记录 —— 
+  // 删除记录
   modalDelete.onclick = async () => {
     await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
       method: 'DELETE'
@@ -265,6 +243,7 @@
     loadPage(currentPage);
   };
 })();
+</script>
 </script>
 
 
