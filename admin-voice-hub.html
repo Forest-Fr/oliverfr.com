@@ -80,10 +80,22 @@
   
  <script>
 (async function(){
+  // —— 0. 先处理所有 popup 上可能的 hash 回调 —— 
+  if (
+    window.opener &&
+    window.location.hash.includes('access_token')
+  ) {
+    window.opener.postMessage(
+      { type:'supabase-auth', hash: window.location.hash.slice(1) },
+      '*'
+    );
+    window.close();
+    return;
+  }
+
   const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
   const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' + encodeURIComponent(location.pathname + location.search);
   const RECORDS_URL = WORKER_BASE + '/admin-api/records';
-
   // —— DOM 元素 —— 
   const loginArea     = document.getElementById('loginArea');
   const loginBtn      = document.getElementById('loginBtn');
