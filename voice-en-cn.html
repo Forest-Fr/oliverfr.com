@@ -102,14 +102,21 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
   color:#d9534f;margin-top:.5rem;font-size:.9rem;
   display:none;
 }
-    /* 手机端：授权弹框整体高度 +190px，宽度不变，依然居中 */
-@media (max-width: 600px) {
+    @media (max-width: 600px) {
+  #main {
+    /* 原来 padding:1.5rem; 我们只在底部再加 190px */
+    padding: 1.5rem;
+    padding-bottom: calc(1.5rem + 190px);
+  }
+}
+
+    /* ----手机端：授权弹框整体高度 +190px，宽度不变，依然居中 ----@media (max-width: 600px) {
   #authModal .box {
     /* 原来是 padding:24px 32px; 
        这里把底部 padding 多加 190px，实际为 24 + 190 = 214 */
     padding: 24px 32px 214px;
-  }
-}
+*-----/
+
   </style>
 </head>
 <body>
