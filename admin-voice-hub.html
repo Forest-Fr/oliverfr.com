@@ -80,39 +80,24 @@
   
  <script>
 (async function(){
-  // —— 0. 先处理所有 popup 上可能的 hash 回调 —— 
-  if (
-    window.opener &&
-    window.location.hash.includes('access_token')
-  ) {
-    window.opener.postMessage(
-      { type:'supabase-auth', hash: window.location.hash.slice(1) },
-      '*'
-    );
-    window.close();
-    return;
-  }
-
   const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
-  const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' + encodeURIComponent(location.pathname + location.search);
+  const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' +
+                      encodeURIComponent(location.pathname + location.search);
   const RECORDS_URL = WORKER_BASE + '/admin-api/records';
-  // —— DOM 元素 —— 
+
+  // DOM
   const loginArea     = document.getElementById('loginArea');
   const loginBtn      = document.getElementById('loginBtn');
   const adminArea     = document.getElementById('adminArea');
   const logoutBtn     = document.getElementById('logoutBtn');
-  const searchIn      = document.getElementById('searchInput');
-  const recordsBody   = document.getElementById('recordsBody');
-  const pagination    = document.getElementById('pagination');
-  const modalBackdrop = document.getElementById('modalBackdrop');
-  const modalClose    = document.getElementById('modalClose');
-  const modalBody     = document.getElementById('modalBody');
-  const modalSave     = document.getElementById('modalSave');
-  const modalDelete   = document.getElementById('modalDelete');
+  // … 其余 DOM 引用 …
 
   let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
-  // —— 带 Bearer Token 的 fetch —— 
+  // 是否移动端
+  const isMobile = /iPhone|iPad|iPod|Android|Mobile/.test(navigator.userAgent);
+
+  // 带 Bearer 的 fetch
   function fetchWithCred(url, opts = {}) {
     opts.headers = opts.headers || {};
     const t = localStorage.getItem('GH_TOKEN');
@@ -120,7 +105,19 @@
     return fetch(url, opts);
   }
 
-  // —— 接收 OAuth 弹窗的 postMessage —— 
+  // —— 1. 处理 Hash（移动端重定向流） —— 
+  const hash = window.location.hash;
+  if (hash.includes('access_token=')) {
+    const params = new URLSearchParams(hash.slice(1));
+    localStorage.setItem('GH_TOKEN', params.get('access_token'));
+    window.location.hash = '';
+    if (isMobile) {
+      initAfterLogin();
+      return;
+    }
+  }
+
+  // —— 2. 监听 postMessage（桌面弹窗流） —— 
   window.addEventListener('message', e => {
     if (e.data?.type === 'supabase-auth' && e.data.hash) {
       const params = new URLSearchParams(e.data.hash);
@@ -129,20 +126,22 @@
     }
   });
 
-  // —— 点击「使用 GitHub 登录」弹窗 OAuth —— 
+  // —— 3. 登录按钮 —— 
   loginBtn.onclick = () => {
-    window.open(
-      LOGIN_URL,
-      'oauthPopup',
-      'width=500,height=600'
-    );
+    if (isMobile) {
+      // 移动：整页跳转
+      location.href = LOGIN_URL;
+    } else {
+      // 桌面：弹窗
+      window.open(LOGIN_URL, 'oauthPopup', 'width=500,height=600');
+    }
   };
 
-  // —— 启动时：隐藏管理区、显示登录区 —— 
+  // —— 4. 初始：隐藏管理区，显示登录区 —— 
   loginArea.style.display = 'block';
   adminArea.style.display = 'none';
 
-  // —— 如果 localStorage 里有老 token，先试一次请求 —— 
+  // —— 5. 如果已有 token，校验一次 —— 
   const existing = localStorage.getItem('GH_TOKEN');
   if (existing) {
     try {
@@ -155,20 +154,20 @@
     localStorage.removeItem('GH_TOKEN');
   }
 
-  // —— 登出 —— 
+  // —— 6. 登出 —— 
   logoutBtn.onclick = () => {
     localStorage.removeItem('GH_TOKEN');
     location.reload();
   };
 
-  // —— 登录后初始化 —— 
+  // —— 7. 登录后初始化界面 —— 
   function initAfterLogin() {
     loginArea.style.display = 'none';
     adminArea.style.display = 'block';
     loadPage(1);
   }
 
-  // —— 加载数据 —— 
+  // —— 8. 加载数据（和你原来完全一样） —— 
   async function loadPage(page = 1) {
     currentPage = page;
     recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
