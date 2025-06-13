@@ -78,13 +78,13 @@
     </div>
   </div>
   
-  <script>
+ <script>
 (async function(){
   const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
   const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' + encodeURIComponent(location.pathname + location.search);
   const RECORDS_URL = WORKER_BASE + '/admin-api/records';
 
-  // ——— DOM 元素 ———
+  // —— DOM 元素 —— 
   const loginArea     = document.getElementById('loginArea');
   const loginBtn      = document.getElementById('loginBtn');
   const adminArea     = document.getElementById('adminArea');
@@ -100,17 +100,7 @@
 
   let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
-  // ——— 1. 监听 OAuth 回调 ———
-  window.addEventListener('message', e => {
-    if (e.data?.type === 'supabase-auth' && e.data.hash) {
-      const params = new URLSearchParams(e.data.hash);
-      localStorage.setItem('GH_TOKEN', params.get('access_token'));
-      // 登录成功后初始化界面
-      initAfterLogin();
-    }
-  });
-
-  // ——— 2. 带 Bearer Token 的 fetch ——  
+  // —— 带 Bearer Token 的 fetch —— 
   function fetchWithCred(url, opts = {}) {
     opts.headers = opts.headers || {};
     const t = localStorage.getItem('GH_TOKEN');
@@ -118,7 +108,16 @@
     return fetch(url, opts);
   }
 
-  // ——— 3. 点击「使用 GitHub 登录」打开弹窗 ———
+  // —— 接收 OAuth 弹窗的 postMessage —— 
+  window.addEventListener('message', e => {
+    if (e.data?.type === 'supabase-auth' && e.data.hash) {
+      const params = new URLSearchParams(e.data.hash);
+      localStorage.setItem('GH_TOKEN', params.get('access_token'));
+      initAfterLogin();
+    }
+  });
+
+  // —— 点击「使用 GitHub 登录」弹窗 OAuth —— 
   loginBtn.onclick = () => {
     window.open(
       LOGIN_URL,
@@ -127,25 +126,37 @@
     );
   };
 
-  // ——— 4. 如果已有 Token，直接进入管理区 ———
-  if (localStorage.getItem('GH_TOKEN')) {
-    initAfterLogin();
+  // —— 启动时：隐藏管理区、显示登录区 —— 
+  loginArea.style.display = 'block';
+  adminArea.style.display = 'none';
+
+  // —— 如果 localStorage 里有老 token，先试一次请求 —— 
+  const existing = localStorage.getItem('GH_TOKEN');
+  if (existing) {
+    try {
+      const test = await fetchWithCred(`${RECORDS_URL}?limit=1&offset=0`);
+      if (test.ok) {
+        initAfterLogin();
+        return;
+      }
+    } catch {}
+    localStorage.removeItem('GH_TOKEN');
   }
 
-  // ——— 5. 登出 ———
+  // —— 登出 —— 
   logoutBtn.onclick = () => {
     localStorage.removeItem('GH_TOKEN');
     location.reload();
   };
 
-  // ——— 初始化登录后界面 & 加载第一页 ———
+  // —— 登录后初始化 —— 
   function initAfterLogin() {
     loginArea.style.display = 'none';
     adminArea.style.display = 'block';
     loadPage(1);
   }
 
-  // ——— 加载数据 ———
+  // —— 加载数据 —— 
   async function loadPage(page = 1) {
     currentPage = page;
     recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
@@ -159,14 +170,14 @@
       renderTable(list);
       renderPagination(page);
     } catch {
-      // Token 失效或未登录，回登录区
+      // token 失效 → 回登录区
       localStorage.removeItem('GH_TOKEN');
       loginArea.style.display = 'block';
       adminArea.style.display = 'none';
     }
   }
 
-  // ——— 渲染表格 ———
+  // —— 渲染表格 —— 
   function renderTable(list) {
     const f = searchIn.value.trim().toLowerCase();
     const rows = list.filter(r =>
@@ -190,7 +201,7 @@
     });
   }
 
-  // ——— 渲染分页 ———
+  // —— 渲染分页 —— 
   function renderPagination(page) {
     const total = allRecords.length;
     const pages = Math.ceil(total / pageSize) || 1;
@@ -203,10 +214,10 @@
     }
   }
 
-  // ——— 搜索过滤 ———
+  // —— 搜索过滤 —— 
   searchIn.addEventListener('input', () => renderTable(allRecords));
 
-  // ——— 弹窗：打开 & 关闭 ———
+  // —— 弹窗打开/关闭 —— 
   function openModal(id) {
     activeRecord = allRecords.find(r => r.id === id);
     modalBody.innerHTML = `
@@ -221,7 +232,7 @@
   }
   modalClose.onclick = () => modalBackdrop.style.display = 'none';
 
-  // ——— 保存修改 ———
+  // —— 保存修改 —— 
   modalSave.onclick = async () => {
     const o = document.getElementById('m_o').value;
     const t = document.getElementById('m_t').value;
@@ -234,7 +245,7 @@
     loadPage(currentPage);
   };
 
-  // ——— 删除记录 ———
+  // —— 删除记录 —— 
   modalDelete.onclick = async () => {
     await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
       method: 'DELETE'
@@ -244,6 +255,7 @@
   };
 })();
 </script>
+
 
 
 </body>
