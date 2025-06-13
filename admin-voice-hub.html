@@ -101,18 +101,24 @@
     let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
     // 登录
- // —— 登录按钮 —— 
 loginBtn.onclick = () => {
-  const WORKER_CB  = `${BASE}/auth-proxy/auth/v1/callback`;
-  const nextPage   = encodeURIComponent(window.location.pathname);
-  const redirectTo = encodeURIComponent(`${WORKER_CB}?next=${nextPage}`);
+  // Worker callback 路径
+  const callbackUrl = `${BASE}/auth-proxy/auth/v1/callback`;
+  // 授权完成后最终要回到的本页路径
+  const nextPage    = window.location.pathname;
+  // 构造 redirect_to，只对 nextPage 做编码
+  const redirectTo  = `${callbackUrl}?next=${encodeURIComponent(nextPage)}`;
+
   const params = new URLSearchParams({
     provider:      'github',
     response_type: 'code',
     redirect_to:   redirectTo
   });
-  window.location.href = `${OAUTH_URL}?${params}`;
+
+  // 跳到 Worker 的 authorize 入口
+  window.location.href = `${OAUTH_URL}?${params.toString()}`;
 };
+
 
     // 登出
     logoutBtn.onclick = async () => {
