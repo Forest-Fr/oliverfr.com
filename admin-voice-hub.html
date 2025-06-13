@@ -77,18 +77,15 @@
     </div>
   </div>
 
-  <!-- 引入 Supabase 客户端 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
   <script>
   (async function(){
-    const BASE        = 'https://translate-assistant.mefans.workers.dev';
-    const RECORDS     = BASE + '/admin-api/records';
-    const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-    const ADMIN_EMAIL = 'oliveroogle@gmail.com';
-    const supa        = supabase.createClient(BASE, ANON_KEY);
+    const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
+    const SESSION_URL = WORKER_BASE + '/auth/session';
+    const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' + encodeURIComponent(location.href);
+    const LOGOUT_URL  = WORKER_BASE + '/auth/logout';
+    const RECORDS_URL = WORKER_BASE + '/admin-api/records';
 
-    // —— DOM 元素引用 ——
+    // DOM 元素
     const loginArea     = document.getElementById('loginArea');
     const loginBtn      = document.getElementById('loginBtn');
     const adminArea     = document.getElementById('adminArea');
@@ -102,59 +99,55 @@
     const modalSave     = document.getElementById('modalSave');
     const modalDelete   = document.getElementById('modalDelete');
 
-    let allRecords    = [], currentPage = 1, pageSize = 10, activeRecord = null;
+    let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
-    // —— Supabase OAuth 登录状态检查 ——
-    const { data:{ session } } = await supa.auth.getSession();
-    if (session?.user?.email === ADMIN_EMAIL) {
+    // 带凭证的 fetch
+    function fetchWithCred(url, opts = {}) {
+      opts.credentials = 'include';
+      return fetch(url, opts);
+    }
+
+    // 检查会话
+    const sessResp = await fetchWithCred(SESSION_URL);
+    if (sessResp.ok) {
       loginArea.style.display = 'none';
       adminArea.style.display = 'block';
-      tryLoad(currentPage);
+      loadPage(currentPage);
     } else {
       loginArea.style.display = 'block';
       adminArea.style.display = 'none';
     }
 
-    // —— 登录 ——
+    // 登录跳转
     loginBtn.onclick = () => {
-      supa.auth.signInWithOAuth({
-        provider: 'github',
-        options: { redirectTo: location.href }
-      });
+      location.href = LOGIN_URL;
     };
 
-    // —— 登出 ——
+    // 登出
     logoutBtn.onclick = async () => {
-      await supa.auth.signOut();
-      window.location.reload();
+      await fetchWithCred(LOGOUT_URL, { method:'POST' });
+      location.reload();
     };
 
-    // —— fetch 封装 ——
-    function fetchWithAuth(url, opts = {}) {
-      opts.credentials = 'include';
-      return fetch(url, opts);
-    }
-
-    // —— 尝试拉取第 page 页数据 ——
-    async function tryLoad(page = 1) {
+    // 加载数据
+    async function loadPage(page = 1) {
       recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
       try {
-        const resp = await fetchWithAuth(
-          `${RECORDS}?limit=${pageSize}&offset=${(page-1)*pageSize}`
+        const resp = await fetchWithCred(
+          `${RECORDS_URL}?limit=${pageSize}&offset=${(page-1)*pageSize}`
         );
-        if (resp.status === 401) throw new Error('Unauthorized');
+        if (!resp.ok) throw new Error('Unauthorized');
         const list = await resp.json();
         allRecords = list;
         renderTable(list);
         renderPagination(page);
-      } catch (e) {
-        console.warn(e);
+      } catch {
         loginArea.style.display = 'block';
         adminArea.style.display = 'none';
       }
     }
 
-    // —— 渲染数据表格 ——
+    // 渲染表格
     function renderTable(list) {
       const f = searchIn.value.trim().toLowerCase();
       const rows = list.filter(r =>
@@ -178,7 +171,7 @@
       });
     }
 
-    // —— 渲染分页 ——
+    // 渲染分页
     function renderPagination(page) {
       const total = allRecords.length;
       const pages = Math.ceil(total / pageSize) || 1;
@@ -186,15 +179,15 @@
       for (let i = 1; i <= pages; i++) {
         const li = document.createElement('li');
         li.innerHTML = `<button${i===page ? ' class="active"' : ''}>${i}</button>`;
-        li.firstChild.onclick = () => { currentPage = i; tryLoad(i); };
+        li.firstChild.onclick = () => { currentPage = i; loadPage(i); };
         pagination.appendChild(li);
       }
     }
 
-    // —— 搜索输入 ——
+    // 搜索过滤
     searchIn.addEventListener('input', () => renderTable(allRecords));
 
-    // —— 弹窗打开/关闭 ——
+    // 弹窗
     function openModal(id) {
       activeRecord = allRecords.find(r => r.id === id);
       modalBody.innerHTML = `
@@ -209,26 +202,26 @@
     }
     modalClose.onclick = () => modalBackdrop.style.display = 'none';
 
-    // —— 保存修改 ——
+    // 保存
     modalSave.onclick = async () => {
       const o = document.getElementById('m_o').value;
       const t = document.getElementById('m_t').value;
-      await fetchWithAuth(`${RECORDS}?id=eq.${activeRecord.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type':'application/json' },
+      await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
+        method:'PATCH',
+        headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({ original:o, translated_en:t })
       });
       modalBackdrop.style.display = 'none';
-      tryLoad(currentPage);
+      loadPage(currentPage);
     };
 
-    // —— 删除记录 ——
+    // 删除
     modalDelete.onclick = async () => {
-      await fetchWithAuth(`${RECORDS}?id=eq.${activeRecord.id}`, {
-        method: 'DELETE'
+      await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
+        method:'DELETE'
       });
       modalBackdrop.style.display = 'none';
-      tryLoad(currentPage);
+      loadPage(currentPage);
     };
   })();
   </script>
