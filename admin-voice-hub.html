@@ -89,21 +89,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminArea   = document.getElementById('adminArea');
   const recordsBody = document.getElementById('recordsBody');
 
-  // 当前页面的相对路径，比如 "/admin.html" 或者 "/" 
+  // 我们要在回调后跳回哪个页面
   const currentPath = window.location.pathname;
 
-  // —— 1. 登录：带上 next 参数 —— 
+  // —— 1. 登录：带上 next + 强制 response_type=code —— 
   loginBtn.onclick = () => {
-    // callback 路径 + next
-    const cb   = `${WORKER_BASE}/auth-proxy/auth/v1/callback?next=${encodeURIComponent(currentPath)}`;
-    const qs   = new URLSearchParams({
-      provider:   'github',
-      redirect_to: cb
+    const callback = `${WORKER_BASE}/auth-proxy/auth/v1/callback?next=${encodeURIComponent(currentPath)}`;
+    const params   = new URLSearchParams({
+      provider:      'github',
+      redirect_to:   callback,
+      response_type: 'code'           // 🔑 强制使用 Authorization Code Grant
     });
-    window.location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${qs}`;
+    window.location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${params}`;
   };
 
-  // —— 2. 登出 —— 
+  // —— 2. 登出：清 Cookie & 刷新 —— 
   logoutBtn.onclick = async () => {
     await fetch(`${WORKER_BASE}/auth-proxy/auth/v1/logout`, {
       method: 'POST',
@@ -112,13 +112,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.reload();
   };
 
-  // —— 3. 拉记录 & 渲染（不变） —— 
+  // —— 3. 拉记录 & 渲染 —— 
   async function loadRecords() {
     recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
     const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
       credentials: 'include'
     });
-    if (!resp.ok) throw new Error(`状态 ${resp.status}`);
+    if (!resp.ok) {
+      throw new Error(`状态 ${resp.status}`);
+    }
     const list = await resp.json();
     if (!list.length) {
       recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
@@ -136,18 +138,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // —— 4. 初始化：试着拉一次，200 显示后台，否则登录 —— 
+  // —— 4. 初始化：尝试一次 loadRecords —— 
   loadRecords()
     .then(() => {
+      // 拿到 200 → 已登录 → 显示后台
       authArea .style.display = 'none';
       adminArea.style.display = 'block';
     })
     .catch(() => {
+      // 401 或其它错误 → 未登录 → 显示登录按钮
       authArea .style.display = 'block';
       adminArea.style.display = 'none';
     });
 });
 </script>
+
 
 
 </body>
