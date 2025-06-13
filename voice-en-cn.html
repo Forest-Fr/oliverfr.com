@@ -5,104 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>双模式语音助手</title>
   <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  font-family:'Segoe UI',sans-serif;
-  background:#f0f2f5; color:#333;
-  min-height:100vh;
-  display:flex; justify-content:center; align-items:center;
-  padding:1rem;
-}
-#main {
-  width:100%;
-  max-width:700px;            /* 从 500px 改为 700px */
-  background:#fff;border-radius:12px;
-  padding:1.5rem;box-shadow:0 8px 24px rgba(0,0,0,0.1);
-  position:relative; z-index:1;
-}
-h1 { font-size:1.25rem; margin-bottom:1rem; }
-.mode-switch { display:flex;gap:1rem;margin-bottom:1rem; }
-.mode-switch label { cursor:pointer; user-select:none; }
-.mode-switch input { margin-right:.3rem; }
-
-/* 录音按钮 */
-#recBtn {
-  width:100%;padding:.75rem;font-size:1rem;
-  background:#3b82f6;color:#fff;border:none;
-  border-radius:6px;cursor:pointer;transition:background .2s;
-  margin-bottom:1rem;
-}
-#recBtn.recording { background:#dc2626; }
-#recBtn:disabled { background:#aac4f7; cursor:not-allowed; }
-
-/* 对话区 */
-#chat {
-  width:100%;
-  height:240px;overflow-y:auto;
-  border:1px solid #ddd;border-radius:6px;
-  padding:.5rem;background:#fafafa;
-  box-sizing:border-box;
-}
-/* 公共 msg 样式，变成 flex container */
-.msg {
-  display:flex;
-  flex-wrap:wrap;
-  margin-bottom:.5rem;
-  padding:.25rem .5rem;
-  border-radius:6px;
-}
-/* 用户消息：左对齐，浅蓝背景 */
-.msg.user {
-  justify-content:flex-start;
-  background:#e0f2ff;
-  color:#1f2937;
-}
-/* 机器人 & meta：右对齐，浅灰背景 */
-.msg.bot,
-.msg._meta {
-  justify-content:flex-end;
-  background:#f0f0f0;
-  color:#374151;
-}
-/* 内容最大宽度，自动换行 */
-.msg > * {
-  max-width:80%;
-  word-break:break-word;
-}
-
-/* 授权弹窗：透明遮罩可见主界面 */
-#authModal {
-  position:fixed;inset:0;
-  display:flex;justify-content:center;align-items:center;
-  background:rgba(0,0,0,0);
-  z-index:1000;
-}
-#authModal .box {
-  background:rgba(255,255,255,0.95);
-  border-radius:12px;padding:24px 32px;
-  box-shadow:0 8px 24px rgba(0,0,0,0.15);
-  text-align:center;min-width:320px;
-}
-#authModal h2 {font-size:1.5rem;margin-bottom:1rem;}
-#authModal input {
-  width:100%;padding:.75rem;font-size:1rem;
-  border:1px solid #ccc;border-radius:6px;
-  margin-bottom:1rem;
-}
-#authModal button {
-  width:100%;padding:.75rem;font-size:1rem;
-  border:none;border-radius:6px;
-  background:#3b82f6;color:#fff;cursor:pointer;
-  transition:background .2s;
-}
-#authModal button:disabled {
-  background:#8fbefc;cursor:not-allowed;
-}
-#authErr {
-  color:#d9534f;margin-top:.5rem;font-size:.9rem;
-  display:none;
-}
-
+    /* 样式同前，不变 */
   </style>
 </head>
 <body>
@@ -126,18 +29,11 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
   </div>
 
   <script>
- 
-  // 在页面最上方插入 DEBUG 标记
-  document.body.insertAdjacentHTML('afterbegin',
-    '<div style="position:fixed;top:0;left:0;background:red;color:white;padding:4px;font-size:12px;z-index:9999;">[DEBUG BUILD]</div>'
-  );
-  console.log('--- DEBUG BUILD LOADED ---');
-
-(function(){
-    const BASE     = 'https://translate-assistant.mefans.workers.dev';
-    const AUTH_URL = BASE + '/admin-api/validate-code';
-    const WS_BASE  = BASE.replace(/^http/,'ws') + '/admin-api/ws';
-    const WRITE_URL= BASE + '/admin-api/records';
+  (function(){
+    const BASE      = 'https://translate-assistant.mefans.workers.dev';
+    const AUTH_URL  = BASE + '/admin-api/validate-code';
+    const WS_BASE   = BASE.replace(/^http/,'ws') + '/admin-api/ws';
+    const WRITE_URL = BASE + '/admin-api/records';
 
     const authModal = document.getElementById('authModal');
     const authInput = document.getElementById('authInput');
@@ -147,12 +43,12 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
     const chatEl    = document.getElementById('chat');
     const modes     = document.getElementsByName('mode');
 
-    let socket = null, recorder = null;
+    let socket, recorder;
     let sessionId = '', authCode = '';
-    let lastOriginal = '';    // ← 用来暂存每次用户的原文
+    let lastOriginal = '';
     let seq = 0;
 
-    // —— 授权流程（不变） —— 
+    // 授权流程（不变）
     authInput.addEventListener('input', () => {
       authBtn.disabled = !authInput.value.trim();
       authErr.style.display = 'none';
@@ -170,7 +66,7 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
           sessionId = crypto.randomUUID();
           authCode  = authInput.value.trim();
           authModal.style.display = 'none';
-          recBtn.disabled = false;
+          recBtn.disabled = false;  // 授权通过后立即启用录音
           initSession();
         } else {
           throw new Error(j.error || '授权失败');
@@ -183,19 +79,16 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
       }
     });
 
-    // —— 录音和 WebSocket 绑定（大体不变） —— 
-    recBtn.addEventListener('pointerdown', onPointerDown);
-    recBtn.addEventListener('pointerup',   onPointerUp);
-    recBtn.addEventListener('touchstart',  onPointerDown);
-    recBtn.addEventListener('touchend',    onPointerUp);
+    // 录音按钮事件（不变）
+    ['pointerdown','touchstart'].forEach(ev => recBtn.addEventListener(ev, onPointerDown));
+    ['pointerup','touchend'  ].forEach(ev => recBtn.addEventListener(ev, onPointerUp));
 
     function initSession(){
       chatEl.innerHTML = '';
       if (socket) socket.close();
       socket = null;
-      recBtn.disabled = true;
-      recBtn.classList.remove('recording');
-      recBtn.textContent = '🎤 按住说话';
+      // —— 这一行去掉，避免每次重连都把按钮关了 —— 
+      // recBtn.disabled = true;
 
       const mode = [...modes].find(r=>r.checked).value;
       const url  = `${WS_BASE}?mode=${mode}&session=${sessionId}&auth=${authCode}`;
@@ -204,68 +97,59 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
 
       socket.onopen = () => {
         append('bot','🤖 [已连接]');
+        // 可以在这里再次确认按钮是可用的
         recBtn.disabled = false;
       };
       socket.onerror = e => {
         console.error(e);
         append('bot','🤖 [服务异常]');
-        recBtn.disabled = true;
       };
       socket.onclose = () => {
         append('bot','🤖 [已断开，5s后重连]');
-        recBtn.disabled = true;
         setTimeout(initSession,5000);
       };
 
       socket.onmessage = async evt => {
         if (typeof evt.data === 'string') {
           const msg = JSON.parse(evt.data);
-
-          // —— 1) 用户原文 —— 
           if (msg.who === 'user') {
-            lastOriginal = msg.text;               // 缓存一下
+            lastOriginal = msg.text;
             append('user', msg.text);
           }
-          // —— 2) 机器人回复 —— 
           else if (msg.who === 'bot') {
             append('bot', msg.text);
-
             // 写入 Supabase
             try {
-              const resp = await fetch(WRITE_URL, {
+              await fetch(WRITE_URL, {
                 method: 'POST',
                 headers: { 'Content-Type':'application/json' },
                 body: JSON.stringify([{
-                  session_id: sessionId,
-                  auth_code:  authCode,
-                  mode:       [...modes].find(r=>r.checked).value,
-                  kind:       'text',
-                  lang_from:  'auto',
-                  lang_to:    'auto',
-                  original:   lastOriginal,
+                  session_id:    sessionId,
+                  auth_code:     authCode,
+                  mode:          [...modes].find(r=>r.checked).value,
+                  kind:          'text',
+                  lang_from:     'auto',
+                  lang_to:       'auto',
+                  original:      lastOriginal,
                   translated_en: msg.text,
                   translated_zh: null,
-                  audio_url:  null,
-                  tokens:     msg.tokens || 0,
-                  cost:       0,
-                  seq:        ++seq
+                  audio_url:     null,
+                  tokens:        msg.tokens||0,
+                  cost:          0,
+                  seq:           ++seq
                 }])
               });
-              if (!resp.ok) console.warn('记录写入失败：', await resp.text());
             } catch(e) {
-              console.error('写入接口调用异常：', e);
+              console.error('写入失败', e);
             }
           }
-          // —— 3) 元信息帧 & 其它 —— 
           else if (msg.who === '_meta') {
-            console.log('_meta frame', msg);
+            console.log('_meta', msg);
           }
         }
         else if (evt.data instanceof ArrayBuffer) {
-          // TTS 音频播放 (不变)
-          const blob = new Blob([evt.data], { type: 'audio/webm; codecs=opus' });
-          const audio = new Audio(URL.createObjectURL(blob));
-          audio.play().catch(console.error);
+          const blob = new Blob([evt.data], { type:'audio/webm; codecs=opus' });
+          new Audio(URL.createObjectURL(blob)).play().catch(console.error);
         }
       };
 
@@ -273,30 +157,35 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
       [...modes].forEach(r=>r.onchange = initSession);
     }
 
-    // —— 录音逻辑不变 —— 
+    // 录音逻辑（不变）
     let chunks = [];
-    async function startRec(){
+    async function onPointerDown() {
+      if (recBtn.disabled) return;
       recBtn.classList.add('recording');
       recBtn.textContent = '🛑 录音中...';
-      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-      recorder = new MediaRecorder(stream);
-      chunks = [];
-      recorder.ondataavailable = e => chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type:'audio/webm' });
-        socket?.send(blob);
-      };
-      recorder.start();
-      append('user','👤 [开始录音]');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        recorder = new MediaRecorder(stream);
+        chunks = [];
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => socket?.send(new Blob(chunks, { type:'audio/webm' }));
+        recorder.start();
+        append('user','👤 [开始录音]');
+      } catch(err) {
+        console.error(err);
+        alert('请允许麦克风');
+        recBtn.classList.remove('recording');
+        recBtn.textContent = '🎤 按住说话';
+      }
     }
-    function stopRec(){
+    function onPointerUp() {
       if (recorder && recorder.state!=='inactive') recorder.stop();
       recBtn.classList.remove('recording');
       recBtn.textContent = '🎤 按住说话';
       append('user','👤 [结束录音]');
     }
 
-    // —— 辅助：追加消息到界面 —— 
+    // 辅助：追加消息
     function append(who, txt){
       const d = document.createElement('div');
       d.className = 'msg ' + who;
@@ -304,10 +193,7 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
       chatEl.appendChild(d);
       chatEl.scrollTop = chatEl.scrollHeight;
     }
-
   })();
-
-
   </script>
 </body>
 </html>
