@@ -5,148 +5,187 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>🔑 管理后台 · 语音助手</title>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f0f2f5;
-      margin: 0;
-      padding: 1rem;
-    }
-    #container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-    }
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    #loginBtn { background: #24292e; color: #fff; }
-    #logoutBtn { background: #e53e3e; color: #fff; float: right; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1rem;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 0.5rem;
-      text-align: left;
-    }
-    th {
-      background: #f7fafc;
+    body { margin:0; padding:0; font-family:'Segoe UI',sans-serif; background:#f0f2f5; }
+    .container { max-width:960px; margin:1rem auto; padding:1rem; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+    h1 { font-size:1.5rem; margin-bottom:1rem; }
+    .toolbar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+    .search { flex:1; min-width:200px; margin-right:1rem; }
+    .search input { width:100%; padding:.5rem 1rem; border:1px solid #ccc; border-radius:4px; }
+    .table-wrapper { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:.5rem; border:1px solid #ddd; text-align:left; }
+    th { background:#fafafa; }
+    .btn { padding:.4rem .8rem; border:none; border-radius:4px; cursor:pointer; }
+    .btn-primary { background:#24292e; color:#fff; }
+    .btn-danger  { background:#e53e3e; color:#fff; }
+
+    /* Pagination */
+    .pagination { display:flex; list-style:none; padding:0; margin:1rem 0; }
+    .pagination li { margin:0 .25rem; }
+    .pagination button { padding:.4rem .8rem; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer; }
+    .pagination .active { background:#24292e; color:#fff; border-color:#24292e; }
+
+    /* Modal */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.3); display:none; justify-content:center; align-items:center; }
+    .modal { background:#fff; border-radius:8px; max-width:90%; width:500px; max-height:80%; overflow:auto; padding:1rem; position:relative; }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; }
+    .modal-header h2 { margin:0; font-size:1.25rem; }
+    .modal-close { background:none; border:none; font-size:1.25rem; cursor:pointer; }
+    @media (max-width:600px) {
+      th, td { font-size:.9rem; }
     }
   </style>
 </head>
 <body>
-  <div id="container">
+  <div class="container">
     <h1>🔑 管理后台 · 语音助手</h1>
-
-    <!-- 登录区 -->
-    <div id="authArea">
-      <button id="loginBtn" type="button">使用 GitHub 登录</button>
+    <div class="toolbar">
+      <div class="search"><input id="searchInput" placeholder="搜索原文或翻译…" /></div>
+      <button id="logoutBtn" class="btn btn-danger">退出登录</button>
     </div>
-
-    <!-- 管理区 -->
-    <div id="adminArea" style="display:none">
-      <button id="logoutBtn" type="button">退出登录</button>
+    <div class="table-wrapper">
       <table>
         <thead>
           <tr>
-            <th>创建时间</th>
+            <th>时间</th>
             <th>原文</th>
-            <th>回答</th>
+            <th>翻译</th>
+            <th>模式</th>
             <th>Tokens</th>
             <th>Cost</th>
-            <th>IP</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody id="recordsBody">
-          <tr><td colspan="6">请先登录…</td></tr>
+          <tr><td colspan="7">加载中…</td></tr>
         </tbody>
       </table>
+    </div>
+    <ul id="pagination" class="pagination"></ul>
+  </div>
+
+  <!-- 预览/编辑弹窗 -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">记录详情</h2>
+        <button id="modalClose" class="modal-close">×</button>
+      </div>
+      <div id="modalBody"></div>
+      <div style="text-align:right; margin-top:1rem;">
+        <button id="modalSave" class="btn btn-primary">保存</button>
+        <button id="modalDelete" class="btn btn-danger">删除</button>
+      </div>
     </div>
   </div>
 
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
-    const loginBtn    = document.getElementById('loginBtn');
-    const logoutBtn   = document.getElementById('logoutBtn');
-    const authArea    = document.getElementById('authArea');
-    const adminArea   = document.getElementById('adminArea');
-    const recordsBody = document.getElementById('recordsBody');
+    const BASE = 'https://translate-assistant.mefans.workers.dev';
+    const RECORDS_URL = BASE + '/admin-api/records';
+    let currentPage = 1;
+    const pageSize = 10;
+    let allRecords = [];
 
-    // 当前页面路径，用于登录回调后跳回
-    const currentPath = window.location.pathname;
-
-    // —— 1. 登录 —— 
-    loginBtn.onclick = () => {
-      const callback = `${WORKER_BASE}/auth-proxy/auth/v1/callback?next=${encodeURIComponent(currentPath)}`;
-      const params   = new URLSearchParams({
-        provider:      'github',
-        redirect_to:   callback,
-        response_type: 'code'
-      });
-      window.location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${params}`;
+    document.getElementById('logoutBtn').onclick = () => {
+      fetch(BASE + '/auth-proxy/auth/v1/logout', { method:'POST', credentials:'include' })
+        .then(()=> location.reload());
     };
 
-    // —— 2. 登出 —— 
-    logoutBtn.onclick = async () => {
-      await fetch(`${WORKER_BASE}/auth-proxy/auth/v1/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      window.location.reload();
-    };
-
-    // —— 3. 拉取 & 渲染记录 —— 
-    async function loadRecords() {
-      recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
-      const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
-        credentials: 'include'
-      });
-      if (!resp.ok) throw new Error(`状态 ${resp.status}`);
+    // 载入记录
+    async function loadRecords(page=1, filter=''){
+      const offset = (page-1)*pageSize;
+      const resp = await fetch(`${RECORDS_URL}?limit=${pageSize}&offset=${offset}`, { credentials:'include' });
+      if(!resp.ok) return alert('加载失败');
       const list = await resp.json();
-      if (!list.length) {
-        recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
-      } else {
-        recordsBody.innerHTML = list.map(r => `
-          <tr>
+      allRecords = list;
+      renderTable(list, filter);
+      renderPagination(page);
+    }
+
+    // 渲染表格
+    function renderTable(list, filter){
+      const tbody = document.getElementById('recordsBody');
+      tbody.innerHTML = '';
+      const f = filter.toLowerCase();
+      list.filter(r => !f||r.original.toLowerCase().includes(f)||r.translated_en.toLowerCase().includes(f))
+        .forEach(r=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
             <td>${new Date(r.created_at).toLocaleString()}</td>
-            <td>${r.original      || ''}</td>
-            <td>${r.translated_en || ''}</td>
-            <td>${r.tokens        || ''}</td>
-            <td>${r.cost          || ''}</td>
-            <td>${r.ip            || ''}</td>
-          </tr>
-        `).join('');
+            <td>${r.original||''}</td>
+            <td>${r.translated_en||''}</td>
+            <td>${r.mode||''}</td>
+            <td>${r.tokens||0}</td>
+            <td>${r.cost||0}</td>
+            <td><button class="btn btn-primary" data-id="${r.id}">查看/编辑</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      // 绑定查看按钮
+      Array.from(tbody.querySelectorAll('button')).forEach(btn=>{
+        btn.onclick = ()=>openModal(btn.dataset.id);
+      });
+    }
+
+    // 分页
+    function renderPagination(page){
+      const total = 1000; // 预估或后台提供
+      const pages = Math.ceil(total/pageSize);
+      const ul = document.getElementById('pagination');
+      ul.innerHTML = '';
+      for(let i=1;i<=pages;i++){
+        const li = document.createElement('li');
+        li.innerHTML = `<button ${i===page?'class="active"':''}>${i}</button>`;
+        li.firstChild.onclick = ()=>{ currentPage=i; loadRecords(i,document.getElementById('searchInput').value); };
+        ul.appendChild(li);
       }
     }
 
-    // —— 4. 初始化检测 —— 
-    loadRecords()
-      .then(() => {
-        authArea .style.display = 'none';
-        adminArea.style.display = 'block';
-      })
-      .catch(() => {
-        authArea .style.display = 'block';
-        adminArea.style.display = 'none';
+    // 模态框
+    const backdrop = document.getElementById('modalBackdrop');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+    const modalSave  = document.getElementById('modalSave');
+    const modalDelete= document.getElementById('modalDelete');
+    let activeRecord = null;
+
+    function openModal(id){
+      activeRecord = allRecords.find(r=>r.id===id);
+      modalTitle.textContent = `记录 ${id}`;
+      modalBody.innerHTML = `
+        <label>原文:<textarea id="m_original" style="width:100%;height:4rem">${activeRecord.original}</textarea></label>
+        <label>翻译:<textarea id="m_translated" style="width:100%;height:4rem">${activeRecord.translated_en}</textarea></label>
+      `;
+      backdrop.style.display = 'flex';
+    }
+    modalClose.onclick = ()=> backdrop.style.display='none';
+    modalSave.onclick = async ()=>{
+      const o = document.getElementById('m_original').value;
+      const t = document.getElementById('m_translated').value;
+      await fetch(`${RECORDS_URL}?id=eq.${activeRecord.id}`,{
+        method:'PATCH', credentials:'include',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ original:o, translated_en:t })
       });
-  });
+      backdrop.style.display='none';
+      loadRecords(currentPage, document.getElementById('searchInput').value);
+    };
+    modalDelete.onclick = async ()=>{
+      await fetch(`${RECORDS_URL}?id=eq.${activeRecord.id}`,{
+        method:'DELETE', credentials:'include'
+      });
+      backdrop.style.display='none';
+      loadRecords(currentPage, document.getElementById('searchInput').value);
+    };
+
+    // 搜索
+    document.getElementById('searchInput').addEventListener('input', e=>{
+      renderTable(allRecords, e.target.value);
+    });
+
+    // 初始加载
+    loadRecords(1, '');
   </script>
 </body>
 </html>
