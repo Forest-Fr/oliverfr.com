@@ -101,15 +101,19 @@
     let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
     // 登录
-   loginBtn.onclick = () => {
-  const redirectTo = encodeURIComponent(window.location.href);
+ // —— 登录按钮 —— 
+loginBtn.onclick = () => {
+  const WORKER_CB  = `${BASE}/auth-proxy/auth/v1/callback`;
+  const nextPage   = encodeURIComponent(window.location.pathname);
+  const redirectTo = encodeURIComponent(`${WORKER_CB}?next=${nextPage}`);
   const params = new URLSearchParams({
     provider:      'github',
-    redirect_to:   redirectTo,
-    response_type: 'code'
+    response_type: 'code',
+    redirect_to:   redirectTo
   });
   window.location.href = `${OAUTH_URL}?${params}`;
 };
+
     // 登出
     logoutBtn.onclick = async () => {
       await fetch(LOGOUT_URL, { method:'POST', credentials:'include' });
