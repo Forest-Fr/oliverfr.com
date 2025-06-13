@@ -77,32 +77,13 @@
     </div>
   </div>
 
-  <script>
-
-(function(){
+<script>
+(async function(){
   const BASE         = 'https://translate-assistant.mefans.workers.dev';
   const RECORDS      = BASE + '/admin-api/records';
-  const OAUTH_URL    = BASE + '/auth-proxy/auth/v1/authorize';
-  const LOGOUT_URL   = BASE + '/auth-proxy/auth/v1/logout';
-
-  // —— 从 URL hash 中读 Implicit Grant token —— 
-  const hashParams   = new URLSearchParams(window.location.hash.slice(1));
-  const accessToken  = hashParams.get('access_token');
-
-  // —— 如果有 token，就清除 URL 中的 hash —— 
-  if (accessToken) {
-    history.replaceState(null, '', window.location.pathname + window.location.search);
-  }
-
-  // —— fetch 封装：自动带上 Bearer token（若有）和 credentials —— 
-  function fetchWithAuth(url, opts = {}) {
-    opts.credentials = 'include';
-    opts.headers = opts.headers || {};
-    if (accessToken) {
-      opts.headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-    return fetch(url, opts);
-  }
+  const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+  const ADMIN_EMAIL  = 'oliveroogle@gmail.com';
+  const supa         = supabase.createClient(BASE, ANON_KEY);
 
   // —— DOM 元素引用 —— 
   const loginArea     = document.getElementById('loginArea');
@@ -120,38 +101,36 @@
 
   let allRecords    = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
-  // —— 初始授权检查 —— 
-  (async () => {
-    if (accessToken) {
-      // token 有效，显示管理区并加载数据
-      loginArea.style.display = 'none';
-      adminArea.style.display = 'block';
-      tryLoad(currentPage);
-    } else {
-      // 未登录，显示登录区
-      loginArea.style.display = 'block';
-      adminArea.style.display = 'none';
-    }
-  })();
+  // —— Supabase OAuth 登录状态检查 —— 
+  const { data: { session } } = await supa.auth.getSession();
+  if (session?.user?.email === ADMIN_EMAIL) {
+    loginArea.style.display = 'none';
+    adminArea.style.display = 'block';
+    tryLoad(currentPage);
+  } else {
+    loginArea.style.display = 'block';
+    adminArea.style.display = 'none';
+  }
 
-  // —— 登录跳转到 Worker OAuth —— 
+  // —— 登录 —— 
   loginBtn.onclick = () => {
-    const callbackHost = BASE + '/auth-proxy/auth/v1/callback';
-    const returnTo     = encodeURIComponent(window.location.href);
-    const redirectTo   = `${callbackHost}?next=${returnTo}`;
-    const params = new URLSearchParams({
-      provider:      'github',
-      response_type: 'token',
-      redirect_to:   redirectTo
+    supa.auth.signInWithOAuth({
+      provider: 'github',
+      options: { redirectTo: location.href }
     });
-    window.location.href = `${OAUTH_URL}?${params}`;
   };
 
-  // —— 登出（清 Cookie 后刷新） —— 
+  // —— 登出 —— 
   logoutBtn.onclick = async () => {
-    await fetchWithAuth(LOGOUT_URL, { method: 'POST' });
+    await supa.auth.signOut();
     window.location.reload();
   };
+
+  // —— fetch 封装（保留原有） —— 
+  function fetchWithAuth(url, opts = {}) {
+    opts.credentials = 'include';
+    return fetch(url, opts);
+  }
 
   // —— 尝试拉取第 page 页数据 —— 
   async function tryLoad(page = 1) {
@@ -204,10 +183,7 @@
     for (let i = 1; i <= pages; i++) {
       const li = document.createElement('li');
       li.innerHTML = `<button${i===page ? ' class="active"' : ''}>${i}</button>`;
-      li.firstChild.onclick = () => {
-        currentPage = i;
-        tryLoad(i);
-      };
+      li.firstChild.onclick = () => { currentPage = i; tryLoad(i); };
       pagination.appendChild(li);
     }
   }
@@ -215,7 +191,7 @@
   // —— 搜索输入 —— 
   searchIn.addEventListener('input', () => renderTable(allRecords));
 
-  // —— 弹窗打开 —— 
+  // —— 弹窗打开/关闭 —— 
   function openModal(id) {
     activeRecord = allRecords.find(r => r.id === id);
     modalBody.innerHTML = `
@@ -251,10 +227,8 @@
     modalBackdrop.style.display = 'none';
     tryLoad(currentPage);
   };
-
 })();
+</script>
 
-
-  </script>
 </body>
 </html>
