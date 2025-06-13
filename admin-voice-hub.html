@@ -81,7 +81,7 @@
   (function(){
     const BASE       = 'https://translate-assistant.mefans.workers.dev';
     const RECORDS    = BASE + '/admin-api/records';
-    const OAUTH_URL  = BASE + '/auth-proxy/auth/v1/authorize';
+   const OAUTH_URL = 'https://translate-assistant.mefans.workers.dev/auth-proxy/auth/v1/authorize';
     const LOGOUT_URL = BASE + '/auth-proxy/auth/v1/logout';
     const redirectTo = encodeURIComponent(window.location.pathname);
 
@@ -101,15 +101,15 @@
     let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
     // 登录
-    loginBtn.onclick = () => {
-      const params = new URLSearchParams({
-        provider:    'github',
-        redirect_to: redirectTo,
-        response_type: 'code'
-      });
-      window.location.href = `${OAUTH_URL}?${params}`;
-    };
-
+   loginBtn.onclick = () => {
+  const redirectTo = encodeURIComponent(window.location.href);
+  const params = new URLSearchParams({
+    provider:      'github',
+    redirect_to:   redirectTo,
+    response_type: 'code'
+  });
+  window.location.href = `${OAUTH_URL}?${params}`;
+};
     // 登出
     logoutBtn.onclick = async () => {
       await fetch(LOGOUT_URL, { method:'POST', credentials:'include' });
