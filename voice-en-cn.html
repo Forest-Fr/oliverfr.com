@@ -5,7 +5,103 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>双模式语音助手</title>
   <style>
-    /* 样式同前，不变 */
+  * { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',sans-serif;
+  background:#f0f2f5; color:#333;
+  min-height:100vh;
+  display:flex; justify-content:center; align-items:center;
+  padding:1rem;
+}
+#main {
+  width:100%;
+  max-width:700px;            /* 从 500px 改为 700px */
+  background:#fff;border-radius:12px;
+  padding:1.5rem;box-shadow:0 8px 24px rgba(0,0,0,0.1);
+  position:relative; z-index:1;
+}
+h1 { font-size:1.25rem; margin-bottom:1rem; }
+.mode-switch { display:flex;gap:1rem;margin-bottom:1rem; }
+.mode-switch label { cursor:pointer; user-select:none; }
+.mode-switch input { margin-right:.3rem; }
+
+/* 录音按钮 */
+#recBtn {
+  width:100%;padding:.75rem;font-size:1rem;
+  background:#3b82f6;color:#fff;border:none;
+  border-radius:6px;cursor:pointer;transition:background .2s;
+  margin-bottom:1rem;
+}
+#recBtn.recording { background:#dc2626; }
+#recBtn:disabled { background:#aac4f7; cursor:not-allowed; }
+
+/* 对话区 */
+#chat {
+  width:100%;
+  height:240px;overflow-y:auto;
+  border:1px solid #ddd;border-radius:6px;
+  padding:.5rem;background:#fafafa;
+  box-sizing:border-box;
+}
+/* 公共 msg 样式，变成 flex container */
+.msg {
+  display:flex;
+  flex-wrap:wrap;
+  margin-bottom:.5rem;
+  padding:.25rem .5rem;
+  border-radius:6px;
+}
+/* 用户消息：左对齐，浅蓝背景 */
+.msg.user {
+  justify-content:flex-start;
+  background:#e0f2ff;
+  color:#1f2937;
+}
+/* 机器人 & meta：右对齐，浅灰背景 */
+.msg.bot,
+.msg._meta {
+  justify-content:flex-end;
+  background:#f0f0f0;
+  color:#374151;
+}
+/* 内容最大宽度，自动换行 */
+.msg > * {
+  max-width:80%;
+  word-break:break-word;
+}
+
+/* 授权弹窗：透明遮罩可见主界面 */
+#authModal {
+  position:fixed;inset:0;
+  display:flex;justify-content:center;align-items:center;
+  background:rgba(0,0,0,0);
+  z-index:1000;
+}
+#authModal .box {
+  background:rgba(255,255,255,0.95);
+  border-radius:12px;padding:24px 32px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.15);
+  text-align:center;min-width:320px;
+}
+#authModal h2 {font-size:1.5rem;margin-bottom:1rem;}
+#authModal input {
+  width:100%;padding:.75rem;font-size:1rem;
+  border:1px solid #ccc;border-radius:6px;
+  margin-bottom:1rem;
+}
+#authModal button {
+  width:100%;padding:.75rem;font-size:1rem;
+  border:none;border-radius:6px;
+  background:#3b82f6;color:#fff;cursor:pointer;
+  transition:background .2s;
+}
+#authModal button:disabled {
+  background:#8fbefc;cursor:not-allowed;
+}
+#authErr {
+  color:#d9534f;margin-top:.5rem;font-size:.9rem;
+  display:none;
+}
   </style>
 </head>
 <body>
