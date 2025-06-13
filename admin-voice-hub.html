@@ -6,7 +6,7 @@
   <title>🔑 管理后台 · 语音助手</title>
   <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
   <style>
-    /* —————— 你的原有样式 —————— */
+    /* —————— 原有样式（不变） —————— */
     body { margin:0; padding:0; font-family:'Segoe UI',sans-serif; background:#f0f2f5; }
     .container { max-width:960px; margin:1rem auto; padding:1rem; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
     h1 { font-size:1.5rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem; }
@@ -24,7 +24,6 @@
     .pagination li { margin:0 .25rem; }
     .pagination button { padding:.4rem .8rem; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer; }
     .pagination .active { background:#24292e; color:#fff; border-color:#24292e; }
-    /* Modal */
     .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.3); display:none; justify-content:center; align-items:center; }
     .modal { background:#fff; border-radius:8px; max-width:90%; width:500px; max-height:80%; overflow:auto; padding:1rem; position:relative; }
     .modal-header { display:flex; justify-content:space-between; align-items:center; }
@@ -79,16 +78,16 @@
     </div>
   </div>
 
-  <!-- —————— Frontend Script —————— -->
+  <!-- —————— 前端逻辑 —————— -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    // 1. 初始化 Supabase
+    // 1. 初始化 Supabase 客户端
     const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev'
-    const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg' // ← 替换成你的 ANON KEY
+    const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'  // ← 换成你的 Supabase ANON KEY
     const supa = createClient(WORKER_BASE, ANON_KEY, {
       auth: {
-        detectSessionInUrl: true,
+        detectSessionInUrl: true,   // 自动处理 URL hash
         persistSession:     true
       }
     })
@@ -112,14 +111,8 @@
     const pageSize   = 10
     let activeRecord = null
 
-    // 3. 处理 URL OAuth 回调（implicit / PKCE）
-    await supa.auth.getSessionFromUrl({ storeSession: true })
-
-    // 4. 初始登录态检查
-    const {
-      data: { session: initialSession }
-    } = await supa.auth.getSession()
-
+    // 3. 初始登录态检查
+    const { data: { session: initialSession } } = await supa.auth.getSession()
     if (initialSession) {
       loginArea.style.display = 'none'
       adminArea.style.display = 'block'
@@ -129,7 +122,7 @@
       adminArea.style.display = 'none'
     }
 
-    // 5. 监听登录/登出
+    // 4. 监听登录/登出 状态变化
     supa.auth.onAuthStateChange((_, session) => {
       if (session) {
         loginArea.style.display = 'none'
@@ -141,11 +134,14 @@
       }
     })
 
-    // 6. 登录 & 登出
+    // 5. 登录 & 登出
     loginBtn.onclick = () => {
       supa.auth.signInWithOAuth({
         provider: 'github',
-        options: { redirectTo: window.location.origin + window.location.pathname }
+        options: {
+          // 保证 OAuth 完成后重定向回本页面
+          redirectTo: window.location.origin + window.location.pathname
+        }
       })
     }
     logoutBtn.onclick = async () => {
@@ -153,7 +149,7 @@
       location.reload()
     }
 
-    // 7. 加载第 page 页记录
+    // 6. 加载第 page 页记录
     async function loadPage(page = 1) {
       recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>'
       try {
@@ -164,8 +160,8 @@
           .select('id,created_at,original,translated_en,mode,tokens,cost')
           .order('created_at', { ascending: false })
           .range(from, to)
-
         if (error) throw error
+
         allRecords = data || []
         renderTable(allRecords)
         renderPagination(page)
@@ -176,7 +172,7 @@
       }
     }
 
-    // 8. 渲染表格
+    // 7. 渲染表格
     function renderTable(list) {
       const kw   = searchIn.value.trim().toLowerCase()
       const rows = list.filter(r =>
@@ -201,7 +197,7 @@
       })
     }
 
-    // 9. 渲染分页
+    // 8. 渲染分页
     function renderPagination(page) {
       const total = allRecords.length
       const pages = Math.ceil(total / pageSize) || 1
@@ -214,10 +210,10 @@
       }
     }
 
-    // 10. 搜索过滤
+    // 9. 搜索过滤
     searchIn.addEventListener('input', () => renderTable(allRecords))
 
-    // 11. 弹窗 打开 & 关闭
+    // 10. 弹窗 打开/关闭
     function openModal(id) {
       activeRecord = allRecords.find(r => r.id === id)
       modalBody.innerHTML = `
@@ -231,7 +227,7 @@
     }
     modalClose.onclick = () => modalBackdrop.style.display = 'none'
 
-    // 12. 保存修改
+    // 11. 保存修改
     modalSave.onclick = async () => {
       const o = document.getElementById('m_o').value
       const t = document.getElementById('m_t').value
@@ -246,7 +242,7 @@
       }
     }
 
-    // 13. 删除记录
+    // 12. 删除记录
     modalDelete.onclick = async () => {
       const { error } = await supa
         .from('translations')
