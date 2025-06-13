@@ -3,8 +3,9 @@ Disallow: /https://oliverfr.com/admin-mefan-articles.html
 Disallow: /https://oliverfr.com/admin-mefan-fr-runs.html
 Disallow: /https://oliverfr.com/admin-cv-hub.html
 Disallow: /https://oliverfr.com/admin-your-medical-center.html
-Disallow: /https:oliverfr.com/script-gpt-panel.html
-Disallow: /https:oliverfr.com/admin-copilot.html
+Disallow: /https://oliverfr.com/script-gpt-panel.html
+Disallow: /https://oliverfr.com/admin-copilot.html
+Disallow: /https://oliverfr.com/admin-voice-hub.html
 
 
 
