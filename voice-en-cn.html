@@ -15,7 +15,7 @@ body {
 }
 #main {
   width:100%;
-  max-width:700px;            /* 从 500px 改为 700px */
+  max-width:800px;            /* 从 500px 改为 800px */
   background:#fff;border-radius:12px;
   padding:1.5rem;box-shadow:0 8px 24px rgba(0,0,0,0.1);
   position:relative; z-index:1;
@@ -101,6 +101,14 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
 #authErr {
   color:#d9534f;margin-top:.5rem;font-size:.9rem;
   display:none;
+}
+    /* 手机端：授权弹框整体高度 +190px，宽度不变，依然居中 */
+@media (max-width: 600px) {
+  #authModal .box {
+    /* 原来是 padding:24px 32px; 
+       这里把底部 padding 多加 190px，实际为 24 + 190 = 214 */
+    padding: 24px 32px 214px;
+  }
 }
   </style>
 </head>
