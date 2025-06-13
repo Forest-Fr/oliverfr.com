@@ -80,78 +80,73 @@
     </div>
   </div>
 
-<script>
-
+  <script>
   document.addEventListener('DOMContentLoaded', () => {
     const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
-    const authArea    = document.getElementById('authArea');
-    const adminArea   = document.getElementById('adminArea');
     const loginBtn    = document.getElementById('loginBtn');
     const logoutBtn   = document.getElementById('logoutBtn');
+    const authArea    = document.getElementById('authArea');
+    const adminArea   = document.getElementById('adminArea');
     const recordsBody = document.getElementById('recordsBody');
 
-    // 登录：跳转到 Worker 代理 Supabase OAuth
+    // 当前页面路径，用于登录回调后跳回
+    const currentPath = window.location.pathname;
+
+    // —— 1. 登录 —— 
     loginBtn.onclick = () => {
-      const params = new URLSearchParams({
-        provider:  'github',
-        redirect_to: WORKER_BASE
+      const callback = `${WORKER_BASE}/auth-proxy/auth/v1/callback?next=${encodeURIComponent(currentPath)}`;
+      const params   = new URLSearchParams({
+        provider:      'github',
+        redirect_to:   callback,
+        response_type: 'code'
       });
-      location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${params}`;
+      window.location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${params}`;
     };
 
-    // 登出：调用 Worker 上的登出接口，清 Cookie
+    // —— 2. 登出 —— 
     logoutBtn.onclick = async () => {
       await fetch(`${WORKER_BASE}/auth-proxy/auth/v1/logout`, {
         method: 'POST',
         credentials: 'include'
       });
-      location.reload();
+      window.location.reload();
     };
 
-    // 拉数据并渲染
+    // —— 3. 拉取 & 渲染记录 —— 
     async function loadRecords() {
       recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
-      try {
-        const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
-          credentials: 'include'
-        });
-        if (!resp.ok) throw new Error(`状态 ${resp.status}`);
-        const list = await resp.json();
-        if (!list.length) {
-          recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
-        } else {
-          recordsBody.innerHTML = list.map(r => `
-            <tr>
-              <td>${new Date(r.created_at).toLocaleString()}</td>
-              <td>${r.original    || ''}</td>
-              <td>${r.translated_en|| ''}</td>
-              <td>${r.tokens      || ''}</td>
-              <td>${r.cost        || ''}</td>
-              <td>${r.ip          || ''}</td>
-            </tr>
-          `).join('');
-        }
-      } catch (err) {
-        console.error('拉取记录失败', err);
-        recordsBody.innerHTML = `<tr><td colspan="6">拉取失败：${err.message}</td></tr>`;
+      const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
+        credentials: 'include'
+      });
+      if (!resp.ok) throw new Error(`状态 ${resp.status}`);
+      const list = await resp.json();
+      if (!list.length) {
+        recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
+      } else {
+        recordsBody.innerHTML = list.map(r => `
+          <tr>
+            <td>${new Date(r.created_at).toLocaleString()}</td>
+            <td>${r.original      || ''}</td>
+            <td>${r.translated_en || ''}</td>
+            <td>${r.tokens        || ''}</td>
+            <td>${r.cost          || ''}</td>
+            <td>${r.ip            || ''}</td>
+          </tr>
+        `).join('');
       }
     }
 
-    // 初始化：尝试加载一次数据，成功则显示后台，否则显示登录
-    loadRecords().then(() => {
-      // 如果 loadRecords 没抛（即 200），说明有会话
-      authArea.style.display  = 'none';
-      adminArea.style.display = 'block';
-    }).catch(() => {
-      authArea.style.display  = 'block';
-      adminArea.style.display = 'none';
-    });
+    // —— 4. 初始化检测 —— 
+    loadRecords()
+      .then(() => {
+        authArea .style.display = 'none';
+        adminArea.style.display = 'block';
+      })
+      .catch(() => {
+        authArea .style.display = 'block';
+        adminArea.style.display = 'none';
+      });
   });
-</script>
-
-
-
-
-
+  </script>
 </body>
 </html>
