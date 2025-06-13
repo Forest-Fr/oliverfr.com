@@ -80,47 +80,48 @@
     </div>
   </div>
 
- <script>
+<script>
 document.addEventListener('DOMContentLoaded', () => {
-  const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev'
-  const authArea    = document.getElementById('authArea')
-  const adminArea   = document.getElementById('adminArea')
-  const loginBtn    = document.getElementById('loginBtn')
-  const logoutBtn   = document.getElementById('logoutBtn')
-  const recordsBody = document.getElementById('recordsBody')
+  const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
+  const loginBtn    = document.getElementById('loginBtn');
+  const logoutBtn   = document.getElementById('logoutBtn');
+  const authArea    = document.getElementById('authArea');
+  const adminArea   = document.getElementById('adminArea');
+  const recordsBody = document.getElementById('recordsBody');
 
-  // —— 1. 登录：跳转到 Supabase OAuth 授权页 —— 
+  // 当前页面的相对路径，比如 "/admin.html" 或者 "/" 
+  const currentPath = window.location.pathname;
+
+  // —— 1. 登录：带上 next 参数 —— 
   loginBtn.onclick = () => {
-    // 授权后 Supabase 会回调到 /auth-proxy/auth/v1/callback
-    const callback = `${WORKER_BASE}/auth-proxy/auth/v1/callback`
-    const params   = new URLSearchParams({
+    // callback 路径 + next
+    const cb   = `${WORKER_BASE}/auth-proxy/auth/v1/callback?next=${encodeURIComponent(currentPath)}`;
+    const qs   = new URLSearchParams({
       provider:   'github',
-      redirect_to: callback
-    })
-    location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${params}`
-  }
+      redirect_to: cb
+    });
+    window.location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${qs}`;
+  };
 
-  // —— 2. 登出：调用 Worker 上的登出端点，清掉 Cookie —— 
+  // —— 2. 登出 —— 
   logoutBtn.onclick = async () => {
     await fetch(`${WORKER_BASE}/auth-proxy/auth/v1/logout`, {
       method: 'POST',
       credentials: 'include'
-    })
-    location.reload()
-  }
+    });
+    window.location.reload();
+  };
 
-  // —— 3. 拉数据并渲染 —— 
+  // —— 3. 拉记录 & 渲染（不变） —— 
   async function loadRecords() {
-    recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>'
+    recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
     const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
       credentials: 'include'
-    })
-    if (!resp.ok) {
-      throw new Error(`状态 ${resp.status}`)
-    }
-    const list = await resp.json()
+    });
+    if (!resp.ok) throw new Error(`状态 ${resp.status}`);
+    const list = await resp.json();
     if (!list.length) {
-      recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>'
+      recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
     } else {
       recordsBody.innerHTML = list.map(r => `
         <tr>
@@ -131,24 +132,23 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${r.cost          || ''}</td>
           <td>${r.ip            || ''}</td>
         </tr>
-      `).join('')
+      `).join('');
     }
   }
 
-  // —— 4. 初始化：尝试直接 loadRecords() —— 
-  //     如果成功（200），说明 Cookie 里已有 session，显示后台，否则回到登录画面。
+  // —— 4. 初始化：试着拉一次，200 显示后台，否则登录 —— 
   loadRecords()
     .then(() => {
-      authArea .style.display = 'none'
-      adminArea.style.display = 'block'
+      authArea .style.display = 'none';
+      adminArea.style.display = 'block';
     })
-    .catch(err => {
-      console.warn('未登录或拉取失败：', err)
-      authArea .style.display = 'block'
-      adminArea.style.display = 'none'
-    })
-})
+    .catch(() => {
+      authArea .style.display = 'block';
+      adminArea.style.display = 'none';
+    });
+});
 </script>
+
 
 </body>
 </html>
