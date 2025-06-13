@@ -1,72 +1,74 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>🔑 管理后台 · 语音助手</title>
   <style>
     body { margin:0; padding:0; font-family:'Segoe UI',sans-serif; background:#f0f2f5; }
     .container { max-width:960px; margin:1rem auto; padding:1rem; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
-    h1 { font-size:1.5rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem; }
-    .login-area { text-align:center; padding:2rem 0; }
-    .btn { padding:.6rem 1.2rem; border:none; border-radius:4px; cursor:pointer; }
-    .btn-primary { background:#24292e; color:#fff; }
-    .btn-danger  { background:#e53e3e; color:#fff; }
+    h1 { font-size:1.5rem; margin-bottom:1rem; }
     .toolbar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+    .search { flex:1; min-width:200px; margin-right:1rem; }
     .search input { width:100%; padding:.5rem 1rem; border:1px solid #ccc; border-radius:4px; }
     .table-wrapper { overflow-x:auto; }
     table { width:100%; border-collapse:collapse; }
     th, td { padding:.5rem; border:1px solid #ddd; text-align:left; }
     th { background:#fafafa; }
+    .btn { padding:.4rem .8rem; border:none; border-radius:4px; cursor:pointer; }
+    .btn-primary { background:#24292e; color:#fff; }
+    .btn-danger  { background:#e53e3e; color:#fff; }
+
+    /* Pagination */
     .pagination { display:flex; list-style:none; padding:0; margin:1rem 0; }
     .pagination li { margin:0 .25rem; }
     .pagination button { padding:.4rem .8rem; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer; }
     .pagination .active { background:#24292e; color:#fff; border-color:#24292e; }
+
     /* Modal */
     .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.3); display:none; justify-content:center; align-items:center; }
     .modal { background:#fff; border-radius:8px; max-width:90%; width:500px; max-height:80%; overflow:auto; padding:1rem; position:relative; }
     .modal-header { display:flex; justify-content:space-between; align-items:center; }
     .modal-header h2 { margin:0; font-size:1.25rem; }
     .modal-close { background:none; border:none; font-size:1.25rem; cursor:pointer; }
-    @media (max-width:600px) { th, td { font-size:.9rem; } }
+    @media (max-width:600px) {
+      th, td { font-size:.9rem; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🔑 管理后台 · 语音助手</h1>
-
-    <!-- 登录区 -->
-    <div id="loginArea" class="login-area" style="display:none">
-      <button id="loginBtn" class="btn btn-primary">使用 GitHub 登录</button>
+    <div class="toolbar">
+      <div class="search"><input id="searchInput" placeholder="搜索原文或翻译…" /></div>
+      <button id="logoutBtn" class="btn btn-danger">退出登录</button>
     </div>
-
-    <!-- 管理区 -->
-    <div id="adminArea" style="display:none">
-      <div class="toolbar">
-        <div class="search"><input id="searchInput" placeholder="搜索原文或翻译…"/></div>
-        <button id="logoutBtn" class="btn btn-danger">退出登录</button>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>时间</th><th>原文</th><th>翻译</th><th>模式</th><th>Tokens</th><th>Cost</th><th>操作</th>
-            </tr>
-          </thead>
-          <tbody id="recordsBody">
-            <tr><td colspan="7">加载中…</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <ul id="pagination" class="pagination"></ul>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>原文</th>
+            <th>翻译</th>
+            <th>模式</th>
+            <th>Tokens</th>
+            <th>Cost</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody">
+          <tr><td colspan="7">加载中…</td></tr>
+        </tbody>
+      </table>
     </div>
+    <ul id="pagination" class="pagination"></ul>
   </div>
 
-  <!-- 编辑弹窗 -->
+  <!-- 预览/编辑弹窗 -->
   <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal">
       <div class="modal-header">
-        <h2>记录详情</h2>
+        <h2 id="modalTitle">记录详情</h2>
         <button id="modalClose" class="modal-close">×</button>
       </div>
       <div id="modalBody"></div>
@@ -78,172 +80,112 @@
   </div>
 
   <script>
- (function(){
-  const BASE       = 'https://translate-assistant.mefans.workers.dev';
-  const RECORDS    = BASE + '/admin-api/records';
-  const OAUTH_URL  = BASE + '/auth-proxy/auth/v1/authorize';
-  const LOGOUT_URL = BASE + '/auth-proxy/auth/v1/logout';
+    const BASE = 'https://translate-assistant.mefans.workers.dev';
+    const RECORDS_URL = BASE + '/admin-api/records';
+    let currentPage = 1;
+    const pageSize = 10;
+    let allRecords = [];
 
-  // —— 从 URL hash 中读 Implicit Grant token —— 
-  const hashParams  = new URLSearchParams(window.location.hash.slice(1));
-  const accessToken = hashParams.get('access_token');
+    document.getElementById('logoutBtn').onclick = () => {
+      fetch(BASE + '/auth-proxy/auth/v1/logout', { method:'POST', credentials:'include' })
+        .then(()=> location.reload());
+    };
 
-  // —— fetch 封装：自动带上 Bearer token（若有）和 credentials —— 
-  function fetchWithAuth(url, opts = {}) {
-    opts.credentials = 'include';
-    opts.headers = opts.headers || {};
-    if (accessToken) {
-      opts.headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-    return fetch(url, opts);
-  }
-
-  // —— DOM 元素引用 —— 
-  const loginArea    = document.getElementById('loginArea');
-  const loginBtn     = document.getElementById('loginBtn');
-  const adminArea    = document.getElementById('adminArea');
-  const logoutBtn    = document.getElementById('logoutBtn');
-  const searchIn     = document.getElementById('searchInput');
-  const recordsBody  = document.getElementById('recordsBody');
-  const pagination   = document.getElementById('pagination');
-  const modalBackdrop= document.getElementById('modalBackdrop');
-  const modalClose   = document.getElementById('modalClose');
-  const modalBody    = document.getElementById('modalBody');
-  const modalSave    = document.getElementById('modalSave');
-  const modalDelete  = document.getElementById('modalDelete');
-
-  let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
-
-  // —— 登录跳转到 Worker OAuth —— 
-  // —— 登录按钮 —— 
-loginBtn.onclick = () => {
-  const callbackHost = BASE + '/auth-proxy/auth/v1/callback';
-  // 一定要用完整路径（包括 hash 或 query）
-  const returnTo = encodeURIComponent(window.location.href);
-  const redirectTo = `${callbackHost}?next=${returnTo}`;
-  const params = new URLSearchParams({
-    provider:      'github',
-    response_type: 'code',
-    redirect_to:   redirectTo
-  });
-  window.location.href = `${OAUTH_URL}?${params}`;
-};
-
-
-  // —— 登出（清 Cookie 后刷新） —— 
-  logoutBtn.onclick = async () => {
-    await fetchWithAuth(LOGOUT_URL, { method:'POST' });
-    window.location.reload();
-  };
-
-  // —— 尝试拉取第 page 页数据 —— 
-  async function tryLoad(page=1){
-    recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
-    try {
-      const resp = await fetchWithAuth(
-        `${RECORDS}?limit=${pageSize}&offset=${(page-1)*pageSize}`
-      );
-      if (resp.status === 401) throw new Error('Unauthorized');
+    // 载入记录
+    async function loadRecords(page=1, filter=''){
+      const offset = (page-1)*pageSize;
+      const resp = await fetch(`${RECORDS_URL}?limit=${pageSize}&offset=${offset}`, { credentials:'include' });
+      if(!resp.ok) return alert('加载失败');
       const list = await resp.json();
       allRecords = list;
-      renderTable(list);
+      renderTable(list, filter);
       renderPagination(page);
-      loginArea.style.display = 'none';
-      adminArea.style.display = 'block';
-    } catch(e) {
-      console.warn(e);
-      adminArea.style.display = 'none';
-      loginArea.style.display = 'block';
     }
-  }
 
-  // —— 渲染数据表格 —— 
-  function renderTable(list){
-    const f = searchIn.value.trim().toLowerCase();
-    const rows = list.filter(r=>
-      !f ||
-      (r.original      ||'').toLowerCase().includes(f) ||
-      (r.translated_en ||'').toLowerCase().includes(f)
-    );
-    recordsBody.innerHTML = rows.map(r=>`
-      <tr>
-        <td>${new Date(r.created_at).toLocaleString()}</td>
-        <td>${r.original     ||''}</td>
-        <td>${r.translated_en||''}</td>
-        <td>${r.mode         ||''}</td>
-        <td>${r.tokens       ||0}</td>
-        <td>${r.cost         ||0}</td>
-        <td><button class="btn" data-id="${r.id}">查看/编辑</button></td>
-      </tr>
-    `).join('') || '<tr><td colspan="7">无匹配结果</td></tr>';
-    // 绑定查看/编辑按钮
-    recordsBody.querySelectorAll('button').forEach(btn=>{
-      btn.onclick = ()=> openModal(btn.dataset.id);
-    });
-  }
-
-  // —— 渲染分页 —— 
-  function renderPagination(page){
-    const total = allRecords.length; // 或者从后端返回总数
-    const pages = Math.ceil(total/pageSize) || 1;
-    pagination.innerHTML = '';
-    for(let i=1;i<=pages;i++){
-      const li = document.createElement('li');
-      const cls = i===page ? 'class="active"' : '';
-      li.innerHTML = `<button ${cls}>${i}</button>`;
-      li.firstChild.onclick = ()=>{
-        currentPage = i;
-        tryLoad(i);
-      };
-      pagination.appendChild(li);
+    // 渲染表格
+    function renderTable(list, filter){
+      const tbody = document.getElementById('recordsBody');
+      tbody.innerHTML = '';
+      const f = filter.toLowerCase();
+      list.filter(r => !f||r.original.toLowerCase().includes(f)||r.translated_en.toLowerCase().includes(f))
+        .forEach(r=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${new Date(r.created_at).toLocaleString()}</td>
+            <td>${r.original||''}</td>
+            <td>${r.translated_en||''}</td>
+            <td>${r.mode||''}</td>
+            <td>${r.tokens||0}</td>
+            <td>${r.cost||0}</td>
+            <td><button class="btn btn-primary" data-id="${r.id}">查看/编辑</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      // 绑定查看按钮
+      Array.from(tbody.querySelectorAll('button')).forEach(btn=>{
+        btn.onclick = ()=>openModal(btn.dataset.id);
+      });
     }
-  }
 
-  // —— 搜索输入 —— 
-  searchIn.addEventListener('input', ()=> renderTable(allRecords));
+    // 分页
+    function renderPagination(page){
+      const total = 1000; // 预估或后台提供
+      const pages = Math.ceil(total/pageSize);
+      const ul = document.getElementById('pagination');
+      ul.innerHTML = '';
+      for(let i=1;i<=pages;i++){
+        const li = document.createElement('li');
+        li.innerHTML = `<button ${i===page?'class="active"':''}>${i}</button>`;
+        li.firstChild.onclick = ()=>{ currentPage=i; loadRecords(i,document.getElementById('searchInput').value); };
+        ul.appendChild(li);
+      }
+    }
 
-  // —— 弹窗打开 —— 
-  function openModal(id){
-    activeRecord = allRecords.find(r=>r.id===id);
-    modalBody.innerHTML = `
-      <label>原文：
-        <textarea id="m_o" style="width:100%;height:4rem">
-${activeRecord.original||''}</textarea>
-      </label>
-      <label>翻译：
-        <textarea id="m_t" style="width:100%;height:4rem">
-${activeRecord.translated_en||''}</textarea>
-      </label>
-    `;
-    modalBackdrop.style.display = 'flex';
-  }
-  modalClose.onclick = ()=> modalBackdrop.style.display = 'none';
+    // 模态框
+    const backdrop = document.getElementById('modalBackdrop');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+    const modalSave  = document.getElementById('modalSave');
+    const modalDelete= document.getElementById('modalDelete');
+    let activeRecord = null;
 
-  // —— 保存修改 —— 
-  modalSave.onclick = async ()=>{
-    const o = document.getElementById('m_o').value;
-    const t = document.getElementById('m_t').value;
-    await fetchWithAuth(`${RECORDS}?id=eq.${activeRecord.id}`, {
-      method: 'PATCH',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ original:o, translated_en:t })
+    function openModal(id){
+      activeRecord = allRecords.find(r=>r.id===id);
+      modalTitle.textContent = `记录 ${id}`;
+      modalBody.innerHTML = `
+        <label>原文:<textarea id="m_original" style="width:100%;height:4rem">${activeRecord.original}</textarea></label>
+        <label>翻译:<textarea id="m_translated" style="width:100%;height:4rem">${activeRecord.translated_en}</textarea></label>
+      `;
+      backdrop.style.display = 'flex';
+    }
+    modalClose.onclick = ()=> backdrop.style.display='none';
+    modalSave.onclick = async ()=>{
+      const o = document.getElementById('m_original').value;
+      const t = document.getElementById('m_translated').value;
+      await fetch(`${RECORDS_URL}?id=eq.${activeRecord.id}`,{
+        method:'PATCH', credentials:'include',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ original:o, translated_en:t })
+      });
+      backdrop.style.display='none';
+      loadRecords(currentPage, document.getElementById('searchInput').value);
+    };
+    modalDelete.onclick = async ()=>{
+      await fetch(`${RECORDS_URL}?id=eq.${activeRecord.id}`,{
+        method:'DELETE', credentials:'include'
+      });
+      backdrop.style.display='none';
+      loadRecords(currentPage, document.getElementById('searchInput').value);
+    };
+
+    // 搜索
+    document.getElementById('searchInput').addEventListener('input', e=>{
+      renderTable(allRecords, e.target.value);
     });
-    modalBackdrop.style.display = 'none';
-    tryLoad(currentPage);
-  };
 
-  // —— 删除记录 —— 
-  modalDelete.onclick = async ()=>{
-    await fetchWithAuth(`${RECORDS}?id=eq.${activeRecord.id}`, {
-      method:'DELETE'
-    });
-    modalBackdrop.style.display = 'none';
-    tryLoad(currentPage);
-  };
-
-  // —— 首次加载 —— 
-  tryLoad(currentPage);
-})();
+    // 初始加载
+    loadRecords(1, '');
   </script>
 </body>
 </html>
