@@ -78,12 +78,10 @@
     </div>
   </div>
 
-  <script>
- (async function(){
+<script>
+(async function(){
   const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
-  const SESSION_URL = WORKER_BASE + '/auth/session';
   const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' + encodeURIComponent(location.pathname + location.search);
-  const LOGOUT_URL  = WORKER_BASE + '/auth/logout';
   const RECORDS_URL = WORKER_BASE + '/admin-api/records';
 
   // DOM 元素
@@ -102,33 +100,28 @@
 
   let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
-  // 带凭证的 fetch
-  function fetchWithCred(url, opts = {}) {
-    opts.credentials = 'include';
-    return fetch(url, opts);
-  }
-
-  // 1. 如果 URL hash 里有 access_token，先 POST 到 /auth/session 并写入 Cookie
+  // 1. 如果 URL hash 里有 access_token，先存 localStorage，再清 hash 并 reload
   const hash = window.location.hash;
   if (hash.includes('access_token=')) {
     const params = new URLSearchParams(hash.slice(1));
-    await fetchWithCred(SESSION_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        access_token:  params.get('access_token'),
-        refresh_token: params.get('refresh_token'),
-        expires_in:    parseInt(params.get('expires_in') || '0', 10)
-      })
-    });
-    // 清除 hash 并重载页面，进入正常流程
+    const t = params.get('access_token');
+    localStorage.setItem('GH_TOKEN', t);
     window.location.hash = '';
     return window.location.reload();
   }
 
-  // 2. 检查会话（已登录 or 未登录）
-  const sessResp = await fetchWithCred(SESSION_URL, { method: 'GET' });
-  if (sessResp.ok) {
+  // 带 Bearer Token 的 fetch
+  function fetchWithCred(url, opts = {}) {
+    opts = opts || {};
+    opts.headers = opts.headers || {};
+    const t = localStorage.getItem('GH_TOKEN');
+    if (t) opts.headers['Authorization'] = 'Bearer ' + t;
+    return fetch(url, opts);
+  }
+
+  // 2. 检查本地 token 决定显示登录或管理区
+  const token = localStorage.getItem('GH_TOKEN');
+  if (token) {
     loginArea.style.display = 'none';
     adminArea.style.display = 'block';
     loadPage(currentPage);
@@ -142,9 +135,9 @@
     location.href = LOGIN_URL;
   };
 
-  // 4. 登出
-  logoutBtn.onclick = async () => {
-    await fetchWithCred(LOGOUT_URL, { method: 'POST' });
+  // 4. 登出：清 localStorage 并刷新
+  logoutBtn.onclick = () => {
+    localStorage.removeItem('GH_TOKEN');
     location.reload();
   };
 
@@ -166,7 +159,7 @@
     }
   }
 
-  // 渲染表格
+  // 渲染表格（保持不变）
   function renderTable(list) {
     const f = searchIn.value.trim().toLowerCase();
     const rows = list.filter(r =>
@@ -190,7 +183,7 @@
     });
   }
 
-  // 渲染分页
+  // 渲染分页（保持不变）
   function renderPagination(page) {
     const total = allRecords.length;
     const pages = Math.ceil(total / pageSize) || 1;
@@ -203,10 +196,10 @@
     }
   }
 
-  // 搜索过滤
+  // 搜索过滤（保持不变）
   searchIn.addEventListener('input', () => renderTable(allRecords));
 
-  // 弹窗打开
+  // 弹窗打开/关闭（保持不变）
   function openModal(id) {
     activeRecord = allRecords.find(r => r.id === id);
     modalBody.innerHTML = `
@@ -221,7 +214,7 @@
   }
   modalClose.onclick = () => modalBackdrop.style.display = 'none';
 
-  // 保存修改
+  // 保存修改（保持不变）
   modalSave.onclick = async () => {
     const o = document.getElementById('m_o').value;
     const t = document.getElementById('m_t').value;
@@ -234,7 +227,7 @@
     loadPage(currentPage);
   };
 
-  // 删除记录
+  // 删除记录（保持不变）
   modalDelete.onclick = async () => {
     await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
       method: 'DELETE'
@@ -243,6 +236,7 @@
     loadPage(currentPage);
   };
 })();
-  </script>
+</script>
+
 </body>
 </html>
