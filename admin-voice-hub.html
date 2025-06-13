@@ -81,73 +81,72 @@
   </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
-  const loginBtn    = document.getElementById('loginBtn');
-  const logoutBtn   = document.getElementById('logoutBtn');
-  const authArea    = document.getElementById('authArea');
-  const adminArea   = document.getElementById('adminArea');
-  const recordsBody = document.getElementById('recordsBody');
 
-  // 要回到哪个「页面」？用 Path 即可
-  const currentPath = window.location.pathname;
+  document.addEventListener('DOMContentLoaded', () => {
+    const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
+    const authArea    = document.getElementById('authArea');
+    const adminArea   = document.getElementById('adminArea');
+    const loginBtn    = document.getElementById('loginBtn');
+    const logoutBtn   = document.getElementById('logoutBtn');
+    const recordsBody = document.getElementById('recordsBody');
 
-  // —— 1. 登录：带上 next + 强制 response_type=code —— 
-  loginBtn.onclick = () => {
-    // callback 里我们自己会接 code → 写 Cookie → 再 302 回 next
-    const callback = `${WORKER_BASE}/auth-proxy/auth/v1/callback?next=${encodeURIComponent(currentPath)}`;
-    const params   = new URLSearchParams({
-      provider:      'github',
-      redirect_to:   callback,
-      response_type: 'code'          // ← **关键**：强制 authorization code 流
-    });
-    window.location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${params}`;
-  };
+    // 登录：跳转到 Worker 代理 Supabase OAuth
+    loginBtn.onclick = () => {
+      const params = new URLSearchParams({
+        provider:  'github',
+        redirect_to: WORKER_BASE
+      });
+      location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${params}`;
+    };
 
-  // —— 2. 登出：调用 Worker 的 /logout，清 Cookie —— 
-  logoutBtn.onclick = async () => {
-    await fetch(`${WORKER_BASE}/auth-proxy/auth/v1/logout`, {
-      method: 'POST',
-      credentials: 'include'
-    });
-    window.location.reload();
-  };
+    // 登出：调用 Worker 上的登出接口，清 Cookie
+    logoutBtn.onclick = async () => {
+      await fetch(`${WORKER_BASE}/auth-proxy/auth/v1/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      location.reload();
+    };
 
-  // —— 3. 拉记录 & 渲染（不变） —— 
-  async function loadRecords() {
-    recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
-    const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
-      credentials: 'include'
-    });
-    if (!resp.ok) throw new Error(`状态 ${resp.status}`);
-    const list = await resp.json();
-    if (!list.length) {
-      recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
-    } else {
-      recordsBody.innerHTML = list.map(r=>`
-        <tr>
-          <td>${new Date(r.created_at).toLocaleString()}</td>
-          <td>${r.original      || ''}</td>
-          <td>${r.translated_en || ''}</td>
-          <td>${r.tokens        || ''}</td>
-          <td>${r.cost          || ''}</td>
-          <td>${r.ip            || ''}</td>
-        </tr>
-      `).join('');
+    // 拉数据并渲染
+    async function loadRecords() {
+      recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
+      try {
+        const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
+          credentials: 'include'
+        });
+        if (!resp.ok) throw new Error(`状态 ${resp.status}`);
+        const list = await resp.json();
+        if (!list.length) {
+          recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
+        } else {
+          recordsBody.innerHTML = list.map(r => `
+            <tr>
+              <td>${new Date(r.created_at).toLocaleString()}</td>
+              <td>${r.original    || ''}</td>
+              <td>${r.translated_en|| ''}</td>
+              <td>${r.tokens      || ''}</td>
+              <td>${r.cost        || ''}</td>
+              <td>${r.ip          || ''}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('拉取记录失败', err);
+        recordsBody.innerHTML = `<tr><td colspan="6">拉取失败：${err.message}</td></tr>`;
+      }
     }
-  }
 
-  // —— 4. 初始化：试拉一次，有 200 就显示后台，否则显示登录 —— 
-  loadRecords()
-    .then(()=>{
-      authArea .style.display = 'none';
+    // 初始化：尝试加载一次数据，成功则显示后台，否则显示登录
+    loadRecords().then(() => {
+      // 如果 loadRecords 没抛（即 200），说明有会话
+      authArea.style.display  = 'none';
       adminArea.style.display = 'block';
-    })
-    .catch(()=>{
-      authArea .style.display = 'block';
+    }).catch(() => {
+      authArea.style.display  = 'block';
       adminArea.style.display = 'none';
     });
-});
+  });
 </script>
 
 
