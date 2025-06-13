@@ -89,21 +89,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminArea   = document.getElementById('adminArea');
   const recordsBody = document.getElementById('recordsBody');
 
-  // 我们要在回调后跳回哪个页面
+  // 要回到哪个「页面」？用 Path 即可
   const currentPath = window.location.pathname;
 
   // —— 1. 登录：带上 next + 强制 response_type=code —— 
   loginBtn.onclick = () => {
+    // callback 里我们自己会接 code → 写 Cookie → 再 302 回 next
     const callback = `${WORKER_BASE}/auth-proxy/auth/v1/callback?next=${encodeURIComponent(currentPath)}`;
     const params   = new URLSearchParams({
       provider:      'github',
       redirect_to:   callback,
-      response_type: 'code'           // 🔑 强制使用 Authorization Code Grant
+      response_type: 'code'          // ← **关键**：强制 authorization code 流
     });
     window.location.href = `${WORKER_BASE}/auth-proxy/auth/v1/authorize?${params}`;
   };
 
-  // —— 2. 登出：清 Cookie & 刷新 —— 
+  // —— 2. 登出：调用 Worker 的 /logout，清 Cookie —— 
   logoutBtn.onclick = async () => {
     await fetch(`${WORKER_BASE}/auth-proxy/auth/v1/logout`, {
       method: 'POST',
@@ -112,20 +113,18 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.reload();
   };
 
-  // —— 3. 拉记录 & 渲染 —— 
+  // —— 3. 拉记录 & 渲染（不变） —— 
   async function loadRecords() {
     recordsBody.innerHTML = '<tr><td colspan="6">加载中…</td></tr>';
     const resp = await fetch(`${WORKER_BASE}/admin-api/records`, {
       credentials: 'include'
     });
-    if (!resp.ok) {
-      throw new Error(`状态 ${resp.status}`);
-    }
+    if (!resp.ok) throw new Error(`状态 ${resp.status}`);
     const list = await resp.json();
     if (!list.length) {
       recordsBody.innerHTML = '<tr><td colspan="6">暂无记录</td></tr>';
     } else {
-      recordsBody.innerHTML = list.map(r => `
+      recordsBody.innerHTML = list.map(r=>`
         <tr>
           <td>${new Date(r.created_at).toLocaleString()}</td>
           <td>${r.original      || ''}</td>
@@ -138,20 +137,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // —— 4. 初始化：尝试一次 loadRecords —— 
+  // —— 4. 初始化：试拉一次，有 200 就显示后台，否则显示登录 —— 
   loadRecords()
-    .then(() => {
-      // 拿到 200 → 已登录 → 显示后台
+    .then(()=>{
       authArea .style.display = 'none';
       adminArea.style.display = 'block';
     })
-    .catch(() => {
-      // 401 或其它错误 → 未登录 → 显示登录按钮
+    .catch(()=>{
       authArea .style.display = 'block';
       adminArea.style.display = 'none';
     });
 });
 </script>
+
 
 
 
