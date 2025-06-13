@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>🔑 管理后台 · 语音助手</title>
+  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
   <style>
     body { margin:0; padding:0; font-family:'Segoe UI',sans-serif; background:#f0f2f5; }
     .container { max-width:960px; margin:1rem auto; padding:1rem; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
@@ -78,152 +79,170 @@
   </div>
 
   <script>
-  (async function(){
-    const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
-    const SESSION_URL = WORKER_BASE + '/auth/session';
-    const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' + encodeURIComponent(location.href);
-    const LOGOUT_URL  = WORKER_BASE + '/auth/logout';
-    const RECORDS_URL = WORKER_BASE + '/admin-api/records';
+ (async function(){
+  const WORKER_BASE = 'https://translate-assistant.mefans.workers.dev';
+  const SESSION_URL = WORKER_BASE + '/auth/session';
+  const LOGIN_URL   = WORKER_BASE + '/auth/github?next=' + encodeURIComponent(location.pathname + location.search);
+  const LOGOUT_URL  = WORKER_BASE + '/auth/logout';
+  const RECORDS_URL = WORKER_BASE + '/admin-api/records';
 
-    // DOM 元素
-    const loginArea     = document.getElementById('loginArea');
-    const loginBtn      = document.getElementById('loginBtn');
-    const adminArea     = document.getElementById('adminArea');
-    const logoutBtn     = document.getElementById('logoutBtn');
-    const searchIn      = document.getElementById('searchInput');
-    const recordsBody   = document.getElementById('recordsBody');
-    const pagination    = document.getElementById('pagination');
-    const modalBackdrop = document.getElementById('modalBackdrop');
-    const modalClose    = document.getElementById('modalClose');
-    const modalBody     = document.getElementById('modalBody');
-    const modalSave     = document.getElementById('modalSave');
-    const modalDelete   = document.getElementById('modalDelete');
+  // DOM 元素
+  const loginArea     = document.getElementById('loginArea');
+  const loginBtn      = document.getElementById('loginBtn');
+  const adminArea     = document.getElementById('adminArea');
+  const logoutBtn     = document.getElementById('logoutBtn');
+  const searchIn      = document.getElementById('searchInput');
+  const recordsBody   = document.getElementById('recordsBody');
+  const pagination    = document.getElementById('pagination');
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const modalClose    = document.getElementById('modalClose');
+  const modalBody     = document.getElementById('modalBody');
+  const modalSave     = document.getElementById('modalSave');
+  const modalDelete   = document.getElementById('modalDelete');
 
-    let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
+  let allRecords = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
-    // 带凭证的 fetch
-    function fetchWithCred(url, opts = {}) {
-      opts.credentials = 'include';
-      return fetch(url, opts);
-    }
+  // 带凭证的 fetch
+  function fetchWithCred(url, opts = {}) {
+    opts.credentials = 'include';
+    return fetch(url, opts);
+  }
 
-    // 检查会话
-    const sessResp = await fetchWithCred(SESSION_URL);
-    if (sessResp.ok) {
-      loginArea.style.display = 'none';
-      adminArea.style.display = 'block';
-      loadPage(currentPage);
-    } else {
+  // 1. 如果 URL hash 里有 access_token，先 POST 到 /auth/session 并写入 Cookie
+  const hash = window.location.hash;
+  if (hash.includes('access_token=')) {
+    const params = new URLSearchParams(hash.slice(1));
+    await fetchWithCred(SESSION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_token:  params.get('access_token'),
+        refresh_token: params.get('refresh_token'),
+        expires_in:    parseInt(params.get('expires_in') || '0', 10)
+      })
+    });
+    // 清除 hash 并重载页面，进入正常流程
+    window.location.hash = '';
+    return window.location.reload();
+  }
+
+  // 2. 检查会话（已登录 or 未登录）
+  const sessResp = await fetchWithCred(SESSION_URL, { method: 'GET' });
+  if (sessResp.ok) {
+    loginArea.style.display = 'none';
+    adminArea.style.display = 'block';
+    loadPage(currentPage);
+  } else {
+    loginArea.style.display = 'block';
+    adminArea.style.display = 'none';
+  }
+
+  // 3. 登录跳转
+  loginBtn.onclick = () => {
+    location.href = LOGIN_URL;
+  };
+
+  // 4. 登出
+  logoutBtn.onclick = async () => {
+    await fetchWithCred(LOGOUT_URL, { method: 'POST' });
+    location.reload();
+  };
+
+  // 5. 加载数据
+  async function loadPage(page = 1) {
+    recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
+    try {
+      const resp = await fetchWithCred(
+        `${RECORDS_URL}?limit=${pageSize}&offset=${(page-1)*pageSize}`
+      );
+      if (!resp.ok) throw new Error('Unauthorized');
+      const list = await resp.json();
+      allRecords = list;
+      renderTable(list);
+      renderPagination(page);
+    } catch {
       loginArea.style.display = 'block';
       adminArea.style.display = 'none';
     }
+  }
 
-    // 登录跳转
-    loginBtn.onclick = () => {
-      location.href = LOGIN_URL;
-    };
+  // 渲染表格
+  function renderTable(list) {
+    const f = searchIn.value.trim().toLowerCase();
+    const rows = list.filter(r =>
+      !f ||
+      (r.original      || '').toLowerCase().includes(f) ||
+      (r.translated_en || '').toLowerCase().includes(f)
+    );
+    recordsBody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${new Date(r.created_at).toLocaleString()}</td>
+        <td>${r.original      || ''}</td>
+        <td>${r.translated_en || ''}</td>
+        <td>${r.mode          || ''}</td>
+        <td>${r.tokens        || 0}</td>
+        <td>${r.cost          || 0}</td>
+        <td><button class="btn" data-id="${r.id}">查看/编辑</button></td>
+      </tr>
+    `).join('') || '<tr><td colspan="7">无匹配结果</td></tr>';
+    recordsBody.querySelectorAll('button').forEach(btn => {
+      btn.onclick = () => openModal(btn.dataset.id);
+    });
+  }
 
-    // 登出
-    logoutBtn.onclick = async () => {
-      await fetchWithCred(LOGOUT_URL, { method:'POST' });
-      location.reload();
-    };
-
-    // 加载数据
-    async function loadPage(page = 1) {
-      recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
-      try {
-        const resp = await fetchWithCred(
-          `${RECORDS_URL}?limit=${pageSize}&offset=${(page-1)*pageSize}`
-        );
-        if (!resp.ok) throw new Error('Unauthorized');
-        const list = await resp.json();
-        allRecords = list;
-        renderTable(list);
-        renderPagination(page);
-      } catch {
-        loginArea.style.display = 'block';
-        adminArea.style.display = 'none';
-      }
+  // 渲染分页
+  function renderPagination(page) {
+    const total = allRecords.length;
+    const pages = Math.ceil(total / pageSize) || 1;
+    pagination.innerHTML = '';
+    for (let i = 1; i <= pages; i++) {
+      const li = document.createElement('li');
+      li.innerHTML = `<button${i===page ? ' class="active"' : ''}>${i}</button>`;
+      li.firstChild.onclick = () => { currentPage = i; loadPage(i); };
+      pagination.appendChild(li);
     }
+  }
 
-    // 渲染表格
-    function renderTable(list) {
-      const f = searchIn.value.trim().toLowerCase();
-      const rows = list.filter(r =>
-        !f ||
-        (r.original      || '').toLowerCase().includes(f) ||
-        (r.translated_en || '').toLowerCase().includes(f)
-      );
-      recordsBody.innerHTML = rows.map(r => `
-        <tr>
-          <td>${new Date(r.created_at).toLocaleString()}</td>
-          <td>${r.original      || ''}</td>
-          <td>${r.translated_en || ''}</td>
-          <td>${r.mode          || ''}</td>
-          <td>${r.tokens        || 0}</td>
-          <td>${r.cost          || 0}</td>
-          <td><button class="btn" data-id="${r.id}">查看/编辑</button></td>
-        </tr>
-      `).join('') || '<tr><td colspan="7">无匹配结果</td></tr>';
-      recordsBody.querySelectorAll('button').forEach(btn => {
-        btn.onclick = () => openModal(btn.dataset.id);
-      });
-    }
+  // 搜索过滤
+  searchIn.addEventListener('input', () => renderTable(allRecords));
 
-    // 渲染分页
-    function renderPagination(page) {
-      const total = allRecords.length;
-      const pages = Math.ceil(total / pageSize) || 1;
-      pagination.innerHTML = '';
-      for (let i = 1; i <= pages; i++) {
-        const li = document.createElement('li');
-        li.innerHTML = `<button${i===page ? ' class="active"' : ''}>${i}</button>`;
-        li.firstChild.onclick = () => { currentPage = i; loadPage(i); };
-        pagination.appendChild(li);
-      }
-    }
+  // 弹窗打开
+  function openModal(id) {
+    activeRecord = allRecords.find(r => r.id === id);
+    modalBody.innerHTML = `
+      <label>原文：
+        <textarea id="m_o" style="width:100%;height:4rem">${activeRecord.original||''}</textarea>
+      </label>
+      <label>翻译：
+        <textarea id="m_t" style="width:100%;height:4rem">${activeRecord.translated_en||''}</textarea>
+      </label>
+    `;
+    modalBackdrop.style.display = 'flex';
+  }
+  modalClose.onclick = () => modalBackdrop.style.display = 'none';
 
-    // 搜索过滤
-    searchIn.addEventListener('input', () => renderTable(allRecords));
+  // 保存修改
+  modalSave.onclick = async () => {
+    const o = document.getElementById('m_o').value;
+    const t = document.getElementById('m_t').value;
+    await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
+      method: 'PATCH',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ original:o, translated_en:t })
+    });
+    modalBackdrop.style.display = 'none';
+    loadPage(currentPage);
+  };
 
-    // 弹窗
-    function openModal(id) {
-      activeRecord = allRecords.find(r => r.id === id);
-      modalBody.innerHTML = `
-        <label>原文：
-          <textarea id="m_o" style="width:100%;height:4rem">${activeRecord.original||''}</textarea>
-        </label>
-        <label>翻译：
-          <textarea id="m_t" style="width:100%;height:4rem">${activeRecord.translated_en||''}</textarea>
-        </label>
-      `;
-      modalBackdrop.style.display = 'flex';
-    }
-    modalClose.onclick = () => modalBackdrop.style.display = 'none';
-
-    // 保存
-    modalSave.onclick = async () => {
-      const o = document.getElementById('m_o').value;
-      const t = document.getElementById('m_t').value;
-      await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
-        method:'PATCH',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ original:o, translated_en:t })
-      });
-      modalBackdrop.style.display = 'none';
-      loadPage(currentPage);
-    };
-
-    // 删除
-    modalDelete.onclick = async () => {
-      await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
-        method:'DELETE'
-      });
-      modalBackdrop.style.display = 'none';
-      loadPage(currentPage);
-    };
-  })();
+  // 删除记录
+  modalDelete.onclick = async () => {
+    await fetchWithCred(`${RECORDS_URL}?id=eq.${activeRecord.id}`, {
+      method: 'DELETE'
+    });
+    modalBackdrop.style.display = 'none';
+    loadPage(currentPage);
+  };
+})();
   </script>
 </body>
 </html>
