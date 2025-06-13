@@ -77,158 +77,160 @@
     </div>
   </div>
 
-<script>
-(async function(){
-  const BASE         = 'https://translate-assistant.mefans.workers.dev';
-  const RECORDS      = BASE + '/admin-api/records';
-  const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
-  const ADMIN_EMAIL  = 'oliveroogle@gmail.com';
-  const supa         = supabase.createClient(BASE, ANON_KEY);
+  <!-- 引入 Supabase 客户端 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
-  // —— DOM 元素引用 —— 
-  const loginArea     = document.getElementById('loginArea');
-  const loginBtn      = document.getElementById('loginBtn');
-  const adminArea     = document.getElementById('adminArea');
-  const logoutBtn     = document.getElementById('logoutBtn');
-  const searchIn      = document.getElementById('searchInput');
-  const recordsBody   = document.getElementById('recordsBody');
-  const pagination    = document.getElementById('pagination');
-  const modalBackdrop = document.getElementById('modalBackdrop');
-  const modalClose    = document.getElementById('modalClose');
-  const modalBody     = document.getElementById('modalBody');
-  const modalSave     = document.getElementById('modalSave');
-  const modalDelete   = document.getElementById('modalDelete');
+  <script>
+  (async function(){
+    const BASE        = 'https://translate-assistant.mefans.workers.dev';
+    const RECORDS     = BASE + '/admin-api/records';
+    const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg';
+    const ADMIN_EMAIL = 'oliveroogle@gmail.com';
+    const supa        = supabase.createClient(BASE, ANON_KEY);
 
-  let allRecords    = [], currentPage = 1, pageSize = 10, activeRecord = null;
+    // —— DOM 元素引用 ——
+    const loginArea     = document.getElementById('loginArea');
+    const loginBtn      = document.getElementById('loginBtn');
+    const adminArea     = document.getElementById('adminArea');
+    const logoutBtn     = document.getElementById('logoutBtn');
+    const searchIn      = document.getElementById('searchInput');
+    const recordsBody   = document.getElementById('recordsBody');
+    const pagination    = document.getElementById('pagination');
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modalClose    = document.getElementById('modalClose');
+    const modalBody     = document.getElementById('modalBody');
+    const modalSave     = document.getElementById('modalSave');
+    const modalDelete   = document.getElementById('modalDelete');
 
-  // —— Supabase OAuth 登录状态检查 —— 
-  const { data: { session } } = await supa.auth.getSession();
-  if (session?.user?.email === ADMIN_EMAIL) {
-    loginArea.style.display = 'none';
-    adminArea.style.display = 'block';
-    tryLoad(currentPage);
-  } else {
-    loginArea.style.display = 'block';
-    adminArea.style.display = 'none';
-  }
+    let allRecords    = [], currentPage = 1, pageSize = 10, activeRecord = null;
 
-  // —— 登录 —— 
-  loginBtn.onclick = () => {
-    supa.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: location.href }
-    });
-  };
-
-  // —— 登出 —— 
-  logoutBtn.onclick = async () => {
-    await supa.auth.signOut();
-    window.location.reload();
-  };
-
-  // —— fetch 封装（保留原有） —— 
-  function fetchWithAuth(url, opts = {}) {
-    opts.credentials = 'include';
-    return fetch(url, opts);
-  }
-
-  // —— 尝试拉取第 page 页数据 —— 
-  async function tryLoad(page = 1) {
-    recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
-    try {
-      const resp = await fetchWithAuth(
-        `${RECORDS}?limit=${pageSize}&offset=${(page-1)*pageSize}`
-      );
-      if (resp.status === 401) throw new Error('Unauthorized');
-      const list = await resp.json();
-      allRecords = list;
-      renderTable(list);
-      renderPagination(page);
-    } catch (e) {
-      console.warn(e);
+    // —— Supabase OAuth 登录状态检查 ——
+    const { data:{ session } } = await supa.auth.getSession();
+    if (session?.user?.email === ADMIN_EMAIL) {
+      loginArea.style.display = 'none';
+      adminArea.style.display = 'block';
+      tryLoad(currentPage);
+    } else {
       loginArea.style.display = 'block';
       adminArea.style.display = 'none';
     }
-  }
 
-  // —— 渲染数据表格 —— 
-  function renderTable(list) {
-    const f = searchIn.value.trim().toLowerCase();
-    const rows = list.filter(r =>
-      !f ||
-      (r.original      || '').toLowerCase().includes(f) ||
-      (r.translated_en || '').toLowerCase().includes(f)
-    );
-    recordsBody.innerHTML = rows.map(r => `
-      <tr>
-        <td>${new Date(r.created_at).toLocaleString()}</td>
-        <td>${r.original      || ''}</td>
-        <td>${r.translated_en || ''}</td>
-        <td>${r.mode          || ''}</td>
-        <td>${r.tokens        || 0}</td>
-        <td>${r.cost          || 0}</td>
-        <td><button class="btn" data-id="${r.id}">查看/编辑</button></td>
-      </tr>
-    `).join('') || '<tr><td colspan="7">无匹配结果</td></tr>';
-    recordsBody.querySelectorAll('button').forEach(btn => {
-      btn.onclick = () => openModal(btn.dataset.id);
-    });
-  }
+    // —— 登录 ——
+    loginBtn.onclick = () => {
+      supa.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: location.href }
+      });
+    };
 
-  // —— 渲染分页 —— 
-  function renderPagination(page) {
-    const total = allRecords.length;
-    const pages = Math.ceil(total / pageSize) || 1;
-    pagination.innerHTML = '';
-    for (let i = 1; i <= pages; i++) {
-      const li = document.createElement('li');
-      li.innerHTML = `<button${i===page ? ' class="active"' : ''}>${i}</button>`;
-      li.firstChild.onclick = () => { currentPage = i; tryLoad(i); };
-      pagination.appendChild(li);
+    // —— 登出 ——
+    logoutBtn.onclick = async () => {
+      await supa.auth.signOut();
+      window.location.reload();
+    };
+
+    // —— fetch 封装 ——
+    function fetchWithAuth(url, opts = {}) {
+      opts.credentials = 'include';
+      return fetch(url, opts);
     }
-  }
 
-  // —— 搜索输入 —— 
-  searchIn.addEventListener('input', () => renderTable(allRecords));
+    // —— 尝试拉取第 page 页数据 ——
+    async function tryLoad(page = 1) {
+      recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>';
+      try {
+        const resp = await fetchWithAuth(
+          `${RECORDS}?limit=${pageSize}&offset=${(page-1)*pageSize}`
+        );
+        if (resp.status === 401) throw new Error('Unauthorized');
+        const list = await resp.json();
+        allRecords = list;
+        renderTable(list);
+        renderPagination(page);
+      } catch (e) {
+        console.warn(e);
+        loginArea.style.display = 'block';
+        adminArea.style.display = 'none';
+      }
+    }
 
-  // —— 弹窗打开/关闭 —— 
-  function openModal(id) {
-    activeRecord = allRecords.find(r => r.id === id);
-    modalBody.innerHTML = `
-      <label>原文：
-        <textarea id="m_o" style="width:100%;height:4rem">${activeRecord.original||''}</textarea>
-      </label>
-      <label>翻译：
-        <textarea id="m_t" style="width:100%;height:4rem">${activeRecord.translated_en||''}</textarea>
-      </label>
-    `;
-    modalBackdrop.style.display = 'flex';
-  }
-  modalClose.onclick = () => modalBackdrop.style.display = 'none';
+    // —— 渲染数据表格 ——
+    function renderTable(list) {
+      const f = searchIn.value.trim().toLowerCase();
+      const rows = list.filter(r =>
+        !f ||
+        (r.original      || '').toLowerCase().includes(f) ||
+        (r.translated_en || '').toLowerCase().includes(f)
+      );
+      recordsBody.innerHTML = rows.map(r => `
+        <tr>
+          <td>${new Date(r.created_at).toLocaleString()}</td>
+          <td>${r.original      || ''}</td>
+          <td>${r.translated_en || ''}</td>
+          <td>${r.mode          || ''}</td>
+          <td>${r.tokens        || 0}</td>
+          <td>${r.cost          || 0}</td>
+          <td><button class="btn" data-id="${r.id}">查看/编辑</button></td>
+        </tr>
+      `).join('') || '<tr><td colspan="7">无匹配结果</td></tr>';
+      recordsBody.querySelectorAll('button').forEach(btn => {
+        btn.onclick = () => openModal(btn.dataset.id);
+      });
+    }
 
-  // —— 保存修改 —— 
-  modalSave.onclick = async () => {
-    const o = document.getElementById('m_o').value;
-    const t = document.getElementById('m_t').value;
-    await fetchWithAuth(`${RECORDS}?id=eq.${activeRecord.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ original:o, translated_en:t })
-    });
-    modalBackdrop.style.display = 'none';
-    tryLoad(currentPage);
-  };
+    // —— 渲染分页 ——
+    function renderPagination(page) {
+      const total = allRecords.length;
+      const pages = Math.ceil(total / pageSize) || 1;
+      pagination.innerHTML = '';
+      for (let i = 1; i <= pages; i++) {
+        const li = document.createElement('li');
+        li.innerHTML = `<button${i===page ? ' class="active"' : ''}>${i}</button>`;
+        li.firstChild.onclick = () => { currentPage = i; tryLoad(i); };
+        pagination.appendChild(li);
+      }
+    }
 
-  // —— 删除记录 —— 
-  modalDelete.onclick = async () => {
-    await fetchWithAuth(`${RECORDS}?id=eq.${activeRecord.id}`, {
-      method: 'DELETE'
-    });
-    modalBackdrop.style.display = 'none';
-    tryLoad(currentPage);
-  };
-})();
-</script>
+    // —— 搜索输入 ——
+    searchIn.addEventListener('input', () => renderTable(allRecords));
 
+    // —— 弹窗打开/关闭 ——
+    function openModal(id) {
+      activeRecord = allRecords.find(r => r.id === id);
+      modalBody.innerHTML = `
+        <label>原文：
+          <textarea id="m_o" style="width:100%;height:4rem">${activeRecord.original||''}</textarea>
+        </label>
+        <label>翻译：
+          <textarea id="m_t" style="width:100%;height:4rem">${activeRecord.translated_en||''}</textarea>
+        </label>
+      `;
+      modalBackdrop.style.display = 'flex';
+    }
+    modalClose.onclick = () => modalBackdrop.style.display = 'none';
+
+    // —— 保存修改 ——
+    modalSave.onclick = async () => {
+      const o = document.getElementById('m_o').value;
+      const t = document.getElementById('m_t').value;
+      await fetchWithAuth(`${RECORDS}?id=eq.${activeRecord.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ original:o, translated_en:t })
+      });
+      modalBackdrop.style.display = 'none';
+      tryLoad(currentPage);
+    };
+
+    // —— 删除记录 ——
+    modalDelete.onclick = async () => {
+      await fetchWithAuth(`${RECORDS}?id=eq.${activeRecord.id}`, {
+        method: 'DELETE'
+      });
+      modalBackdrop.style.display = 'none';
+      tryLoad(currentPage);
+    };
+  })();
+  </script>
 </body>
 </html>
