@@ -187,7 +187,7 @@ h1 { font-size:1.25rem; margin-bottom:1rem; }
       // recBtn.disabled = true;
 
       const mode = [...modes].find(r=>r.checked).value;
-      const url  = `${BASE_WS}?mode=${mode}&session=${sessionId}&auth=${authCode}`;
+      const url  = `${WS_BASE}?mode=${mode}&session=${sessionId}&auth=${authCode}`;
       socket = new WebSocket(url);
       socket.binaryType = 'arraybuffer';
 
