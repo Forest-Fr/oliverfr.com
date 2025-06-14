@@ -65,13 +65,12 @@
   /* —— 列宽与固定布局 —— */
   #convTable {
     width: 100%;
-    min-width: 1260px;      /* 根据所有列宽之和 */
-    table-layout: fixed;    /* 启用固定列宽 */
+    min-width: 1260px;    /* 根据所有列宽之和调整 */
+    table-layout: fixed;
     border-collapse: collapse;
   }
   #convTable th,
   #convTable td {
-    border: 1px solid #ddd;
     padding: 8px 12px;
     text-align: left;
     vertical-align: top;
@@ -81,25 +80,25 @@
   #convTable th {
     background: #fafafa;
   }
-  /* 指定各列固定宽度 */
+  /* 指定列宽 */
   #convTable th:nth-child(1),
-  #convTable td:nth-child(1) { width: 150px; }   /* 创建时间 */
+  #convTable td:nth-child(1) { width: 150px; }  /* 创建时间 */
   #convTable th:nth-child(2),
-  #convTable td:nth-child(2) { width: 150px; }   /* 更新时间 */
+  #convTable td:nth-child(2) { width: 150px; }  /* 更新时间 */
   #convTable th:nth-child(3),
-  #convTable td:nth-child(3) { width: 120px; }   /* IP */
+  #convTable td:nth-child(3) { width: 120px; }  /* IP */
   #convTable th:nth-child(4),
-  #convTable td:nth-child(4) { width: 120px; }   /* 原文 */
+  #convTable td:nth-child(4) { width: 120px; }  /* 原文 */
   #convTable th:nth-child(5),
-  #convTable td:nth-child(5) { width: 400px; }   /* 翻译 */
+  #convTable td:nth-child(5) { width: 400px; }  /* 翻译 */
   #convTable th:nth-child(6),
-  #convTable td:nth-child(6) { width: 80px; }    /* 模式 */
+  #convTable td:nth-child(6) { width: 80px; }   /* 模式 */
   #convTable th:nth-child(7),
-  #convTable td:nth-child(7) { width: 80px; }    /* Tokens */
+  #convTable td:nth-child(7) { width: 80px; }   /* Tokens */
   #convTable th:nth-child(8),
-  #convTable td:nth-child(8) { width: 80px; }    /* Cost */
+  #convTable td:nth-child(8) { width: 80px; }   /* Cost */
   #convTable th:nth-child(9),
-  #convTable td:nth-child(9) { width: 100px; }   /* 操作 */
+  #convTable td:nth-child(9) { width: 100px; }  /* 操作 */
 
   .empty {
     text-align: center;
@@ -135,18 +134,9 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .btnPreview {
-    background: #1890ff;
-    color: #fff;
-  }
-  .btnEdit {
-    background: #52c41a;
-    color: #fff;
-  }
-  .btnDel {
-    background: #fa541c;
-    color: #fff;
-  }
+  .btnPreview { background: #1890ff; color: #fff; }
+  .btnEdit    { background: #52c41a; color: #fff; }
+  .btnDel     { background: #fa541c; color: #fff; }
 
   /* —— 分页 —— */
   #pager {
@@ -195,6 +185,24 @@
     background: none;
     border: none;
     cursor: pointer;
+  }
+
+  /* —— 去除多余的水平线 & 斑马纹优化 —— */
+  /* 淡化所有边框，斑马纹提升可读性 */
+  #convTable th,
+  #convTable td {
+    border: 1px solid #eee;
+  }
+  #convTable tr:nth-child(even) td {
+    background: #fafafa;
+  }
+  /* 隐藏空单元格的边框 */
+  #convTable td:empty {
+    border: none;
+  }
+  /* 去掉最后一行底部横线 */
+  #convTable tr:last-child td {
+    border-bottom: none;
   }
 
   /* —— 移动端卡片式 响应式 —— */
@@ -266,6 +274,7 @@
     }
   }
 </style>
+
 
 
 
