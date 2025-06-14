@@ -62,54 +62,45 @@
     background: #fff;
   }
 
-  /* —— 分栏宽度 & 行高优化 —— */
+  /* —— 列宽与固定布局 —— */
   #convTable {
     width: 100%;
+    min-width: 1260px;      /* 根据所有列宽之和 */
+    table-layout: fixed;    /* 启用固定列宽 */
     border-collapse: collapse;
-    table-layout: fixed;            /* 固定列宽 */
-    min-width: 800px;
   }
   #convTable th,
   #convTable td {
-    padding: 8px 12px;
     border: 1px solid #ddd;
+    padding: 8px 12px;
     text-align: left;
-    vertical-align: top;            /* 顶部对齐，行高统一 */
+    vertical-align: top;
     line-height: 1.6;
     word-break: break-word;
   }
   #convTable th {
     background: #fafafa;
   }
-  /* 指定各列宽度 */
+  /* 指定各列固定宽度 */
   #convTable th:nth-child(1),
-  #convTable td:nth-child(1),
+  #convTable td:nth-child(1) { width: 150px; }   /* 创建时间 */
   #convTable th:nth-child(2),
-  #convTable td:nth-child(2) {
-    width: 12%;                     /* 创建/更新时间 */
-  }
+  #convTable td:nth-child(2) { width: 150px; }   /* 更新时间 */
   #convTable th:nth-child(3),
-  #convTable td:nth-child(3) {
-    width: 10%;                     /* IP */
-  }
+  #convTable td:nth-child(3) { width: 120px; }   /* IP */
   #convTable th:nth-child(4),
-  #convTable td:nth-child(4) {
-    width: 8%;                      /* 原文 */
-  }
+  #convTable td:nth-child(4) { width: 120px; }   /* 原文 */
   #convTable th:nth-child(5),
-  #convTable td:nth-child(5) {
-    width: 40%;                     /* 翻译 */
-  }
+  #convTable td:nth-child(5) { width: 400px; }   /* 翻译 */
   #convTable th:nth-child(6),
-  #convTable td:nth-child(6),
+  #convTable td:nth-child(6) { width: 80px; }    /* 模式 */
   #convTable th:nth-child(7),
-  #convTable td:nth-child(7),
+  #convTable td:nth-child(7) { width: 80px; }    /* Tokens */
   #convTable th:nth-child(8),
-  #convTable td:nth-child(8),
+  #convTable td:nth-child(8) { width: 80px; }    /* Cost */
   #convTable th:nth-child(9),
-  #convTable td:nth-child(9) {
-    width: auto;                    /* 其余列自适应 */
-  }
+  #convTable td:nth-child(9) { width: 100px; }   /* 操作 */
+
   .empty {
     text-align: center;
     padding: 24px;
@@ -118,7 +109,7 @@
 
   /* —— 桌面端长文本省略 + 悬停展开 —— */
   #convTable td[data-label="翻译"] {
-    max-height: 4.8em;              /* 3 行 */
+    max-height: 4.8em;             /* 3 行 */
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -216,7 +207,7 @@
     #pager {
       justify-content: space-between;
     }
-    /* 隐藏表头，做卡片式布局 */
+    /* 隐藏表头 */
     #convTable thead {
       display: none;
     }
@@ -250,9 +241,9 @@
       font-weight: 600;
       margin-right: 8px;
     }
-    /* 移动端翻译摘要仅 2 行 */
+    /* 移动端翻译摘要 2 行 */
     #convTable td[data-label="翻译"] {
-      max-height: 3em;               /* 2 行 */
+      max-height: 3em;
       overflow: hidden;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -275,6 +266,7 @@
     }
   }
 </style>
+
 
 
 </head>
