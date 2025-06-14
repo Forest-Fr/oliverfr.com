@@ -51,11 +51,20 @@
         <table>
           <thead>
             <tr>
-              <th>时间</th><th>原文</th><th>翻译</th><th>模式</th><th>Tokens</th><th>Cost</th><th>操作</th>
+              <th>创建时间</th>
+              <th>更新时间</th>
+              <th>IP</th>
+              <th>原文</th>
+              <th>翻译</th>
+              <th>模式</th>
+              <th>Tokens</th>
+              <th>Cost</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody id="recordsBody">
-            <tr><td colspan="7">加载中…</td></tr>
+            <!-- 加载中占位 -->
+            <tr><td colspan="9">加载中…</td></tr>
           </tbody>
         </table>
       </div>
@@ -84,11 +93,8 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 ;(async()=>{
 
   // —— 1. 初始化 Supabase 客户端 ——
-  //    这里不再用 Worker 的 URL 当第一个参数！
-  //    我们直接用 Supabase 提供的 REST endpoint，
-  //    这样就完全走 JS SDK 的 localStorage 流程。
-  const SUPA_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co'      // ← 换成你 Supabase 控制台里看到的 URL
-  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'                        // ← 换成你的 anon public key
+  const SUPA_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co'
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX...'
   const supa = createClient(SUPA_URL, ANON_KEY, {
     auth: {
       detectSessionInUrl: true,
@@ -115,8 +121,8 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
   const pageSize   = 10
   let activeRecord = null
 
-  // —— 3. 监听登录态变更 & 处理页面初始登录态 ——
-  supa.auth.onAuthStateChange((event, session) => {
+  // —— 3. 监听登录态 & 初始检查 ——
+  supa.auth.onAuthStateChange((_, session) => {
     if (session) {
       loginArea.style.display = 'none'
       adminArea.style.display = 'block'
@@ -126,25 +132,18 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       adminArea.style.display = 'none'
     }
   })
-  // 手动检查一次
   const { data:{ session } } = await supa.auth.getSession()
   if (session) {
     loginArea.style.display = 'none'
     adminArea.style.display = 'block'
     loadPage(1)
-  } else {
-    loginArea.style.display = 'block'
-    adminArea.style.display = 'none'
   }
 
   // —— 4. 登录 / 登出 ——
   loginBtn.onclick = () => {
     supa.auth.signInWithOAuth({
       provider: 'github',
-      options: {
-        // 回跳到本页面
-        redirectTo: window.location.origin + window.location.pathname,
-      }
+      options: { redirectTo: window.location.origin + window.location.pathname }
     })
   }
   logoutBtn.onclick = async () => {
@@ -152,15 +151,15 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     location.reload()
   }
 
-  // —— 5. 拉记录 ——
+  // —— 5. 拉记录 ——（新增 updated_at 和 ip）
   async function loadPage(page = 1) {
-    recordsBody.innerHTML = '<tr><td colspan="7">加载中…</td></tr>'
+    recordsBody.innerHTML = '<tr><td colspan="9">加载中…</td></tr>'
     try {
       const from = (page-1)*pageSize
       const to   = page*pageSize - 1
       const { data, error } = await supa
         .from('translations')
-        .select('id,created_at,original,translated_en,mode,tokens,cost')
+        .select('id,created_at,updated_at,ip,original,translated_en,mode,tokens,cost')
         .order('created_at', { ascending:false })
         .range(from, to)
       if (error) throw error
@@ -174,7 +173,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     }
   }
 
-  // —— 6. 渲染 & 分页 & 编辑 —— 同你之前的逻辑 ——
+  // —— 6. 渲染 & 分页 & 编辑 ——
   function renderTable(list) {
     const kw = searchIn.value.trim().toLowerCase()
     const rows = list.filter(r=>
@@ -184,7 +183,9 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     )
     recordsBody.innerHTML = rows.map(r=>`
       <tr>
-        <td>${new Date(r.created_at).toLocaleString()}</td>
+        <td>${new Date(r.created_at).toLocaleString('zh-CN', { timeZone:'Asia/Shanghai' })}</td>
+        <td>${new Date(r.updated_at).toLocaleString('zh-CN', { timeZone:'Asia/Shanghai' })}</td>
+        <td>${r.ip||''}</td>
         <td>${r.original||''}</td>
         <td>${r.translated_en||''}</td>
         <td>${r.mode||''}</td>
@@ -192,14 +193,15 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         <td>${r.cost||0}</td>
         <td><button class="btn" data-id="${r.id}">查看/编辑</button></td>
       </tr>
-    `).join('') || '<tr><td colspan="7">无匹配结果</td></tr>'
+    `).join('') || '<tr><td colspan="9">无匹配结果</td></tr>'
     recordsBody.querySelectorAll('button').forEach(btn=>{
       btn.onclick = ()=> openModal(btn.dataset.id)
     })
   }
+
   function renderPagination(page) {
     const total = allRecords.length
-    const pages = Math.ceil(total/pageSize)||1
+    const pages = Math.ceil(total/pageSize) || 1
     pagination.innerHTML = ''
     for(let i=1; i<=pages; i++){
       const li = document.createElement('li')
@@ -213,6 +215,9 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
   function openModal(id){
     activeRecord = allRecords.find(r=>r.id===id)
     modalBody.innerHTML = `
+      <p>创建时间：${new Date(activeRecord.created_at).toLocaleString('zh-CN', { timeZone:'Asia/Shanghai' })}</p>
+      <p>更新时间：${new Date(activeRecord.updated_at).toLocaleString('zh-CN', { timeZone:'Asia/Shanghai' })}</p>
+      <p>IP：${activeRecord.ip||''}</p>
       <label>原文：
         <textarea id="m_o" style="width:100%;height:4rem">${activeRecord.original||''}</textarea>
       </label>
