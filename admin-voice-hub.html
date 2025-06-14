@@ -6,254 +6,266 @@
   <title>🔑 管理后台 · 语音助手</title>
   <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
   <style>
-    /* —————— 原有样式（不变） —————— */
-    body { margin:0; padding:0; font-family:'Segoe UI',sans-serif; background:#f0f2f5; }
-    .container { max-width:960px; margin:1rem auto; padding:1rem; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
-    h1 { font-size:1.5rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem; }
-    .login-area { text-align:center; padding:2rem 0; }
-    .btn { padding:.6rem 1.2rem; border:none; border-radius:4px; cursor:pointer; }
-    .btn-primary { background:#24292e; color:#fff; }
-    .btn-danger  { background:#e53e3e; color:#fff; }
-    .toolbar { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-bottom:1rem; }
-    .search input { width:100%; padding:.5rem 1rem; border:1px solid #ccc; border-radius:4px; }
-    .table-wrapper { overflow-x:auto; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:.5rem; border:1px solid #ddd; text-align:left; }
-    th { background:#fafafa; }
-    .pagination { display:flex; list-style:none; padding:0; margin:1rem 0; }
-    .pagination li { margin:0 .25rem; }
-    .pagination button { padding:.4rem .8rem; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer; }
-    .pagination .active { background:#24292e; color:#fff; border-color:#24292e; }
-    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.3); display:none; justify-content:center; align-items:center; }
-    .modal { background:#fff; border-radius:8px; max-width:90%; width:500px; max-height:80%; overflow:auto; padding:1rem; position:relative; }
-    .modal-header { display:flex; justify-content:space-between; align-items:center; }
-    .modal-header h2 { margin:0; font-size:1.25rem; }
-    .modal-close { background:none; border:none; font-size:1.25rem; cursor:pointer; }
-    @media (max-width:600px) { th, td { font-size:.9rem; } }
+    /* —— 新版全局与布局 —— */
+    body { margin:0; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; background:#f0f2f5; }
+    .container { max-width:960px; margin:1rem auto; padding:1rem; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); } /* ← 保留 */
+    h1 { font-size:1.5rem; margin-bottom:1rem; } /* ← 保留 */
+
+    /* 顶部标题 */
+    header { display:flex; align-items:center; justify-content:space-between; padding:12px 0; }
+    header h1 { margin:0; font-size:1.5rem; }
+    /* 登录/退出 按钮容器保留原功能，若需可迁移到 header .actions */
+
+    /* —— 控件 区：搜索 + 登出 —— */
+    #controls { padding:16px; background:#fff; display:flex; gap:8px; flex-wrap:wrap; align-items:center; } /* ← 改动 */
+    #controls input, #controls button {
+      padding:6px 8px; border:1px solid #ccc; border-radius:4px;
+      font-size:1rem;
+    }
+
+    /* —— 表格 容器 —— */
+    .table-container { overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:16px; background:#fff; } /* ← 改动 */
+    #convTable { width:100%; border-collapse:collapse; min-width:800px; } /* ← 改动 */
+    #convTable th, #convTable td { padding:8px 12px; border:1px solid #ddd; text-align:left; } /* ← 改动 */
+    #convTable th { background:#fafafa; }
+    .empty { text-align:center; padding:24px; color:#888; }
+
+    /* —— 操作按钮 —— */
+    .btnPreview, .btnEdit, .btnDel {
+      margin-right:6px; padding:4px 8px; border:none; border-radius:4px; cursor:pointer;
+    }
+    .btnPreview { background:#1890ff; color:#fff; }
+    .btnEdit    { background:#52c41a; color:#fff; }
+    .btnDel     { background:#fa541c; color:#fff; }
+
+    /* —— 分页 —— */
+    #pager { margin:16px 0; display:flex; flex-wrap:wrap; gap:8px; }
+    #pager button {
+      padding:6px 12px; border:none; border-radius:4px; cursor:pointer;
+    }
+    #pager .active { background:#24292e; color:#fff; }
+
+    /* —— 弹窗 —— */
+    #detailModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:2000; }
+    #detailModal .modal-content {
+      position:relative; background:#fff; width:90%; max-width:600px; max-height:80%; overflow:auto; border-radius:8px; padding:16px;
+    }
+    #detailModal .close-btn {
+      position:absolute; top:12px; right:12px; font-size:20px; background:none; border:none; cursor:pointer;
+    }
+
+    /* —— 移动端卡片式 响应式 —— */
+    @media (max-width: 768px) {
+      html, body { overflow-x: hidden; }
+      #controls, #pager { justify-content: space-between; }
+      /* 隐藏表头，做卡片式布局 */
+      #convTable thead { display: none; }
+      #convTable, #convTable tbody, #convTable tr { display: block; width:100%; }
+      #convTable tr {
+        margin-bottom:1em; padding:0.5em; border:1px solid #ddd; border-radius:4px; background:#fff;
+      }
+      #convTable td {
+        display:flex; justify-content:space-between; padding:0.5em 0; border:none; border-bottom:1px solid #eee;
+      }
+      #convTable td:last-of-type { border-bottom:none; }
+      #convTable td::before {
+        content: attr(data-label); font-weight:600; margin-right:8px;
+      }
+      .table-container { padding:0 16px; box-sizing:border-box; }
+      #pager { justify-content:center; padding:0 16px; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🔑 管理后台 · 语音助手</h1>
+    <!-- 标题 -->
+    <header>
+      <h1>🔑 管理后台 · 语音助手</h1>
+      <!-- 可选：将登录/退出按钮放到这里 -->
+    </header>
 
-    <!-- 登录区 -->
-    <div id="loginArea" class="login-area" style="display:none">
-      <button id="loginBtn" class="btn btn-primary">使用 GitHub 登录</button>
+    <!-- 搜索 + 退出 -->
+    <div id="controls">
+      <input id="searchInput" placeholder="搜索原文或翻译…"/>               <!-- ← 保留原功能 -->
+      <button id="logoutBtn">退出登录</button>                         <!-- ← 保留原功能 -->
     </div>
 
-    <!-- 管理区 -->
-    <div id="adminArea" style="display:none">
-      <div class="toolbar">
-        <div class="search"><input id="searchInput" placeholder="搜索原文或翻译…"/></div>
-        <button id="logoutBtn" class="btn btn-danger">退出登录</button>
-      </div>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>创建时间</th>
-              <th>更新时间</th>
-              <th>IP</th>
-              <th>原文</th>
-              <th>翻译</th>
-              <th>模式</th>
-              <th>Tokens</th>
-              <th>Cost</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody id="recordsBody">
-            <!-- 加载中占位 -->
-            <tr><td colspan="9">加载中…</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <ul id="pagination" class="pagination"></ul>
+    <!-- 数据表格 -->
+    <div class="table-container">
+      <table id="convTable">
+        <thead>
+          <tr>
+            <th>创建时间</th><th>更新时间</th><th>IP</th>
+            <th>原文</th><th>翻译</th><th>模式</th><th>Tokens</th><th>Cost</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody">
+          <tr class="empty"><td colspan="9">加载中…</td></tr>           <!-- ← colspan 调整 -->
+        </tbody>
+      </table>
     </div>
+
+    <!-- 分页 -->
+    <div id="pager"></div>                                          <!-- ← 原 <ul> 替换 -->
+
   </div>
 
-  <!-- 编辑弹窗 -->
-  <div id="modalBackdrop" class="modal-backdrop">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>记录详情</h2>
-        <button id="modalClose" class="modal-close">×</button>
-      </div>
+  <!-- 弹窗 详情/编辑 -->
+  <div id="detailModal">
+    <div class="modal-content">
+      <button class="close-btn" id="modalClose">&times;</button>
       <div id="modalBody"></div>
       <div style="text-align:right; margin-top:1rem;">
-        <button id="modalSave" class="btn btn-primary">保存</button>
-        <button id="modalDelete" class="btn btn-danger">删除</button>
+        <button id="modalSave" class="btnEdit">保存</button>       <!-- 复用 .btnEdit -->
+        <button id="modalDelete" class="btnDel">删除</button>     <!-- 复用 .btnDel -->
       </div>
     </div>
   </div>
 
-<script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+  <script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-;(async()=>{
+  ;(async()=>{
 
-  // —— 1. 初始化 Supabase 客户端 ——
-  const SUPA_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co'
-  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'
-  const supa = createClient(SUPA_URL, ANON_KEY, {
-    auth: {
-      detectSessionInUrl: true,
-      persistSession:     true,
-    }
-  })
-
-  // —— 2. DOM 引用 ——
-  const loginArea     = document.getElementById('loginArea')
-  const loginBtn      = document.getElementById('loginBtn')
-  const adminArea     = document.getElementById('adminArea')
-  const logoutBtn     = document.getElementById('logoutBtn')
-  const searchIn      = document.getElementById('searchInput')
-  const recordsBody   = document.getElementById('recordsBody')
-  const pagination    = document.getElementById('pagination')
-  const modalBackdrop = document.getElementById('modalBackdrop')
-  const modalClose    = document.getElementById('modalClose')
-  const modalBody     = document.getElementById('modalBody')
-  const modalSave     = document.getElementById('modalSave')
-  const modalDelete   = document.getElementById('modalDelete')
-
-  let allRecords   = []
-  let currentPage  = 1
-  const pageSize   = 10
-  let activeRecord = null
-
-  // —— 3. 监听登录态 & 初始检查 ——
-  supa.auth.onAuthStateChange((_, session) => {
-    if (session) {
-      loginArea.style.display = 'none'
-      adminArea.style.display = 'block'
-      loadPage(1)
-    } else {
-      loginArea.style.display = 'block'
-      adminArea.style.display = 'none'
-    }
-  })
-  const { data:{ session } } = await supa.auth.getSession()
-  if (session) {
-    loginArea.style.display = 'none'
-    adminArea.style.display = 'block'
-    loadPage(1)
-  }
-
-  // —— 4. 登录 / 登出 ——
-  loginBtn.onclick = () => {
-    supa.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: window.location.origin + window.location.pathname }
+    // —— 1. 初始化 Supabase 客户端 ——（不变）
+    const SUPA_URL = 'https://wrgfrjwwtxyonbqxxnvp.supabase.co'
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg'
+    const supa = createClient(SUPA_URL, ANON_KEY, {
+      auth: { detectSessionInUrl:true, persistSession:true }
     })
-  }
-  logoutBtn.onclick = async () => {
-    await supa.auth.signOut()
-    location.reload()
-  }
 
-  // —— 5. 拉记录 ——（新增 updated_at 和 ip）
-  async function loadPage(page = 1) {
-    recordsBody.innerHTML = '<tr><td colspan="9">加载中…</td></tr>'
-    try {
-      const from = (page-1)*pageSize
-      const to   = page*pageSize - 1
-      const { data, error } = await supa
+    // —— 2. DOM 引用 ——（改动 ID/Class）
+    const loginBtn    = document.getElementById('loginBtn')    // 若需要 GitHub 登录
+    const logoutBtn   = document.getElementById('logoutBtn')
+    const searchIn    = document.getElementById('searchInput')
+    const recordsBody = document.getElementById('recordsBody')
+    const pager       = document.getElementById('pager')
+    const modal       = document.getElementById('detailModal')
+    const modalBody   = document.getElementById('modalBody')
+    const modalClose  = document.getElementById('modalClose')
+    const modalSave   = document.getElementById('modalSave')
+    const modalDelete = document.getElementById('modalDelete')
+
+    let allRecords  = [], currentPage = 1, pageSize = 10, activeRecord = null
+
+    // —— 3. 登录态监听 & 初始检查 ——（不变）
+    supa.auth.onAuthStateChange((_, session)=>{
+      if(session) loadPage(1)
+      else location.reload()
+    })
+    const { data:{ session } } = await supa.auth.getSession()
+    if(!session) supa.auth.signInWithOAuth({ provider:'github', options:{ redirectTo:window.location.href } })
+
+    logoutBtn.onclick = async()=>{
+      await supa.auth.signOut()
+      location.reload()
+    }
+
+    // —— 4. 拉记录 & 渲染 & 分页 ——（渲染加 data-label，分页改为按钮）
+    async function loadPage(page=1){
+      currentPage=page
+      recordsBody.innerHTML = '<tr class="empty"><td colspan="9">加载中…</td></tr>'
+      try {
+        const from = (page-1)*pageSize, to = page*pageSize-1
+        const { data, error } = await supa
+          .from('translations')
+          .select('id,created_at,updated_at,ip,original,translated_en,mode,tokens,cost')
+          .order('created_at',{ascending:false})
+          .range(from,to)
+        if(error) throw error
+        allRecords = data||[]
+        renderTable(allRecords)
+        renderPagination(page)
+      } catch(e){
+        recordsBody.innerHTML = `<tr class="empty"><td colspan="9">加载失败：${e.message}</td></tr>`
+      }
+    }
+
+    function renderTable(list){
+      const kw = searchIn.value.trim().toLowerCase()
+      const rows = list.filter(r=>
+        !kw ||
+        (r.original||'').toLowerCase().includes(kw) ||
+        (r.translated_en||'').toLowerCase().includes(kw)
+      )
+      if(!rows.length){
+        recordsBody.innerHTML = '<tr class="empty"><td colspan="9">无匹配结果</td></tr>'
+        return
+      }
+      recordsBody.innerHTML = rows.map(r=>`
+        <tr>
+          <td data-label="创建时间">${new Date(r.created_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}</td>
+          <td data-label="更新时间">${new Date(r.updated_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}</td>
+          <td data-label="IP">${r.ip||''}</td>
+          <td data-label="原文">${r.original||''}</td>
+          <td data-label="翻译">${r.translated_en||''}</td>
+          <td data-label="模式">${r.mode||''}</td>
+          <td data-label="Tokens">${r.tokens||0}</td>
+          <td data-label="Cost">${r.cost||0}</td>
+          <td data-label="操作">
+            <button class="btnPreview" data-id="${r.id}">查看</button>
+          </td>
+        </tr>
+      `).join('')
+      recordsBody.querySelectorAll('.btnPreview').forEach(btn=>{
+        btn.onclick = ()=> openModal(btn.dataset.id)
+      })
+    }
+
+    function renderPagination(page){
+      const total = allRecords.length
+      const pages = Math.ceil(total/pageSize)||1
+      pager.innerHTML = ''
+      for(let i=1; i<=pages; i++){
+        const b = document.createElement('button')
+        b.textContent = i
+        if(i===page) b.classList.add('active')
+        b.onclick = ()=> loadPage(i)
+        pager.appendChild(b)
+      }
+    }
+
+    searchIn.addEventListener('input', ()=> renderTable(allRecords))
+
+    // —— 5. 弹窗 查看/编辑/删除 ——（改动 ID/Class）
+    function openModal(id){
+      activeRecord = allRecords.find(r=>r.id===id)
+      modalBody.innerHTML = `
+        <h2>记录详情</h2>
+        <p><strong>创建时间：</strong>${new Date(activeRecord.created_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}</p>
+        <p><strong>更新时间：</strong>${new Date(activeRecord.updated_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}</p>
+        <p><strong>IP：</strong>${activeRecord.ip||''}</p>
+        <label>原文：<textarea id="m_o" style="width:100%;height:4rem">${activeRecord.original||''}</textarea></label>
+        <label>翻译：<textarea id="m_t" style="width:100%;height:4rem">${activeRecord.translated_en||''}</textarea></label>
+      `
+      modal.style.display = 'flex'
+    }
+    modalClose.onclick = ()=> modal.style.display='none'
+
+    modalSave.onclick = async()=>{
+      const o = document.getElementById('m_o').value
+      const t = document.getElementById('m_t').value
+      const { error } = await supa
         .from('translations')
-        .select('id,created_at,updated_at,ip,original,translated_en,mode,tokens,cost')
-        .order('created_at', { ascending:false })
-        .range(from, to)
-      if (error) throw error
-      allRecords = data || []
-      renderTable(allRecords)
-      renderPagination(page)
-    } catch(e) {
-      console.error('拉记录失败', e)
-      loginArea.style.display = 'block'
-      adminArea.style.display = 'none'
+        .update({ original:o, translated_en:t })
+        .eq('id',activeRecord.id)
+      if(error) alert('更新失败：'+error.message)
+      else { modal.style.display='none'; loadPage(currentPage) }
     }
-  }
-
-  // —— 6. 渲染 & 分页 & 编辑 ——
-  function renderTable(list) {
-    const kw = searchIn.value.trim().toLowerCase()
-    const rows = list.filter(r=>
-      !kw ||
-      (r.original||'').toLowerCase().includes(kw) ||
-      (r.translated_en||'').toLowerCase().includes(kw)
-    )
-    recordsBody.innerHTML = rows.map(r=>`
-      <tr>
-        <td>${new Date(r.created_at).toLocaleString('zh-CN', { timeZone:'Asia/Shanghai' })}</td>
-        <td>${new Date(r.updated_at).toLocaleString('zh-CN', { timeZone:'Asia/Shanghai' })}</td>
-        <td>${r.ip||''}</td>
-        <td>${r.original||''}</td>
-        <td>${r.translated_en||''}</td>
-        <td>${r.mode||''}</td>
-        <td>${r.tokens||0}</td>
-        <td>${r.cost||0}</td>
-        <td><button class="btn" data-id="${r.id}">查看/编辑</button></td>
-      </tr>
-    `).join('') || '<tr><td colspan="9">无匹配结果</td></tr>'
-    recordsBody.querySelectorAll('button').forEach(btn=>{
-      btn.onclick = ()=> openModal(btn.dataset.id)
-    })
-  }
-
-  function renderPagination(page) {
-    const total = allRecords.length
-    const pages = Math.ceil(total/pageSize) || 1
-    pagination.innerHTML = ''
-    for(let i=1; i<=pages; i++){
-      const li = document.createElement('li')
-      li.innerHTML = `<button${i===page?' class="active"':''}>${i}</button>`
-      li.firstChild.onclick = ()=> loadPage(i)
-      pagination.appendChild(li)
+    modalDelete.onclick = async()=>{
+      if(!confirm('确定要删除？')) return
+      const { error } = await supa
+        .from('translations')
+        .delete()
+        .eq('id',activeRecord.id)
+      if(error) alert('删除失败：'+error.message)
+      else { modal.style.display='none'; loadPage(currentPage) }
     }
-  }
-  searchIn.addEventListener('input', ()=> renderTable(allRecords))
 
-  function openModal(id){
-    activeRecord = allRecords.find(r=>r.id===id)
-    modalBody.innerHTML = `
-      <p>创建时间：${new Date(activeRecord.created_at).toLocaleString('zh-CN', { timeZone:'Asia/Shanghai' })}</p>
-      <p>更新时间：${new Date(activeRecord.updated_at).toLocaleString('zh-CN', { timeZone:'Asia/Shanghai' })}</p>
-      <p>IP：${activeRecord.ip||''}</p>
-      <label>原文：
-        <textarea id="m_o" style="width:100%;height:4rem">${activeRecord.original||''}</textarea>
-      </label>
-      <label>翻译：
-        <textarea id="m_t" style="width:100%;height:4rem">${activeRecord.translated_en||''}</textarea>
-      </label>`
-    modalBackdrop.style.display='flex'
-  }
-  modalClose.onclick = ()=> modalBackdrop.style.display='none'
-  modalSave.onclick = async ()=>{
-    const o = document.getElementById('m_o').value
-    const t = document.getElementById('m_t').value
-    const { error } = await supa
-      .from('translations')
-      .update({ original:o, translated_en:t })
-      .eq('id', activeRecord.id)
-    if (error) alert('更新失败：'+error.message)
-    else {
-      modalBackdrop.style.display='none'
-      loadPage(currentPage)
-    }
-  }
-  modalDelete.onclick = async ()=>{
-    const { error } = await supa
-      .from('translations')
-      .delete()
-      .eq('id', activeRecord.id)
-    if (error) alert('删除失败：'+error.message)
-    else {
-      modalBackdrop.style.display='none'
-      loadPage(currentPage)
-    }
-  }
+    // —— 6. 启动 —— 
+    loadPage(1)
 
-})()
-</script>
-
+  })()
+  </script>
 </body>
 </html>
