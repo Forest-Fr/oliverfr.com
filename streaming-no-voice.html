@@ -611,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(uploads.length) append('user','[图片]', uploads.map(u=>u.url));
   }
 
-  async function trySend(){
+   async function trySend(){
     if(!send.classList.contains('ready')) return;
     if(!checkAuthOrStop()) return;
     if(welcome){ welcome.remove(); }
@@ -624,22 +624,23 @@ document.addEventListener('DOMContentLoaded', () => {
       append('user','', uploads.map(u=>u.url));
     }
     txt.value=''; autoResize();
-
     uploads.forEach(u=>u.node.remove());
     uploads=[]; refreshState();
 
     const botNode = createBotBubble();
 
+    // ** 这里做了关键调整：body 字段改为 authCode + sessionId ** 
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({
-        code,
-        session_id: sessionId,
-        text,
+        authCode: code,            // 后端校验用
+        sessionId: sessionId,      // must match worker 里的 destructuring
+        text: text,
         images: uploads.map(u=>u.url)
       })
     });
+
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = '';
