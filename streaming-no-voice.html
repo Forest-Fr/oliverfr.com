@@ -199,154 +199,6 @@ textarea{
   font-size: .9rem;
   display: none;
 }
-/* ====== GPT Markdown 可视化支持 ====== */
-/* 1. 行内代码 */
-.msg.bot code {
-  background: #f5f5f5;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-family: Menlo, Consolas, monospace;
-  font-size: 0.95em;
-}
-
-/* 2. 代码块 */
-.msg.bot pre {
-  background: #1e1e1e;
-  color: #f8f8f2;
-  padding: 1em;
-  border-radius: 6px;
-  overflow-x: auto;
-  margin: 1em 0;
-}
-.msg.bot pre code {
-  background: none;
-  color: inherit;
-  padding: 0;
-  border-radius: 0;
-}
-
-/* 3. 引用块 */
-.msg.bot blockquote {
-  border-left: 4px solid #dfe2e5;
-  background: #f9f9f9;
-  padding: 0.5em 1em;
-  margin: 1em 0;
-  color: #555;
-}
-
-/* 4. 分割线 */
-.msg.bot hr {
-  border: none;
-  border-top: 1px solid #ddd;
-  margin: 1.5em 0;
-}
-
-/* 5. 表格 */
-.msg.bot table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1em 0;
-}
-.msg.bot th,
-.msg.bot td {
-  border: 1px solid #ccc;
-  padding: 0.6em;
-  text-align: left;
-}
-.msg.bot th {
-  background: #f3f4f6;
-}
-
-/* 6. 图片 */
-.msg.bot img {
-  max-width: 100%;
-  border-radius: 6px;
-  margin: 1em 0;
-}
-
-/* 7. 链接 */
-.msg.bot a {
-  color: #3b82f6;
-  text-decoration: none;
-}
-.msg.bot a:hover {
-  text-decoration: underline;
-}
-
-/* 8. 列表 & 嵌套列表 */
-.msg.bot ul,
-.msg.bot ol {
-  margin: 1em 0;
-  padding-left: 1.5em;
-}
-.msg.bot ul ul,
-.msg.bot ol ol,
-.msg.bot ul ol,
-.msg.bot ol ul {
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-}
-
-/* 9. 任务列表 (复选框) */
-.msg.bot input[type="checkbox"] {
-  margin-right: 0.5em;
-  vertical-align: middle;
-}
-.msg.bot li.task-list-item {
-  list-style: none;
-  display: flex;
-  align-items: flex-start;
-}
-.msg.bot li.task-list-item > input {
-  margin-top: 0.2em;
-}
-
-/* 10. 数学公式（LaTeX）——如果使用 KaTeX/MathJax，请自行载入库 */
-.msg.bot .math,
-.msg.bot .katex {
-  display: block;
-  margin: 1em 0;
-  text-align: center;
-}
-
-/* 11. Callout 提示框 */
-.msg.bot blockquote.callout {
-  border-left-color: #38a169;
-  background: #f0fff4;
-}
-.msg.bot blockquote.callout > p:first-child {
-  font-weight: bold;
-}
-
-/* —— End of GPT Markdown 可视化支持 —— */
-.msg { display: flex; flex-wrap: wrap; margin-bottom: .5rem; padding: .25rem .5rem; border-radius: 6px; }
-/**.msg.user { justify-content: flex-start; background: #e0f2ff; color: #1f2937; }**/
-.msg.bot, .msg._meta { justify-content: flex-end; background: #f0f0f0; color: #374151; }
-.msg > * {
-  word-break: break-word;
-}
-
-.msg.user > * {
-  max-width: 100%;
-}
-
-/*--.msg > * { max-width: 80%; word-break: break-word; }--**/
-#authModal {
-  position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0); z-index: 1000;
-}
-#authModal .box {
-  background: rgba(255,255,255,0.95); border-radius: 12px; padding: 24px 32px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15); text-align: center; min-width: 320px;
-}
-#authModal h2 { font-size: 1.5rem; margin-bottom: 1rem; }
-#authModal input { width: 100%; padding: .75rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 1rem; }
-#authModal button { width: 100%; padding: .75rem; font-size: 1rem; border: none; border-radius: 6px; background: #3b82f6; color: #fff; cursor: pointer; transition: background .2s; }
-#authModal button:disabled { background: #8fbefc; cursor: not-allowed; }
-#authErr { color: #d9534f; margin-top: .5rem; font-size: .9rem; display: none; }
-@media (max-width: 600px) {
-  #main { display: flex; flex-direction: column; max-height: calc(100vh - 2rem);}
-  #chat { flex: 1 1 auto; margin-bottom: 12px; min-height: 480px; max-height: 70vh; overflow-y: auto; -webkit-overflow-scrolling: touch;}
-}
 /* ———— GPT Markdown 可视化支持（全） ———— */
 /* 1. 行内代码 */
 .msg.bot code {
@@ -393,7 +245,7 @@ pre.qa-report code {
   word-break: break-word;
 }
 
-/* 4. 引用块 */
+/* 4. 引用块Callout 提示框 */
 .msg.bot blockquote {
   border-left: 4px solid #dfe2e5;
   background: #f9f9f9;
@@ -495,6 +347,37 @@ pre.qa-report code {
 }
 .msg._meta .copy-btn {
   display: none !important;
+}
+
+
+/* —— End of GPT Markdown 可视化支持 —— */
+.msg { display: flex; flex-wrap: wrap; margin-bottom: .5rem; padding: .25rem .5rem; border-radius: 6px; }
+/**.msg.user { justify-content: flex-start; background: #e0f2ff; color: #1f2937; }**/
+.msg.bot, .msg._meta { justify-content: flex-end; background: #f0f0f0; color: #374151; }
+.msg > * {
+  word-break: break-word;
+}
+
+.msg.user > * {
+  max-width: 100%;
+}
+
+/*--.msg > * { max-width: 80%; word-break: break-word; }--**/
+#authModal {
+  position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0); z-index: 1000;
+}
+#authModal .box {
+  background: rgba(255,255,255,0.95); border-radius: 12px; padding: 24px 32px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15); text-align: center; min-width: 320px;
+}
+#authModal h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+#authModal input { width: 100%; padding: .75rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 1rem; }
+#authModal button { width: 100%; padding: .75rem; font-size: 1rem; border: none; border-radius: 6px; background: #3b82f6; color: #fff; cursor: pointer; transition: background .2s; }
+#authModal button:disabled { background: #8fbefc; cursor: not-allowed; }
+#authErr { color: #d9534f; margin-top: .5rem; font-size: .9rem; display: none; }
+@media (max-width: 600px) {
+  #main { display: flex; flex-direction: column; max-height: calc(100vh - 2rem);}
+  #chat { flex: 1 1 auto; margin-bottom: 12px; min-height: 480px; max-height: 70vh; overflow-y: auto; -webkit-overflow-scrolling: touch;}
 }
 
 
