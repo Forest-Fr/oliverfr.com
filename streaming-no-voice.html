@@ -474,8 +474,10 @@ document.addEventListener('DOMContentLoaded', () => {
       code = "dev-bypass";
       authModal.style.display = 'none';
       unlockUI();
-      return;
-    }
+   // —— 在这里加上这一行 —— 
+    document.getElementById('mask').style.display = 'none';
+    return;
+  }
     const saved = localStorage.getItem('auth_code');
     if (saved) {
       isAuthorized = true;
