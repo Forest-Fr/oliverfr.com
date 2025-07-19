@@ -574,9 +574,24 @@ document.addEventListener('DOMContentLoaded', () => {
       return span;
     }
   }
-
+/* === 新增：Markdown 渲染函数（用 marked.js） === */
+  function renderBotContent(rawMarkdown, container) {
+    // 1. 先用 marked 转成 HTML
+    const html = marked.parse(rawMarkdown);
+    // 2. 匹配结尾的 QA‑Report JSON block，提取出来单独渲染
+    const qaMatch = rawMarkdown.match(/```json([\s\S]*?)```$/);
+    let qaDiv = '';
+    if (qaMatch) {
+      qaDiv = `<pre class="qa-report"><code>${qaMatch[1].trim()}</code></pre>`;
+      // 去掉 markdown 尾部的 report
+      container.innerHTML = html.replace(/```json[\s\S]*?```$/, '');
+    } else {
+      container.innerHTML = html;
+    }
+    if (qaDiv) container.insertAdjacentHTML('beforeend', qaDiv);
+  }
   /* ---------------- STREAM HELPERS ---------------- */
-  function createBotBubble(){
+ function createBotBubble(){
     const div = document.createElement('div');
     div.className = 'msg bot';
     chat.appendChild(div);
@@ -584,12 +599,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return div;
   }
   function updateLastBotBubble(text, node){
-    node.textContent = '';
-    const rendered = renderMessageText(text);
-    if(rendered) node.appendChild(rendered);
+    // 改为用 Markdown 渲染
+    renderBotContent(text, node);
     scrollChatBottom();
   }
-
   /* ---------------- SEND & STREAM ---------------- */
   let first = true;
   const MAX_BYTES = 128000;
@@ -611,7 +624,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if(uploads.length) append('user','[图片]', uploads.map(u=>u.url));
   }
 
-   async function trySend(){
+    /* === 新增：Clarify→Confirm→正式答复的状态机逻辑 === */
+  async function trySend(){
     if(!send.classList.contains('ready')) return;
     if(!checkAuthOrStop()) return;
     if(welcome){ welcome.remove(); }
@@ -628,27 +642,52 @@ document.addEventListener('DOMContentLoaded', () => {
     uploads=[]; refreshState();
 
     const botNode = createBotBubble();
-
-    // ** 这里做了关键调整：body 字段改为 authCode + sessionId ** 
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        authCode: code,            // 后端校验用
-        sessionId: sessionId,      // must match worker 里的 destructuring
-        text: text,
-        images: uploads.map(u=>u.url)
-      })
-    });
-
+ const payload = {
+ code,
+session_id: sessionId,
+text,
+images: uploads.map(u=>u.url),
+userRoles: window.USER_ROLES || [],            // 可由登录态注入
+industry: window.SELECTED_INDUSTRY || '',      // 可在页面加个下拉选择
+subIndustry: window.SELECTED_SUB_INDUSTRY || '',
+sessionState: {
+status: window.SESSION_STATE?.status || 'final_answer',
+lastClarifyQ: window.SESSION_STATE?.lastClarifyQ || '',
+clarifyTimes: window.SESSION_STATE?.clarifyTimes || 0,
+}
+};
+const res = await fetch(API_URL, {
+method: 'POST',
+ headers: { 'Content-Type':'application/json' },
+body: JSON.stringify(payload)
+ });
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = '';
+    let mode = 'clarify'; // 初始等待澄清
     while(true){
       const { done, value } = await reader.read();
       if(done) break;
       buf += dec.decode(value, { stream:true });
-      updateLastBotBubble(buf, botNode);
+
+      // 检测后端插入的澄清标记 "[CLARIFY]"
+      if(mode === 'clarify' && buf.includes('[CLARIFY]')) {
+        const [clarPart, rest] = buf.split('[CLARIFY]');
+        // 显示澄清文字（简易用 window.confirm，生产可用专门弹窗）
+        if (window.confirm(clarPart.trim())) {
+          // 用户确认，切换到正式回答阶段
+          mode = 'answer';
+          buf = rest;
+        } else {
+          // 若用户取消，再次触发澄清便直接进入回答
+          mode = 'answer';
+        }
+      }
+
+      // 在“answer”阶段或没有澄清需求时，持续渲染
+      if(mode === 'answer') {
+        updateLastBotBubble(buf, botNode);
+      }
     }
   }
 
