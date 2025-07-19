@@ -516,22 +516,8 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+<!-- 假设上面已正常引入 marked.min.js -->
 <script>
-
-/* ==============================
- * Mini‑GPT 前端增强版  (Part 2 / 3)
- * ==============================
- * 新增能力：
- * - NDJSON 流 (delta/clarify/done/error)
- * - Clarify 状态机 + Banner
- * - Abort 终止
- * - 增量缓冲 + requestAnimationFrame 合并
- * - 本地历史缓存
- * - SessionState 与 Worker 对齐
- * - 复制 / 回放 / 超长拆分显示
- * - 兼容原授权、图片上传、样式
- * ============================== */
-
 marked.setOptions({
   gfm: true,
   breaks: false,
@@ -541,15 +527,16 @@ marked.setOptions({
   allowDangerousHtml: true
 });
 
+/* =========================
+ * Part 1
+ * ========================= */
 document.addEventListener('DOMContentLoaded', () => {
 
-  /* ---------- 基础配置 ---------- */
   const BASE     = "https://streaming-tts.mefans.workers.dev";
   const API_URL  = BASE + "/admin-api/ws";
   const AUTH_URL = BASE + "/admin-api/validate-code";
-  const DEV_MODE = false; // 开发绕过授权
+  const DEV_MODE = ture;
 
-  /* ---------- DOM 引用 ---------- */
   const chat       = document.getElementById('chat');
   const txt        = document.getElementById('prompt');
   const sendBtn    = document.getElementById('send');
@@ -563,14 +550,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const lightbox   = document.getElementById('lightbox');
   const lightImg   = lightbox.querySelector('img');
   const clarifyBanner = document.getElementById('clarifyBanner');
-
-  // 授权弹窗
   const authModal  = document.getElementById('authModal');
   const authInput  = document.getElementById('authInput');
   const authBtn    = document.getElementById('authBtn');
   const authErr    = document.getElementById('authErr');
 
-  /* ---------- 会话 & 状态 ---------- */
   let sessionId = localStorage.getItem('session_id');
   if (!sessionId) {
     sessionId = crypto.randomUUID();
@@ -578,38 +562,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const HISTORY_KEY = `chat_history_${sessionId}`;
 
-  // 上传对象
-  let uploads = []; // {file,url,uploading,node}
-
-  // 运行时状态
+  let uploads = [];
   let isAuthorized   = false;
   let isStreaming    = false;
   let clarifyMode    = false;
-  let streamingNode  = null;  // 当前增量渲染 bot 节点
+  let streamingNode  = null;
   let abortCtrl      = null;
   let deltaBuffer    = '';
   let flushScheduled = false;
   let firstMessage   = true;
-
-  // 上一次完整答案内容（可用于复制或后续扩展）
   let lastFullAnswer = '';
 
-  // SessionState 与 Worker 对齐
   window.SESSION_STATE = {
-    status: 'final_answer',     // 'clarification' | 'final_answer'
+    status: 'final_answer',
     lastClarifyQ: '',
     clarifyTimes: 0
   };
-
-  // 角色 / 行业（示例，可由外部 UI 注入）
   window.USER_ROLES = window.USER_ROLES || [];
   window.SELECTED_INDUSTRY = window.SELECTED_INDUSTRY || '';
   window.SELECTED_SUB_INDUSTRY = window.SELECTED_SUB_INDUSTRY || '';
 
-  // 授权码
   let code = '';
 
-  /* ---------- 工具函数：历史 ---------- */
   function loadHistory() {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
@@ -624,7 +598,6 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('历史读取失败', e);
     }
   }
-
   function saveMessage(role, content, meta={}) {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
@@ -635,40 +608,32 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('历史写入失败', e);
     }
   }
-
   function replayMessage(m) {
     appendMessage(m.role, m.content, { noSave: true, meta: m.meta });
   }
 
-  /* ---------- 工具函数：滚动 ---------- */
   function chatAtBottom(pad=200){
     return chat.scrollHeight - chat.scrollTop - chat.clientHeight < pad;
   }
   function scrollToBottom(force=false){
-    if (force || chatAtBottom()) {
-      chat.scrollTop = chat.scrollHeight;
-    }
+    if (force || chatAtBottom()) chat.scrollTop = chat.scrollHeight;
   }
 
-  /* ---------- 文本区自适应 ---------- */
   function autoResize() {
     txt.style.height = '24px';
     txt.style.height = Math.min(txt.scrollHeight, 180) + 'px';
   }
 
-  /* ---------- 渲染 Markdown ---------- */
   function renderMarkdown(md) {
     if (!md) return '';
-    try {
-      return marked.parse(md);
-    } catch(e){
+    try { return marked.parse(md); }
+    catch(e){
       return md
-        .replace(/[&<>]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[s])) // fallback
+        .replace(/[&<>]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[s]))
         .replace(/\n/g,'<br>');
     }
   }
 
-  /* ---------- 创建/追加消息气泡 ---------- */
   function createMsgDiv(role, extraClass='') {
     const div = document.createElement('div');
     div.className = `msg ${role} ${extraClass}`.trim();
@@ -684,11 +649,9 @@ document.addEventListener('DOMContentLoaded', () => {
     clarify = false
   } = {}) {
     if (!text && !images.length) return;
-
     const extra = [];
     if (streaming) extra.push('streaming');
     if (clarify)  extra.push('clarify');
-
     const div = createMsgDiv(role, extra.join(' '));
 
     if (images.length) {
@@ -700,17 +663,13 @@ document.addEventListener('DOMContentLoaded', () => {
         im.loading = 'lazy';
         im.onclick = () => {
           lightImg.src = src;
-            lightbox.style.display = 'flex';
+          lightbox.style.display = 'flex';
         };
         pics.appendChild(im);
       });
       div.appendChild(pics);
     }
-
-    if (text) {
-      // Markdown 渲染
-      div.innerHTML += renderMarkdown(text);
-    }
+    if (text) div.innerHTML += renderMarkdown(text);
 
     if (role === 'bot' && !streaming && !clarify) {
       const copy = document.createElement('button');
@@ -724,13 +683,9 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       div.appendChild(copy);
     }
-
     if (role === 'user') {
-      // 用户消息右侧操作
       const acts = document.createElement('div');
       acts.className = 'actions';
-
-      // 复制
       const copyBtn = document.createElement('button');
       copyBtn.className='action-btn';
       copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
@@ -738,8 +693,6 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.clipboard.writeText(text);
         showCopyTip(div);
       };
-
-      // 编辑（回填）
       const editBtn = document.createElement('button');
       editBtn.className='action-btn';
       editBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77l-2.99-2.99a1.25 1.25 0 0 0-1.77 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
@@ -748,7 +701,6 @@ document.addEventListener('DOMContentLoaded', () => {
         autoResize();
         txt.focus();
       };
-
       acts.append(copyBtn, editBtn);
       div.appendChild(acts);
     }
@@ -756,7 +708,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!noSave && role !== 'stream-temp') {
       saveMessage(role, text, { images, meta, clarify });
     }
-
     scrollToBottom(true);
     return div;
   }
@@ -770,7 +721,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function stripMarkdown(md=''){
-    // 简单降级转换
     return md
       .replace(/```[\s\S]*?```/g,'')
       .replace(/`([^`]+)`/g,'$1')
@@ -780,7 +730,6 @@ document.addEventListener('DOMContentLoaded', () => {
       .trim();
   }
 
-  /* ---------- 授权流程 ---------- */
   function unlockUI(){
     txt.disabled = false;
     plusBtn.disabled = false;
@@ -819,7 +768,6 @@ document.addEventListener('DOMContentLoaded', () => {
     authBtn.disabled = !authInput.value.trim();
     authErr.style.display='none';
   });
-
   authBtn.addEventListener('click', async ()=>{
     authBtn.disabled = true;
     const val = authInput.value.trim();
@@ -842,16 +790,13 @@ document.addEventListener('DOMContentLoaded', () => {
       authBtn.disabled = false;
     }
   });
-
   function checkAuthOrWarn(){
     if (DEV_MODE || isAuthorized) return true;
     alert('请先输入授权码！');
     return false;
   }
 
-  /* ---------- 输入框与按钮状态 ---------- */
   function anyUploading(){ return uploads.some(u=>u.uploading); }
-
   function refreshSendState() {
     if (isStreaming && !clarifyMode) {
       sendBtn.className = 'icon-btn send loading';
@@ -868,13 +813,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ? '<div class="spinner"></div>'
       : '<svg viewBox="0 0 24 24"><path d="M3 20v-6l9-2-9-2V4l18 8z"/></svg>';
   }
-
   txt.addEventListener('input', () => {
     autoResize();
     refreshSendState();
   });
 
-  /* ---------- 布局遮罩自适应 ---------- */
   function refreshOverlay(){
     const h = composer.offsetHeight;
     mask.style.height = h + 'px';
@@ -883,31 +826,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   window.addEventListener('resize', refreshOverlay);
 
-  /* ---------- 滚动按钮 ---------- */
   function toggleArrow(){
     arrow.classList.toggle('show', !chatAtBottom());
   }
   chat.addEventListener('scroll', toggleArrow);
-  arrow.addEventListener('click', ()=> {
-    chat.scrollTop = chat.scrollHeight;
-  });
+  arrow.addEventListener('click', ()=> chat.scrollTop = chat.scrollHeight);
 
-  /* ---------- Lightbox ---------- */
   lightbox.addEventListener('click', ()=> lightbox.style.display='none');
   window.addEventListener('keyup', e=>{
     if (e.key === 'Escape') lightbox.style.display='none';
   });
 
-  /* ---------- 上传 (mock) ---------- */
   function mockUpload(file){
     return new Promise(res=>{
-      setTimeout(()=>{
-        // 真实环境可换成后端上传返回 URL
-        res(URL.createObjectURL(file));
-      }, 600 + Math.random()*400);
+      setTimeout(()=> res(URL.createObjectURL(file)), 600 + Math.random()*400);
     });
   }
-
   function handleFiles(list) {
     [...list].forEach(f=>{
       if(!f.type.startsWith('image/')) return;
@@ -924,16 +858,12 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshSendState();
       };
       mockUpload(f).then(u=>{
-        obj.url = u;
-        obj.uploading = false;
-        refreshSendState();
+        obj.url = u; obj.uploading = false; refreshSendState();
       });
     });
   }
-
   plusBtn.addEventListener('click', ()=> fileInput.click());
   fileInput.addEventListener('change', ()=> handleFiles(fileInput.files));
-
   document.addEventListener('paste', e=>{
     if (!e.clipboardData) return;
     for (const it of e.clipboardData.items) {
@@ -943,14 +873,10 @@ document.addEventListener('DOMContentLoaded', () => {
   ['dragover','drop'].forEach(evt=>{
     txt.addEventListener(evt, e=>{
       if (evt==='dragover') e.preventDefault();
-      if (evt==='drop') {
-        e.preventDefault();
-        handleFiles(e.dataTransfer.files);
-      }
+      if (evt==='drop') { e.preventDefault(); handleFiles(e.dataTransfer.files); }
     });
   });
 
-  /* ---------- Clarify 模式控制 ---------- */
   function enterClarify(question) {
     clarifyMode = true;
     window.SESSION_STATE.status = 'clarification';
@@ -961,7 +887,6 @@ document.addEventListener('DOMContentLoaded', () => {
     appendMessage('bot', question, { clarify:true });
     refreshSendState();
   }
-
   function exitClarify() {
     clarifyMode = false;
     clarifyBanner.style.display='none';
@@ -969,51 +894,36 @@ document.addEventListener('DOMContentLoaded', () => {
     window.SESSION_STATE.status = 'final_answer';
     refreshSendState();
   }
-
   function escapeHtml(str=''){
-    return str.replace(/[&<>"]/g,s=>({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'
-    }[s]));
+    return str.replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]));
   }
 
-  /* ---------- 增量渲染控制 ---------- */
   function startStreaming() {
     isStreaming = true;
     deltaBuffer = '';
     streamingNode = appendMessage('bot', '', { streaming:true });
     refreshSendState();
   }
-
-  function stopStreaming(final=false) {
+  function stopStreaming() {
     isStreaming = false;
     if (streamingNode) streamingNode.classList.remove('streaming');
     refreshSendState();
   }
-
   function scheduleFlush() {
     if (flushScheduled) return;
     flushScheduled = true;
-    requestAnimationFrame(()=>{
-      flushScheduled = false;
-      flushDelta();
-    });
+    requestAnimationFrame(()=>{ flushScheduled = false; flushDelta(); });
   }
-
   function flushDelta() {
-    if (!streamingNode) return;
-    if (!deltaBuffer) return;
+    if (!streamingNode || !deltaBuffer) return;
     streamingNode.innerHTML = renderMarkdown(deltaBuffer);
     scrollToBottom();
   }
-
   function appendDelta(text) {
     deltaBuffer += text;
     scheduleFlush();
   }
 
-  /* ---------- 发送入口（后半部分继续） ---------- */
-
-  // 初始 UI
   autoResize();
   refreshOverlay();
   refreshSendState();
@@ -1021,7 +931,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   loadHistory();
 
-  /* 暴露给 Part 3 使用的函数和变量（避免重复定义） */
   window._MGPT = {
     BASE, API_URL,
     sendBtn, txt,
@@ -1052,14 +961,11 @@ document.addEventListener('DOMContentLoaded', () => {
     lastFullAnswerRef: ()=>lastFullAnswer,
     setLastFullAnswer: v=>lastFullAnswer=v
   };
-
 });
 
-<script>
-/* ==============================
- * Mini‑GPT 前端增强版  (Part 3 / 3)
- * ============================== */
-
+/* =========================
+ * Part 3
+ * ========================= */
 document.addEventListener('DOMContentLoaded', () => {
   const {
     API_URL,
@@ -1081,7 +987,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const MAX_BYTES_DISPLAY = 128000;
 
-  /* ---------- 大输入拆分显示（仅界面） ---------- */
   function displayLargeUserInput(str, imgs){
     const enc = new TextEncoder();
     const bytes = enc.encode(str);
@@ -1096,12 +1001,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const chunk = new TextDecoder().decode(slice);
       appendMessage('user', `[第 ${++part} 部分]\n${chunk}`);
     }
-    if (imgs.length) {
-      appendMessage('user', '[图片]', { images: imgs });
-    }
+    if (imgs.length) appendMessage('user', '[图片]', { images: imgs });
   }
 
-  /* ---------- 构造 Payload ---------- */
   function buildPayload(inputText) {
     const imgs = getUploads().filter(u=>!u.uploading && u.url).map(u=>u.url);
     return {
@@ -1120,11 +1022,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  /* ---------- NDJSON 流读取 ---------- */
   async function streamRequest(payload) {
     const ctrl = new AbortController();
     setAbortCtrl(ctrl);
-
     let httpResp;
     try {
       httpResp = await fetch(API_URL, {
@@ -1138,7 +1038,6 @@ document.addEventListener('DOMContentLoaded', () => {
       stopStreaming();
       return;
     }
-
     if (!httpResp.ok || !httpResp.body) {
       appendMessage('bot', `⚠️ HTTP ${httpResp.status}`, {});
       stopStreaming();
@@ -1148,7 +1047,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const reader = httpResp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-
     startStreaming();
 
     while (true) {
@@ -1158,50 +1056,37 @@ document.addEventListener('DOMContentLoaded', () => {
         if (r.done) break;
         chunk = decoder.decode(r.value, { stream:true });
       } catch(e){
-        if (ctrl.signal.aborted) {
-          appendMessage('bot', '⚠️ 已取消。', {});
-        } else {
-          appendMessage('bot', '⚠️ 流中断。', {});
-        }
+        if (ctrl.signal.aborted) appendMessage('bot', '⚠️ 已取消。', {});
+        else appendMessage('bot', '⚠️ 流中断。', {});
         stopStreaming();
         return;
       }
       buffer += chunk;
-      // 按行解析
       let idx;
       while ((idx = buffer.indexOf('\n')) !== -1) {
         const line = buffer.slice(0, idx).trim();
         buffer = buffer.slice(idx + 1);
         if (!line) continue;
         let evt;
-        try {
-          evt = JSON.parse(line);
-        } catch {
-          console.warn('无法解析行', line);
-          continue;
-        }
+        try { evt = JSON.parse(line); }
+        catch { console.warn('无法解析行', line); continue; }
         handleEvent(evt);
       }
     }
-    // 流结束后如果还在 streaming 状态，手动 done
     if (window._MGPT.isStreamingRef && window._MGPT.isStreamingRef()) {
       flushDelta();
       finalizeAnswer();
     }
   }
 
-  /* ---------- 事件处理 ---------- */
   function handleEvent(evt) {
     const type = evt.event;
     switch (type) {
       case 'delta':
-        if (!window._MGPT.isStreamingRef()) {
-          startStreaming();
-        }
+        if (!window._MGPT.isStreamingRef()) startStreaming();
         appendDelta(evt.text || '');
         break;
       case 'clarify':
-        // 如果正在 streaming，先结束当前增量（一般 clarify 不会同时下发 delta）
         flushDelta();
         stopStreaming();
         if (evt.text) enterClarify(evt.text);
@@ -1220,24 +1105,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /* ---------- 完成最终答案 ---------- */
   function finalizeAnswer(fullFromEvt='') {
     stopStreaming();
     let finalText;
-    if (fullFromEvt) {
-      finalText = fullFromEvt;
-    } else {
-      // 如果 Worker 只发 delta+done 没 full，将已经积累的 deltaBuffer 作为最终
+    if (fullFromEvt) finalText = fullFromEvt;
+    else {
       const streamingNode = window._MGPT.streamingNodeRef();
       if (streamingNode) {
-        finalText = streamingNode.textContent ? streamingNode.textContent : streamingNode.innerText;
-        // 更稳：用 deltaBuffer 但这里 deltaBuffer 在外层不可见 => 直接读取 innerHTML->再转 markdown 纯文本可不处理
-        finalText = streamingNode.innerHTML; // 仍保留 HTML
-      } else {
-        finalText = '(空回答)';
-      }
+        finalText = streamingNode.innerHTML || '(空回答)';
+      } else finalText='(空回答)';
     }
-    // 替换 streaming node 为最终渲染（已 flush）
     const node = window._MGPT.streamingNodeRef && window._MGPT.streamingNodeRef();
     if (node) {
       node.classList.remove('streaming');
@@ -1247,37 +1124,26 @@ document.addEventListener('DOMContentLoaded', () => {
     setLastFullAnswer(fullFromEvt || finalText);
   }
 
-  function renderMarkdownForFinal(md) {
-    return marked.parse(md || '');
-  }
-
+  function renderMarkdownForFinal(md) { return marked.parse(md || ''); }
   function addCopyButton(node, rawText) {
-    const already = node.querySelector('.copy-btn');
-    if (already) return;
+    if (node.querySelector('.copy-btn')) return;
     const btn = document.createElement('button');
-    btn.className = 'copy-btn';
-    btn.textContent = '⧉';
-    btn.title = '复制';
+    btn.className = 'copy-btn'; btn.textContent = '⧉'; btn.title='复制';
     btn.onclick = ()=>{
       navigator.clipboard.writeText(rawText);
-      btn.textContent='✔';
-      setTimeout(()=>btn.textContent='⧉',1300);
+      btn.textContent='✔'; setTimeout(()=>btn.textContent='⧉',1300);
     };
     node.appendChild(btn);
   }
 
-  /* ---------- 取消 ---------- */
   function abortStreaming() {
     const ctrl = getAbortCtrl();
-    if (ctrl) {
-      ctrl.abort();
-    }
+    if (ctrl) ctrl.abort();
   }
 
-  /* ---------- 发送流程 ---------- */
   async function trySend() {
     if (!checkAuthOrWarn()) return;
-    if (anyUploading()) return; // 等待上传完成
+    if (anyUploading()) return;
     const inputText = txt.value.trim();
     const images = uploadsReadyURLs();
     if (!inputText && !images.length) return;
@@ -1288,50 +1154,29 @@ document.addEventListener('DOMContentLoaded', () => {
       const welcome = document.getElementById('welcome');
       if (welcome) welcome.remove();
     }
-
-    // 如果是 clarify 模式，此次发送视为澄清补充 -> 发送后退出 clarify，期待 Worker 返回正式回答
     if (SESSION_STATE.status === 'clarification') {
-      // 这里直接保持 status=clarification 发给后端，后端可根据逻辑进入 final
-      // 也可以选择先改成 final_answer 取决于 Worker 设计；假设 Worker 会判断
+      // 由后端判断进入 final
     }
-
-    // 先以用户消息展示（界面拆分显示）
     displayLargeUserInput(inputText, images);
-
-    // 清空输入 & 上传预览
-    txt.value = '';
-    autoResize();
-    clearUploads();
-
+    txt.value=''; autoResize(); clearUploads();
     refreshSendState();
 
-    // 开始请求
     const payload = buildPayload(inputText);
     streamRequest(payload);
   }
 
-  /* ---------- 上传完成的 URL ---------- */
   function uploadsReadyURLs() {
-    return getUploads()
-      .filter(u=>!u.uploading && u.url)
-      .map(u=>u.url);
+    return getUploads().filter(u=>!u.uploading && u.url).map(u=>u.url);
   }
-
   function clearUploads() {
-    getUploads().forEach(u => u.node && u.node.remove());
+    getUploads().forEach(u=>u.node && u.node.remove());
     setUploads([]);
   }
 
-  /* ---------- 键盘 & 按钮事件 ---------- */
   sendBtn.addEventListener('click', ()=>{
-    if (window._MGPT.isStreamingRef() && !window._MGPT.clarifyModeRef()) {
-      // 处于流式回答中 -> 终止
-      abortStreaming();
-    } else {
-      trySend();
-    }
+    if (window._MGPT.isStreamingRef() && !window._MGPT.clarifyModeRef()) abortStreaming();
+    else trySend();
   });
-
   txt.addEventListener('keydown', e=>{
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1339,38 +1184,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  /* ---------- Send 按钮动态文本 ---------- */
-  const origObserver = new MutationObserver(()=>{});
   function updateSendButtonLabel() {
-    if (window._MGPT.isStreamingRef() && !window._MGPT.clarifyModeRef()) {
-      sendBtn.title = '终止本次回答';
-    } else if (window._MGPT.clarifyModeRef()) {
-      sendBtn.title = '发送澄清补充';
-    } else {
-      sendBtn.title = '发送';
-    }
+    if (window._MGPT.isStreamingRef() && !window._MGPT.clarifyModeRef()) sendBtn.title='终止本次回答';
+    else if (window._MGPT.clarifyModeRef()) sendBtn.title='发送澄清补充';
+    else sendBtn.title='发送';
   }
-  setInterval(updateSendButtonLabel, 400); // 简单轮询防止多处状态变更错漏
+  setInterval(updateSendButtonLabel, 400);
 
-  /* ---------- 安全：页面关闭提示（可选） ---------- */
   window.addEventListener('beforeunload', e=>{
-    if (window._MGPT.isStreamingRef()) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
+    if (window._MGPT.isStreamingRef()) { e.preventDefault(); e.returnValue=''; }
   });
 
-  /* ---------- 辅助：快速粘贴 / demo (可选) ---------- */
-  window.demoAsk = (q)=> {
-    txt.value = q;
-    autoResize();
-    refreshSendState();
-    trySend();
+  window.demoAsk = (q)=>{
+    txt.value=q; autoResize(); refreshSendState(); trySend();
   };
-
-  /* ---------- END Part 3 ---------- */
 });
 </script>
+
 
 </body>
 </html>
