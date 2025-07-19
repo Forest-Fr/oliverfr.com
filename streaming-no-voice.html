@@ -367,6 +367,10 @@ textarea {
   z-index: 1000;
 }
 #authModal .box {
+    position: absolute;
+  top: 60px;                /* ✅ 关键：距离顶部190px */
+  left: 50%;
+  transform: translateX(-50%);
   background: rgba(255,255,255,0.95);
   border-radius: 12px;
   padding: 24px 32px;
@@ -1176,6 +1180,132 @@ document.addEventListener('DOMContentLoaded', () => {
     txt.value=q; autoResize(); refreshSendState(); trySend();
   };
 });
+
+  /* ========= Chat DOM helpers (若已有可复用你的) ========= */
+const msgContainer = document.getElementById('messages');
+
+function appendUserMessage(text) {
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.textContent = text;
+  msgContainer.appendChild(div);
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+let currentAssistantDiv = null;
+function ensureAssistantDiv() {
+  if (!currentAssistantDiv) {
+    currentAssistantDiv = document.createElement('div');
+    currentAssistantDiv.className = 'msg assistant streaming';
+    currentAssistantDiv.innerHTML = ''; // 可加占位符
+    msgContainer.appendChild(currentAssistantDiv);
+  }
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+function appendDelta(chunk) {
+  ensureAssistantDiv();
+  currentAssistantDiv.innerHTML += chunk
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/\n/g,'<br>');
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+function finalize(full) {
+  if (!currentAssistantDiv) return;
+  currentAssistantDiv.classList.remove('streaming');
+  // 如果你想把 markdown 再渲染，可在此调用你的 markdown 渲染器
+  currentAssistantDiv = null;
+}
+
+function appendError(text) {
+  const div = document.createElement('div');
+  div.className = 'msg error';
+  div.textContent = '⚠️ ' + text;
+  msgContainer.appendChild(div);
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+  currentAssistantDiv = null;
+}
+
+/* ========= 新版 sendMessage ========= */
+async function sendMessage(text, opts = {}) {
+  if (!text && !opts.images?.length) {
+    appendError('请输入内容');
+    return;
+  }
+  appendUserMessage(text);
+
+  // 清理可能残留的 assistant streaming 块
+  currentAssistantDiv = null;
+  ensureAssistantDiv();
+
+  try {
+    const payload = {
+      code: localStorage.getItem('code') || 'demo-key',
+      text,
+      images: opts.images || [],
+      userRoles: opts.userRoles || [],
+      industry: opts.industry || '',
+      sessionState: opts.sessionState || {}
+    };
+
+    const resp = await fetch('/admin-api/ws', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok || !resp.body) {
+      appendError(`HTTP ${resp.status}`);
+      return;
+    }
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += dec.decode(value, { stream:true });
+
+      let idx;
+      while ((idx = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, idx).trim();
+        buffer = buffer.slice(idx + 1);
+        if (!line) continue;
+        let evt;
+        try { evt = JSON.parse(line); } catch {
+          console.warn('无法解析行:', line);
+          continue;
+        }
+        if (evt.event === 'delta') {
+          appendDelta(evt.text);
+        } else if (evt.event === 'done') {
+          finalize(evt.full);
+        } else if (evt.event === 'error') {
+          appendError(evt.text);
+        }
+      }
+    }
+
+  } catch (e) {
+    appendError(e.message || String(e));
+  }
+}
+
+/* ========= 表单事件绑定（放在脚本末尾或 DOMContentLoaded 内） ========= */
+const form = document.getElementById('chat-form');
+const inputBox = document.getElementById('inputBox');
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const text = inputBox.value.trim();
+  if (!text) return;
+  sendMessage(text);
+  inputBox.value = '';
+});
+
 </script>
 
 
