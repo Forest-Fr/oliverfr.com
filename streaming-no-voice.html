@@ -791,7 +791,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // 2. 直接把解析后的 HTML 写入容器
       container.innerHTML = html;
     }
-  /* ---------------- STREAM HELPERS ---------------- */
 /* ---------------- STREAM HELPERS ---------------- */
 function createBotBubble() {
   const div = document.createElement('div');
@@ -814,6 +813,7 @@ function updateLastBotBubble(rawMarkdown, container) {
   // 3. 滚动到底部
   chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
 }
+
 
   /* ---------------- SEND & STREAM ---------------- */
   let first = true;
