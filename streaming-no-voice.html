@@ -616,7 +616,15 @@ pre.qa-report code {
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <script>
-
+  // —— marked 全局配置 ——  
+  marked.setOptions({
+    // 开启 GitHub 风格的扩展语法
+    gfm: true,
+    // 不要自动转义原生 HTML
+    sanitize: false,
+    // 允许输出危险 HTML（代码块里的 <meta>、<html> 等都不转义）
+    allowDangerousHtml: true
+  });
 document.addEventListener('DOMContentLoaded', () => {
   /* ---------------- DOM & CONFIG ---------------- */
   const BASE     = "https://streaming-tts.mefans.workers.dev/";
@@ -772,35 +780,41 @@ document.addEventListener('DOMContentLoaded', () => {
       return span;
     }
   }
-/* === 新增：Markdown 渲染函数（用 marked.js） === */
-  function renderBotContent(rawMarkdown, container) {
-    // 1. 先用 marked 转成 HTML
-    const html = marked.parse(rawMarkdown);
-    // 2. 匹配结尾的 QA‑Report JSON block，提取出来单独渲染
-    const qaMatch = rawMarkdown.match(/```json([\s\S]*?)```$/);
-    let qaDiv = '';
-    if (qaMatch) {
-      qaDiv = `<pre class="qa-report"><code>${qaMatch[1].trim()}</code></pre>`;
-      // 去掉 markdown 尾部的 report
-      container.innerHTML = html.replace(/```json[\s\S]*?```$/, '');
-    } else {
+    /* ---------------- 核心：Markdown 渲染函数 ---------------- */
+    function createBotBubble(rawMarkdown, container) {
+      // 1. 用 marked 解析 Markdown，同时保留原生 HTML
+      const html = marked.parse(rawMarkdown, {
+        gfm: true,
+        sanitize: false,
+        allowDangerousHtml: true
+      });
+      // 2. 直接把解析后的 HTML 写入容器
       container.innerHTML = html;
     }
-    if (qaDiv) container.insertAdjacentHTML('beforeend', qaDiv);
-  }
   /* ---------------- STREAM HELPERS ---------------- */
- function createBotBubble(){
-    const div = document.createElement('div');
-    div.className = 'msg bot';
-    chat.appendChild(div);
-    scrollChatBottom();
-    return div;
-  }
-  function updateLastBotBubble(text, node){
-    // 改为用 Markdown 渲染
-    renderBotContent(text, node);
-    scrollChatBottom();
-  }
+/* ---------------- STREAM HELPERS ---------------- */
+function createBotBubble() {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  chat.appendChild(div);
+  // 保证新消息可见
+  chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+  return div;
+}
+
+function updateLastBotBubble(rawMarkdown, container) {
+  // 1. 用 marked 解析 Markdown，同时保留原生 HTML
+  const html = marked.parse(rawMarkdown, {
+    gfm: true,
+    sanitize: false,
+    allowDangerousHtml: true
+  });
+  // 2. 把解析后的 HTML 写入到消息容器中
+  container.innerHTML = html;
+  // 3. 滚动到底部
+  chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+}
+
   /* ---------------- SEND & STREAM ---------------- */
   let first = true;
   const MAX_BYTES = 128000;
