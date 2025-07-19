@@ -26,17 +26,12 @@ html, body {
 body { padding: 40px var(--side-gap) 220px; }
 
 /* 开场提示 */
-#welcome {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 48px;
-  font-weight: 600;
-  line-height: 1.2;
-  z-index: 3000;
-  pointer-events: none;
-  text-align: center;
-  max-width: 90%;
+/* 欢迎语固定底部（动态 JS 调整 bottom） */
+#welcome{
+  position:fixed;left:50%;transform:translateX(-50%);
+  font-size:36px;font-weight:600;line-height:1.2;
+  z-index:3000;pointer-events:none;text-align:center;
+  max-width:90%;bottom:420px; /* 初始兜底 */
 }
 
 /* 聊天区 */
@@ -960,6 +955,11 @@ document.addEventListener('DOMContentLoaded', () => {
     HISTORY_KEY,
     lastFullAnswerRef: ()=>lastFullAnswer,
     setLastFullAnswer: v=>lastFullAnswer=v
+    autoResize,
+    refreshOverlay,
+    stripMarkdown,
+    scheduleFlush,          // 若后面需要直接调用
+     renderMarkdown          // （可选）
   };
 });
 
@@ -983,6 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
     codeRef, sessionId,
     firstMessageRef, setFirstMessage,
     lastFullAnswerRef, setLastFullAnswer
+     autoResize
   } = window._MGPT;
 
   const MAX_BYTES_DISPLAY = 128000;
@@ -1033,6 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(payload),
         signal: ctrl.signal
       });
+      console.log('<< /admin-api/ws status', httpResp.status);
     } catch(e) {
       appendMessage('bot', `⚠️ 网络错误：${e.message||e}`, {});
       stopStreaming();
@@ -1138,7 +1140,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function abortStreaming() {
     const ctrl = getAbortCtrl();
-    if (ctrl) ctrl.abort();
+     if (ctrl) {
+      ctrl.abort();
+        stopStreaming(); appendMessage('bot','⏹ 已手动停止。');
+       }
   }
 
   async function trySend() {
@@ -1158,11 +1163,15 @@ document.addEventListener('DOMContentLoaded', () => {
       // 由后端判断进入 final
     }
     displayLargeUserInput(inputText, images);
-    txt.value=''; autoResize(); clearUploads();
+    txt.value=''; autoResize && autoResize();clearUploads();
     refreshSendState();
 
     const payload = buildPayload(inputText);
+    console.log('>> /admin-api/ws payload', payload);
     streamRequest(payload);
+     } catch (err) { console.error('trySend error before fetch:', err); appendMessage('bot', `⚠️ 前端发送阶段错误：${err.message||err}`);
+    }
+  
   }
 
   function uploadsReadyURLs() {
