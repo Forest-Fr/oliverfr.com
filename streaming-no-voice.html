@@ -521,7 +521,7 @@ if (window._MGPT && window._MGPT.__VERSION__) {
   console.warn('[INIT] 已存在 _MGPT 版本', window._MGPT.__VERSION__, '终止再次初始化。');
 } else {
 
-const FRONTEND_VERSION = 'fe-stream-20250720-merged-02';
+const FRONTEND_VERSION = 'fe-stream-20250720-merged-02+patch-set-01';
 
 /* ================== Marked 配置 ================== */
 marked.setOptions({
@@ -544,6 +544,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const AUTH_URL    = BASE + "/admin-api/validate-code";
   const DEV_MODE    = false;
   const DEBUG       = true;
+  // [PATCH-6] 认证头策略（避免 CORS）：'authorization' | 'custom' | 'none'
+  const AUTH_HEADER_MODE = 'authorization';
   /**
    * USE_SSE:
    *  false => 强制 NDJSON
@@ -594,6 +596,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let gotStart         = false;
   let gotDone          = false;
   let sseAvailable     = null;
+  // [PATCH-3] 当前流 token
+  let CURRENT_STREAM_TOKEN = '';
 
   window.SESSION_STATE = window.SESSION_STATE || {
     status: 'final_answer',
@@ -685,8 +689,8 @@ document.addEventListener('DOMContentLoaded', () => {
         im.loading = 'lazy';
         im.onclick = () => {
           if (!lightbox) return;
-          lightImg.src = src;
-          lightbox.style.display = 'flex';
+            lightImg.src = src;
+            lightbox.style.display = 'flex';
         };
         pics.appendChild(im);
       });
@@ -878,7 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('paste', e=>{
     if (!e.clipboardData) return;
     for (const it of e.clipboardData.items) {
-      if (it.type.startsWith('image/')) handleFiles([it.getAsFile()]);
+      if (it.type.startsWith('image/')) handleFiles([it.getAsFile() ]);
     }
   });
   ;['dragover','drop'].forEach(evt=>{
@@ -901,6 +905,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     appendMessage('bot', question, { clarify:true });
     refreshSendState();
+    updateSendButtonLabel(); // [PATCH-5]
   }
   function exitClarify() {
     clarifyMode = false;
@@ -910,12 +915,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window.SESSION_STATE.status = 'final_answer';
     refreshSendState();
+    updateSendButtonLabel(); // [PATCH-5]
   }
   function escapeHtml(str=''){
     return str.replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]));
   }
 
   /* ================== Streaming 渲染 ================== */
+  function safeRemoveStreamingClass(node){
+    try { node?.classList?.remove?.('streaming'); } catch(e){
+      DEBUG && console.warn('[safeRemoveStreamingClass]', e);
+    }
+  }
   function startStreaming() {
     if (isStreaming) return;
     DEBUG && console.log('[STREAM] startStreaming');
@@ -925,17 +936,14 @@ document.addEventListener('DOMContentLoaded', () => {
     gotStart = false;
     gotDone = false;
     streamingNode = appendMessage('bot', '', { streaming:true });
+    if (streamingNode) streamingNode.dataset.streamToken = CURRENT_STREAM_TOKEN; // [PATCH-3]
     refreshSendState();
   }
-function stopStreaming() {
-  isStreaming = false;
-  try {
-    streamingNode?.classList?.remove?.('streaming');
-  } catch (e) {
-    console.warn('[stopStreaming] 无法移除 streaming class：', e);
+  function stopStreaming() {
+    isStreaming = false;
+    safeRemoveStreamingClass(streamingNode); // [PATCH-1]
+    refreshSendState();
   }
-  refreshSendState();
-}
 
   function scheduleFlush() {
     if (flushScheduled) return;
@@ -1042,6 +1050,13 @@ function stopStreaming() {
   /* ================== 流请求 ================== */
   const MAX_BYTES_DISPLAY = 128000;
 
+  // [PATCH-2] 安全 JSON 解析
+  function safeJSON(str){
+    if (!str) return null;
+    try { return JSON.parse(str.replace(/^\uFEFF/,'')); }
+    catch(e){ DEBUG && console.warn('[safeJSON:fail]', str.slice(0,160)); return null; }
+  }
+
   function displayLargeUserInput(str, imgs){
     const enc = new TextEncoder();
     const bytes = enc.encode(str);
@@ -1070,13 +1085,24 @@ function stopStreaming() {
     const ctrl = new AbortController();
     abortCtrl = ctrl;
     let httpResp;
+
+    let finalURL = API_URL + (DEBUG? '?debug=1':''); // [PATCH-6]
+    if (code && AUTH_HEADER_MODE === 'none') {
+      finalURL += (finalURL.includes('?')?'&':'?') + 'code=' + encodeURIComponent(code);
+    }
+
     try {
-      httpResp = await fetch(API_URL + (DEBUG? '?debug=1':''), {
+      httpResp = await fetch(finalURL, {
         method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          ...(requestSSE ? { 'Accept':'text/event-stream' } : {})
-        },
+        headers:(()=>{           // [PATCH-6]
+          const h = { 'Content-Type':'application/json' };
+          if (requestSSE) h['Accept']='text/event-stream';
+          if (code) {
+            if (AUTH_HEADER_MODE === 'authorization') h['Authorization']='Bearer '+code;
+            else if (AUTH_HEADER_MODE === 'custom') h['x-auth-code']=code;
+          }
+          return h;
+        })(),
         body: JSON.stringify(payload),
         signal: ctrl.signal
       });
@@ -1109,27 +1135,24 @@ function stopStreaming() {
         DEBUG && console.log('[RAW_CHUNK_APPEND]', value.byteLength, 'accLen=', buffer.length);
 
         if (isSSE) {
-          // SSE 按 \n\n 分块
           let idx;
-          while ((idx = buffer.indexOf('\n\n')) !== -1) {
-            const block = buffer.slice(0, idx).trim();
-            buffer = buffer.slice(idx + 2);
-            if (!block) continue;
+            while ((idx = buffer.indexOf('\n\n')) !== -1) {
+              const block = buffer.slice(0, idx).trim();
+              buffer = buffer.slice(idx + 2);
+              if (!block) continue;
 
-            let eventName='message', dataStr='';
-            block.split('\n').forEach(line=>{
-              if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/,'').trim();
-              else if (line.startsWith('data:')) dataStr += line.replace(/^data:\s*/,'');
-            });
-            if (!dataStr) continue;
-            let obj;
-            try { obj = JSON.parse(dataStr.replace(/^\uFEFF/,'')); }
-            catch(e){ DEBUG && console.warn('[SSE_PARSE_FAIL]', e, dataStr); continue; }
-            DEBUG && console.log('[SSE_EVT]', eventName, obj);
-            handleEvent(obj, eventName);
-          }
+              let eventName='message', dataStr='';
+              block.split('\n').forEach(line=>{
+                if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/,'').trim();
+                else if (line.startsWith('data:')) dataStr += line.replace(/^data:\s*/, '');
+              });
+              if (!dataStr) continue;
+              let obj = safeJSON(dataStr);          // [PATCH-2]
+              if(!obj) continue;
+              DEBUG && console.log('[SSE_EVT]', eventName, obj);
+              handleEvent(obj, eventName);
+            }
         } else {
-          // NDJSON 按行
           let nl;
           while ((nl = buffer.indexOf('\n')) !== -1) {
             const rawLine = buffer.slice(0, nl);
@@ -1137,26 +1160,23 @@ function stopStreaming() {
             const line = rawLine.trim();
             if (!line) { DEBUG && console.log('[LINE_SKIP_EMPTY]'); continue; }
             DEBUG && console.log('[LINE_RAW]', rawLine);
-            let obj;
-            try { obj = JSON.parse(line.replace(/^\uFEFF/,'')); }
-            catch(e){ DEBUG && console.warn('[PARSE_FAIL]', e, line.slice(0,120)); continue; }
+            let obj = safeJSON(line);              // [PATCH-2]
+            if(!obj) continue;
             DEBUG && console.log('[LINE_EVT]', obj.event, obj);
             handleEvent(obj, obj.event);
           }
         }
       }
 
-      // ===== 尾部兜底 =====
+      // 尾部兜底
       if (isStreaming && !gotDone) {
         const tail = buffer.trim();
         if (tail) {
           DEBUG && console.warn('[TAIL_LEFT]', tail.slice(0,160));
           try {
-            let tailObj = (isSSE) ? JSON.parse(tail.replace(/^\uFEFF/,'')) : null;
-            if (!tailObj && !isSSE) {
-              // NDJSON 情况，尾部剩下一行
-              tailObj = JSON.parse(tail.replace(/^\uFEFF/,''));
-            }
+            let tailObj = null;
+            if (isSSE) tailObj = safeJSON(tail);   // [PATCH-2]
+            else tailObj = safeJSON(tail);
             if (tailObj && !tailObj.event) {
               if (tailObj.full) tailObj.event='done';
               else if (tailObj.text) tailObj.event='delta';
@@ -1168,7 +1188,7 @@ function stopStreaming() {
           }
         }
         if (!gotStart) {
-          DEBUG && console.warn('[WARN] 未收到 start 事件，可能 Worker 未写入 / 缓存旧版本');
+          DEBUG && console.warn('[WARN] 未收到 start 事件');
         }
         flushDelta();
         finalizeAnswer(rawAnswerBuffer || deltaBuffer || '(无输出)');
@@ -1178,6 +1198,12 @@ function stopStreaming() {
       if (ctrl.signal.aborted) appendMessage('bot','⚠️ 已取消。');
       else appendMessage('bot','⚠️ 流中断：' + e.message);
     } finally {
+      // [PATCH-4] 兜底 finalize
+      if (isStreaming && !gotDone) {
+        DEBUG && console.warn('[FALLBACK_FINALIZE]');
+        flushDelta();
+        finalizeAnswer(rawAnswerBuffer || deltaBuffer);
+      }
       stopStreaming();
     }
   }
@@ -1185,6 +1211,11 @@ function stopStreaming() {
   /* ================== 事件处理 ================== */
   function handleEvent(evt, eventName){
     const type = eventName || evt.event;
+    // [PATCH-3] 过期流丢弃
+    if (streamingNode && streamingNode.dataset.streamToken !== CURRENT_STREAM_TOKEN) {
+      DEBUG && console.log('[SKIP_OLD_STREAM_EVENT]', type);
+      return;
+    }
     DEBUG && console.debug('[EVT]', type, evt);
 
     switch (type) {
@@ -1239,13 +1270,18 @@ function stopStreaming() {
   }
 
   function finalizeAnswer(full='', usage){
+    // [PATCH-3] finalize 校验
+    if (streamingNode && streamingNode.dataset.streamToken !== CURRENT_STREAM_TOKEN) {
+      DEBUG && console.log('[FINALIZE_SKIP_OLD]');
+      return;
+    }
     DEBUG && console.log('[STREAM] finalizeAnswer fullLen=', full.length,'deltaLen=', deltaBuffer.length);
     stopStreaming();
     if (!streamingNode) {
       streamingNode = appendMessage('bot','', { streaming:false });
     }
     const finalText = full || deltaBuffer || '(空回答)';
-    streamingNode.classList.remove('streaming');
+    safeRemoveStreamingClass(streamingNode); // [PATCH-1]
     streamingNode.innerHTML = marked.parse(finalText);
     if (usage && (usage.prompt || usage.completion)) {
       const meta = document.createElement('div');
@@ -1254,12 +1290,13 @@ function stopStreaming() {
       meta.textContent=`🔢 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
       streamingNode.appendChild(meta);
     }
-    addCopyButton(streamingNode, stripMarkdown(finalText));
+    addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
     lastFullAnswer = finalText;
     exitClarify();
   }
 
   function addCopyButton(node, rawText) {
+    // [PATCH-7] finalize 时调用；已存在则不重复
     if (node.querySelector('.copy-btn')) return;
     const btn = document.createElement('button');
     btn.className='copy-btn'; btn.textContent='⧉'; btn.title='复制';
@@ -1273,7 +1310,13 @@ function stopStreaming() {
   function abortStreaming(){
     if (abortCtrl) {
       abortCtrl.abort();
-      appendMessage('bot','⏹ 已手动停止。');
+      // [PATCH-8] 若已有部分文本，直接 finalize 而非追加一条“停止”消息
+      if (isStreaming) {
+        flushDelta();
+        finalizeAnswer(rawAnswerBuffer || deltaBuffer || '(已停止，无内容)');
+      } else {
+        appendMessage('bot','⏹ 已手动停止。');
+      }
       stopStreaming();
     }
   }
@@ -1293,7 +1336,15 @@ function stopStreaming() {
     const images = uploadsReadyURLs();
     if (!inputText && !images.length) return;
 
-    if (clarifyMode) exitClarify();
+    // [PATCH-5] Clarify 模式下允许补充；若仍为空则返回
+    if (clarifyMode) {
+      if (!inputText && !images.length) return;
+      exitClarify();
+    }
+
+    // [PATCH-3] 新流 token
+    CURRENT_STREAM_TOKEN = 'st_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+
     if (firstMessage) {
       firstMessage = false;
       document.body.style.overflow = 'auto';
@@ -1357,6 +1408,7 @@ function stopStreaming() {
 
 } // 版本保护 end
 </script>
+
 
 
 
