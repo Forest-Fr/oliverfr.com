@@ -941,24 +941,70 @@ let gotDone = false;       // 新增: 标记是否收到done
     deltaBuffer += text;
     scheduleFlush();
   }
+/* startStreaming / appendDelta 日志（确保调用）-*/
+  function startStreaming(){
+  console.log('[STREAM] startStreaming');
+  isStreaming = true;
+  deltaBuffer = '';
+  rawAnswerBuffer = '';
+  streamingNode = appendMessage('bot', '', { streaming:true });
+  refreshSendState();
+}
+function appendDelta(text){
+  deltaBuffer += text;
+  scheduleFlush();
+}
 
   /* ================== 注册 _MGPT（对外） ================== */
-  window._MGPT = {
-    BASE, API_URL,
-    sendBtn, txt,
-    startStreaming, stopStreaming,
-    appendDelta, flushDelta,
-    appendMessage,
-    scrollToBottom,
-    anyUploading,
-    refreshSendState,
-    enterClarify, exitClarify,
-    codeRef: ()=>code,
-    sessionId,
-    HISTORY_KEY,
-    stripMarkdown,
-    renderMarkdown
-  };
+ // ==== (定位: DOMContentLoaded 下方 “注册 _MGPT” 处) ====
+window._MGPT = {
+  // 配置
+  BASE, API_URL,
+  // 元素/接口
+  sendBtn, txt,
+  // 状态访问器
+  codeRef: () => code,
+  sessionId,
+  firstMessageRef: () => firstMessage,
+  setFirstMessage: v => firstMessage = v,
+  lastFullAnswerRef: () => lastFullAnswer,
+  setLastFullAnswer: v => lastFullAnswer = v,
+  // 上传
+  uploads,
+  getUploads: () => uploads,
+  setUploads: v => uploads = v,
+  anyUploading,
+  // Streaming 节点/控制
+  streamingNodeRef: () => streamingNode,              // <== 确保是函数
+  setStreamingNode: n => { streamingNode = n; },
+  isStreamingRef: () => isStreaming,
+  clarifyModeRef: () => clarifyMode,
+  setAbortCtrl: c => abortCtrl = c,
+  getAbortCtrl: () => abortCtrl,
+  // UI 操作
+  appendMessage,
+  startStreaming,
+  stopStreaming,
+  appendDelta,
+  flushDelta,
+  scrollToBottom,
+  refreshSendState,
+  enterClarify,
+  exitClarify,
+  escapeHtml,
+  autoResize,
+  refreshOverlay,
+  stripMarkdown,
+  scheduleFlush,
+  renderMarkdown,
+  // 会话数据
+  SESSION_STATE: window.SESSION_STATE,
+  HISTORY_KEY,
+  // Debug 辅助
+  debug: DEBUG
+};
+console.log('[INIT] _MGPT keys:', Object.keys(_MGPT));
+
   /* ================== 上下文 & Payload ================== */
   function collectRecentUserQueries(latest) {
     try {
@@ -1162,65 +1208,90 @@ if (isStreaming) {
     }
   }
 
-  function handleEvent(evt, eventName) {
-    DEBUG && console.debug('[stream evt]', eventName, evt);
-    const type = eventName || evt.event;
-    switch (type) {
-              case 'start':
-        gotStart = true;
-        // 确保已经有 streamingNode（如果 start 比我们 startStreaming 更早——安全兜底）
-        if (!streamingNode) {
-          startStreaming();
-        }
-        DEBUG && console.debug('[start event]', evt);
-        break;
+ function handleEvent(evt, eventName) {
+  const type = eventName || evt.event;
+  if (DEBUG) console.debug('[evt]', type, evt);
 
-      case 'delta':
-        if (!isStreaming) startStreaming();
-        if (evt.text) {
-          appendDelta(evt.text);
-          rawAnswerBuffer += evt.text;
-        }
-        break;
-      case 'clarify':
-        flushDelta(); stopStreaming();
-        evt.text && enterClarify(evt.text);
-        break;
-      case 'done':
-         gotDone = true; // 新增
-        flushDelta();
-        if (evt.full) rawAnswerBuffer = evt.full;
-        finalizeAnswer(rawAnswerBuffer);
-        break;
-      case 'error':
-  if (!streamingNode) {
-    // 确保有显示容器
-    streamingNode = appendMessage('bot', '', { streaming:false });
+  switch (type) {
+    case 'start':
+      if (!isStreaming) startStreaming();
+      // 可选：显示模型
+      if (evt.model && streamingNode && !streamingNode.dataset.modelShown) {
+        streamingNode.dataset.modelShown = '1';
+        streamingNode.innerHTML = `<div class="model-tag">🧠 ${evt.model}</div>`;
+        deltaBuffer = ''; // 后续 delta 接着
+      }
+      break;
+
+    case 'delta':
+      if (!isStreaming) startStreaming();
+      if (evt.text) {
+        rawAnswerBuffer += evt.text;
+        appendDelta(evt.text);
+      }
+      break;
+
+    case 'clarify':
+      flushDelta(); stopStreaming();
+      evt.text && enterClarify(evt.text);
+      break;
+
+    case 'debug':
+      // 建议：把 debug 输出到一个隐藏区
+      logDebug(evt);
+      break;
+
+    case 'done':
+      flushDelta();
+      if (evt.full) rawAnswerBuffer = evt.full;
+      finalizeAnswer(rawAnswerBuffer, evt.usage);
+      break;
+
+    case 'error':
+      flushDelta(); stopStreaming();
+      appendMessage('bot', `⚠️ 出错：${evt.text || 'Unknown error'}`);
+      break;
+
+    default:
+      if (DEBUG) console.debug('[evt] 未识别', type);
   }
-  flushDelta();
+}
+
+  function logDebug(evt){
+  let panel = document.getElementById('debugPanel');
+  if (!panel) {
+    panel = document.createElement('pre');
+    panel.id = 'debugPanel';
+    panel.style.cssText = 'position:fixed;right:6px;bottom:6px;max-width:420px;max-height:220px;overflow:auto;background:#111;color:#0f0;padding:6px;font:11px/1.4 monospace;z-index:9999;opacity:.85;';
+    panel.innerHTML = '[DEBUG PANEL]\n';
+    document.body.appendChild(panel);
+  }
+  panel.textContent += `[${evt.tag||'evt'}] ${evt.text||JSON.stringify(evt)}\n`;
+}
+
+
+function finalizeAnswer(full='', usage){
+  console.log('[STREAM] finalizeAnswer fullLen=', full.length, 'deltaLen=', deltaBuffer.length);
   stopStreaming();
-  let msg = `⚠️ 出错：${evt.text || 'Unknown error'}`;
-        if (DEBUG && evt.stack) {
-          msg += `\n\n<details><summary>调试栈</summary><pre>${escapeHtml(evt.stack)}</pre></details>`;
-        }
-        appendMessage('bot', msg);
-        break;
-      default:
-        DEBUG && console.debug('未识别事件', type, evt);
-    }
+  const node = streamingNode;
+  if (!node) return;
+  const finalText = full || rawAnswerBuffer || deltaBuffer || '(空回答)';
+  node.classList.remove('streaming');
+  node.innerHTML = marked.parse(finalText);
+
+  // usage 信息
+  if (usage && (usage.prompt || usage.completion)) {
+    const meta = document.createElement('div');
+    meta.className = 'usage';
+    const total = (usage.prompt||0) + (usage.completion||0);
+    meta.textContent = `🧮 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
+    node.appendChild(meta);
   }
 
-  function finalizeAnswer(full='') {
-    stopStreaming();
-    const node = streamingNode;
-    if (!node) return;
-    const finalText = full || deltaBuffer || node.textContent || '(空回答)';
-    node.classList.remove('streaming','cursor');
-    node.innerHTML = marked.parse(finalText);
-    addCopyButton(node, stripMarkdown(finalText));
-    lastFullAnswer = finalText;
-    exitClarify();
-  }
+  addCopyButton(node, stripMarkdown(finalText));
+  lastFullAnswer = finalText;
+  exitClarify();
+}
 
   function addCopyButton(node, rawText) {
     if (node.querySelector('.copy-btn')) return;
