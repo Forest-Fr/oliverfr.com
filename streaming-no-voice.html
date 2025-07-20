@@ -516,6 +516,12 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <script>
+  if (window._MGPT && window._MGPT.__VERSION__){
+  console.warn('[INIT] 发现已有 _MGPT 版本', window._MGPT.__VERSION__, ' -> 终止再次初始化。');
+  return;
+}
+const FRONTEND_VERSION = 'fe-stream-20250720-01';
+
 /* ================== Marked 配置 ================== */
 marked.setOptions({
   gfm: true,
@@ -1156,20 +1162,20 @@ console.log('[INIT] _MGPT keys:', Object.keys(_MGPT));
           }
         } else { // NDJSON
           let nl;
-        while ((nl = buffer.indexOf('\n')) !== -1) {
+while ((nl = buffer.indexOf('\n')) !== -1) {
   let line = buffer.slice(0, nl);
   buffer = buffer.slice(nl + 1);
-  line = line.replace(/^\uFEFF/, '').trim();  // 去 BOM
+  line = line.replace(/^\uFEFF/, '').trim();
   if (!line) continue;
   let obj;
-  try {
-    obj = JSON.parse(line);
-  } catch(e) {
-    DEBUG && console.warn('[BAD_JSON_LINE]', line, e);
+  try { obj = JSON.parse(line); }
+  catch (e) {
+    DEBUG && console.warn('[PARSE] bad line len=', line.length, 'head50=', line.slice(0,50), e);
     continue;
   }
   handleEvent(obj, obj.event);
 }
+
 
         }
       }
