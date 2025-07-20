@@ -529,7 +529,7 @@ marked.setOptions({
   headerIds:false, allowDangerousHtml:true
 });
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   if (!window._MGPT) window._MGPT = {};
 
   /* ================== 基础配置 ================== */
@@ -730,45 +730,51 @@ document.addEventListener('DOMContentLoaded', () => {
     sendBtn && (sendBtn.disabled=true);
   }
 
-  async function validateCode(value, { silent=false } = {}) {
-    if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
-      if (!silent) throw new Error('格式不正确（需≥'+AUTH_MIN_LEN+'且仅字母数字-_）');
-      return false;
-    }
-    try {
-      const r = await fetch(AUTH_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ code:value })
-      });
-      const data = await r.json().catch(()=>({}));
-      if (!r.ok || !data.ok) throw new Error('授权失败');
-      const ver = Number(r.headers.get('x-auth-version') || data.code_version || 0);
-      authVersion = ver;
-      localStorage.setItem('auth_code', value);
-      localStorage.setItem('auth_code_version', String(ver));
-      code = value;
-      isAuthorized = true;
-      if (!silent) {
-        authModal && (authModal.style.display='none');
-        unlockUI();
-        startAuthHeartbeat();
-      }
-      return true;
-    } catch(e){
-      if (!silent) {
-        authErr && (authErr.textContent = e.message || '验证错误');
-        authErr && (authErr.style.display='block');
-      }
-      return false;
-    }
-  }
++ async function validateCode(value, { silent=false } = {}) {
+if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
+ if (!silent) {
+authErr && (authErr.textContent='格式不正确（需≥'+AUTH_MIN_LEN+'且仅字母数字-_）');
+authErr && (authErr.style.display='block');
+}
+return false;
+}
+try {
+ const r = await fetch(AUTH_URL, {
+method:'POST',
+headers:{ 'Content-Type':'application/json' },
+body: JSON.stringify({ code:value })
+  });
+const ct = r.headers.get('Content-Type')||'';
+let data={};
+if (/json/i.test(ct)) data = await r.json().catch(()=>({}));
+DEBUG && console.log('[validateCode] status=', r.status, 'data=', data);
+ if (!r.ok || !data.ok) throw new Error('授权失败');
+ const ver = Number(r.headers.get('x-auth-version') || data.code_version || 0);
+authVersion = ver;
+localStorage.setItem('auth_code', value);
+ localStorage.setItem('auth_code_version', String(ver));
+ code = value;
+isAuthorized = true;
+if (!silent) authModal && (authModal.style.display='none');
+unlockUI();
+startAuthHeartbeat();
+return true;
+} catch(e){
+DEBUG && console.warn('[validateCode] error', e);
+if (!silent) {
+authErr && (authErr.textContent = e.message || '验证错误');
+authErr && (authErr.style.display='block');
+ }
+ return false;
+}
+}
 
   function forceReAuth(reason='授权码已失效，请重新输入') {
     isAuthorized = false;
     code = '';
     stopAuthHeartbeat();
     localStorage.removeItem('auth_code');
+     localStorage.removeItem('auth_code_version'); // [FIX-6]
     authModal && (authModal.style.display='flex');
     lockUI();
     if (authErr) {
@@ -1050,52 +1056,58 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ================== 流请求 ================== */
-  const MAX_BYTES_DISPLAY = 128000;
+   const MAX_BYTES_DISPLAY = 128000;
+
+  // [PATCH-2] 安全 JSON 解析
   function safeJSON(str){
-    if(!str) return null;
+    if (!str) return null;
     try { return JSON.parse(str.replace(/^\uFEFF/,'')); }
     catch(e){ DEBUG && console.warn('[safeJSON:fail]', str.slice(0,160)); return null; }
   }
+
   function displayLargeUserInput(str, imgs){
     const enc = new TextEncoder();
     const bytes = enc.encode(str);
-    if (bytes.length <= MAX_BYTES_DISPLAY){
+    if (bytes.length <= MAX_BYTES_DISPLAY) {
       appendMessage('user', str, { images: imgs });
       return;
     }
     let offset=0, part=0;
-    while(offset < bytes.length){
-      const slice=bytes.slice(offset, offset+MAX_BYTES_DISPLAY);
+    while (offset < bytes.length) {
+      const slice = bytes.slice(offset, offset+MAX_BYTES_DISPLAY);
       offset += MAX_BYTES_DISPLAY;
-      appendMessage('user', `[第 ${++part} 部分]\n${new TextDecoder().decode(slice)}`);
+      const chunk = new TextDecoder().decode(slice);
+      appendMessage('user', `[第 ${++part} 部分]\n${chunk}`);
     }
-    if (imgs.length) appendMessage('user','[图片]',{images:imgs});
+    if (imgs.length) appendMessage('user', '[图片]', { images: imgs });
   }
 
-  async function streamRequest(payload){
+  async function streamRequest(payload) {
     if (USE_SSE === 'auto') {
       const ok = await detectSSEOnce();
       USE_SSE = (ok === 'yes');
       DEBUG && console.log('[SSE_DETECT]', ok);
     }
     const requestSSE = USE_SSE === true;
+
     const ctrl = new AbortController();
     abortCtrl = ctrl;
     let httpResp;
-    let finalURL = API_URL + (DEBUG? '?debug=1':'');
+
+    let finalURL = API_URL + (DEBUG? '?debug=1':''); // [PATCH-6]
     if (code && AUTH_HEADER_MODE === 'none') {
       finalURL += (finalURL.includes('?')?'&':'?') + 'code=' + encodeURIComponent(code);
     }
 
     try {
-      httpResp = await fetch(finalURL,{
+      httpResp = await fetch(finalURL, {
         method:'POST',
-        headers:(()=>{
-          const h={'Content-Type':'application/json'};
+        headers:(()=>{           // [PATCH-6]
+          const h = { 'Content-Type':'application/json' };
           if (requestSSE) h['Accept']='text/event-stream';
           if (code) {
-            if (AUTH_HEADER_MODE==='authorization') h['Authorization']='Bearer '+code;
-            else if (AUTH_HEADER_MODE==='custom') h['x-auth-code']=code;
+            if (AUTH_HEADER_MODE === 'authorization') h['Authorization']='Bearer '+code;
+            else if (AUTH_HEADER_MODE === 'custom') h['x-auth-code']=code;
           }
           return h;
         })(),
@@ -1103,90 +1115,98 @@ document.addEventListener('DOMContentLoaded', () => {
         signal: ctrl.signal
       });
       DEBUG && console.log('<< /admin-api/ws status', httpResp.status, [...httpResp.headers.entries()]);
-    } catch(e){
-      appendMessage('bot',`⚠️ 网络错误：${e.message||e}`,{});
-      stopStreaming(); return;
-    }
-
-    if (httpResp.status === 401) {
-      forceReAuth('授权码已失效或被更新（流接口 401）');
+    } catch(e) {
+      appendMessage('bot', `⚠️ 网络错误：${e.message||e}`, {});
       stopStreaming();
       return;
     }
     if (!httpResp.ok || !httpResp.body) {
-      appendMessage('bot',`⚠️ HTTP ${httpResp.status}`,{});
-      stopStreaming(); return;
-    }
-
-    const respVersion = Number(httpResp.headers.get('x-auth-version') || '0');
-    if (respVersion && respVersion !== authVersion) {
-      authVersion = respVersion;
-      localStorage.setItem('auth_code_version', String(respVersion));
+      appendMessage('bot', `⚠️ HTTP ${httpResp.status}`, {});
+      stopStreaming();
+      return;
     }
 
     const isSSE = /text\/event-stream/i.test(httpResp.headers.get('Content-Type')||'');
-    DEBUG && console.log('[STREAM_MODE]', isSSE?'SSE':'NDJSON');
+    DEBUG && console.log('[STREAM_MODE]', isSSE ? 'SSE':'NDJSON');
+
     startStreaming();
 
-    const reader=httpResp.body.getReader();
-    const decoder=new TextDecoder();
-    let buffer='';
+    const reader  = httpResp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
     try {
-      while(true){
+      while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream:true });
+        DEBUG && console.log('[RAW_CHUNK_APPEND]', value.byteLength, 'accLen=', buffer.length);
 
         if (isSSE) {
           let idx;
-          while ((idx = buffer.indexOf('\n\n')) !== -1) {
-            const block = buffer.slice(0, idx).trim();
-            buffer = buffer.slice(idx+2);
-            if (!block) continue;
-            let eventName='message', dataStr='';
-            block.split('\n').forEach(line=>{
-              if (line.startsWith('event:')) eventName=line.replace(/^event:\s*/,'').trim();
-              else if (line.startsWith('data:')) dataStr += line.replace(/^data:\s*/, '');
-            });
-            if (!dataStr) continue;
-            const obj = safeJSON(dataStr);
-            if (!obj) continue;
-            handleEvent(obj, eventName);
-          }
+            while ((idx = buffer.indexOf('\n\n')) !== -1) {
+              const block = buffer.slice(0, idx).trim();
+              buffer = buffer.slice(idx + 2);
+              if (!block) continue;
+
+              let eventName='message', dataStr='';
+              block.split('\n').forEach(line=>{
+                if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/,'').trim();
+                else if (line.startsWith('data:')) dataStr += line.replace(/^data:\s*/, '');
+              });
+              if (!dataStr) continue;
+              let obj = safeJSON(dataStr);          // [PATCH-2]
+              if(!obj) continue;
+              DEBUG && console.log('[SSE_EVT]', eventName, obj);
+              handleEvent(obj, eventName);
+            }
         } else {
           let nl;
           while ((nl = buffer.indexOf('\n')) !== -1) {
             const rawLine = buffer.slice(0, nl);
             buffer = buffer.slice(nl+1);
             const line = rawLine.trim();
-            if (!line) continue;
-            const obj = safeJSON(line);
-            if (!obj) continue;
+            if (!line) { DEBUG && console.log('[LINE_SKIP_EMPTY]'); continue; }
+            DEBUG && console.log('[LINE_RAW]', rawLine);
+            let obj = safeJSON(line);              // [PATCH-2]
+            if(!obj) continue;
+            DEBUG && console.log('[LINE_EVT]', obj.event, obj);
             handleEvent(obj, obj.event);
           }
         }
       }
 
+      // 尾部兜底
       if (isStreaming && !gotDone) {
         const tail = buffer.trim();
         if (tail) {
-          let tailObj = safeJSON(tail);
+          DEBUG && console.warn('[TAIL_LEFT]', tail.slice(0,160));
+          try {
+            let tailObj = null;
+            if (isSSE) tailObj = safeJSON(tail);   // [PATCH-2]
+            else tailObj = safeJSON(tail);
             if (tailObj && !tailObj.event) {
               if (tailObj.full) tailObj.event='done';
               else if (tailObj.text) tailObj.event='delta';
               else tailObj.event='error';
             }
-          tailObj && handleEvent(tailObj, tailObj.event);
+            tailObj && handleEvent(tailObj, tailObj.event);
+          } catch(e){
+            DEBUG && console.warn('[TAIL_PARSE_FAIL]', e);
+          }
         }
-        if (!gotStart) DEBUG && console.warn('[WARN] 未收到 start 事件');
+        if (!gotStart) {
+          DEBUG && console.warn('[WARN] 未收到 start 事件');
+        }
         flushDelta();
         finalizeAnswer(rawAnswerBuffer || deltaBuffer || '(无输出)');
       }
-    } catch(e){
+
+    } catch(e) {
       if (ctrl.signal.aborted) appendMessage('bot','⚠️ 已取消。');
-      else appendMessage('bot','⚠️ 流中断：'+e.message);
+      else appendMessage('bot','⚠️ 流中断：' + e.message);
     } finally {
+      // [PATCH-4] 兜底 finalize
       if (isStreaming && !gotDone) {
         DEBUG && console.warn('[FALLBACK_FINALIZE]');
         flushDelta();
@@ -1384,6 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshSendState();
   toggleArrow();
   await initAuth();   // 关键：等待验证
+  try { await initAuth(); } catch(e){ console.error('[initAuth fatal]', e); forceReAuth('初始化授权异常'); }
   loadHistory();
 });
 } // 版本保护 end
