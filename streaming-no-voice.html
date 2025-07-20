@@ -953,9 +953,11 @@ let gotDone = false;       // 新增: 标记是否收到done
   isStreaming = true;
   deltaBuffer = '';
   rawAnswerBuffer = '';
-  streamingNode = appendMessage('bot', '', { streaming:true });
+  // 如果已经有临时节点，不重复创建
+  if (!streamingNode) streamingNode = appendMessage('bot', '', { streaming:true });
   refreshSendState();
 }
+
 function appendDelta(text){
   deltaBuffer += text;
   scheduleFlush();
@@ -1142,39 +1144,33 @@ console.log('[INIT] _MGPT keys:', Object.keys(_MGPT));
         if (done) break;
         buffer += decoder.decode(value, { stream:true });
 
-        if (isSSE) {
-          let idx;
-          while ((idx = buffer.indexOf('\n\n')) !== -1) {
-            const block = buffer.slice(0, idx).trim();
-            buffer = buffer.slice(idx + 2);
-            if (!block) continue;
-            let eventName = 'message';
-            let dataLine = '';
-            block.split('\n').forEach(line=>{
-              if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/, '');
-              else if (line.startsWith('data:')) dataLine += line.replace(/^data:\s*/, '');
-            });
-            if (!dataLine) continue;
-            let obj;
-            try { obj = JSON.parse(dataLine); } catch { continue; }
-            if (eventName === 'done') gotDone = true;
-            handleEvent(obj, eventName);
-          }
-        } else { // NDJSON
-          let nl;
+   // --- NDJSON 解析 ---
+let nl;
 while ((nl = buffer.indexOf('\n')) !== -1) {
-  let line = buffer.slice(0, nl);
+  const rawLine = buffer.slice(0, nl);
   buffer = buffer.slice(nl + 1);
-  line = line.replace(/^\uFEFF/, '').trim();
-  if (!line) continue;
-  let obj;
-  try { obj = JSON.parse(line); }
-  catch (e) {
-    DEBUG && console.warn('[PARSE] bad line len=', line.length, 'head50=', line.slice(0,50), e);
+
+  const line = rawLine.trim();
+  if (!line) {
+    DEBUG && console.log('[LINE_SKIP_EMPTY]');
     continue;
   }
+
+  DEBUG && console.log('[LINE_RAW]', rawLine);
+  DEBUG && console.log('[LINE_TRIM]', line);
+
+  let obj;
+  try {
+    obj = JSON.parse(line.replace(/^\uFEFF/, ''));
+  } catch (e) {
+    DEBUG && console.warn('[PARSE_FAIL]', e, 'line(80)=', line.slice(0, 80));
+    continue;
+  }
+
+  DEBUG && console.log('[LINE_EVT]', obj.event, obj);
   handleEvent(obj, obj.event);
 }
+
 
 
         }
@@ -1214,54 +1210,43 @@ if (isStreaming) {
     }
   }
 
- function handleEvent(evt, eventName) {
+function handleEvent(evt, eventName) {
   const type = eventName || evt.event;
   if (DEBUG) console.debug('[evt]', type, evt);
 
   switch (type) {
     case 'start':
       if (!isStreaming) startStreaming();
-      // 可选：显示模型
-      if (evt.model && streamingNode && !streamingNode.dataset.modelShown) {
-        streamingNode.dataset.modelShown = '1';
-        streamingNode.innerHTML = `<div class="model-tag">🧠 ${evt.model}</div>`;
-        deltaBuffer = ''; // 后续 delta 接着
+      if (evt.model && streamingNode && !streamingNode.dataset.modelTag) {
+        streamingNode.dataset.modelTag = '1';
+        streamingNode.insertAdjacentHTML('afterbegin', `<div class="model-tag">🧠 ${evt.model}</div>`);
       }
       break;
-
     case 'delta':
       if (!isStreaming) startStreaming();
-      if (evt.text) {
-        rawAnswerBuffer += evt.text;
-        appendDelta(evt.text);
-      }
+      if (evt.text) { rawAnswerBuffer += evt.text; appendDelta(evt.text); }
       break;
-
+    case 'done':
+      if (evt.full) rawAnswerBuffer = evt.full;
+      flushDelta();
+      finalizeAnswer(rawAnswerBuffer, evt.usage);
+      break;
     case 'clarify':
       flushDelta(); stopStreaming();
       evt.text && enterClarify(evt.text);
       break;
-
     case 'debug':
-      // 建议：把 debug 输出到一个隐藏区
       logDebug(evt);
       break;
-
-    case 'done':
-      flushDelta();
-      if (evt.full) rawAnswerBuffer = evt.full;
-      finalizeAnswer(rawAnswerBuffer, evt.usage);
-      break;
-
     case 'error':
       flushDelta(); stopStreaming();
       appendMessage('bot', `⚠️ 出错：${evt.text || 'Unknown error'}`);
       break;
-
     default:
-      if (DEBUG) console.debug('[evt] 未识别', type);
+      DEBUG && console.debug('[evt] unknown', evt);
   }
 }
+
 
   function logDebug(evt){
   let panel = document.getElementById('debugPanel');
@@ -1277,27 +1262,27 @@ if (isStreaming) {
 
 
 function finalizeAnswer(full='', usage){
-  console.log('[STREAM] finalizeAnswer fullLen=', full.length, 'deltaLen=', deltaBuffer.length);
+  console.log('[STREAM] finalizeAnswer fullLen=', full.length,'deltaLen=', deltaBuffer.length);
+  if (!streamingNode) {
+    console.warn('[STREAM] finalize without streamingNode, creating fallback node');
+    streamingNode = appendMessage('bot','', { streaming:false });
+  }
   stopStreaming();
-  const node = streamingNode;
-  if (!node) return;
-  const finalText = full || rawAnswerBuffer || deltaBuffer || '(空回答)';
-  node.classList.remove('streaming');
-  node.innerHTML = marked.parse(finalText);
-
-  // usage 信息
+  const finalText = full || deltaBuffer || '(空回答)';
+  streamingNode.classList.remove('streaming');
+  streamingNode.innerHTML = marked.parse(finalText);
   if (usage && (usage.prompt || usage.completion)) {
     const meta = document.createElement('div');
-    meta.className = 'usage';
-    const total = (usage.prompt||0) + (usage.completion||0);
-    meta.textContent = `🧮 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
-    node.appendChild(meta);
+    meta.className='usage';
+    const total=(usage.prompt||0)+(usage.completion||0);
+    meta.textContent=`🔢 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
+    streamingNode.appendChild(meta);
   }
-
-  addCopyButton(node, stripMarkdown(finalText));
+  addCopyButton(streamingNode, stripMarkdown(finalText));
   lastFullAnswer = finalText;
   exitClarify();
 }
+
 
   function addCopyButton(node, rawText) {
     if (node.querySelector('.copy-btn')) return;
