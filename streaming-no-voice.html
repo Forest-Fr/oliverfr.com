@@ -526,41 +526,39 @@ marked.setOptions({
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-
-  /* ================== 基础配置 ================== */
+  /* ========== 基础配置 ========== */
   const BASE     = "https://streaming-tts.mefans.workers.dev";
   const API_URL  = BASE + "/admin-api/ws";
   const AUTH_URL = BASE + "/admin-api/validate-code";
   const DEV_MODE = false;
-  const DEBUG    = true;   // 调试开关，生产改 false
+  const DEBUG    = true;
 
-  /* ================== DOM 引用 ================== */
-  const chat       = document.getElementById('chat');
-  const txt        = document.getElementById('prompt');
-  const sendBtn    = document.getElementById('send');
-  const plusBtn    = document.getElementById('plus');
-  const fileInput  = document.getElementById('file');
-  const thumbs     = document.getElementById('thumbs');
-  const arrow      = document.getElementById('scrollBottom');
-  const composer   = document.querySelector('.composer');
-  const welcome    = document.getElementById('welcome');
-  const mask       = document.getElementById('mask');
-  const lightbox   = document.getElementById('lightbox');
-  const lightImg   = lightbox.querySelector('img');
+  /* ========== DOM 引用 ========== */
+  const chat      = document.getElementById('chat');
+  const txt       = document.getElementById('prompt');
+  const sendBtn   = document.getElementById('send');
+  const plusBtn   = document.getElementById('plus');
+  const fileInput = document.getElementById('file');
+  const thumbs    = document.getElementById('thumbs');
+  const arrow     = document.getElementById('scrollBottom');
+  const composer  = document.querySelector('.composer');
+  const welcome   = document.getElementById('welcome');
+  const mask      = document.getElementById('mask');
+  const lightbox  = document.getElementById('lightbox');
+  const lightImg  = lightbox.querySelector('img');
   const clarifyBanner = document.getElementById('clarifyBanner');
-  const authModal  = document.getElementById('authModal');
-  const authInput  = document.getElementById('authInput');
-  const authBtn    = document.getElementById('authBtn');
-  const authErr    = document.getElementById('authErr');
+  const authModal = document.getElementById('authModal');
+  const authInput = document.getElementById('authInput');
+  const authBtn   = document.getElementById('authBtn');
+  const authErr   = document.getElementById('authErr');
 
-  /* ================== 会话状态 ================== */
+  /* ========== 会话状态 ========== */
   let sessionId = localStorage.getItem('session_id');
   if (!sessionId) {
     sessionId = crypto.randomUUID();
     localStorage.setItem('session_id', sessionId);
   }
   const HISTORY_KEY = `chat_history_${sessionId}`;
-
   let uploads        = [];
   let isAuthorized   = false;
   let isStreaming    = false;
@@ -572,47 +570,40 @@ document.addEventListener('DOMContentLoaded', () => {
   let firstMessage   = true;
   let lastFullAnswer = '';
 
-  window.SESSION_STATE = {
-    status: 'final_answer',
-    lastClarifyQ: '',
-    clarifyTimes: 0
-  };
+  window.SESSION_STATE = { status:'final_answer', lastClarifyQ:'', clarifyTimes:0 };
   window.USER_ROLES = window.USER_ROLES || [];
   window.SELECTED_INDUSTRY = window.SELECTED_INDUSTRY || '';
   window.SELECTED_SUB_INDUSTRY = window.SELECTED_SUB_INDUSTRY || '';
-
   let code = '';
 
-  /* ================== 历史 ================== */
+  /* ========== 历史记录 ========== */
   function loadHistory() {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       if (!raw) return;
-      const arr = JSON.parse(raw);
-      arr.forEach(m => replayMessage(m));
-      if (arr.length) {
+      JSON.parse(raw).forEach(m => replayMessage(m));
+      if (raw) {
         document.body.style.overflow = 'auto';
-        if (welcome) welcome.remove();
+        welcome && welcome.remove();
       }
-    } catch (e) { console.warn('历史读取失败', e); }
+    } catch(e){ console.warn('历史读取失败',e) }
   }
   function saveMessage(role, content, meta={}) {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
+      const arr = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
       arr.push({ role, content, meta, ts: Date.now() });
       localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
-    } catch(e){ console.warn('历史写入失败', e); }
+    } catch(e){ console.warn('历史写入失败',e) }
   }
   function replayMessage(m) {
-    appendMessage(m.role, m.content, { noSave: true, meta: m.meta });
+    appendMessage(m.role, m.content, { noSave:true, meta:m.meta });
   }
 
-  /* ================== 工具函数 ================== */
-  function chatAtBottom(pad=200){
+  /* ========== 工具函数 ========== */
+  function chatAtBottom(pad=200) {
     return chat.scrollHeight - chat.scrollTop - chat.clientHeight < pad;
   }
-  function scrollToBottom(force=false){
+  function scrollToBottom(force=false) {
     if (force || chatAtBottom()) chat.scrollTop = chat.scrollHeight;
   }
   function autoResize() {
@@ -622,562 +613,383 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderMarkdown(md) {
     if (!md) return '';
     try { return marked.parse(md); }
-    catch(e){
-      return md.replace(/[&<>]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[s])).replace(/\n/g,'<br>');
-    }
+    catch { return md.replace(/[&<>]/g,s=>'&#'+s.charCodeAt(0)+';').replace(/\n/g,'<br>'); }
   }
   function safeText(t) {
-    if (typeof t !== 'string') return '';
-    return t.replace(/imageHint is not defined/g, '【后端 imageHint 未定义 - 请检查 Worker】');
+    return typeof t==='string' ? t.replace(/imageHint is not defined/g,'【后端未定义 imageHint】') : '';
   }
-  function createMsgDiv(role, extraClass='') {
-    const div = document.createElement('div');
-    div.className = `msg ${role} ${extraClass}`.trim();
-    chat.appendChild(div);
-    return div;
+  function createMsgDiv(role, extra='') {
+    const d = document.createElement('div');
+    d.className = `msg ${role} ${extra}`.trim();
+    chat.appendChild(d);
+    return d;
   }
-  function appendMessage(role, text, {
-    images = [],
-    streaming = false,
-    noSave = false,
-    meta = null,
-    clarify = false
-  } = {}) {
+  function appendMessage(role, text, { images=[], streaming=false, noSave=false, clarify=false }={}) {
     if (!text && !images.length) return;
     const extra = [];
     if (streaming) extra.push('streaming');
     if (clarify)  extra.push('clarify');
     const div = createMsgDiv(role, extra.join(' '));
-
     if (images.length) {
       const pics = document.createElement('div');
       pics.className = 'pics';
-      images.forEach(src=>{
+      images.forEach(src => {
         const im = new Image();
         im.src = src;
         im.loading = 'lazy';
-        im.onclick = () => {
-          lightImg.src = src;
-          lightbox.style.display = 'flex';
-        };
+        im.onclick = () => { lightImg.src = src; lightbox.style.display='flex'; };
         pics.appendChild(im);
       });
       div.appendChild(pics);
     }
     if (text) div.innerHTML += renderMarkdown(safeText(text));
-
-    if (role === 'bot' && !streaming && !clarify) {
-      const copy = document.createElement('button');
-      copy.className = 'copy-btn';
-      copy.textContent = '⧉';
-      copy.title = '复制';
-      copy.onclick = () => {
-        navigator.clipboard.writeText(stripMarkdown(text));
-        copy.textContent = '✔';
-        setTimeout(()=>copy.textContent='⧉', 1500);
-      };
-      div.appendChild(copy);
-    }
-    if (role === 'user') {
-      const acts = document.createElement('div');
-      acts.className = 'actions';
-      const copyBtn = document.createElement('button');
-      copyBtn.className='action-btn';
-      copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
-      copyBtn.onclick = ()=>{
+    // Bot 复制按钮
+    if (role==='bot' && !streaming && !clarify) {
+      const c = document.createElement('button');
+      c.className='copy-btn'; c.textContent='⧉'; c.title='复制';
+      c.onclick = () => {
         navigator.clipboard.writeText(text);
-        showCopyTip(div);
+        c.textContent='✔'; setTimeout(()=>c.textContent='⧉',1300);
       };
-      const editBtn = document.createElement('button');
-      editBtn.className='action-btn';
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77l-2.99-2.99a1.25 1.25 0 0 0-1.77 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
-      editBtn.onclick = ()=>{
-        txt.value = text;
-        autoResize();
-        txt.focus();
-      };
-      acts.append(copyBtn, editBtn);
+      div.appendChild(c);
+    }
+    // User 操作按钮
+    if (role==='user') {
+      const acts = document.createElement('div');
+      acts.className='actions';
+      const c1 = document.createElement('button');
+      c1.className='action-btn'; c1.innerHTML='📋';
+      c1.onclick = () => { navigator.clipboard.writeText(text); };
+      const c2 = document.createElement('button');
+      c2.className='action-btn'; c2.innerHTML='✎';
+      c2.onclick = () => { txt.value=text; autoResize(); txt.focus(); };
+      acts.append(c1,c2);
       div.appendChild(acts);
     }
-    if (!noSave && role !== 'stream-temp') {
-      saveMessage(role, text, { images, meta, clarify });
-    }
+    if (!noSave && role!=='stream-temp') saveMessage(role, text, { images, clarify });
     scrollToBottom(true);
     return div;
   }
-  function showCopyTip(parent){
-    const tip = document.createElement('div');
-    tip.className='copy-tip';
-    tip.textContent='已复制';
-    parent.appendChild(tip);
-    setTimeout(()=>tip.remove(),1600);
-  }
-  function stripMarkdown(md=''){
-    return md
-      .replace(/```[\s\S]*?```/g,'')
-      .replace(/`([^`]+)`/g,'$1')
-      .replace(/\!\[[^\]]*\]\([^)]+\)/g,'')
-      .replace(/\[[^\]]*\]\(([^)]+)\)/g,'$1')
-      .replace(/[#>*_~`]/g,'')
-      .trim();
+  function stripMarkdown(md='') {
+    return md.replace(/```[\s\S]*?```/g,'')
+             .replace(/`([^`]+)`/g,'$1')
+             .replace(/\!\[[^\]]*\]\([^)]+\)/g,'')
+             .replace(/\[[^\]]*\]\(([^)]+)\)/g,'$1')
+             .replace(/[#>*_~`]/g,'').trim();
   }
 
-  /* ================== 授权 ================== */
-  function unlockUI(){
-    txt.disabled = false;
-    plusBtn.disabled = false;
-    sendBtn.disabled = false;
+  /* ========== 授权 ========== */
+  function unlockUI() {
+    [txt,plusBtn,sendBtn].forEach(el=>el.disabled=false);
     refreshSendState();
     mask.style.display='none';
   }
-  function lockUI(){
-    txt.disabled = true;
-    plusBtn.disabled = true;
-    sendBtn.disabled = true;
+  function lockUI() {
+    [txt,plusBtn,sendBtn].forEach(el=>el.disabled=true);
   }
-  function initAuth(){
+  function initAuth() {
     if (DEV_MODE) {
-      isAuthorized = true;
-      code = 'dev-bypass';
-      authModal.style.display='none';
-      unlockUI();
-      return;
+      isAuthorized=true; code='dev-bypass'; authModal.style.display='none'; unlockUI(); return;
     }
     const saved = localStorage.getItem('auth_code');
-    if (saved) {
-      isAuthorized = true;
-      code = saved;
-      authModal.style.display='none';
-      unlockUI();
-    } else {
-      isAuthorized = false;
-      lockUI();
-      authModal.style.display='flex';
-    }
+    if (saved) { isAuthorized=true; code=saved; authModal.style.display='none'; unlockUI(); }
+    else { isAuthorized=false; lockUI(); authModal.style.display='flex'; }
   }
   authInput.addEventListener('input', ()=>{
     authBtn.disabled = !authInput.value.trim();
     authErr.style.display='none';
   });
   authBtn.addEventListener('click', async ()=>{
-    authBtn.disabled = true;
-    const val = authInput.value.trim();
+    authBtn.disabled=true;
     try {
-      const r = await fetch(AUTH_URL, {
+      const r = await (await fetch(AUTH_URL,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code: val })
-      }).then(r=>r.json());
+        body:JSON.stringify({ code:authInput.value.trim() })
+      })).json();
       if(!r.ok) throw new Error('授权失败');
-      isAuthorized = true;
-      code = val;
-      localStorage.setItem('auth_code', val);
+      isAuthorized=true; code=authInput.value.trim();
+      localStorage.setItem('auth_code',code);
       authModal.style.display='none';
       unlockUI();
     } catch(e){
-      authErr.textContent = e.message || '授权错误';
-      authErr.style.display = 'block';
-    } finally {
-      authBtn.disabled = false;
-    }
+      authErr.textContent=e.message; authErr.style.display='block';
+    } finally { authBtn.disabled=false; }
   });
-  function checkAuthOrWarn(){
+  function checkAuthOrWarn() {
     if (DEV_MODE || isAuthorized) return true;
-    alert('请先输入授权码！');
-    return false;
+    alert('请先输入授权码！'); return false;
   }
 
-  /* ================== 输入 & 按钮状态 ================== */
+  /* ========== 输入 & 按钮状态 ========== */
   function anyUploading(){ return uploads.some(u=>u.uploading); }
-  function refreshSendState() {
+  function refreshSendState(){
     if (isStreaming && !clarifyMode) {
-      sendBtn.className = 'icon-btn send loading';
-      sendBtn.innerHTML = '<div class="spinner"></div>';
+      sendBtn.className='icon-btn send loading';
+      sendBtn.innerHTML='<div class="spinner"></div>';
       return;
     }
     const t = txt.value.trim();
-    const canSend = (t || uploads.length) && !anyUploading();
-    let cls = 'icon-btn send';
-    if (canSend) cls += ' ready'; else cls += ' disabled';
-    if (anyUploading()) cls += ' loading';
-    sendBtn.className = cls;
-    sendBtn.innerHTML = anyUploading()
-      ? '<div class="spinner"></div>'
-      : '<svg viewBox="0 0 24 24"><path d="M3 20v-6l9-2-9-2V4l18 8z"/></svg>';
+    const ready = (t||uploads.length)>0 && !anyUploading();
+    let cls='icon-btn send '+(ready?'ready':'disabled');
+    if (anyUploading()) cls+=' loading';
+    sendBtn.className=cls;
+    sendBtn.innerHTML = anyUploading() ? '<div class="spinner"></div>' : '▶';
   }
-  txt.addEventListener('input', () => { autoResize(); refreshSendState(); });
+  txt.addEventListener('input', ()=>{ autoResize(); refreshSendState(); });
 
-  /* ================== 布局 & 滚动 ================== */
+  /* ========== 布局 & 滚动 ========== */
   function refreshOverlay(){
     const h = composer.offsetHeight;
-    mask.style.height = h + 'px';
-    arrow.style.bottom = (h + 40) + 'px';
-    welcome.style.bottom = (h + 60) + 'px';
+    mask.style.height=`${h}px`;
+    arrow.style.bottom=`${h+40}px`;
+    welcome && (welcome.style.bottom=`${h+60}px`);
   }
   window.addEventListener('resize', refreshOverlay);
-  function toggleArrow(){ arrow.classList.toggle('show', !chatAtBottom()); }
-  chat.addEventListener('scroll', toggleArrow);
-  arrow.addEventListener('click', ()=> chat.scrollTop = chat.scrollHeight);
+  chat.addEventListener('scroll', ()=>arrow.classList.toggle('show', !chatAtBottom()));
+  arrow.addEventListener('click', ()=>chat.scrollTop=chat.scrollHeight);
 
-  /* ================== Lightbox ================== */
-  lightbox.addEventListener('click', ()=> lightbox.style.display='none');
-  window.addEventListener('keyup', e=>{ if (e.key === 'Escape') lightbox.style.display='none'; });
+  /* ========== Lightbox ========== */
+  lightbox.addEventListener('click', ()=>lightbox.style.display='none');
+  window.addEventListener('keyup', e=>e.key==='Escape' && (lightbox.style.display='none'));
 
-  /* ================== 上传（mock） ================== */
-  function mockUpload(file){
-    return new Promise(res=>{
-      setTimeout(()=> res(URL.createObjectURL(file)), 600 + Math.random()*400);
-    });
-  }
-  function handleFiles(list) {
-    [...list].forEach(f=>{
-      if(!f.type.startsWith('image/')) return;
+  /* ========== 上传（Mock） ========== */
+  function handleFiles(list){
+    Array.from(list).forEach(f=>{
+      if (!f.type.startsWith('image/')) return;
       const wrap = document.createElement('div');
       wrap.style.position='relative';
-      wrap.innerHTML = `<img src="${URL.createObjectURL(f)}"><button class="close">✕</button>`;
+      wrap.innerHTML=`<img src="${URL.createObjectURL(f)}"><button class="close">✕</button>`;
       thumbs.appendChild(wrap);
-      const obj = { file:f, url:'', uploading:true, node:wrap };
-      uploads.push(obj);
-      refreshSendState();
-      wrap.querySelector('.close').onclick = ()=>{
-        uploads = uploads.filter(u=>u!==obj);
-        wrap.remove();
-        refreshSendState();
+      const obj={file:f,url:'',uploading:true,node:wrap};
+      uploads.push(obj); refreshSendState();
+      wrap.querySelector('button').onclick=()=>{
+        uploads=uploads.filter(u=>u!==obj);
+        wrap.remove(); refreshSendState();
       };
-      mockUpload(f).then(u=>{
-        obj.url = u; obj.uploading = false; refreshSendState();
-      });
+      // 模拟上传：
+      setTimeout(()=>{
+        obj.url=URL.createObjectURL(f);
+        obj.uploading=false;
+        refreshSendState();
+      }, 600+Math.random()*400);
     });
   }
-  plusBtn.addEventListener('click', ()=> fileInput.click());
-  fileInput.addEventListener('change', ()=> handleFiles(fileInput.files));
+  plusBtn.addEventListener('click', ()=>fileInput.click());
+  fileInput.addEventListener('change', ()=>handleFiles(fileInput.files));
   document.addEventListener('paste', e=>{
-    if (!e.clipboardData) return;
-    for (const it of e.clipboardData.items) {
-      if (it.type.startsWith('image/')) handleFiles([it.getAsFile()]);
-    }
+    Array.from(e.clipboardData?.items||[]).forEach(it=>{
+      if(it.type.startsWith('image/')) handleFiles([it.getAsFile()]);
+    });
   });
   ['dragover','drop'].forEach(evt=>{
     txt.addEventListener(evt, e=>{
-      if (evt==='dragover') e.preventDefault();
-      if (evt==='drop') { e.preventDefault(); handleFiles(e.dataTransfer.files); }
+      if(evt==='dragover') e.preventDefault();
+      else { e.preventDefault(); handleFiles(e.dataTransfer.files); }
     });
   });
 
-  /* ================== Clarify 控制 ================== */
-  function enterClarify(question) {
-    clarifyMode = true;
-    window.SESSION_STATE.status = 'clarification';
-    window.SESSION_STATE.lastClarifyQ = question;
+  /* ========== Clarify 控制 ========== */
+  function enterClarify(question){
+    clarifyMode=true;
+    window.SESSION_STATE.status='clarification';
+    window.SESSION_STATE.lastClarifyQ=question;
     window.SESSION_STATE.clarifyTimes++;
-    clarifyBanner.style.display = 'block';
-    clarifyBanner.innerHTML = `<strong>需要澄清：</strong>${escapeHtml(question)}<br><span style="font-size:12px;opacity:.8">请补充信息后再次发送。</span>`;
-    appendMessage('bot', question, { clarify:true });
+    clarifyBanner.style.display='block';
+    clarifyBanner.innerHTML=`<strong>需要澄清：</strong>${question}<br><small>请补充信息后再次发送。</small>`;
+    appendMessage('bot',question,{clarify:true});
     refreshSendState();
   }
-  function exitClarify() {
-    clarifyMode = false;
+  function exitClarify(){
+    clarifyMode=false;
     clarifyBanner.style.display='none';
-    clarifyBanner.textContent='';
-    window.SESSION_STATE.status = 'final_answer';
+    window.SESSION_STATE.status='final_answer';
     refreshSendState();
-  }
-  function escapeHtml(str=''){
-    return str.replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]));
   }
 
-  /* ================== 流式渲染 ================== */
-  function startStreaming() {
-    isStreaming = true;
-    deltaBuffer = '';
-    streamingNode = appendMessage('bot', '', { streaming:true });
+  /* ========== 流式渲染 ========== */
+  function startStreaming(){
+    isStreaming=true;
+    deltaBuffer='';
+    streamingNode=appendMessage('bot','',{streaming:true});
     refreshSendState();
   }
-  function stopStreaming() {
-    isStreaming = false;
-    if (streamingNode) streamingNode.classList.remove('streaming');
+  function stopStreaming(){
+    isStreaming=false;
+    streamingNode?.classList.remove('streaming');
     refreshSendState();
   }
-  function scheduleFlush() {
-    if (flushScheduled) return;
-    flushScheduled = true;
-    requestAnimationFrame(()=>{ flushScheduled = false; flushDelta(); });
+  function scheduleFlush(){
+    if(flushScheduled) return;
+    flushScheduled=true;
+    requestAnimationFrame(()=>{
+      flushScheduled=false;
+      streamingNode && (streamingNode.innerHTML=renderMarkdown(deltaBuffer));
+      scrollToBottom();
+    });
   }
-  function flushDelta() {
-    if (!streamingNode || !deltaBuffer) return;
-    streamingNode.innerHTML = renderMarkdown(deltaBuffer);
-    scrollToBottom();
-  }
-  function appendDelta(text) {
-    deltaBuffer += text;
+  function appendDelta(t){
+    deltaBuffer+=t;
     scheduleFlush();
   }
 
-  /* ================== 初始 ================== */
-  autoResize();
-  refreshOverlay();
-  refreshSendState();
-  toggleArrow();
-  initAuth();
-  loadHistory();
-
-  /* ================== Export 给 Part 3（这里统一，所以外部仍可调用） ================== */
-  window._MGPT = {
-    BASE, API_URL,
-    sendBtn, txt,
-    checkAuthOrWarn,
-    startStreaming, stopStreaming,
-    appendDelta, flushDelta,
-    appendMessage,
-    scrollToBottom,
-    anyUploading,
-    refreshSendState,
-    enterClarify, exitClarify,
-    escapeHtml,
-    uploads,
-    getUploads: ()=>uploads,
-    setUploads: v=>uploads=v,
-    clarifyModeRef: ()=>clarifyMode,
-    isStreamingRef: ()=>isStreaming,
-    streamingNodeRef: ()=>streamingNode,
-    setStreamingNode: n=>streamingNode=n,
-    setAbortCtrl: c=>abortCtrl=c,
-    getAbortCtrl: ()=>abortCtrl,
-    SESSION_STATE: window.SESSION_STATE,
-    codeRef: ()=>code,
-    sessionId,
-    firstMessageRef: ()=>firstMessage,
-    setFirstMessage: v=>firstMessage=v,
-    HISTORY_KEY,
-    lastFullAnswerRef: ()=>lastFullAnswer,
-    setLastFullAnswer: v=>lastFullAnswer=v,
-    autoResize,
-    refreshOverlay,
-    stripMarkdown,
-    scheduleFlush,
-    renderMarkdown
-  };
-
-  /* ================== Part 3 / 发送与流读取 ================== */
-  const MAX_BYTES_DISPLAY = 128000;
-
-  function displayLargeUserInput(str, imgs){
-    const enc = new TextEncoder();
-    const bytes = enc.encode(str);
-    if (bytes.length <= MAX_BYTES_DISPLAY) {
-      appendMessage('user', str, { images: imgs });
-      return;
-    }
-    let offset=0, part=0;
-    while (offset < bytes.length) {
-      const slice = bytes.slice(offset, offset+MAX_BYTES_DISPLAY);
-      offset += MAX_BYTES_DISPLAY;
-      const chunk = new TextDecoder().decode(slice);
-      appendMessage('user', `[第 ${++part} 部分]\n${chunk}`);
-    }
-    if (imgs.length) appendMessage('user', '[图片]', { images: imgs });
-  }
-
-  function buildPayload(inputText) {
-    const imgs = _MGPT.getUploads().filter(u=>!u.uploading && u.url).map(u=>u.url);
-    return {
-      code: _MGPT.codeRef(),
-      session_id: _MGPT.sessionId,
-      text: inputText,
-      images: imgs,
-      userRoles: window.USER_ROLES || [],
-      industry: window.SELECTED_INDUSTRY || '',
-      subIndustry: window.SELECTED_SUB_INDUSTRY || '',
-      sessionState: {
-        status: SESSION_STATE.status,
-        lastClarifyQ: SESSION_STATE.lastClarifyQ,
-        clarifyTimes: SESSION_STATE.clarifyTimes
-      },
-      debug: DEBUG
-    };
-  }
-
-   /* ================== 流式渲染 ================== */
-
-  // 1. 发起流式请求
+  /* ========== 核心：streamRequest / 事件分发 / 收尾 / 停止 ========== */
   async function streamRequest(payload) {
     const ctrl = new AbortController();
-    _MGPT.setAbortCtrl(ctrl);
+    abortCtrl = ctrl;
 
-    let httpResp;
+    let resp;
     try {
-      httpResp = await fetch(API_URL, {
+      resp = await fetch(API_URL, {
         method: 'POST',
-        credentials: 'include',               // 如需携带 Cookie
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/x-ndjson'   // 🚩 新增：告诉后端我们要 NDJSON
+        credentials:'include',
+        headers:{
+          'Content-Type':'application/json',
+          'Accept':'application/x-ndjson'
         },
         body: JSON.stringify(payload),
         signal: ctrl.signal
       });
       if (DEBUG) {
-        console.log('<< /admin-api/ws status', httpResp.status);
-        console.log('[resp headers]', [...httpResp.headers.entries()]);
+        console.log('<< status', resp.status, [...resp.headers.entries()]);
       }
     } catch (e) {
-      appendMessage('bot', `⚠️ 网络错误：${e.message}`, {});
+      appendMessage('bot',`⚠️ 网络错误：${e.message}`,{});
+      stopStreaming();
+      return;
+    }
+    if (!resp.ok || !resp.body) {
+      appendMessage('bot',`⚠️ HTTP ${resp.status}`,{});
       stopStreaming();
       return;
     }
 
-    if (!httpResp.ok || !httpResp.body) {
-      appendMessage('bot', `⚠️ HTTP ${httpResp.status}`, {});
-      stopStreaming();
-      return;
-    }
-
-    const reader = httpResp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
+    const reader = resp.body.getReader();
+    const dec    = new TextDecoder();
+    let buf = '';
     startStreaming();
 
     while (true) {
-      let chunk;
-      try {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunk = decoder.decode(value, { stream: true });
-      } catch (e) {
-        if (ctrl.signal.aborted) appendMessage('bot', '⚠️ 已取消。', {});
-        else appendMessage('bot', '⚠️ 流中断。', {});
+      let r;
+      try { r = await reader.read(); }
+      catch (e) {
+        appendMessage('bot', ctrl.signal.aborted ? '⚠️ 已取消。' : '⚠️ 流中断。', {});
         stopStreaming();
         return;
       }
-
-      buffer += chunk;
+      if (r.done) break;
+      buf += dec.decode(r.value, { stream:true });
       let idx;
-      while ((idx = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, idx).trim();
-        buffer = buffer.slice(idx + 1);
+      while ((idx=buf.indexOf('\n'))!==-1) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx+1);
         if (!line) continue;
         let evt;
         try { evt = JSON.parse(line); }
-        catch { if (DEBUG) console.warn('无法解析行', line); continue; }
-        handleEvent(evt);
+        catch { if(DEBUG) console.warn('Parse fail',line); continue; }
+        // 分发
+        switch(evt.event) {
+          case 'delta':
+            appendDelta(evt.text||'');
+            break;
+          case 'clarify':
+            stopStreaming();
+            evt.text && enterClarify(evt.text);
+            break;
+          case 'done':
+            stopStreaming();
+            finalizeAnswer(evt.full||'');
+            break;
+          case 'error':
+            stopStreaming();
+            appendMessage('bot',`⚠️ 出错：${evt.text||'Unknown'}`,{});
+            break;
+        }
       }
     }
-
-    // 读完后收尾
-    if (_MGPT.isStreamingRef()) {
-      flushDelta();
-      finalizeAnswer();
-    }
   }
 
-  // 2. 事件分发
-  function handleEvent(evt) {
-    if (DEBUG) console.debug('[stream evt]', evt);
-    switch (evt.event) {
-      case 'delta':
-        if (!_MGPT.isStreamingRef()) startStreaming();
-        appendDelta(evt.text || '');
-        break;
-      case 'clarify':
-        flushDelta();
-        stopStreaming();
-        if (evt.text) enterClarify(evt.text);
-        break;
-      case 'done':
-        flushDelta();
-        finalizeAnswer(evt.full || '');
-        break;
-      case 'error':
-        flushDelta();
-        stopStreaming();
-        let msg = `⚠️ 出错：${evt.text || 'Unknown error'}`;
-        appendMessage('bot', msg);
-        break;
-    }
-  }
-
-  // 3. 完成渲染
-  function finalizeAnswer(fullFromEvt = '') {
+  function finalizeAnswer(full='') {
     stopStreaming();
-    const node = _MGPT.streamingNodeRef();
-    const finalText = fullFromEvt || (node ? node.textContent : '(空回答)');
+    const node = streamingNode;
+    const txt  = full || node?.textContent || '(空回答)';
     if (node) {
       node.classList.remove('streaming');
-      node.innerHTML = marked.parse(fullFromEvt || stripMarkdown(node.textContent));
-      addCopyButton(node, finalText);
+      node.innerHTML = marked.parse(full||stripMarkdown(node.textContent));
+      // 追加复制按钮
+      const btn = document.createElement('button');
+      btn.className='copy-btn'; btn.textContent='⧉'; btn.onclick=()=>{ navigator.clipboard.writeText(txt); btn.textContent='✔'; setTimeout(()=>btn.textContent='⧉',1300); };
+      node.appendChild(btn);
     }
-    _MGPT.setLastFullAnswer(finalText);
+    lastFullAnswer = txt;
   }
 
-  // 4. 手动停止
-  function abortStreaming() {
-    const ctrl = _MGPT.getAbortCtrl();
-    if (ctrl) {
-      ctrl.abort();
-      stopStreaming();
-      appendMessage('bot', '⏹ 已手动停止。');
-    }
+  function abortStreaming(){
+    abortCtrl?.abort();
+    stopStreaming();
+    appendMessage('bot','⏹ 已手动停止。');
   }
 
-  /* ================== Part 3 / 发送与流读取 ================== */
+  /* ========== 发送逻辑 ========== */
+  function buildPayload(text){
+    const imgs = uploads.filter(u=>!u.uploading&&u.url).map(u=>u.url);
+    return {
+      code, session_id: sessionId, text,
+      images: imgs,
+      userRoles: window.USER_ROLES,
+      industry: window.SELECTED_INDUSTRY,
+      subIndustry: window.SELECTED_SUB_INDUSTRY,
+      sessionState: window.SESSION_STATE,
+      debug: DEBUG
+    };
+  }
   async function trySend() {
     if (!checkAuthOrWarn()) return;
     if (anyUploading()) return;
-    const inputText = txt.value.trim();
-    const images = uploadsReadyURLs();
-    if (!inputText && !images.length) return;
+    const t = txt.value.trim();
+    const images = uploads.filter(u=>!u.uploading&&u.url).map(u=>u.url);
+    if (!t && !images.length) return;
 
-    if (firstMessage) {
-      firstMessage = false;
-      document.body.style.overflow = 'auto';
-      if (welcome) welcome.remove();
+    if (firstMessage){
+      firstMessage=false;
+      document.body.style.overflow='auto';
+      welcome && welcome.remove();
     }
 
-    displayLargeUserInput(inputText, images);
-    txt.value = ''; autoResize(); clearUploads(); refreshSendState();
+    appendMessage('user', t, { images });
+    txt.value=''; autoResize();
+    thumbs.innerHTML=''; uploads=[];
+    refreshSendState();
 
-    const payload = buildPayload(inputText);
-    if (DEBUG) console.log('>> /admin-api/ws payload', payload);
-    streamRequest(payload);
+    if (clarifyMode) exitClarify();
+    streamRequest(buildPayload(t));
   }
 
-  // 5. 重新绑定发送按钮
-  sendBtn.addEventListener('click', () => {
-    if (_MGPT.isStreamingRef() && !_MGPT.clarifyModeRef()) {
-      abortStreaming();
-    } else {
-      trySend();
-    }
+  sendBtn.addEventListener('click', ()=>{
+    if (isStreaming && !clarifyMode) abortStreaming();
+    else trySend();
   });
-  txt.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  txt.addEventListener('keydown', e=>{
+    if (e.key==='Enter' && !e.shiftKey) {
       e.preventDefault();
       trySend();
     }
   });
 
-
-  
-  function updateSendButtonLabel() {
-    if (_MGPT.isStreamingRef() && !_MGPT.clarifyModeRef()) sendBtn.title='终止本次回答';
-    else if (_MGPT.clarifyModeRef()) sendBtn.title='发送澄清补充';
-    else sendBtn.title='发送';
-  }
-  setInterval(updateSendButtonLabel, 400);
-
+  /* ========== 其他初始化 ========== */
+  setInterval(()=>{
+    sendBtn.title = isStreaming && !clarifyMode ? '终止回答' : clarifyMode ? '发送澄清' : '发送';
+  }, 300);
   window.addEventListener('beforeunload', e=>{
-    if (_MGPT.isStreamingRef()) { e.preventDefault(); e.returnValue=''; }
+    if (isStreaming){ e.preventDefault(); e.returnValue=''; }
   });
-  window.demoAsk = (q)=>{
-    txt.value=q; autoResize(); refreshSendState(); trySend();
-  };
+  initAuth();
+  autoResize();
+  refreshOverlay();
+  refreshSendState();
+  chat.scrollTop = chat.scrollHeight;
+  loadHistory();
 });
-
-  /* ========= Chat DOM helpers (若已有可复用你的) ========= */
-
-
-
 </script>
 
 
