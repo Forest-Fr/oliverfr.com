@@ -530,6 +530,36 @@ marked.setOptions({
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
+      // ① 自动布局：输入框、遮罩、箭头、按钮状态
+    autoResize();
+    refreshOverlay();
+    refreshSendState();
+    toggleArrow();
+
+    // ② **先做授权校验** —— 如果失败，会弹出 authModal，下面不会继续执行
+    try {
+      await initAuth();
+    } catch (e) {
+      console.error('initAuth 出错：', e);
+      authErr && (authErr.textContent = '授权服务异常，请稍后再试');
+      authErr && (authErr.style.display = 'block');
+      return;  // 中断后续流程
+    }
+
+    // ③ 授权通过后，加载历史并绑定业务事件
+    loadHistory();
+
+    // 发送消息、停止流式、键盘回车、文件上传……都在这里继续绑定
+    sendBtn?.addEventListener('click', () => {
+      if (isStreaming && !clarifyMode) abortStreaming();
+      else trySend();
+    });
+    txt?.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        trySend();
+      }
+    });
   if (!window._MGPT) window._MGPT = {};
 
   /* ================== 基础配置 ================== */
@@ -1403,16 +1433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   /* ================== 初始化 ================== */
- autoResize();
-  refreshOverlay();
-  refreshSendState();
-  toggleArrow();
-  initAuth();
-  loadHistory();
 
-}); // DOMContentLoaded
-
-} // 版本保护 end
 
 </script>
 
