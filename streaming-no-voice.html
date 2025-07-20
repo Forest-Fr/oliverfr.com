@@ -1403,28 +1403,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   /* ================== 初始化 ================== */
-   // —— DOM 准备好后，启动授权流程 ——  
-  // … 上面所有函数和变量都已声明 …
+ autoResize();
+  refreshOverlay();
+  refreshSendState();
+  toggleArrow();
+  initAuth();
+  loadHistory();
 
-  /* —— DOM 准备好后，启动授权流程 —— */
-  document.addEventListener('DOMContentLoaded', async () => {
-    // ① 自动调整输入框和遮罩层
-    autoResize();
-    refreshOverlay();
+}); // DOMContentLoaded
 
-    // ② 刷新“发送”按钮状态、小箭头是否显示
-    refreshSendState();
-    toggleArrow();
-
-    // ③ **先做授权校验**
-    await initAuth();
-
-    // ④ 授权通过后，加载聊天历史并启动剩下的业务逻辑
-    loadHistory();
-    // … 其它如 sendBtn.click、streamRequest 事件绑定都可以放心写在这里 …
-  });  // ← 一定要有这个 “});”
-
-}  // ← 这是文件最开头的 `else {` 对应的闭合
+} // 版本保护 end
 
 </script>
 
