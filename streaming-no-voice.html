@@ -517,38 +517,44 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <script>
+/* ================== 版本标识 ================== */
 if (window._MGPT && window._MGPT.__VERSION__) {
   console.warn('[INIT] 已存在 _MGPT 版本', window._MGPT.__VERSION__, '终止再次初始化。');
 } else {
 
-const FRONTEND_VERSION = 'fe-stream-20250720-merged-02+auth-rev-02';
+const FRONTEND_VERSION = 'fe-stream-20250720-merged-02+patch-set-01';
 
 /* ================== Marked 配置 ================== */
 marked.setOptions({
-  gfm:true, breaks:false, sanitize:false, mangle:false,
-  headerIds:false, allowDangerousHtml:true
+  gfm: true,
+  breaks: false,
+  sanitize: false,
+  mangle: false,
+  headerIds: false,
+  allowDangerousHtml: true
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+
+  /* 占位对象 */
   if (!window._MGPT) window._MGPT = {};
 
   /* ================== 基础配置 ================== */
-  const BASE      = "https://streaming-tts.mefans.workers.dev";
-  const API_URL   = BASE + "/admin-api/ws";
-  const AUTH_URL  = BASE + "/admin-api/validate-code";
-  const DEV_MODE  = false;
-  const DEBUG     = true;
-  const AUTH_HEADER_MODE = 'authorization'; // 可 'custom' | 'none'
-  let   USE_SSE   = false;
+  const BASE        = "https://streaming-tts.mefans.workers.dev";
+  const API_URL     = BASE + "/admin-api/ws";
+  const AUTH_URL    = BASE + "/admin-api/validate-code";
+  const DEV_MODE    = false;
+  const DEBUG       = true;
+  // [PATCH-6] 认证头策略（避免 CORS）：'authorization' | 'custom' | 'none'
+  const AUTH_HEADER_MODE = 'authorization';
+  /**
+   * USE_SSE:
+   *  false => 强制 NDJSON
+   *  true  => 强制 SSE
+   *  'auto'=> 探测
+   */
+  let USE_SSE       = false;
   const MAX_CTX_USER_QUERIES = 8;
-
-  /* ===== [AUTH+] 约束 ===== */
-  const AUTH_MIN_LEN = 10;
-  const AUTH_PATTERN = /^[A-Za-z0-9_-]{10,64}$/;
-  const AUTH_HEARTBEAT_MS = 10 * 60 * 1000;
-  let authVersion = Number(localStorage.getItem('auth_code_version') || '0');
-  let authHeartbeatTimer = null;
-  let authFailCount = 0;
 
   /* ================== DOM 引用 ================== */
   const chat       = document.getElementById('chat');
@@ -591,12 +597,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let gotStart         = false;
   let gotDone          = false;
   let sseAvailable     = null;
+  // [PATCH-3] 当前流 token
   let CURRENT_STREAM_TOKEN = '';
 
   window.SESSION_STATE = window.SESSION_STATE || {
-    status:'final_answer',
-    lastClarifyQ:'',
-    clarifyTimes:0
+    status: 'final_answer',
+    lastClarifyQ: '',
+    clarifyTimes: 0
   };
   window.USER_ROLES = window.USER_ROLES || [];
   window.SELECTED_INDUSTRY = window.SELECTED_INDUSTRY || '';
@@ -604,19 +611,19 @@ document.addEventListener('DOMContentLoaded', () => {
   let code = '';
 
   /* ================== 历史 ================== */
-  function loadHistory(){
+  function loadHistory() {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       if (!raw) return;
       const arr = JSON.parse(raw);
       arr.forEach(replayMessage);
       if (arr.length) {
-        document.body.style.overflow='auto';
+        document.body.style.overflow = 'auto';
         welcome && welcome.remove();
       }
-    } catch(e){ console.warn('历史读取失败', e); }
+    } catch (e) { console.warn('历史读取失败', e); }
   }
-  function saveMessage(role, content, meta={}){
+  function saveMessage(role, content, meta={}) {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       const arr = raw ? JSON.parse(raw) : [];
@@ -624,8 +631,8 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
     } catch(e){ console.warn('历史写入失败', e); }
   }
-  function replayMessage(m){
-    appendMessage(m.role, m.content, { noSave:true, meta:m.meta });
+  function replayMessage(m) {
+    appendMessage(m.role, m.content, { noSave: true, meta: m.meta });
   }
 
   /* ================== 工具函数 ================== */
@@ -637,78 +644,104 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!chat) return;
     if (force || chatAtBottom()) chat.scrollTop = chat.scrollHeight;
   }
-  function autoResize(){
+  function autoResize() {
     if (!txt) return;
-    txt.style.height='24px';
-    txt.style.height = Math.min(txt.scrollHeight, 180)+'px';
+    txt.style.height = '24px';
+    txt.style.height = Math.min(txt.scrollHeight, 180) + 'px';
   }
-  function renderMarkdown(md){
+  function renderMarkdown(md) {
     if (!md) return '';
-    try { return marked.parse(md); }
-    catch(e){
-      return md.replace(/[&<>]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[s]))
-               .replace(/\n/g,'<br>');
+    try {
+      return marked.parse(md);
+    } catch(e){
+      return md.replace(/[&<>]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[s])).replace(/\n/g,'<br>');
     }
   }
-  function safeText(t){ return typeof t === 'string' ? t : ''; }
-  function createMsgDiv(role, extra=''){
-    const d = document.createElement('div');
-    d.className = `msg ${role} ${extra}`.trim();
-    chat && chat.appendChild(d);
-    return d;
+  function safeText(t) {
+    if (typeof t !== 'string') return '';
+    return t;
+  }
+  function createMsgDiv(role, extraClass='') {
+    const div = document.createElement('div');
+    div.className = `msg ${role} ${extraClass}`.trim();
+    chat && chat.appendChild(div);
+    return div;
   }
   function appendMessage(role, text, {
-    images=[], streaming=false, noSave=false, meta=null, clarify=false
-  }={}){
+    images = [],
+    streaming = false,
+    noSave = false,
+    meta = null,
+    clarify = false
+  } = {}) {
     if (!chat) return;
-    if (!text && !images.length && !streaming) return;
-    const extras=[];
+    if (!text && !images.length && !streaming) return; // [HOTFIX-stream-placeholder]
+    const extras = [];
     if (streaming) extras.push('streaming');
-    if (clarify) extras.push('clarify');
+    if (clarify)  extras.push('clarify');
     const div = createMsgDiv(role, extras.join(' '));
+
     if (streaming && !text) {
-      div.innerHTML='<em style="opacity:.55">⌛ 流式生成中...</em>';
-    }
-    if (images.length){
-      const wrap = document.createElement('div');
-      wrap.className='pics';
+      div.innerHTML = '<em style="opacity:.55">⌛ 流式生成中...</em>'; }
+     if (images.length) {
+      const pics = document.createElement('div');
+      pics.className = 'pics';
       images.forEach(src=>{
-        const im=new Image();
-        im.src=src; im.loading='lazy';
-        im.onclick=()=>{ if (!lightbox)return; lightImg.src=src; lightbox.style.display='flex'; };
-        wrap.appendChild(im);
+        const im = new Image();
+        im.src = src;
+        im.loading = 'lazy';
+        im.onclick = () => {
+          if (!lightbox) return;
+            lightImg.src = src;
+            lightbox.style.display = 'flex';
+        };
+        pics.appendChild(im);
       });
-      div.appendChild(wrap);
+      div.appendChild(pics);
     }
     if (text) div.innerHTML += renderMarkdown(safeText(text));
-    if (role==='bot' && !streaming && !clarify) {
+
+    if (role === 'bot' && !streaming && !clarify) {
       addCopyButton(div, stripMarkdown(text));
     }
-    if (role==='user'){
-      const acts=document.createElement('div');
-      acts.className='actions';
-      const copyBtn=document.createElement('button');
+    if (role === 'user') {
+      const acts = document.createElement('div');
+      acts.className = 'actions';
+      const copyBtn = document.createElement('button');
       copyBtn.className='action-btn';
-      copyBtn.innerHTML='<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
-      copyBtn.onclick=()=>{ navigator.clipboard.writeText(text); showCopyTip(div); };
-      const editBtn=document.createElement('button');
+      copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+      copyBtn.onclick = ()=>{
+        navigator.clipboard.writeText(text);
+        showCopyTip(div);
+      };
+      const editBtn = document.createElement('button');
       editBtn.className='action-btn';
-      editBtn.innerHTML='<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77l-2.99-2.99a1.25 1.25 0 0 0-1.77 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
-      editBtn.onclick=()=>{ if (!txt)return; txt.value=text; autoResize(); txt.focus(); };
+      editBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77l-2.99-2.99a1.25 1.25 0 0 0-1.77 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
+      editBtn.onclick = ()=>{
+        if (!txt) return;
+        txt.value = text;
+        autoResize();
+        txt.focus();
+      };
       acts.append(copyBtn, editBtn);
       div.appendChild(acts);
     }
-    if (!noSave && role!=='stream-temp') saveMessage(role, text, { images, meta, clarify });
+    if (!noSave && role !== 'stream-temp') {
+      saveMessage(role, text, { images, meta, clarify });
+    }
     scrollToBottom(true);
     return div;
   }
   function showCopyTip(parent){
-    const tip=document.createElement('div');
-    tip.className='copy-tip'; tip.textContent='已复制';
-    parent.appendChild(tip); setTimeout(()=>tip.remove(),1600);
+    const tip = document.createElement('div');
+    tip.className='copy-tip';
+    tip.textContent='已复制';
+    parent.appendChild(tip);
+    setTimeout(()=>tip.remove(),1600);
   }
   function stripMarkdown(md=''){
-    return md.replace(/```[\s\S]*?```/g,'')
+    return md
+      .replace(/```[\s\S]*?```/g,'')
       .replace(/`([^`]+)`/g,'$1')
       .replace(/\!\[[^\]]*\]\([^)]+\)/g,'')
       .replace(/\[[^\]]*\]\(([^)]+)\)/g,'$1')
@@ -716,70 +749,20 @@ document.addEventListener('DOMContentLoaded', () => {
       .trim();
   }
 
-  /* ================== 授权相关 (重写) ================== */
+  /* ================== 授权 ================== */
   function unlockUI(){
-    txt && (txt.disabled=false);
-    plusBtn && (plusBtn.disabled=false);
-    sendBtn && (sendBtn.disabled=false);
+    txt && (txt.disabled = false);
+    plusBtn && (plusBtn.disabled = false);
+    sendBtn && (sendBtn.disabled = false);
     refreshSendState();
     mask && (mask.style.display='none');
   }
   function lockUI(){
-    txt && (txt.disabled=true);
-    plusBtn && (plusBtn.disabled=true);
-    sendBtn && (sendBtn.disabled=true);
+    txt && (txt.disabled = true);
+    plusBtn && (plusBtn.disabled = true);
+    sendBtn && (sendBtn.disabled = true);
   }
-
-  async function validateCode(value, { silent=false } = {}) {
-    if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
-      if (!silent) throw new Error('格式不正确（需≥'+AUTH_MIN_LEN+'且仅字母数字-_）');
-      return false;
-    }
-    try {
-      const r = await fetch(AUTH_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ code:value })
-      });
-      const data = await r.json().catch(()=>({}));
-      if (!r.ok || !data.ok) throw new Error('授权失败');
-      const ver = Number(r.headers.get('x-auth-version') || data.code_version || 0);
-      authVersion = ver;
-      localStorage.setItem('auth_code', value);
-      localStorage.setItem('auth_code_version', String(ver));
-      code = value;
-      isAuthorized = true;
-      if (!silent) {
-        authModal && (authModal.style.display='none');
-        unlockUI();
-        startAuthHeartbeat();
-      }
-      return true;
-    } catch(e){
-      if (!silent) {
-        authErr && (authErr.textContent = e.message || '验证错误');
-        authErr && (authErr.style.display='block');
-      }
-      return false;
-    }
-  }
-
-  function forceReAuth(reason='授权码已失效，请重新输入') {
-    isAuthorized = false;
-    code = '';
-    stopAuthHeartbeat();
-    localStorage.removeItem('auth_code');
-    authModal && (authModal.style.display='flex');
-    lockUI();
-    if (authErr) {
-      authErr.style.display='block';
-      authErr.textContent=reason;
-    } else {
-      alert(reason);
-    }
-  }
-
-  async function initAuth(){
+  function initAuth(){
     if (DEV_MODE) {
       isAuthorized = true;
       code = 'dev-bypass';
@@ -789,56 +772,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const saved = localStorage.getItem('auth_code');
     if (saved) {
-      const ok = await validateCode(saved, { silent:true });
-      if (ok) {
-        unlockUI();
-        startAuthHeartbeat();
-        return;
-      }
-      forceReAuth('本地授权码已失效，请重新输入');
+      isAuthorized = true;
+      code = saved;
+      authModal && (authModal.style.display='none');
+      unlockUI();
     } else {
-      forceReAuth();
+      isAuthorized = false;
+      lockUI();
+      authModal && (authModal.style.display='flex');
     }
   }
-
-  function startAuthHeartbeat(){
-    stopAuthHeartbeat();
-    authHeartbeatTimer = setInterval(async ()=>{
-      if (!code) return;
-      const ok = await validateCode(code, { silent:true });
-      if (!ok) forceReAuth('授权码已被撤销或更新，请重新输入');
-    }, AUTH_HEARTBEAT_MS);
-  }
-  function stopAuthHeartbeat(){
-    if (authHeartbeatTimer) {
-      clearInterval(authHeartbeatTimer);
-      authHeartbeatTimer = null;
-    }
-  }
-
   authInput?.addEventListener('input', ()=>{
     authBtn && (authBtn.disabled = !authInput.value.trim());
     authErr && (authErr.style.display='none');
   });
   authBtn?.addEventListener('click', async ()=>{
-    const val = authInput.value.trim();
-    if (!AUTH_PATTERN.test(val)) {
-      authErr && (authErr.textContent='格式不正确（需≥'+AUTH_MIN_LEN+'且仅字母数字-_）');
-      authErr && (authErr.style.display='block');
-      return;
-    }
     authBtn.disabled = true;
-    const ok = await validateCode(val, { silent:false });
-    if (ok) {
+    const val = authInput.value.trim();
+    try {
+      const r = await fetch(AUTH_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ code: val })
+      }).then(r=>r.json());
+      if(!r.ok) throw new Error('授权失败');
+      isAuthorized = true;
+      code = val;
+      localStorage.setItem('auth_code', val);
+      authModal && (authModal.style.display='none');
       unlockUI();
-      authFailCount = 0;
-    } else {
-      authFailCount++;
-      if (authFailCount >= 5) {
-        setTimeout(()=>authFailCount=0, 30_000);
-      }
+    } catch(e){
+      authErr && (authErr.textContent = e.message || '授权错误');
+      authErr && (authErr.style.display = 'block');
+    } finally {
+      authBtn.disabled = false;
     }
-    authBtn.disabled = false;
   });
   function checkAuthOrWarn(){
     if (DEV_MODE || isAuthorized) return true;
@@ -846,20 +814,20 @@ document.addEventListener('DOMContentLoaded', () => {
     return false;
   }
 
-  /* ================== 输入 & 按钮 ================== */
+  /* ================== 按钮状态 ================== */
   function anyUploading(){ return uploads.some(u=>u.uploading); }
-  function refreshSendState(){
+  function refreshSendState() {
     if (!sendBtn) return;
     if (isStreaming && !clarifyMode) {
-      sendBtn.className='icon-btn send loading';
-      sendBtn.innerHTML='<div class="spinner"></div>';
+      sendBtn.className = 'icon-btn send loading';
+      sendBtn.innerHTML = '<div class="spinner"></div>';
       return;
     }
     const t = (txt?.value||'').trim();
     const canSend = (t || uploads.length) && !anyUploading();
-    let cls='icon-btn send';
-    cls += canSend ? ' ready':' disabled';
-    if (anyUploading()) cls+=' loading';
+    let cls = 'icon-btn send';
+    cls += canSend ? ' ready' : ' disabled';
+    if (anyUploading()) cls += ' loading';
     sendBtn.className = cls;
     sendBtn.innerHTML = anyUploading()
       ? '<div class="spinner"></div>'
@@ -867,15 +835,15 @@ document.addEventListener('DOMContentLoaded', () => {
           ? '<svg viewBox="0 0 24 24"><path d="M6 19L19 6M6 6l13 13"/></svg>'
           : '<svg viewBox="0 0 24 24"><path d="M3 20v-6l9-2-9-2V4l18 8z"/></svg>');
   }
-  txt?.addEventListener('input', ()=>{ autoResize(); refreshSendState(); });
+  txt?.addEventListener('input', () => { autoResize(); refreshSendState(); });
 
   /* ================== 布局 & 滚动 ================== */
   function refreshOverlay(){
     if (!composer) return;
     const h = composer.offsetHeight;
-    mask && (mask.style.height = h+'px');
-    arrow && (arrow.style.bottom = (h+40)+'px');
-    welcome && (welcome.style.bottom = (h+60)+'px');
+    mask && (mask.style.height = h + 'px');
+    arrow && (arrow.style.bottom = (h + 40) + 'px');
+    welcome && (welcome.style.bottom = (h + 60) + 'px');
   }
   window.addEventListener('resize', refreshOverlay);
   function toggleArrow(){ arrow && arrow.classList.toggle('show', !chatAtBottom()); }
@@ -884,139 +852,177 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ================== Lightbox ================== */
   lightbox?.addEventListener('click', ()=> lightbox.style.display='none');
-  window.addEventListener('keyup', e=>{ if (e.key==='Escape') lightbox && (lightbox.style.display='none'); });
+  window.addEventListener('keyup', e=>{ if (e.key === 'Escape') lightbox && (lightbox.style.display='none'); });
 
-  /* ================== 上传 (Mock) ================== */
-  function mockUpload(file){ return new Promise(res=> setTimeout(()=>res(URL.createObjectURL(file)), 480 + Math.random()*420)); }
-  function handleFiles(list){
+  /* ================== 上传（Mock） ================== */
+  function mockUpload(file){
+    return new Promise(res=>{
+      setTimeout(()=> res(URL.createObjectURL(file)), 480 + Math.random()*420);
+    });
+  }
+  function handleFiles(list) {
     [...list].forEach(f=>{
-      if (!f.type.startsWith('image/')) return;
-      const wrap=document.createElement('div');
+      if(!f.type.startsWith('image/')) return;
+      const wrap = document.createElement('div');
       wrap.style.position='relative';
-      wrap.innerHTML=`<img src="${URL.createObjectURL(f)}"><button class="close">✕</button>`;
+      wrap.innerHTML = `<img src="${URL.createObjectURL(f)}"><button class="close">✕</button>`;
       thumbs.appendChild(wrap);
-      const obj={ file:f, url:'', uploading:true, node:wrap };
+      const obj = { file:f, url:'', uploading:true, node:wrap };
       uploads.push(obj);
       refreshSendState();
-      wrap.querySelector('.close').onclick=()=>{
+      wrap.querySelector('.close').onclick = ()=>{
         uploads = uploads.filter(u=>u!==obj);
-        wrap.remove(); refreshSendState();
+        wrap.remove();
+        refreshSendState();
       };
-      mockUpload(f).then(u=>{ obj.url=u; obj.uploading=false; refreshSendState(); });
+      mockUpload(f).then(u=>{
+        obj.url = u; obj.uploading = false; refreshSendState();
+      });
     });
   }
-  plusBtn?.addEventListener('click',()=> fileInput?.click());
-  fileInput?.addEventListener('change',()=> handleFiles(fileInput.files));
+  plusBtn?.addEventListener('click', ()=> fileInput?.click());
+  fileInput?.addEventListener('change', ()=> handleFiles(fileInput.files));
   document.addEventListener('paste', e=>{
-    if(!e.clipboardData) return;
+    if (!e.clipboardData) return;
     for (const it of e.clipboardData.items) {
-      if(it.type.startsWith('image/')) handleFiles([it.getAsFile()]);
+      if (it.type.startsWith('image/')) handleFiles([it.getAsFile() ]);
     }
   });
-  ['dragover','drop'].forEach(evt=>{
+  ;['dragover','drop'].forEach(evt=>{
     txt?.addEventListener(evt, e=>{
       if (evt==='dragover') e.preventDefault();
-      if (evt==='drop'){ e.preventDefault(); handleFiles(e.dataTransfer.files); }
+      if (evt==='drop') { e.preventDefault(); handleFiles(e.dataTransfer.files); }
     });
   });
 
-  /* ================== Clarify ================== */
-  function enterClarify(q){
-    clarifyMode=true;
-    window.SESSION_STATE.status='clarify';
-    window.SESSION_STATE.lastClarifyQ=q;
+  /* ================== Clarify 控制 ================== */
+  function enterClarify(question) {
+    clarifyMode = true;
+    window.SESSION_STATE.status = 'clarify';
+    window.SESSION_STATE.lastClarifyQ = question;
     window.SESSION_STATE.clarifyTimes++;
-    if (clarifyBanner){
+    if (clarifyBanner) {
       clarifyBanner.style.display='block';
-      clarifyBanner.innerHTML=`<strong>需要澄清：</strong>${escapeHtml(q)}<br><span style="font-size:12px;opacity:.8">请补充后再次发送。</span>`;
+      clarifyBanner.innerHTML =
+        `<strong>需要澄清：</strong>${escapeHtml(question)}<br><span style="font-size:12px;opacity:.8">请补充后再次发送。</span>`;
     }
-    appendMessage('bot', q, { clarify:true });
+    appendMessage('bot', question, { clarify:true });
     refreshSendState();
-    updateSendButtonLabel();
+    updateSendButtonLabel(); // [PATCH-5]
   }
-  function exitClarify(){
-    clarifyMode=false;
-    if (clarifyBanner){
+  function exitClarify() {
+    clarifyMode = false;
+    if (clarifyBanner) {
       clarifyBanner.style.display='none';
       clarifyBanner.textContent='';
     }
-    window.SESSION_STATE.status='final_answer';
+    window.SESSION_STATE.status = 'final_answer';
     refreshSendState();
-    updateSendButtonLabel();
+    updateSendButtonLabel(); // [PATCH-5]
   }
-  function escapeHtml(str=''){ return str.replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s])); }
+  function escapeHtml(str=''){
+    return str.replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]));
+  }
 
-  /* ================== Streaming ================== */
-  function safeRemoveStreamingClass(n){ try{ n?.classList?.remove('streaming'); }catch{} }
-  function startStreaming(){
+  /* ================== Streaming 渲染 ================== */
+  function safeRemoveStreamingClass(node){
+    try { node?.classList?.remove?.('streaming'); } catch(e){
+      DEBUG && console.warn('[safeRemoveStreamingClass]', e);
+    }
+  }
+  function startStreaming() {
     if (isStreaming) return;
     DEBUG && console.log('[STREAM] startStreaming');
-    isStreaming=true;
-    deltaBuffer=''; rawAnswerBuffer='';
-    gotStart=false; gotDone=false;
-    streamingNode = appendMessage('bot','',{ streaming:true });
-    if (streamingNode) streamingNode.dataset.streamToken = CURRENT_STREAM_TOKEN;
+    isStreaming = true;
+    deltaBuffer = '';
+    rawAnswerBuffer = '';
+    gotStart = false;
+    gotDone = false;
+    streamingNode = appendMessage('bot', '', { streaming:true });
+    if (streamingNode) streamingNode.dataset.streamToken = CURRENT_STREAM_TOKEN; // [PATCH-3]
     refreshSendState();
   }
-  function stopStreaming(){
-    isStreaming=false;
-    safeRemoveStreamingClass(streamingNode);
+  function stopStreaming() {
+    isStreaming = false;
+    safeRemoveStreamingClass(streamingNode); // [PATCH-1]
     refreshSendState();
   }
-  function scheduleFlush(){
+
+  function scheduleFlush() {
     if (flushScheduled) return;
-    flushScheduled=true;
-    requestAnimationFrame(()=>{ flushScheduled=false; flushDelta(); });
+    flushScheduled = true;
+    requestAnimationFrame(()=>{ flushScheduled = false; flushDelta(); });
   }
-  function flushDelta(){
+  function flushDelta() {
     if (!streamingNode) return;
-    try { streamingNode.innerHTML = renderMarkdown(deltaBuffer); }
-    catch(e){ streamingNode.textContent = deltaBuffer; }
+     try {
+       streamingNode.innerHTML = renderMarkdown(deltaBuffer);
+       } catch(e){
+       DEBUG && console.warn('[flushDelta:fail]', e);
+       streamingNode.textContent = deltaBuffer;
+       }
     scrollToBottom();
   }
-  function appendDelta(t){ deltaBuffer += t; scheduleFlush(); }
+  function appendDelta(text) {
+    deltaBuffer += text;
+    scheduleFlush();
+  }
 
   /* ================== _MGPT 注册 ================== */
   window._MGPT = {
     __VERSION__: FRONTEND_VERSION,
     BASE, API_URL,
     sendBtn, txt,
-    codeRef:()=>code,
+    codeRef: ()=>code,
     sessionId,
-    firstMessageRef:()=>firstMessage,
-    setFirstMessage:v=>firstMessage=v,
-    lastFullAnswerRef:()=>lastFullAnswer,
-    setLastFullAnswer:v=>lastFullAnswer=v,
-    uploads, getUploads:()=>uploads, setUploads:v=>uploads=v,
+    firstMessageRef: ()=>firstMessage,
+    setFirstMessage: v=>firstMessage=v,
+    lastFullAnswerRef: ()=>lastFullAnswer,
+    setLastFullAnswer: v=>lastFullAnswer=v,
+    uploads,
+    getUploads: ()=>uploads,
+    setUploads: v=>uploads=v,
     anyUploading,
-    streamingNodeRef:()=>streamingNode,
-    setStreamingNode:n=>{ streamingNode=n; },
-    isStreamingRef:()=>isStreaming,
-    clarifyModeRef:()=>clarifyMode,
-    setAbortCtrl:c=>abortCtrl=c,
-    getAbortCtrl:()=>abortCtrl,
-    appendMessage, startStreaming, stopStreaming,
-    appendDelta, flushDelta, scrollToBottom,
-    refreshSendState, enterClarify, exitClarify,
-    escapeHtml, autoResize, refreshOverlay,
-    stripMarkdown, scheduleFlush, renderMarkdown,
+    streamingNodeRef: ()=>streamingNode,
+    setStreamingNode: n=>{ streamingNode=n; },
+    isStreamingRef: ()=>isStreaming,
+    clarifyModeRef: ()=>clarifyMode,
+    setAbortCtrl: c=>abortCtrl=c,
+    getAbortCtrl: ()=>abortCtrl,
+    appendMessage,
+    startStreaming,
+    stopStreaming,
+    appendDelta,
+    flushDelta,
+    scrollToBottom,
+    refreshSendState,
+    enterClarify,
+    exitClarify,
+    escapeHtml,
+    autoResize,
+    refreshOverlay,
+    stripMarkdown,
+    scheduleFlush,
+    renderMarkdown,
     SESSION_STATE: window.SESSION_STATE,
     HISTORY_KEY,
-    debug:DEBUG
+    debug: DEBUG
   };
   DEBUG && console.log('[INIT] _MGPT keys:', Object.keys(_MGPT));
 
   /* ================== 上下文 & Payload ================== */
-  function collectRecentUserQueries(latest){
+  function collectRecentUserQueries(latest) {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       const arr = raw ? JSON.parse(raw) : [];
       const users = arr.filter(m=>m.role==='user').map(m=>m.content);
       if (latest) users.push(latest);
       return users.slice(-MAX_CTX_USER_QUERIES);
-    }catch{ return latest?[latest]:[]; }
+    } catch {
+      return latest ? [latest] : [];
+    }
   }
-  function buildPayload(inputText){
+  function buildPayload(inputText) {
     const imgs = uploads.filter(u=>!u.uploading && u.url).map(u=>u.url);
     return {
       code,
@@ -1026,76 +1032,82 @@ document.addEventListener('DOMContentLoaded', () => {
       userRoles: window.USER_ROLES || [],
       industry: window.SELECTED_INDUSTRY || '',
       subIndustry: window.SELECTED_SUB_INDUSTRY || '',
-      sessionState:{
+      sessionState: {
         status: window.SESSION_STATE.status,
         lastClarifyQ: window.SESSION_STATE.lastClarifyQ,
         clarifyTimes: window.SESSION_STATE.clarifyTimes
       },
-      debug:DEBUG
+      debug: DEBUG
     };
   }
 
-  /* ================== SSE 探测 ================== */
-  async function detectSSEOnce(){
+  /* ================== SSE 探测(可选) ================== */
+  async function detectSSEOnce() {
     if (sseAvailable !== null) return sseAvailable;
     try {
-      const r = await fetch(API_URL,{
+      const r = await fetch(API_URL, {
         method:'POST',
-        headers:{ 'Content-Type':'application/json','Accept':'text/event-stream' },
+        headers:{ 'Content-Type':'application/json', 'Accept':'text/event-stream' },
         body: JSON.stringify({ code:'__ping__', lastUserQueries:['ping'] })
       });
-      sseAvailable = /text\/event-stream/i.test(r.headers.get('Content-Type')||'') ? 'yes':'no';
-    }catch{ sseAvailable='no'; }
+      if (/text\/event-stream/i.test(r.headers.get('Content-Type')||'')) sseAvailable='yes'; else sseAvailable='no';
+    } catch { sseAvailable='no'; }
     return sseAvailable;
   }
 
   /* ================== 流请求 ================== */
   const MAX_BYTES_DISPLAY = 128000;
+
+  // [PATCH-2] 安全 JSON 解析
   function safeJSON(str){
-    if(!str) return null;
+    if (!str) return null;
     try { return JSON.parse(str.replace(/^\uFEFF/,'')); }
     catch(e){ DEBUG && console.warn('[safeJSON:fail]', str.slice(0,160)); return null; }
   }
+
   function displayLargeUserInput(str, imgs){
     const enc = new TextEncoder();
     const bytes = enc.encode(str);
-    if (bytes.length <= MAX_BYTES_DISPLAY){
+    if (bytes.length <= MAX_BYTES_DISPLAY) {
       appendMessage('user', str, { images: imgs });
       return;
     }
     let offset=0, part=0;
-    while(offset < bytes.length){
-      const slice=bytes.slice(offset, offset+MAX_BYTES_DISPLAY);
+    while (offset < bytes.length) {
+      const slice = bytes.slice(offset, offset+MAX_BYTES_DISPLAY);
       offset += MAX_BYTES_DISPLAY;
-      appendMessage('user', `[第 ${++part} 部分]\n${new TextDecoder().decode(slice)}`);
+      const chunk = new TextDecoder().decode(slice);
+      appendMessage('user', `[第 ${++part} 部分]\n${chunk}`);
     }
-    if (imgs.length) appendMessage('user','[图片]',{images:imgs});
+    if (imgs.length) appendMessage('user', '[图片]', { images: imgs });
   }
 
-  async function streamRequest(payload){
+  async function streamRequest(payload) {
     if (USE_SSE === 'auto') {
       const ok = await detectSSEOnce();
       USE_SSE = (ok === 'yes');
       DEBUG && console.log('[SSE_DETECT]', ok);
     }
     const requestSSE = USE_SSE === true;
+
     const ctrl = new AbortController();
     abortCtrl = ctrl;
     let httpResp;
-    let finalURL = API_URL + (DEBUG? '?debug=1':'');
+
+    let finalURL = API_URL + (DEBUG? '?debug=1':''); // [PATCH-6]
     if (code && AUTH_HEADER_MODE === 'none') {
       finalURL += (finalURL.includes('?')?'&':'?') + 'code=' + encodeURIComponent(code);
     }
 
     try {
-      httpResp = await fetch(finalURL,{
+      httpResp = await fetch(finalURL, {
         method:'POST',
-        headers:(()=>{
-          const h={'Content-Type':'application/json'};
+        headers:(()=>{           // [PATCH-6]
+          const h = { 'Content-Type':'application/json' };
           if (requestSSE) h['Accept']='text/event-stream';
           if (code) {
-            if (AUTH_HEADER_MODE==='authorization') h['Authorization']='Bearer '+code;
-            else if (AUTH_HEADER_MODE==='custom') h['x-auth-code']=code;
+            if (AUTH_HEADER_MODE === 'authorization') h['Authorization']='Bearer '+code;
+            else if (AUTH_HEADER_MODE === 'custom') h['x-auth-code']=code;
           }
           return h;
         })(),
@@ -1103,90 +1115,98 @@ document.addEventListener('DOMContentLoaded', () => {
         signal: ctrl.signal
       });
       DEBUG && console.log('<< /admin-api/ws status', httpResp.status, [...httpResp.headers.entries()]);
-    } catch(e){
-      appendMessage('bot',`⚠️ 网络错误：${e.message||e}`,{});
-      stopStreaming(); return;
-    }
-
-    if (httpResp.status === 401) {
-      forceReAuth('授权码已失效或被更新（流接口 401）');
+    } catch(e) {
+      appendMessage('bot', `⚠️ 网络错误：${e.message||e}`, {});
       stopStreaming();
       return;
     }
     if (!httpResp.ok || !httpResp.body) {
-      appendMessage('bot',`⚠️ HTTP ${httpResp.status}`,{});
-      stopStreaming(); return;
-    }
-
-    const respVersion = Number(httpResp.headers.get('x-auth-version') || '0');
-    if (respVersion && respVersion !== authVersion) {
-      authVersion = respVersion;
-      localStorage.setItem('auth_code_version', String(respVersion));
+      appendMessage('bot', `⚠️ HTTP ${httpResp.status}`, {});
+      stopStreaming();
+      return;
     }
 
     const isSSE = /text\/event-stream/i.test(httpResp.headers.get('Content-Type')||'');
-    DEBUG && console.log('[STREAM_MODE]', isSSE?'SSE':'NDJSON');
+    DEBUG && console.log('[STREAM_MODE]', isSSE ? 'SSE':'NDJSON');
+
     startStreaming();
 
-    const reader=httpResp.body.getReader();
-    const decoder=new TextDecoder();
-    let buffer='';
+    const reader  = httpResp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
     try {
-      while(true){
+      while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream:true });
+        DEBUG && console.log('[RAW_CHUNK_APPEND]', value.byteLength, 'accLen=', buffer.length);
 
         if (isSSE) {
           let idx;
-          while ((idx = buffer.indexOf('\n\n')) !== -1) {
-            const block = buffer.slice(0, idx).trim();
-            buffer = buffer.slice(idx+2);
-            if (!block) continue;
-            let eventName='message', dataStr='';
-            block.split('\n').forEach(line=>{
-              if (line.startsWith('event:')) eventName=line.replace(/^event:\s*/,'').trim();
-              else if (line.startsWith('data:')) dataStr += line.replace(/^data:\s*/, '');
-            });
-            if (!dataStr) continue;
-            const obj = safeJSON(dataStr);
-            if (!obj) continue;
-            handleEvent(obj, eventName);
-          }
+            while ((idx = buffer.indexOf('\n\n')) !== -1) {
+              const block = buffer.slice(0, idx).trim();
+              buffer = buffer.slice(idx + 2);
+              if (!block) continue;
+
+              let eventName='message', dataStr='';
+              block.split('\n').forEach(line=>{
+                if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/,'').trim();
+                else if (line.startsWith('data:')) dataStr += line.replace(/^data:\s*/, '');
+              });
+              if (!dataStr) continue;
+              let obj = safeJSON(dataStr);          // [PATCH-2]
+              if(!obj) continue;
+              DEBUG && console.log('[SSE_EVT]', eventName, obj);
+              handleEvent(obj, eventName);
+            }
         } else {
           let nl;
           while ((nl = buffer.indexOf('\n')) !== -1) {
             const rawLine = buffer.slice(0, nl);
             buffer = buffer.slice(nl+1);
             const line = rawLine.trim();
-            if (!line) continue;
-            const obj = safeJSON(line);
-            if (!obj) continue;
+            if (!line) { DEBUG && console.log('[LINE_SKIP_EMPTY]'); continue; }
+            DEBUG && console.log('[LINE_RAW]', rawLine);
+            let obj = safeJSON(line);              // [PATCH-2]
+            if(!obj) continue;
+            DEBUG && console.log('[LINE_EVT]', obj.event, obj);
             handleEvent(obj, obj.event);
           }
         }
       }
 
+      // 尾部兜底
       if (isStreaming && !gotDone) {
         const tail = buffer.trim();
         if (tail) {
-          let tailObj = safeJSON(tail);
+          DEBUG && console.warn('[TAIL_LEFT]', tail.slice(0,160));
+          try {
+            let tailObj = null;
+            if (isSSE) tailObj = safeJSON(tail);   // [PATCH-2]
+            else tailObj = safeJSON(tail);
             if (tailObj && !tailObj.event) {
               if (tailObj.full) tailObj.event='done';
               else if (tailObj.text) tailObj.event='delta';
               else tailObj.event='error';
             }
-          tailObj && handleEvent(tailObj, tailObj.event);
+            tailObj && handleEvent(tailObj, tailObj.event);
+          } catch(e){
+            DEBUG && console.warn('[TAIL_PARSE_FAIL]', e);
+          }
         }
-        if (!gotStart) DEBUG && console.warn('[WARN] 未收到 start 事件');
+        if (!gotStart) {
+          DEBUG && console.warn('[WARN] 未收到 start 事件');
+        }
         flushDelta();
         finalizeAnswer(rawAnswerBuffer || deltaBuffer || '(无输出)');
       }
-    } catch(e){
+
+    } catch(e) {
       if (ctrl.signal.aborted) appendMessage('bot','⚠️ 已取消。');
-      else appendMessage('bot','⚠️ 流中断：'+e.message);
+      else appendMessage('bot','⚠️ 流中断：' + e.message);
     } finally {
+      // [PATCH-4] 兜底 finalize
       if (isStreaming && !gotDone) {
         DEBUG && console.warn('[FALLBACK_FINALIZE]');
         flushDelta();
@@ -1199,25 +1219,32 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ================== 事件处理 ================== */
   function handleEvent(evt, eventName){
     const type = eventName || evt.event;
+    // [PATCH-3] 过期流丢弃
     if (streamingNode && streamingNode.dataset.streamToken !== CURRENT_STREAM_TOKEN) {
       DEBUG && console.log('[SKIP_OLD_STREAM_EVENT]', type);
       return;
     }
-    switch(type){
+    DEBUG && console.debug('[EVT]', type, evt);
+
+    switch (type) {
       case 'start':
-        gotStart=true;
+        gotStart = true;
         if (!isStreaming) startStreaming();
         if (evt.model && streamingNode && !streamingNode.dataset.modelTag) {
           streamingNode.dataset.modelTag='1';
-          streamingNode.insertAdjacentHTML('afterbegin', `<div class="model-tag">🧠 ${evt.model}</div>`);
+          streamingNode.insertAdjacentHTML('afterbegin',
+            `<div class="model-tag">🧠 ${evt.model}</div>`);
         }
         break;
       case 'delta':
         if (!isStreaming) startStreaming();
-        if (evt.text) { rawAnswerBuffer += evt.text; appendDelta(evt.text); }
+        if (evt.text) {
+          rawAnswerBuffer += evt.text;
+          appendDelta(evt.text);
+        }
         break;
       case 'done':
-        gotDone=true;
+        gotDone = true;
         if (evt.full) rawAnswerBuffer = evt.full;
         flushDelta();
         finalizeAnswer(rawAnswerBuffer, evt.usage);
@@ -1227,21 +1254,21 @@ document.addEventListener('DOMContentLoaded', () => {
         evt.text && enterClarify(evt.text);
         break;
       case 'error':
-        if (/unauth/i.test(evt.text||'')) { forceReAuth('授权码失效(事件 error)。'); return; }
         flushDelta(); stopStreaming();
-        appendMessage('bot',`⚠️ 出错：${evt.text||'Unknown error'}`);
+        appendMessage('bot', `⚠️ 出错：${evt.text || 'Unknown error'}`);
         break;
       case 'debug':
-        logDebug(evt); break;
+        logDebug(evt);
+        break;
       default:
         DEBUG && console.debug('[EVT_UNKNOWN]', evt);
     }
   }
 
   function logDebug(evt){
-    let panel=document.getElementById('debugPanel');
-    if (!panel){
-      panel=document.createElement('pre');
+    let panel = document.getElementById('debugPanel');
+    if (!panel) {
+      panel = document.createElement('pre');
       panel.id='debugPanel';
       panel.style.cssText='position:fixed;right:6px;bottom:6px;max-width:420px;max-height:220px;overflow:auto;background:#111;color:#0f0;padding:6px;font:11px/1.4 monospace;z-index:9999;opacity:.85;';
       panel.textContent='[DEBUG PANEL]\n';
@@ -1251,49 +1278,71 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function finalizeAnswer(full='', usage){
-    if (streamingNode) addCopyButton(streamingNode, stripMarkdown(full || deltaBuffer));
+      /* —— PATCH：先给当前气泡补上复制按钮 —— */
+  if (streamingNode) {
+    addCopyButton(streamingNode, stripMarkdown(full || deltaBuffer));
+  }
+    // [PATCH-3] finalize 校验
     if (streamingNode && streamingNode.dataset.streamToken !== CURRENT_STREAM_TOKEN) {
       DEBUG && console.log('[FINALIZE_SKIP_OLD]');
       return;
     }
-    DEBUG && console.log('[STREAM] finalizeAnswer fullLen=', full.length, 'deltaLen=', deltaBuffer.length);
+    DEBUG && console.log('[STREAM] finalizeAnswer fullLen=', full.length,'deltaLen=', deltaBuffer.length);
     stopStreaming();
-    if (!streamingNode) {
-      streamingNode=document.createElement('div');
-      streamingNode.className='msg bot';
-      chat && chat.appendChild(streamingNode);
-    }
+   if (!streamingNode) {
+      // 占位未成功创建时兜底
+     streamingNode = document.createElement('div');
+     streamingNode.className='msg bot';
+     chat && chat.appendChild(streamingNode);
+     }
+    /**-}--*/
     const finalText = full || deltaBuffer || '(空回答)';
-    safeRemoveStreamingClass(streamingNode);
-    try { streamingNode.innerHTML = marked.parse(finalText); }
-    catch(e){ streamingNode.textContent = finalText; }
-    if (usage && (usage.prompt || usage.completion)){
-      const meta=document.createElement('div');
+    safeRemoveStreamingClass(streamingNode); // [PATCH-1]
+    try {
+      streamingNode.innerHTML = marked.parse(finalText);
+       } catch(e){
+      DEBUG && console.warn('[finalize:innerHTML-fail]', e);
+       streamingNode.textContent = finalText;
+      }
+    if (usage && (usage.prompt || usage.completion)) {
+      const meta = document.createElement('div');
       meta.className='usage';
       const total=(usage.prompt||0)+(usage.completion||0);
       meta.textContent=`🔢 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
       streamingNode.appendChild(meta);
     }
-    addCopyButton(streamingNode, stripMarkdown(finalText));
+    addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
     lastFullAnswer = finalText;
-    try {
-      const raw=localStorage.getItem(HISTORY_KEY);
-      if(raw){
-        const arr=JSON.parse(raw);
-        for(let i=arr.length-1;i>=0;i--){
-          if(arr[i].role==='bot'){ arr[i].content=finalText; arr[i].meta={}; arr[i].ts=Date.now(); break; }
+   
+
+     /* —— PATCH：把占位的 bot 历史替换成完整文本 —— */
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr[i].role === 'bot') {
+          arr[i].content = finalText;
+          arr[i].meta    = {};
+          arr[i].ts      = Date.now();
+          break;
         }
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
       }
-    } catch(e){ console.warn('更新历史失败', e); }
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+    }
+  } catch (e) {
+    console.warn('更新历史失败', e);
+  }
     exitClarify();
+    
   }
 
-  function addCopyButton(node, rawText){
+  function addCopyButton(node, rawText) {
+    // [PATCH-7] finalize 时调用；已存在则不重复
     if (node.querySelector('.copy-btn')) return;
-    const btn=document.createElement('button');
+    const btn = document.createElement('button');
     btn.className='copy-btn'; btn.textContent='⧉'; btn.title='复制';
-    btn.onclick=()=>{
+    btn.onclick = ()=>{
       navigator.clipboard.writeText(rawText);
       btn.textContent='✔'; setTimeout(()=>btn.textContent='⧉',1200);
     };
@@ -1301,9 +1350,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function abortStreaming(){
-    if (abortCtrl){
+    if (abortCtrl) {
       abortCtrl.abort();
-      if (isStreaming){
+      // [PATCH-8] 若已有部分文本，直接 finalize 而非追加一条“停止”消息
+      if (isStreaming) {
         flushDelta();
         finalizeAnswer(rawAnswerBuffer || deltaBuffer || '(已停止，无内容)');
       } else {
@@ -1315,7 +1365,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ================== 发送 ================== */
   function uploadsReadyURLs(){ return uploads.filter(u=>!u.uploading && u.url).map(u=>u.url); }
-  function clearUploads(){ uploads.forEach(u=>u.node && u.node.remove()); uploads=[]; }
+  function clearUploads(){
+    uploads.forEach(u=>u.node && u.node.remove());
+    uploads = [];
+  }
 
   async function trySend(){
     if (!checkAuthOrWarn()) return;
@@ -1324,20 +1377,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputText = txt.value.trim();
     const images = uploadsReadyURLs();
     if (!inputText && !images.length) return;
-    if (clarifyMode){
+
+    // [PATCH-5] Clarify 模式下允许补充；若仍为空则返回
+    if (clarifyMode) {
       if (!inputText && !images.length) return;
       exitClarify();
     }
-    CURRENT_STREAM_TOKEN = 'st_'+Date.now()+'_'+Math.random().toString(16).slice(2);
-    if (firstMessage){
-      firstMessage=false;
-      document.body.style.overflow='auto';
+
+    // [PATCH-3] 新流 token
+    CURRENT_STREAM_TOKEN = 'st_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+
+    if (firstMessage) {
+      firstMessage = false;
+      document.body.style.overflow = 'auto';
       welcome && welcome.remove();
     }
+
     displayLargeUserInput(inputText, images);
     txt.value=''; autoResize(); clearUploads();
     refreshSendState();
-    const payload=buildPayload(inputText);
+
+    const payload = buildPayload(inputText);
     DEBUG && console.log('>> /admin-api/ws payload', payload);
     streamRequest(payload);
   }
@@ -1348,12 +1408,12 @@ document.addEventListener('DOMContentLoaded', () => {
     else trySend();
   });
   txt?.addEventListener('keydown', e=>{
-    if (e.key==='Enter' && !e.shiftKey){
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       trySend();
     }
   });
-  function updateSendButtonLabel(){
+  function updateSendButtonLabel() {
     if (!sendBtn) return;
     if (isStreaming && !clarifyMode) sendBtn.title='终止本次回答';
     else if (clarifyMode) sendBtn.title='发送澄清补充';
@@ -1369,24 +1429,28 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   /* ================== 诊断工具 ================== */
-  window.MGPT_TEST_DIAG = async ()=>{
+  window.MGPT_TEST_DIAG = async () => {
     try {
       const r = await fetch(BASE + '/diag').then(r=>r.json());
-      appendMessage('bot','诊断结果:\n```json\n'+JSON.stringify(r,null,2)+'\n```');
+      appendMessage('bot', '诊断结果:\n```json\n'+JSON.stringify(r,null,2)+'\n```');
     } catch(e){
-      appendMessage('bot','诊断失败: '+e.message);
+      appendMessage('bot', '诊断失败: '+e.message);
     }
   };
 
-  /* ================== 初始化 ================== */
+  /* ================== 初始化顺序 ================== */
   autoResize();
   refreshOverlay();
   refreshSendState();
   toggleArrow();
-  await initAuth();   // 关键：等待验证
+  initAuth();
   loadHistory();
-});
+
+}); // DOMContentLoaded
+
 } // 版本保护 end
+
+
 </script>
 
 
