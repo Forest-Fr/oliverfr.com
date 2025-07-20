@@ -730,7 +730,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     sendBtn && (sendBtn.disabled=true);
   }
 
-+ async function validateCode(value, { silent=false } = {}) {
+async function validateCode(value, { silent=false } = {}) {
+  window.validateCode = validateCode;
+
 if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
  if (!silent) {
 authErr && (authErr.textContent='格式不正确（需≥'+AUTH_MIN_LEN+'且仅字母数字-_）');
@@ -834,7 +836,8 @@ authErr && (authErr.style.display='block');
       return;
     }
     authBtn.disabled = true;
-    const ok = await validateCode(val, { silent:false });
+    onst ok = await initAuth();  // 直接走 initAuth，它内部会拿到 validateCode
+    /**--const ok = await validateCode(val, { silent:false });--**/
     if (ok) {
       unlockUI();
       authFailCount = 0;
