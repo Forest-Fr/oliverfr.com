@@ -927,11 +927,16 @@ document.addEventListener('DOMContentLoaded', () => {
     streamingNode = appendMessage('bot', '', { streaming:true });
     refreshSendState();
   }
-  function stopStreaming() {
-    isStreaming = false;
-    streamingNode && streamingNode.classList.remove('streaming');
-    refreshSendState();
+function stopStreaming() {
+  isStreaming = false;
+  try {
+    streamingNode?.classList?.remove?.('streaming');
+  } catch (e) {
+    console.warn('[stopStreaming] 无法移除 streaming class：', e);
   }
+  refreshSendState();
+}
+
   function scheduleFlush() {
     if (flushScheduled) return;
     flushScheduled = true;
