@@ -674,13 +674,15 @@ document.addEventListener('DOMContentLoaded', () => {
     clarify = false
   } = {}) {
     if (!chat) return;
-    if (!text && !images.length) return;
+    if (!text && !images.length && !streaming) return; // [HOTFIX-stream-placeholder]
     const extras = [];
     if (streaming) extras.push('streaming');
     if (clarify)  extras.push('clarify');
     const div = createMsgDiv(role, extras.join(' '));
 
-    if (images.length) {
+    if (streaming && !text) {
+      div.innerHTML = '<em style="opacity:.55">⌛ 流式生成中...</em>'; }
+     if (images.length) {
       const pics = document.createElement('div');
       pics.className = 'pics';
       images.forEach(src=>{
@@ -952,7 +954,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function flushDelta() {
     if (!streamingNode) return;
-    streamingNode.innerHTML = renderMarkdown(deltaBuffer);
+     try {
+       streamingNode.innerHTML = renderMarkdown(deltaBuffer);
+       } catch(e){
+       DEBUG && console.warn('[flushDelta:fail]', e);
+       streamingNode.textContent = deltaBuffer;
+       }
     scrollToBottom();
   }
   function appendDelta(text) {
@@ -1277,12 +1284,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     DEBUG && console.log('[STREAM] finalizeAnswer fullLen=', full.length,'deltaLen=', deltaBuffer.length);
     stopStreaming();
-    if (!streamingNode) {
-      streamingNode = appendMessage('bot','', { streaming:false });
-    }
+   if (!streamingNode) {
+      // 占位未成功创建时兜底
+     streamingNode = document.createElement('div');
+     streamingNode.className='msg bot';
+     chat && chat.appendChild(streamingNode);
+     }
+    /**-}--*/
     const finalText = full || deltaBuffer || '(空回答)';
     safeRemoveStreamingClass(streamingNode); // [PATCH-1]
-    streamingNode.innerHTML = marked.parse(finalText);
+    try {
+      streamingNode.innerHTML = marked.parse(finalText);
+       } catch(e){
+      DEBUG && console.warn('[finalize:innerHTML-fail]', e);
+       streamingNode.textContent = finalText;
+      }
     if (usage && (usage.prompt || usage.completion)) {
       const meta = document.createElement('div');
       meta.className='usage';
