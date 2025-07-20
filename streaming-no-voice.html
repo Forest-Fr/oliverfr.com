@@ -730,79 +730,83 @@ document.addEventListener('DOMContentLoaded', async () => {
     sendBtn && (sendBtn.disabled=true);
   }
 
-+ async function validateCode(value, { silent=false } = {}) {
-if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
- if (!silent) {
-authErr && (authErr.textContent='格式不正确（需≥'+AUTH_MIN_LEN+'且仅字母数字-_）');
-authErr && (authErr.style.display='block');
-}
-return false;
-}
-try {
- const r = await fetch(AUTH_URL, {
-method:'POST',
-headers:{ 'Content-Type':'application/json' },
-body: JSON.stringify({ code:value })
-  });
-const ct = r.headers.get('Content-Type')||'';
-let data={};
-if (/json/i.test(ct)) data = await r.json().catch(()=>({}));
-DEBUG && console.log('[validateCode] status=', r.status, 'data=', data);
- if (!r.ok || !data.ok) throw new Error('授权失败');
- const ver = Number(r.headers.get('x-auth-version') || data.code_version || 0);
-authVersion = ver;
-localStorage.setItem('auth_code', value);
- localStorage.setItem('auth_code_version', String(ver));
- code = value;
-isAuthorized = true;
-if (!silent) authModal && (authModal.style.display='none');
-unlockUI();
-startAuthHeartbeat();
-return true;
-} catch(e){
-DEBUG && console.warn('[validateCode] error', e);
-if (!silent) {
-authErr && (authErr.textContent = e.message || '验证错误');
-authErr && (authErr.style.display='block');
- }
- return false;
-}
-}
-
-  function forceReAuth(reason='授权码已失效，请重新输入') {
+ async function validateCode(value, { silent = false } = {}) {
+    if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
+      if (!silent) {
+        authErr.textContent = '格式不正确（需≥' + AUTH_MIN_LEN + '且仅字母数字-_）';
+        authErr.style.display = 'block';
+      }
+      return false;
+    }
+    try {
+      const r = await fetch(AUTH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: value })
+      });
+      const ct = r.headers.get('Content-Type') || '';
+      let data = {};
+      if (/json/i.test(ct)) {
+        data = await r.json().catch(() => ({}));
+      }
+      if (!r.ok || !data.ok) throw new Error('授权失败');
+      const ver = Number(r.headers.get('x-auth-version') || data.code_version || 0);
+      authVersion = ver;
+      localStorage.setItem('auth_code', value);
+      localStorage.setItem('auth_code_version', String(ver));
+      code = value;
+      isAuthorized = true;
+      if (!silent) authModal.style.display = 'none';
+      unlockUI();
+      startAuthHeartbeat();
+      return true;
+    } catch (e) {
+      if (!silent) {
+        authErr.textContent = e.message || '验证错误';
+        authErr.style.display = 'block';
+      }
+      return false;
+    }
+  }
+  // —— 重新触发登录界面，并清理本地存储 —— 
+  function forceReAuth(reason = '授权码已失效，请重新输入') {
     isAuthorized = false;
     code = '';
     stopAuthHeartbeat();
     localStorage.removeItem('auth_code');
-     localStorage.removeItem('auth_code_version'); // [FIX-6]
-    authModal && (authModal.style.display='flex');
+    localStorage.removeItem('auth_code_version');
+    authModal && (authModal.style.display = 'flex');
     lockUI();
     if (authErr) {
-      authErr.style.display='block';
-      authErr.textContent=reason;
+      authErr.style.display = 'block';
+      authErr.textContent = reason;
     } else {
       alert(reason);
     }
   }
 
-  async function initAuth(){
+   // —— 页面加载后，优先初始化授权 —— 
+  async function initAuth() {
     if (DEV_MODE) {
+      // 开发模式下直接跳过
       isAuthorized = true;
       code = 'dev-bypass';
-      authModal && (authModal.style.display='none');
+      authModal && (authModal.style.display = 'none');
       unlockUI();
       return;
     }
     const saved = localStorage.getItem('auth_code');
     if (saved) {
-      const ok = await validateCode(saved, { silent:true });
+      const ok = await validateCode(saved, { silent: true });
       if (ok) {
         unlockUI();
         startAuthHeartbeat();
         return;
       }
+      // 本地存储的授权码失效
       forceReAuth('本地授权码已失效，请重新输入');
     } else {
+      // 无本地授权码
       forceReAuth();
     }
   }
@@ -1399,15 +1403,23 @@ authErr && (authErr.style.display='block');
   };
 
   /* ================== 初始化 ================== */
+  document.addEventListener('DOMContentLoaded', async () => {
+  // ① 自动调整输入框和遮罩层  
   autoResize();
   refreshOverlay();
+
+  // ② 刷新“发送”按钮状态、小箭头是否显示  
   refreshSendState();
   toggleArrow();
-  await initAuth();   // 关键：等待验证
-  try { await initAuth(); } catch(e){ console.error('[initAuth fatal]', e); forceReAuth('初始化授权异常'); }
+
+  // ③ **先做授权校验**，成功后才解锁 UI 并跑后续 loadHistory/事件绑定
+  await initAuth();    // ← 这里必须能找到并执行你上面写好的 initAuth()/validateCode()
+
+  // ④ 授权通过后，加载聊天历史并启动剩下的业务逻辑
   loadHistory();
+  // … 其它如绑定 send、abort、streamRequest 之类的初始化 …
 });
-} // 版本保护 end
+// End of <script>
 </script>
 
 
