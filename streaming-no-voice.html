@@ -1403,23 +1403,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   /* ================== 初始化 ================== */
+   // —— DOM 准备好后，启动授权流程 ——  
   document.addEventListener('DOMContentLoaded', async () => {
-  // ① 自动调整输入框和遮罩层  
-  autoResize();
-  refreshOverlay();
+    // ① 自动调整输入框和遮罩层
+    autoResize();
+    refreshOverlay();
 
-  // ② 刷新“发送”按钮状态、小箭头是否显示  
-  refreshSendState();
-  toggleArrow();
+    // ② 刷新“发送”按钮状态、小箭头是否显示
+    refreshSendState();
+    toggleArrow();
 
-  // ③ **先做授权校验**，成功后才解锁 UI 并跑后续 loadHistory/事件绑定
-  await initAuth();    // ← 这里必须能找到并执行你上面写好的 initAuth()/validateCode()
+    // ③ **先做授权校验**
+    await initAuth();    // ← 这里必须能找到并执行 validateCode/initAuth()
 
-  // ④ 授权通过后，加载聊天历史并启动剩下的业务逻辑
-  loadHistory();
-  // … 其它如绑定 send、abort、streamRequest 之类的初始化 …
-});
-// End of <script>
+    // ④ 授权通过后，加载聊天历史并启动剩下的业务逻辑
+    loadHistory();
+    // … 其它如绑定 send、abort、streamRequest 之类的初始化 …
+  });  // ← 关闭 addEventListener 回调
+
+}  // ← 关闭最外层的 if/else 版本保护块（从文件开头的 `if (window._MGPT…) { … } else {` 对应的 `}`）
+
+</script>  <!-- ← 记得加上这一行，结束 <script> 标签 -->
+
 </script>
 
 
