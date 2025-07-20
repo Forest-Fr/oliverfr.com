@@ -731,7 +731,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
 async function validateCode(value, { silent=false } = {}) {
-  window.validateCode = validateCode;
+ 
 
 if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
  if (!silent) {
