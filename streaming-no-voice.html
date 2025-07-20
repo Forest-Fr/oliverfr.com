@@ -836,8 +836,8 @@ authErr && (authErr.style.display='block');
       return;
     }
     authBtn.disabled = true;
-    onst ok = await initAuth();  // 直接走 initAuth，它内部会拿到 validateCode
-    /**--const ok = await validateCode(val, { silent:false });--**/
+   
+  const ok = await validateCode(val, { silent:false });
     if (ok) {
       unlockUI();
       authFailCount = 0;
