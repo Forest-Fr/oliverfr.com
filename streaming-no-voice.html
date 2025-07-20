@@ -997,14 +997,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+   /* ================== 流式渲染 ================== */
+
+  // 1. 发起流式请求
   async function streamRequest(payload) {
     const ctrl = new AbortController();
     _MGPT.setAbortCtrl(ctrl);
+
     let httpResp;
     try {
       httpResp = await fetch(API_URL, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+        method: 'POST',
+        credentials: 'include',               // 如需携带 Cookie
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/x-ndjson'   // 🚩 新增：告诉后端我们要 NDJSON
+        },
         body: JSON.stringify(payload),
         signal: ctrl.signal
       });
@@ -1012,11 +1020,12 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('<< /admin-api/ws status', httpResp.status);
         console.log('[resp headers]', [...httpResp.headers.entries()]);
       }
-    } catch(e) {
-      appendMessage('bot', `⚠️ 网络错误：${e.message||e}`, {});
+    } catch (e) {
+      appendMessage('bot', `⚠️ 网络错误：${e.message}`, {});
       stopStreaming();
       return;
     }
+
     if (!httpResp.ok || !httpResp.body) {
       appendMessage('bot', `⚠️ HTTP ${httpResp.status}`, {});
       stopStreaming();
@@ -1026,20 +1035,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const reader = httpResp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+
     startStreaming();
 
     while (true) {
       let chunk;
       try {
-        const r = await reader.read();
-        if (r.done) break;
-        chunk = decoder.decode(r.value, { stream:true });
-      } catch(e){
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunk = decoder.decode(value, { stream: true });
+      } catch (e) {
         if (ctrl.signal.aborted) appendMessage('bot', '⚠️ 已取消。', {});
         else appendMessage('bot', '⚠️ 流中断。', {});
         stopStreaming();
         return;
       }
+
       buffer += chunk;
       let idx;
       while ((idx = buffer.indexOf('\n')) !== -1) {
@@ -1052,16 +1063,18 @@ document.addEventListener('DOMContentLoaded', () => {
         handleEvent(evt);
       }
     }
+
+    // 读完后收尾
     if (_MGPT.isStreamingRef()) {
       flushDelta();
       finalizeAnswer();
     }
   }
 
+  // 2. 事件分发
   function handleEvent(evt) {
     if (DEBUG) console.debug('[stream evt]', evt);
-    const type = evt.event;
-    switch (type) {
+    switch (evt.event) {
       case 'delta':
         if (!_MGPT.isStreamingRef()) startStreaming();
         appendDelta(evt.text || '');
@@ -1079,51 +1092,35 @@ document.addEventListener('DOMContentLoaded', () => {
         flushDelta();
         stopStreaming();
         let msg = `⚠️ 出错：${evt.text || 'Unknown error'}`;
-        if (DEBUG && evt.stack) {
-          msg += `\n\n<details><summary>调试栈</summary><pre>${escapeHtml(evt.stack)}</pre></details>`;
-        }
         appendMessage('bot', msg);
         break;
-      default:
-        if (DEBUG) console.debug('未识别事件', evt);
     }
   }
 
-  function finalizeAnswer(fullFromEvt='') {
+  // 3. 完成渲染
+  function finalizeAnswer(fullFromEvt = '') {
     stopStreaming();
-    let finalText;
-    if (fullFromEvt) finalText = fullFromEvt;
-    else {
-      const n = _MGPT.streamingNodeRef();
-      finalText = n ? (n.innerHTML || '(空回答)') : '(空回答)';
-    }
-    const node = _MGPT.streamingNodeRef && _MGPT.streamingNodeRef();
+    const node = _MGPT.streamingNodeRef();
+    const finalText = fullFromEvt || (node ? node.textContent : '(空回答)');
     if (node) {
       node.classList.remove('streaming');
-      node.innerHTML = marked.parse(fullFromEvt || node.textContent || node.innerText);
-      addCopyButton(node, fullFromEvt || node.textContent || node.innerText);
+      node.innerHTML = marked.parse(fullFromEvt || stripMarkdown(node.textContent));
+      addCopyButton(node, finalText);
     }
-    _MGPT.setLastFullAnswer(fullFromEvt || finalText);
+    _MGPT.setLastFullAnswer(finalText);
   }
-  function addCopyButton(node, rawText) {
-    if (node.querySelector('.copy-btn')) return;
-    const btn = document.createElement('button');
-    btn.className = 'copy-btn'; btn.textContent = '⧉'; btn.title='复制';
-    btn.onclick = ()=>{
-      navigator.clipboard.writeText(rawText);
-      btn.textContent='✔'; setTimeout(()=>btn.textContent='⧉',1300);
-    };
-    node.appendChild(btn);
-  }
+
+  // 4. 手动停止
   function abortStreaming() {
     const ctrl = _MGPT.getAbortCtrl();
     if (ctrl) {
       ctrl.abort();
       stopStreaming();
-      appendMessage('bot','⏹ 已手动停止。');
+      appendMessage('bot', '⏹ 已手动停止。');
     }
   }
 
+  /* ================== Part 3 / 发送与流读取 ================== */
   async function trySend() {
     if (!checkAuthOrWarn()) return;
     if (anyUploading()) return;
@@ -1137,35 +1134,31 @@ document.addEventListener('DOMContentLoaded', () => {
       if (welcome) welcome.remove();
     }
 
-    // Clarification：由后端决定是否仍需澄清
     displayLargeUserInput(inputText, images);
-    txt.value=''; autoResize(); clearUploads();
-    refreshSendState();
+    txt.value = ''; autoResize(); clearUploads(); refreshSendState();
 
     const payload = buildPayload(inputText);
     if (DEBUG) console.log('>> /admin-api/ws payload', payload);
     streamRequest(payload);
   }
 
-  function uploadsReadyURLs() {
-    return uploads.filter(u=>!u.uploading && u.url).map(u=>u.url);
-  }
-  function clearUploads() {
-    uploads.forEach(u=>u.node && u.node.remove());
-    uploads = [];
-  }
-
-  sendBtn.addEventListener('click', ()=>{
-    if (_MGPT.isStreamingRef() && !_MGPT.clarifyModeRef()) abortStreaming();
-    else trySend();
+  // 5. 重新绑定发送按钮
+  sendBtn.addEventListener('click', () => {
+    if (_MGPT.isStreamingRef() && !_MGPT.clarifyModeRef()) {
+      abortStreaming();
+    } else {
+      trySend();
+    }
   });
-  txt.addEventListener('keydown', e=>{
+  txt.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       trySend();
     }
   });
 
+
+  
   function updateSendButtonLabel() {
     if (_MGPT.isStreamingRef() && !_MGPT.clarifyModeRef()) sendBtn.title='终止本次回答';
     else if (_MGPT.clarifyModeRef()) sendBtn.title='发送澄清补充';
