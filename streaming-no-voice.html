@@ -583,6 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastFullAnswer = '';
   let rawAnswerBuffer = '';  // 累计 delta
 let gotDone = false;       // 新增: 标记是否收到done
+  let gotStart = false;    // 新增：收到 start 行
   let sseAvailable   = null; // 'yes' | 'no' | null
 
   window.SESSION_STATE = window.SESSION_STATE || {
@@ -1109,29 +1110,31 @@ let gotDone = false;       // 新增: 标记是否收到done
           }
         } else { // NDJSON
           let nl;
-          while ((nl = buffer.indexOf('\n')) !== -1) {
-            const line = buffer.slice(0, nl).trim();
-            buffer = buffer.slice(nl + 1);
-            if (!line) continue;
-            let obj;
-            try { obj = JSON.parse(line); } catch {
-              DEBUG && console.warn('[BAD_JSON_LINE]', line);
-              continue;
-            }
-            if (obj.event === 'done') gotDone = true;
-            handleEvent(obj, obj.event);
-          }
+        while ((nl = buffer.indexOf('\n')) !== -1) {
+  let line = buffer.slice(0, nl);
+  buffer = buffer.slice(nl + 1);
+  line = line.replace(/^\uFEFF/, '').trim();  // 去 BOM
+  if (!line) continue;
+  let obj;
+  try {
+    obj = JSON.parse(line);
+  } catch(e) {
+    DEBUG && console.warn('[BAD_JSON_LINE]', line, e);
+    continue;
+  }
+  handleEvent(obj, obj.event);
+}
+
         }
       }
       // EOF 但未收到 done：也 finalize
    // === 读取结束 ===
 if (isStreaming) {
-  // 兜底：若未收到 done，而 buffer 里还有未处理尾巴（可能是一整行未换行 JSON）
   if (!gotDone) {
     const tail = buffer.trim();
     if (tail) {
       try {
-        const tailObj = JSON.parse(tail);
+        const tailObj = JSON.parse(tail.replace(/^\uFEFF/, ''));
         if (!tailObj.event) {
           if (tailObj.full) tailObj.event = 'done';
           else if (tailObj.text) tailObj.event = 'delta';
@@ -1139,13 +1142,17 @@ if (isStreaming) {
         }
         handleEvent(tailObj, tailObj.event);
       } catch(e){
-        DEBUG && console.warn('[TAIL_PARSE_FAIL]', e, buffer);
+        DEBUG && console.warn('[TAIL_PARSE_FAIL]', e, tail);
       }
     }
+  }
+  if (!gotStart) {
+    DEBUG && console.warn('[WARN] 没收到 start 行，可能 Worker 未写入或被缓存');
   }
   flushDelta();
   finalizeAnswer(rawAnswerBuffer);
 }
+
 
     } catch (e) {
       if (ctrl.signal.aborted) appendMessage('bot', '⚠️ 已取消。');
@@ -1159,6 +1166,15 @@ if (isStreaming) {
     DEBUG && console.debug('[stream evt]', eventName, evt);
     const type = eventName || evt.event;
     switch (type) {
+              case 'start':
+        gotStart = true;
+        // 确保已经有 streamingNode（如果 start 比我们 startStreaming 更早——安全兜底）
+        if (!streamingNode) {
+          startStreaming();
+        }
+        DEBUG && console.debug('[start event]', evt);
+        break;
+
       case 'delta':
         if (!isStreaming) startStreaming();
         if (evt.text) {
@@ -1255,6 +1271,7 @@ if (isStreaming) {
 
     const payload = buildPayload(inputText);
     DEBUG && console.log('>> /admin-api/ws payload', payload);
+    DEBUG && console.log('[payload.code length]', (payload.code||'').length);
     streamRequest(payload);
   }
 
