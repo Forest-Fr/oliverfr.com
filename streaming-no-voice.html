@@ -983,7 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return {
       code: _MGPT.codeRef(),
       session_id: _MGPT.sessionId,
-      text: inputText,
+      lastUserQueries: [inputText],
       images: imgs,
       userRoles: window.USER_ROLES || [],
       industry: window.SELECTED_INDUSTRY || '',
@@ -1065,6 +1065,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'delta':
         if (!_MGPT.isStreamingRef()) startStreaming();
         appendDelta(evt.text || '');
+        rawAnswerBuffer += (evt.text || '');
         break;
       case 'clarify':
         flushDelta();
@@ -1073,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
       case 'done':
         flushDelta();
-        finalizeAnswer(evt.full || '');
+       finalizeAnswer(rawAnswerBuffer);
         break;
       case 'error':
         flushDelta();
