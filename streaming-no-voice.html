@@ -1278,6 +1278,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function finalizeAnswer(full='', usage){
+      /* —— PATCH：先给当前气泡补上复制按钮 —— */
+  if (streamingNode) {
+    addCopyButton(streamingNode, stripMarkdown(full || deltaBuffer));
+  }
     // [PATCH-3] finalize 校验
     if (streamingNode && streamingNode.dataset.streamToken !== CURRENT_STREAM_TOKEN) {
       DEBUG && console.log('[FINALIZE_SKIP_OLD]');
