@@ -530,36 +530,6 @@ marked.setOptions({
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-      // ① 自动布局：输入框、遮罩、箭头、按钮状态
-    autoResize();
-    refreshOverlay();
-    refreshSendState();
-    toggleArrow();
-
-    // ② **先做授权校验** —— 如果失败，会弹出 authModal，下面不会继续执行
-    try {
-      await initAuth();
-    } catch (e) {
-      console.error('initAuth 出错：', e);
-      authErr && (authErr.textContent = '授权服务异常，请稍后再试');
-      authErr && (authErr.style.display = 'block');
-      return;  // 中断后续流程
-    }
-
-    // ③ 授权通过后，加载历史并绑定业务事件
-    loadHistory();
-
-    // 发送消息、停止流式、键盘回车、文件上传……都在这里继续绑定
-    sendBtn?.addEventListener('click', () => {
-      if (isStreaming && !clarifyMode) abortStreaming();
-      else trySend();
-    });
-    txt?.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        trySend();
-      }
-    });
   if (!window._MGPT) window._MGPT = {};
 
   /* ================== 基础配置 ================== */
@@ -760,83 +730,79 @@ document.addEventListener('DOMContentLoaded', async () => {
     sendBtn && (sendBtn.disabled=true);
   }
 
- async function validateCode(value, { silent = false } = {}) {
-    if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
-      if (!silent) {
-        authErr.textContent = '格式不正确（需≥' + AUTH_MIN_LEN + '且仅字母数字-_）';
-        authErr.style.display = 'block';
-      }
-      return false;
-    }
-    try {
-      const r = await fetch(AUTH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: value })
-      });
-      const ct = r.headers.get('Content-Type') || '';
-      let data = {};
-      if (/json/i.test(ct)) {
-        data = await r.json().catch(() => ({}));
-      }
-      if (!r.ok || !data.ok) throw new Error('授权失败');
-      const ver = Number(r.headers.get('x-auth-version') || data.code_version || 0);
-      authVersion = ver;
-      localStorage.setItem('auth_code', value);
-      localStorage.setItem('auth_code_version', String(ver));
-      code = value;
-      isAuthorized = true;
-      if (!silent) authModal.style.display = 'none';
-      unlockUI();
-      startAuthHeartbeat();
-      return true;
-    } catch (e) {
-      if (!silent) {
-        authErr.textContent = e.message || '验证错误';
-        authErr.style.display = 'block';
-      }
-      return false;
-    }
-  }
-  // —— 重新触发登录界面，并清理本地存储 —— 
-  function forceReAuth(reason = '授权码已失效，请重新输入') {
++ async function validateCode(value, { silent=false } = {}) {
+if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
+ if (!silent) {
+authErr && (authErr.textContent='格式不正确（需≥'+AUTH_MIN_LEN+'且仅字母数字-_）');
+authErr && (authErr.style.display='block');
+}
+return false;
+}
+try {
+ const r = await fetch(AUTH_URL, {
+method:'POST',
+headers:{ 'Content-Type':'application/json' },
+body: JSON.stringify({ code:value })
+  });
+const ct = r.headers.get('Content-Type')||'';
+let data={};
+if (/json/i.test(ct)) data = await r.json().catch(()=>({}));
+DEBUG && console.log('[validateCode] status=', r.status, 'data=', data);
+ if (!r.ok || !data.ok) throw new Error('授权失败');
+ const ver = Number(r.headers.get('x-auth-version') || data.code_version || 0);
+authVersion = ver;
+localStorage.setItem('auth_code', value);
+ localStorage.setItem('auth_code_version', String(ver));
+ code = value;
+isAuthorized = true;
+if (!silent) authModal && (authModal.style.display='none');
+unlockUI();
+startAuthHeartbeat();
+return true;
+} catch(e){
+DEBUG && console.warn('[validateCode] error', e);
+if (!silent) {
+authErr && (authErr.textContent = e.message || '验证错误');
+authErr && (authErr.style.display='block');
+ }
+ return false;
+}
+}
+
+  function forceReAuth(reason='授权码已失效，请重新输入') {
     isAuthorized = false;
     code = '';
     stopAuthHeartbeat();
     localStorage.removeItem('auth_code');
-    localStorage.removeItem('auth_code_version');
-    authModal && (authModal.style.display = 'flex');
+     localStorage.removeItem('auth_code_version'); // [FIX-6]
+    authModal && (authModal.style.display='flex');
     lockUI();
     if (authErr) {
-      authErr.style.display = 'block';
-      authErr.textContent = reason;
+      authErr.style.display='block';
+      authErr.textContent=reason;
     } else {
       alert(reason);
     }
   }
 
-   // —— 页面加载后，优先初始化授权 —— 
-  async function initAuth() {
+  async function initAuth(){
     if (DEV_MODE) {
-      // 开发模式下直接跳过
       isAuthorized = true;
       code = 'dev-bypass';
-      authModal && (authModal.style.display = 'none');
+      authModal && (authModal.style.display='none');
       unlockUI();
       return;
     }
     const saved = localStorage.getItem('auth_code');
     if (saved) {
-      const ok = await validateCode(saved, { silent: true });
+      const ok = await validateCode(saved, { silent:true });
       if (ok) {
         unlockUI();
         startAuthHeartbeat();
         return;
       }
-      // 本地存储的授权码失效
       forceReAuth('本地授权码已失效，请重新输入');
     } else {
-      // 无本地授权码
       forceReAuth();
     }
   }
@@ -1433,8 +1399,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   /* ================== 初始化 ================== */
-
-
+  autoResize();
+  refreshOverlay();
+  refreshSendState();
+  toggleArrow();
+  await initAuth();   // 关键：等待验证
+  try { await initAuth(); } catch(e){ console.error('[initAuth fatal]', e); forceReAuth('初始化授权异常'); }
+  loadHistory();
+});
+} // 版本保护 end
 </script>
 
 
