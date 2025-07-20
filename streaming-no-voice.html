@@ -581,7 +581,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let flushScheduled = false;
   let firstMessage   = true;
   let lastFullAnswer = '';
-  let rawAnswerBuffer= '';
+  let rawAnswerBuffer = '';  // 累计 delta
+let gotDone = false;       // 新增: 标记是否收到done
   let sseAvailable   = null; // 'yes' | 'no' | null
 
   window.SESSION_STATE = window.SESSION_STATE || {
@@ -1123,10 +1124,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       // EOF 但未收到 done：也 finalize
-      if (!gotDone && isStreaming) {
-        flushDelta();
-        finalizeAnswer(rawAnswerBuffer);
+   // === 读取结束 ===
+if (isStreaming) {
+  // 兜底：若未收到 done，而 buffer 里还有未处理尾巴（可能是一整行未换行 JSON）
+  if (!gotDone) {
+    const tail = buffer.trim();
+    if (tail) {
+      try {
+        const tailObj = JSON.parse(tail);
+        if (!tailObj.event) {
+          if (tailObj.full) tailObj.event = 'done';
+          else if (tailObj.text) tailObj.event = 'delta';
+          else tailObj.event = 'error';
+        }
+        handleEvent(tailObj, tailObj.event);
+      } catch(e){
+        DEBUG && console.warn('[TAIL_PARSE_FAIL]', e, buffer);
       }
+    }
+  }
+  flushDelta();
+  finalizeAnswer(rawAnswerBuffer);
+}
+
     } catch (e) {
       if (ctrl.signal.aborted) appendMessage('bot', '⚠️ 已取消。');
       else appendMessage('bot', '⚠️ 流中断：' + e.message);
@@ -1151,13 +1171,19 @@ document.addEventListener('DOMContentLoaded', () => {
         evt.text && enterClarify(evt.text);
         break;
       case 'done':
+         gotDone = true; // 新增
         flushDelta();
         if (evt.full) rawAnswerBuffer = evt.full;
         finalizeAnswer(rawAnswerBuffer);
         break;
       case 'error':
-        flushDelta(); stopStreaming();
-        let msg = `⚠️ 出错：${evt.text || 'Unknown error'}`;
+  if (!streamingNode) {
+    // 确保有显示容器
+    streamingNode = appendMessage('bot', '', { streaming:false });
+  }
+  flushDelta();
+  stopStreaming();
+  let msg = `⚠️ 出错：${evt.text || 'Unknown error'}`;
         if (DEBUG && evt.stack) {
           msg += `\n\n<details><summary>调试栈</summary><pre>${escapeHtml(evt.stack)}</pre></details>`;
         }
