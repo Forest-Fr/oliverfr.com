@@ -527,16 +527,21 @@ marked.setOptions({
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  /* ========= 预防：占位，避免早期引用 _MGPT 时报错 ========= */
-  if (!window._MGPT) window._MGPT = {};   // FIX
+  if (!window._MGPT) window._MGPT = {};
 
   /* ================== 基础配置 ================== */
-  const BASE      = "https://streaming-tts.mefans.workers.dev";
-  const API_URL   = BASE + "/admin-api/ws";
-  const AUTH_URL  = BASE + "/admin-api/validate-code";
-  const DEV_MODE  = false;
-  const DEBUG     = true;
-  const USE_SSE   = false;
+  const BASE        = "https://streaming-tts.mefans.workers.dev";
+  const API_URL     = BASE + "/admin-api/ws";
+  const AUTH_URL    = BASE + "/admin-api/validate-code";
+  const DEV_MODE    = false;
+  const DEBUG       = true;
+  /**
+   * USE_SSE 取值：
+   *  false  => 永远 NDJSON
+   *  true   => 强制 SSE (Accept:text/event-stream)
+   *  'auto' => 先探测，失败自动降级 NDJSON
+   */
+  let   USE_SSE     = false;   // 需要自动探测可改 'auto'
   const MAX_CTX_USER_QUERIES = 8;
 
   /* ================== DOM 引用 ================== */
@@ -558,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const authBtn    = document.getElementById('authBtn');
   const authErr    = document.getElementById('authErr');
 
-  /* ================== 会话状态 ================== */
+  /* ================== 会话/状态 ================== */
   let sessionId = localStorage.getItem('session_id');
   if (!sessionId) {
     sessionId = crypto.randomUUID();
@@ -576,7 +581,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let flushScheduled = false;
   let firstMessage   = true;
   let lastFullAnswer = '';
-  let rawAnswerBuffer = '';  // 累计 delta
+  let rawAnswerBuffer= '';
+  let sseAvailable   = null; // 'yes' | 'no' | null
 
   window.SESSION_STATE = window.SESSION_STATE || {
     status: 'final_answer',
@@ -586,7 +592,6 @@ document.addEventListener('DOMContentLoaded', () => {
   window.USER_ROLES = window.USER_ROLES || [];
   window.SELECTED_INDUSTRY = window.SELECTED_INDUSTRY || '';
   window.SELECTED_SUB_INDUSTRY = window.SELECTED_SUB_INDUSTRY || '';
-
   let code = '';
 
   /* ================== 历史 ================== */
@@ -598,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
       arr.forEach(m => replayMessage(m));
       if (arr.length) {
         document.body.style.overflow = 'auto';
-        if (welcome) welcome.remove();
+        welcome && welcome.remove();
       }
     } catch (e) { console.warn('历史读取失败', e); }
   }
@@ -616,9 +621,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ================== 工具函数 ================== */
   function chatAtBottom(pad=200){
+    if (!chat) return true;
     return chat.scrollHeight - chat.scrollTop - chat.clientHeight < pad;
   }
   function scrollToBottom(force=false){
+    if (!chat) return;
     if (force || chatAtBottom()) chat.scrollTop = chat.scrollHeight;
   }
   function autoResize() {
@@ -640,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function createMsgDiv(role, extraClass='') {
     const div = document.createElement('div');
     div.className = `msg ${role} ${extraClass}`.trim();
-    chat.appendChild(div);
+    chat && chat.appendChild(div);
     return div;
   }
   function appendMessage(role, text, {
@@ -652,10 +659,10 @@ document.addEventListener('DOMContentLoaded', () => {
   } = {}) {
     if (!chat) return;
     if (!text && !images.length) return;
-    const extra = [];
-    if (streaming) extra.push('streaming');
-    if (clarify)  extra.push('clarify');
-    const div = createMsgDiv(role, extra.join(' '));
+    const extras = [];
+    if (streaming) extras.push('streaming');
+    if (clarify)  extras.push('clarify');
+    const div = createMsgDiv(role, extras.join(' '));
 
     if (images.length) {
       const pics = document.createElement('div');
@@ -666,8 +673,8 @@ document.addEventListener('DOMContentLoaded', () => {
         im.loading = 'lazy';
         im.onclick = () => {
           if (!lightbox) return;
-            lightImg.src = src;
-            lightbox.style.display = 'flex';
+          lightImg.src = src;
+          lightbox.style.display = 'flex';
         };
         pics.appendChild(im);
       });
@@ -734,14 +741,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ================== 授权 ================== */
   function unlockUI(){
-    if (txt) txt.disabled = false;
+    txt && (txt.disabled = false);
     plusBtn && (plusBtn.disabled = false);
     sendBtn && (sendBtn.disabled = false);
     refreshSendState();
     mask && (mask.style.display='none');
   }
   function lockUI(){
-    if (txt) txt.disabled = true;
+    txt && (txt.disabled = true);
     plusBtn && (plusBtn.disabled = true);
     sendBtn && (sendBtn.disabled = true);
   }
@@ -766,7 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   authInput?.addEventListener('input', ()=>{
-    if (authBtn) authBtn.disabled = !authInput.value.trim();
+    authBtn && (authBtn.disabled = !authInput.value.trim());
     authErr && (authErr.style.display='none');
   });
   authBtn?.addEventListener('click', async ()=>{
@@ -799,14 +806,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ================== 输入 & 按钮状态 ================== */
   function anyUploading(){ return uploads.some(u=>u.uploading); }
-  function refreshSendState() {        // FIX: 不再引用 _MGPT（它可能尚未定义）
+  function refreshSendState() {
     if (!sendBtn) return;
     if (isStreaming && !clarifyMode) {
       sendBtn.className = 'icon-btn send loading';
       sendBtn.innerHTML = '<div class="spinner"></div>';
       return;
     }
-    const t = (txt && txt.value || '').trim();
+    const t = (txt?.value||'').trim();
     const canSend = (t || uploads.length) && !anyUploading();
     let cls = 'icon-btn send';
     if (canSend) cls += ' ready'; else cls += ' disabled';
@@ -837,10 +844,10 @@ document.addEventListener('DOMContentLoaded', () => {
   lightbox?.addEventListener('click', ()=> lightbox.style.display='none');
   window.addEventListener('keyup', e=>{ if (e.key === 'Escape' && lightbox) lightbox.style.display='none'; });
 
-  /* ================== 上传（mock） ================== */
+  /* ================== 上传（Mock） ================== */
   function mockUpload(file){
     return new Promise(res=>{
-      setTimeout(()=> res(URL.createObjectURL(file)), 600 + Math.random()*400);
+      setTimeout(()=> res(URL.createObjectURL(file)), 500 + Math.random()*400);
     });
   }
   function handleFiles(list) {
@@ -885,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.SESSION_STATE.lastClarifyQ = question;
     window.SESSION_STATE.clarifyTimes++;
     if (clarifyBanner) {
-      clarifyBanner.style.display = 'block';
+      clarifyBanner.style.display='block';
       clarifyBanner.innerHTML = `<strong>需要澄清：</strong>${escapeHtml(question)}<br><span style="font-size:12px;opacity:.8">请补充信息后再次发送。</span>`;
     }
     appendMessage('bot', question, { clarify:true });
@@ -910,6 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
     deltaBuffer = '';
     rawAnswerBuffer = '';
     streamingNode = appendMessage('bot', '', { streaming:true });
+    if (streamingNode) streamingNode.classList.add('cursor'); // 可在 CSS 里加闪烁动画
     refreshSendState();
   }
   function stopStreaming() {
@@ -923,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(()=>{ flushScheduled = false; flushDelta(); });
   }
   function flushDelta() {
-    if (!streamingNode || deltaBuffer == null) return;
+    if (!streamingNode) return;
     streamingNode.innerHTML = renderMarkdown(deltaBuffer);
     scrollToBottom();
   }
@@ -932,11 +940,10 @@ document.addEventListener('DOMContentLoaded', () => {
     scheduleFlush();
   }
 
-  /* ================== 注册 _MGPT（放在所有会引用之前） ================== */ // FIX: 提前
+  /* ================== 注册 _MGPT（对外） ================== */
   window._MGPT = {
     BASE, API_URL,
     sendBtn, txt,
-    checkAuthOrWarn,
     startStreaming, stopStreaming,
     appendDelta, flushDelta,
     appendMessage,
@@ -944,32 +951,13 @@ document.addEventListener('DOMContentLoaded', () => {
     anyUploading,
     refreshSendState,
     enterClarify, exitClarify,
-    escapeHtml,
-    uploads,
-    getUploads: ()=>uploads,
-    setUploads: v=>uploads=v,
-    clarifyModeRef: ()=>clarifyMode,
-    isStreamingRef: ()=>isStreaming,
-    streamingNodeRef: ()=>streamingNode,
-    setStreamingNode: n=>streamingNode=n,
-    setAbortCtrl: c=>abortCtrl=c,
-    getAbortCtrl: ()=>abortCtrl,
-    SESSION_STATE: window.SESSION_STATE,
     codeRef: ()=>code,
     sessionId,
-    firstMessageRef: ()=>firstMessage,
-    setFirstMessage: v=>firstMessage=v,
     HISTORY_KEY,
-    lastFullAnswerRef: ()=>lastFullAnswer,
-    setLastFullAnswer: v=>lastFullAnswer=v,
-    autoResize,
-    refreshOverlay,
     stripMarkdown,
-    scheduleFlush,
     renderMarkdown
   };
-
-  /* ================== Payload ================== */
+  /* ================== 上下文 & Payload ================== */
   function collectRecentUserQueries(latest) {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
@@ -984,7 +972,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function buildPayload(inputText) {
     const imgs = uploads.filter(u=>!u.uploading && u.url).map(u=>u.url);
     return {
-      code: code,
+      code,
       session_id: sessionId,
       lastUserQueries: collectRecentUserQueries(inputText),
       images: imgs,
@@ -992,12 +980,36 @@ document.addEventListener('DOMContentLoaded', () => {
       industry: window.SELECTED_INDUSTRY || '',
       subIndustry: window.SELECTED_SUB_INDUSTRY || '',
       sessionState: {
-        status: window.SESSION_STATE.status,          // FIX
+        status: window.SESSION_STATE.status,
         lastClarifyQ: window.SESSION_STATE.lastClarifyQ,
         clarifyTimes: window.SESSION_STATE.clarifyTimes
       },
       debug: DEBUG
     };
+  }
+
+  /* ================== 自动探测 SSE （可选） ================== */
+  async function detectSSEOnce() {
+    if (sseAvailable !== null) return sseAvailable;
+    try {
+      const testResp = await fetch(API_URL, {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Accept':'text/event-stream'
+        },
+        body: JSON.stringify({ code:'__ping__', lastUserQueries:['ping'] })
+      });
+      // 只要 200 且 Content-Type SSE 就认为可用；立即取消读取
+      if (/text\/event-stream/i.test(testResp.headers.get('Content-Type')||'')) {
+        sseAvailable = 'yes';
+      } else {
+        sseAvailable = 'no';
+      }
+    } catch {
+      sseAvailable = 'no';
+    }
+    return sseAvailable;
   }
 
   /* ================== 流请求 ================== */
@@ -1021,19 +1033,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function streamRequest(payload) {
+    if (USE_SSE === 'auto') {
+      const ok = await detectSSEOnce();
+      USE_SSE = (ok === 'yes');
+      if (DEBUG) console.log('[SSE_DETECT]', ok);
+    }
+    const useSSENow = (USE_SSE === true);
     const ctrl = new AbortController();
     abortCtrl = ctrl;
     let httpResp;
     try {
-      httpResp = await fetch(API_URL, {
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          ...(USE_SSE ? { 'Accept':'text/event-stream' } : {})
-        },
-        body: JSON.stringify(payload),
-        signal: ctrl.signal
-      });
+      httpResp = await fetch(API_URL + (DEBUG ? '?debug=1':''),
+        {
+          method:'POST',
+            headers:{
+              'Content-Type':'application/json',
+              ...(useSSENow ? { 'Accept':'text/event-stream' } : {})
+            },
+            body: JSON.stringify(payload),
+            signal: ctrl.signal
+        }
+      );
       if (DEBUG) {
         console.log('<< /admin-api/ws status', httpResp.status);
         console.log('[resp headers]', [...httpResp.headers.entries()]);
@@ -1050,12 +1070,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const isSSE = /text\/event-stream/i.test(httpResp.headers.get('Content-Type')||'');
+    if (useSSENow && !isSSE) {
+      // 服务器没按预期返回 SSE，降级
+      if (DEBUG) console.warn('[SSE_EXPECTED_BUT_NOT]');
+    }
     DEBUG && console.log('[STREAM_MODE]', isSSE ? 'SSE' : 'NDJSON');
 
     startStreaming();
     const reader  = httpResp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let gotDone = false;
 
     try {
       while (true) {
@@ -1065,22 +1090,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isSSE) {
           let idx;
-            while ((idx = buffer.indexOf('\n\n')) !== -1) {
-              const block = buffer.slice(0, idx).trim();
-              buffer = buffer.slice(idx + 2);
-              if (!block) continue;
-              let eventName = 'message';
-              let dataLine = '';
-              block.split('\n').forEach(line=>{
-                if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/, '');
-                else if (line.startsWith('data:')) dataLine += line.replace(/^data:\s*/, '');
-              });
-              if (!dataLine) continue;
-              let obj;
-              try { obj = JSON.parse(dataLine); } catch { continue; }
-              handleEvent(obj, eventName);
-            }
-        } else {
+          while ((idx = buffer.indexOf('\n\n')) !== -1) {
+            const block = buffer.slice(0, idx).trim();
+            buffer = buffer.slice(idx + 2);
+            if (!block) continue;
+            let eventName = 'message';
+            let dataLine = '';
+            block.split('\n').forEach(line=>{
+              if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/, '');
+              else if (line.startsWith('data:')) dataLine += line.replace(/^data:\s*/, '');
+            });
+            if (!dataLine) continue;
+            let obj;
+            try { obj = JSON.parse(dataLine); } catch { continue; }
+            if (eventName === 'done') gotDone = true;
+            handleEvent(obj, eventName);
+          }
+        } else { // NDJSON
           let nl;
           while ((nl = buffer.indexOf('\n')) !== -1) {
             const line = buffer.slice(0, nl).trim();
@@ -1091,20 +1117,19 @@ document.addEventListener('DOMContentLoaded', () => {
               DEBUG && console.warn('[BAD_JSON_LINE]', line);
               continue;
             }
+            if (obj.event === 'done') gotDone = true;
             handleEvent(obj, obj.event);
           }
         }
       }
-      if (isStreaming) {  // 如果没收到 done 也做 finalize
+      // EOF 但未收到 done：也 finalize
+      if (!gotDone && isStreaming) {
         flushDelta();
         finalizeAnswer(rawAnswerBuffer);
       }
     } catch (e) {
-      if (ctrl.signal.aborted) {
-        appendMessage('bot', '⚠️ 已取消。');
-      } else {
-        appendMessage('bot', '⚠️ 流中断：' + e.message);
-      }
+      if (ctrl.signal.aborted) appendMessage('bot', '⚠️ 已取消。');
+      else appendMessage('bot', '⚠️ 流中断：' + e.message);
     } finally {
       stopStreaming();
     }
@@ -1148,11 +1173,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const node = streamingNode;
     if (!node) return;
     const finalText = full || deltaBuffer || node.textContent || '(空回答)';
-    node.classList.remove('streaming');
+    node.classList.remove('streaming','cursor');
     node.innerHTML = marked.parse(finalText);
     addCopyButton(node, stripMarkdown(finalText));
     lastFullAnswer = finalText;
-    exitClarify(); // 若之前是澄清状态
+    exitClarify();
   }
 
   function addCopyButton(node, rawText) {
@@ -1192,7 +1217,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!inputText && !images.length) return;
 
     if (clarifyMode) exitClarify();
-
     if (firstMessage) {
       firstMessage = false;
       document.body.style.overflow = 'auto';
@@ -1234,15 +1258,27 @@ document.addEventListener('DOMContentLoaded', () => {
     txt.value=q; autoResize(); refreshSendState(); trySend();
   };
 
-  /* ================== 初始调用顺序（避免早期引用未定义） ================== */ // FIX
+  /* ================== 诊断工具 (可选) ================== */
+  window.MGPT_TEST_DIAG = async () => {
+    try {
+      const r = await fetch(BASE + '/diag').then(r=>r.json());
+      console.log('[DIAG]', r);
+      appendMessage('bot', '诊断结果:\n```json\n'+JSON.stringify(r,null,2)+'\n```');
+    } catch(e){
+      appendMessage('bot', '诊断失败: ' + e.message);
+    }
+  };
+
+  /* ================== 初始化顺序 ================== */
   autoResize();
   refreshOverlay();
-  refreshSendState();   // 现在 safe
+  refreshSendState();
   toggleArrow();
   initAuth();
   loadHistory();
 });
 </script>
+
 
 
 
