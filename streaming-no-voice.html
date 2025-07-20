@@ -1313,7 +1313,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
     lastFullAnswer = finalText;
+   
+
+     /* —— PATCH：把占位的 bot 历史替换成完整文本 —— */
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr[i].role === 'bot') {
+          arr[i].content = finalText;
+          arr[i].meta    = {};
+          arr[i].ts      = Date.now();
+          break;
+        }
+      }
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+    }
+  } catch (e) {
+    console.warn('更新历史失败', e);
+  }
     exitClarify();
+    
   }
 
   function addCopyButton(node, rawText) {
