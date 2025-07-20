@@ -1423,6 +1423,49 @@ document.addEventListener('DOMContentLoaded', () => {
 }); // DOMContentLoaded
 
 } // 版本保护 end
+  // 下拉刷新功能 —— Pull‐to‐Refresh
+(function(){
+  let startY = 0;
+  let pulling = false;
+  const threshold = 80; // 下拉触发阈值，单位 px
+  const chatEl = document.getElementById('chat');
+
+  // 只在 chat 滚动到顶部时才响应
+  function isAtTop() {
+    return chatEl.scrollTop === 0;
+  }
+
+  document.addEventListener('touchstart', e => {
+    if (!isAtTop()) return;
+    startY = e.touches[0].screenY;
+    pulling = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const currentY = e.touches[0].screenY;
+    const deltaY = currentY - startY;
+    if (deltaY > 0 && isAtTop()) {
+      // 阻止浏览器默认的橡皮筋效果
+      e.preventDefault();
+      // （可选）这里可以根据 deltaY 调整指示器高度
+    } else {
+      // 如果用户向上滑或已离开顶部，则取消拉动状态
+      pulling = false;
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    if (!pulling) return;
+    const endY = e.changedTouches[0].screenY;
+    if (endY - startY > threshold) {
+      // 达到阈值，下拉刷新
+      window.location.reload();
+    }
+    pulling = false;
+  });
+})();
+
 </script>
 
 
