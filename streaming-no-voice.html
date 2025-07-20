@@ -521,7 +521,10 @@ if (window._MGPT && window._MGPT.__VERSION__) {
   console.warn('[INIT] 已存在 _MGPT 版本', window._MGPT.__VERSION__, '终止再次初始化。');
 } else {
 
-const FRONTEND_VERSION = 'fe-stream-20250720-merged-02';
+/* ------------------------------------------------------------------
+   新版本号：增加日期+修复序号
+   ------------------------------------------------------------------ */
+const FRONTEND_VERSION = 'fe-stream-20250720-merged-02 +fixpack-20250720a';
 
 /* ================== Marked 配置 ================== */
 marked.setOptions({
@@ -595,6 +598,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let gotDone          = false;
   let sseAvailable     = null;
 
+  // [FIX1] 附加强制“状态机快照”对象，防止并发写影响 UI。
+  const streamState = {
+    currentSessionToken: 0, // 发起请求自增，回流事件校验
+    mode: 'idle'            // idle|streaming|final|clarify|aborted
+  };
+
   window.SESSION_STATE = window.SESSION_STATE || {
     status: 'final_answer',
     lastClarifyQ: '',
@@ -662,6 +671,14 @@ document.addEventListener('DOMContentLoaded', () => {
     chat && chat.appendChild(div);
     return div;
   }
+
+  // [FIX2] 集中清理函数：在异常或结束后调用，保证 streamingNode 不再引用失效节点。
+  function detachStreamingNode() {
+    if (streamingNode && !document.contains(streamingNode)) {
+      streamingNode = null;
+    }
+  }
+
   function appendMessage(role, text, {
     images = [],
     streaming = false,
@@ -685,8 +702,8 @@ document.addEventListener('DOMContentLoaded', () => {
         im.loading = 'lazy';
         im.onclick = () => {
           if (!lightbox) return;
-          lightImg.src = src;
-          lightbox.style.display = 'flex';
+            lightImg.src = src;
+            lightbox.style.display = 'flex';
         };
         pics.appendChild(im);
       });
@@ -712,7 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
       editBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77l-2.99-2.99a1.25 1.25 0 0 0-1.77 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
       editBtn.onclick = ()=>{
         if (!txt) return;
-        txt.value = text;
+        txt.value = stripMarkdown(text || '');
         autoResize();
         txt.focus();
       };
@@ -916,26 +933,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ================== Streaming 渲染 ================== */
-  function startStreaming() {
+  function startStreaming(sessionToken) {
     if (isStreaming) return;
     DEBUG && console.log('[STREAM] startStreaming');
     isStreaming = true;
+    streamState.mode = 'streaming';
     deltaBuffer = '';
     rawAnswerBuffer = '';
     gotStart = false;
     gotDone = false;
+    // [FIX3] 旧 streamingNode 若还存在且处于 streaming class，先补一个“(已中断)”尾标。
+    if (streamingNode && streamingNode.classList?.contains('streaming')) {
+      streamingNode.classList.remove('streaming');
+      streamingNode.insertAdjacentHTML('beforeend','<div class="warn-tail" style="opacity:.6;font-size:12px;">(前一流已中断)</div>');
+    }
     streamingNode = appendMessage('bot', '', { streaming:true });
+    // [FIX4] 绑定当前 session 标识，后续事件校验防“串流”写入。
+    if (streamingNode) streamingNode.dataset.streamToken = String(sessionToken);
     refreshSendState();
   }
-function stopStreaming() {
-  isStreaming = false;
-  try {
-    streamingNode?.classList?.remove?.('streaming');
-  } catch (e) {
-    console.warn('[stopStreaming] 无法移除 streaming class：', e);
+
+  function stopStreaming(finalize=false){
+    // [FIX5] 统一安全关闭，避免 streamingNode 已被删除导致 classList 读取报错
+    isStreaming = false;
+    streamState.mode = finalize ? 'final' : (streamState.mode==='clarify' ? 'clarify' : 'idle');
+    if (streamingNode && streamingNode.classList) {
+      streamingNode.classList.remove('streaming');
+    }
+    refreshSendState();
   }
-  refreshSendState();
-}
 
   function scheduleFlush() {
     if (flushScheduled) return;
@@ -944,6 +970,11 @@ function stopStreaming() {
   }
   function flushDelta() {
     if (!streamingNode) return;
+    // [FIX6] 二次校验节点仍在 DOM 中
+    if (!document.contains(streamingNode)) {
+      console.warn('[flushDelta] streamingNode 已脱离 DOM，被忽略。');
+      return;
+    }
     streamingNode.innerHTML = renderMarkdown(deltaBuffer);
     scrollToBottom();
   }
@@ -1059,304 +1090,281 @@ function stopStreaming() {
     if (imgs.length) appendMessage('user', '[图片]', { images: imgs });
   }
 
-  async function streamRequest(payload) {
-    if (USE_SSE === 'auto') {
-      const ok = await detectSSEOnce();
-      USE_SSE = (ok === 'yes');
-      DEBUG && console.log('[SSE_DETECT]', ok);
-    }
-    const requestSSE = USE_SSE === true;
+  /* === 继续（承上） ====================================== */
+  function addCopyButton(container, plain){
+    if (!container) return;
+    const btn = document.createElement('button');
+    btn.className='copy-all-btn';
+    btn.textContent='复制';
+    btn.onclick = ()=>{
+      navigator.clipboard.writeText(plain || stripMarkdown(container.textContent||''));
+      showCopyTip(container);
+    };
+    container.appendChild(btn);
+  }
 
-    const ctrl = new AbortController();
-    abortCtrl = ctrl;
-    let httpResp;
+  /* [FIX7] 统一 JSON 解析包装，避免意外抛出中断整个流处理 */
+  function safeParseJSON(line){
     try {
-      httpResp = await fetch(API_URL + (DEBUG? '?debug=1':''), {
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          ...(requestSSE ? { 'Accept':'text/event-stream' } : {})
-        },
-        body: JSON.stringify(payload),
-        signal: ctrl.signal
-      });
-      DEBUG && console.log('<< /admin-api/ws status', httpResp.status, [...httpResp.headers.entries()]);
-    } catch(e) {
-      appendMessage('bot', `⚠️ 网络错误：${e.message||e}`, {});
-      stopStreaming();
-      return;
-    }
-    if (!httpResp.ok || !httpResp.body) {
-      appendMessage('bot', `⚠️ HTTP ${httpResp.status}`, {});
-      stopStreaming();
-      return;
-    }
-
-    const isSSE = /text\/event-stream/i.test(httpResp.headers.get('Content-Type')||'');
-    DEBUG && console.log('[STREAM_MODE]', isSSE ? 'SSE':'NDJSON');
-
-    startStreaming();
-
-    const reader  = httpResp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream:true });
-        DEBUG && console.log('[RAW_CHUNK_APPEND]', value.byteLength, 'accLen=', buffer.length);
-
-        if (isSSE) {
-          // SSE 按 \n\n 分块
-          let idx;
-          while ((idx = buffer.indexOf('\n\n')) !== -1) {
-            const block = buffer.slice(0, idx).trim();
-            buffer = buffer.slice(idx + 2);
-            if (!block) continue;
-
-            let eventName='message', dataStr='';
-            block.split('\n').forEach(line=>{
-              if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/,'').trim();
-              else if (line.startsWith('data:')) dataStr += line.replace(/^data:\s*/,'');
-            });
-            if (!dataStr) continue;
-            let obj;
-            try { obj = JSON.parse(dataStr.replace(/^\uFEFF/,'')); }
-            catch(e){ DEBUG && console.warn('[SSE_PARSE_FAIL]', e, dataStr); continue; }
-            DEBUG && console.log('[SSE_EVT]', eventName, obj);
-            handleEvent(obj, eventName);
-          }
-        } else {
-          // NDJSON 按行
-          let nl;
-          while ((nl = buffer.indexOf('\n')) !== -1) {
-            const rawLine = buffer.slice(0, nl);
-            buffer = buffer.slice(nl+1);
-            const line = rawLine.trim();
-            if (!line) { DEBUG && console.log('[LINE_SKIP_EMPTY]'); continue; }
-            DEBUG && console.log('[LINE_RAW]', rawLine);
-            let obj;
-            try { obj = JSON.parse(line.replace(/^\uFEFF/,'')); }
-            catch(e){ DEBUG && console.warn('[PARSE_FAIL]', e, line.slice(0,120)); continue; }
-            DEBUG && console.log('[LINE_EVT]', obj.event, obj);
-            handleEvent(obj, obj.event);
-          }
-        }
-      }
-
-      // ===== 尾部兜底 =====
-      if (isStreaming && !gotDone) {
-        const tail = buffer.trim();
-        if (tail) {
-          DEBUG && console.warn('[TAIL_LEFT]', tail.slice(0,160));
-          try {
-            let tailObj = (isSSE) ? JSON.parse(tail.replace(/^\uFEFF/,'')) : null;
-            if (!tailObj && !isSSE) {
-              // NDJSON 情况，尾部剩下一行
-              tailObj = JSON.parse(tail.replace(/^\uFEFF/,''));
-            }
-            if (tailObj && !tailObj.event) {
-              if (tailObj.full) tailObj.event='done';
-              else if (tailObj.text) tailObj.event='delta';
-              else tailObj.event='error';
-            }
-            tailObj && handleEvent(tailObj, tailObj.event);
-          } catch(e){
-            DEBUG && console.warn('[TAIL_PARSE_FAIL]', e);
-          }
-        }
-        if (!gotStart) {
-          DEBUG && console.warn('[WARN] 未收到 start 事件，可能 Worker 未写入 / 缓存旧版本');
-        }
-        flushDelta();
-        finalizeAnswer(rawAnswerBuffer || deltaBuffer || '(无输出)');
-      }
-
-    } catch(e) {
-      if (ctrl.signal.aborted) appendMessage('bot','⚠️ 已取消。');
-      else appendMessage('bot','⚠️ 流中断：' + e.message);
-    } finally {
-      stopStreaming();
+      return JSON.parse(line);
+    } catch(e){
+      DEBUG && console.warn('[safeParseJSON] parse fail:', line.slice(0,200), e);
+      return null;
     }
   }
 
-  /* ================== 事件处理 ================== */
-  function handleEvent(evt, eventName){
-    const type = eventName || evt.event;
-    DEBUG && console.debug('[EVT]', type, evt);
+  /* [FIX8] 事件调度保护：校验 token、防重入 finalize */
+  function validateStreamToken(node, token){
+    if (!node) return false;
+    return node.dataset.streamToken === String(token);
+  }
 
-    switch (type) {
+  async function sendQuery() {
+    if (!checkAuthOrWarn()) return;
+    if (isStreaming && !clarifyMode) {
+      // 当前为流式：点击 => 终止
+      abortCurrent('用户主动终止');
+      return;
+    }
+    const text = (txt?.value || '').trim();
+    if (!text && !uploads.length) return;
+
+    // 退出 clarify 模式（如果存在）
+    if (clarifyMode) exitClarify();
+
+    const imgs = uploads.filter(u=>!u.uploading && u.url).map(u=>u.url);
+    displayLargeUserInput(text, imgs);
+
+    const sessionToken = Date.now() + '-' + Math.random().toString(16).slice(2);
+    streamState.currentSessionToken = sessionToken;
+
+    txt.value = '';
+    autoResize();
+    uploads = [];
+    thumbs.innerHTML = '';
+    refreshSendState();
+
+    startStreaming(sessionToken);
+
+    const payload = buildPayload(text);
+    payload.prompt = text;
+    firstMessage = false;
+
+    abortCtrl = new AbortController();
+    const headers = {
+      'Content-Type':'application/json',
+      'x-auth-code': code || '',
+      'x-session-id': sessionId
+    };
+
+    let useSSE = USE_SSE;
+    if (USE_SSE === 'auto') {
+      const detect = await detectSSEOnce();
+      useSSE = detect === 'yes';
+    }
+    if (useSSE) headers['Accept'] = 'text/event-stream';
+
+    let response;
+    try {
+      response = await fetch(API_URL, {
+        method:'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: abortCtrl.signal
+      });
+    } catch(e){
+      networkFail('[网络错误] '+ e.message);
+      return;
+    }
+
+    if (!response.ok) {
+      networkFail('[HTTP错误] ' + response.status + ' ' + response.statusText);
+      return;
+    }
+
+    if (useSSE || /text\/event-stream/i.test(response.headers.get('Content-Type')||'')) {
+      readSSE(response, sessionToken);
+    } else {
+      readNDJSON(response, sessionToken);
+    }
+  }
+
+  function networkFail(msg){
+    stopStreaming();
+    streamingNode && streamingNode.insertAdjacentHTML('beforeend', `<div class="error" style="color:#d33;font-size:12px;">${escapeHtml(msg)}</div>`);
+  }
+
+  function abortCurrent(reason='用户中断'){
+    try {
+      abortCtrl?.abort();
+    } catch {}
+    if (isStreaming) {
+      stopStreaming();
+      streamingNode && streamingNode.insertAdjacentHTML('beforeend', `<div class="warn-tail" style="font-size:12px;opacity:.6;">(${escapeHtml(reason)})</div>`);
+    }
+  }
+
+  async function readNDJSON(response, sessionToken){
+    DEBUG && console.log('[STREAM] NDJSON mode');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    try {
+      while(true){
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream:true});
+        let idx;
+        while((idx = buffer.indexOf('\n')) >=0){
+          const line = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx+1);
+            if (!line) continue;
+          handleStreamEvent(line, sessionToken);
+        }
+      }
+      if (buffer.trim()) handleStreamEvent(buffer.trim(), sessionToken);
+      finalizeStream(sessionToken);
+    } catch(e){
+      if (e.name === 'AbortError') return;
+      DEBUG && console.warn('[NDJSON] read error', e);
+      finalizeStream(sessionToken, true, e.message);
+    }
+  }
+
+  async function readSSE(response, sessionToken){
+    DEBUG && console.log('[STREAM] SSE mode');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    try {
+      while(true){
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream:true});
+        let evtIdx;
+        while((evtIdx = buffer.indexOf('\n\n')) >=0){
+          const rawEvt = buffer.slice(0, evtIdx);
+          buffer = buffer.slice(evtIdx+2);
+          const lines = rawEvt.split('\n').map(l=>l.trim()).filter(Boolean);
+          let dataLines = [];
+          for (const ln of lines) {
+            if (ln.startsWith('data:')) dataLines.push(ln.slice(5).trim());
+          }
+          if (dataLines.length){
+            const joined = dataLines.join('\n');
+            handleStreamEvent(joined, sessionToken);
+          }
+        }
+      }
+      if (buffer.trim()) {
+        const lines = buffer.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+        lines.forEach(l=>{
+          if (l.startsWith('data:')) handleStreamEvent(l.slice(5).trim(), sessionToken);
+        });
+      }
+      finalizeStream(sessionToken);
+    } catch(e){
+      if (e.name === 'AbortError') return;
+      DEBUG && console.warn('[SSE] read error', e);
+      finalizeStream(sessionToken, true, e.message);
+    }
+  }
+
+  function handleStreamEvent(rawLine, sessionToken){
+    if(!validateStreamToken(streamingNode, sessionToken)) {
+      DEBUG && console.log('[STREAM] token mismatch drop line');
+      return;
+    }
+    const obj = safeParseJSON(rawLine);
+    if (!obj) return;
+    // 统一字段：type, content, delta, clarifyQuestion, done
+    switch(obj.type){
       case 'start':
         gotStart = true;
-        if (!isStreaming) startStreaming();
-        if (evt.model && streamingNode && !streamingNode.dataset.modelTag) {
-          streamingNode.dataset.modelTag='1';
-          streamingNode.insertAdjacentHTML('afterbegin',
-            `<div class="model-tag">🧠 ${evt.model}</div>`);
-        }
         break;
       case 'delta':
-        if (!isStreaming) startStreaming();
-        if (evt.text) {
-          rawAnswerBuffer += evt.text;
-          appendDelta(evt.text);
+        if (typeof obj.content === 'string') {
+          appendDelta(obj.content);
+          rawAnswerBuffer += obj.content;
         }
+        break;
+      case 'clarify':
+        gotDone = true;
+        stopStreaming();
+        enterClarify(obj.question || obj.clarifyQuestion || '需要补充信息');
+        break;
+      case 'final':
+        if (typeof obj.content === 'string') {
+          appendDelta(obj.content);
+          rawAnswerBuffer += obj.content;
+        }
+        gotDone = true;
+        break;
+      case 'meta':
+        // 可扩展：忽略
+        break;
+      case 'error':
+        gotDone = true;
+        stopStreaming();
+        streamingNode && streamingNode.insertAdjacentHTML('beforeend', `<div class="error" style="color:#d33;font-size:12px;">${escapeHtml(obj.message||'服务错误')}</div>`);
         break;
       case 'done':
         gotDone = true;
-        if (evt.full) rawAnswerBuffer = evt.full;
-        flushDelta();
-        finalizeAnswer(rawAnswerBuffer, evt.usage);
-        break;
-      case 'clarify':
-        flushDelta(); stopStreaming();
-        evt.text && enterClarify(evt.text);
-        break;
-      case 'error':
-        flushDelta(); stopStreaming();
-        appendMessage('bot', `⚠️ 出错：${evt.text || 'Unknown error'}`);
-        break;
-      case 'debug':
-        logDebug(evt);
         break;
       default:
-        DEBUG && console.debug('[EVT_UNKNOWN]', evt);
+        if (obj.done) gotDone = true;
+        if (obj.delta || obj.content) {
+          const frag = obj.delta || obj.content;
+            if (typeof frag === 'string') {
+              appendDelta(frag);
+              rawAnswerBuffer += frag;
+            }
+        }
     }
   }
 
-  function logDebug(evt){
-    let panel = document.getElementById('debugPanel');
-    if (!panel) {
-      panel = document.createElement('pre');
-      panel.id='debugPanel';
-      panel.style.cssText='position:fixed;right:6px;bottom:6px;max-width:420px;max-height:220px;overflow:auto;background:#111;color:#0f0;padding:6px;font:11px/1.4 monospace;z-index:9999;opacity:.85;';
-      panel.textContent='[DEBUG PANEL]\n';
-      document.body.appendChild(panel);
+  function finalizeStream(sessionToken, hadError=false, errMsg=''){
+    if(!validateStreamToken(streamingNode, sessionToken)) {
+      DEBUG && console.log('[STREAM] finalize token mismatch');
+      return;
     }
-    panel.textContent += `[${evt.tag||'debug'}] ${evt.text||JSON.stringify(evt)}\n`;
-  }
-
-  function finalizeAnswer(full='', usage){
-    DEBUG && console.log('[STREAM] finalizeAnswer fullLen=', full.length,'deltaLen=', deltaBuffer.length);
-    stopStreaming();
-    if (!streamingNode) {
-      streamingNode = appendMessage('bot','', { streaming:false });
+    if (!isStreaming) return;
+    stopStreaming(true);
+    flushDelta();
+    lastFullAnswer = rawAnswerBuffer;
+    if (!hadError && !gotDone) {
+      streamingNode && streamingNode.insertAdjacentHTML('beforeend','<div class="warn-tail" style="font-size:12px;opacity:.6;">(流意外结束)</div>');
     }
-    const finalText = full || deltaBuffer || '(空回答)';
-    streamingNode.classList.remove('streaming');
-    streamingNode.innerHTML = marked.parse(finalText);
-    if (usage && (usage.prompt || usage.completion)) {
-      const meta = document.createElement('div');
-      meta.className='usage';
-      const total=(usage.prompt||0)+(usage.completion||0);
-      meta.textContent=`🔢 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
-      streamingNode.appendChild(meta);
+    if (hadError && streamingNode) {
+      streamingNode.insertAdjacentHTML('beforeend', `<div class="error" style="color:#d33;font-size:12px;">${escapeHtml(errMsg||'流异常')}</div>`);
     }
-    addCopyButton(streamingNode, stripMarkdown(finalText));
-    lastFullAnswer = finalText;
-    exitClarify();
+    // 添加复制按钮
+    if (streamingNode) addCopyButton(streamingNode, stripMarkdown(rawAnswerBuffer));
   }
 
-  function addCopyButton(node, rawText) {
-    if (node.querySelector('.copy-btn')) return;
-    const btn = document.createElement('button');
-    btn.className='copy-btn'; btn.textContent='⧉'; btn.title='复制';
-    btn.onclick = ()=>{
-      navigator.clipboard.writeText(rawText);
-      btn.textContent='✔'; setTimeout(()=>btn.textContent='⧉',1200);
-    };
-    node.appendChild(btn);
-  }
-
-  function abortStreaming(){
-    if (abortCtrl) {
-      abortCtrl.abort();
-      appendMessage('bot','⏹ 已手动停止。');
-      stopStreaming();
-    }
-  }
-
-  /* ================== 发送 ================== */
-  function uploadsReadyURLs(){ return uploads.filter(u=>!u.uploading && u.url).map(u=>u.url); }
-  function clearUploads(){
-    uploads.forEach(u=>u.node && u.node.remove());
-    uploads = [];
-  }
-
-  async function trySend(){
-    if (!checkAuthOrWarn()) return;
-    if (anyUploading()) return;
-    if (!txt) return;
-    const inputText = txt.value.trim();
-    const images = uploadsReadyURLs();
-    if (!inputText && !images.length) return;
-
-    if (clarifyMode) exitClarify();
-    if (firstMessage) {
-      firstMessage = false;
-      document.body.style.overflow = 'auto';
-      welcome && welcome.remove();
-    }
-
-    displayLargeUserInput(inputText, images);
-    txt.value=''; autoResize(); clearUploads();
-    refreshSendState();
-
-    const payload = buildPayload(inputText);
-    DEBUG && console.log('>> /admin-api/ws payload', payload);
-    streamRequest(payload);
-  }
-
-  /* ================== 事件绑定 ================== */
-  sendBtn?.addEventListener('click', ()=>{
-    if (isStreaming && !clarifyMode) abortStreaming();
-    else trySend();
-  });
+  /* ================== 键盘/按钮事件 ================== */
+  sendBtn?.addEventListener('click', sendQuery);
   txt?.addEventListener('keydown', e=>{
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      trySend();
+      sendQuery();
     }
   });
-  function updateSendButtonLabel() {
-    if (!sendBtn) return;
-    if (isStreaming && !clarifyMode) sendBtn.title='终止本次回答';
-    else if (clarifyMode) sendBtn.title='发送澄清补充';
-    else sendBtn.title='发送';
-  }
-  setInterval(updateSendButtonLabel, 500);
-  window.addEventListener('beforeunload', e=>{
-    if (isStreaming) { e.preventDefault(); e.returnValue=''; }
-  });
-  window.demoAsk = q=>{
-    if (!txt) return;
-    txt.value=q; autoResize(); refreshSendState(); trySend();
-  };
 
-  /* ================== 诊断工具 ================== */
-  window.MGPT_TEST_DIAG = async () => {
-    try {
-      const r = await fetch(BASE + '/diag').then(r=>r.json());
-      appendMessage('bot', '诊断结果:\n```json\n'+JSON.stringify(r,null,2)+'\n```');
-    } catch(e){
-      appendMessage('bot', '诊断失败: '+e.message);
-    }
-  };
-
-  /* ================== 初始化顺序 ================== */
+  /* ================== 初始加载 ================== */
+  loadHistory();
+  initAuth();
   autoResize();
   refreshOverlay();
   refreshSendState();
-  toggleArrow();
-  initAuth();
-  loadHistory();
 
-}); // DOMContentLoaded
+  DEBUG && console.log('[READY] Frontend loaded version:', FRONTEND_VERSION);
 
-} // 版本保护 end
+}); // DOMContentLoaded 结束
+
+} // else(未初始化) 结束
 </script>
+
 
 
 
