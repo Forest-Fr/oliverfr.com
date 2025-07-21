@@ -524,19 +524,15 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
   border:none;background:none;cursor:pointer;font-size:15px;color:#888;
 }
 .chat-actions button:hover{color:#555;}
-@media (min-width:801px){
-  /* 桌面端固定侧栏 */
-  .sidebar{translate:0 0;}
-  .burger{display:none;}
-  body{padding-left:260px;}                 /* 推正文 */
-  #chat{padding-left:var(--side-gap);margin-left:260px;}
+/* === push‑mode for mobile (<801px) === */
+@media (max-width:800px){
+  .sidebar        { translate:-260px 0; }  /* 默认隐藏 */
+  .sidebar.show   { translate:0 0; }
 
- .sidebar        { translate:-260px 0; }         /* 默认隐藏 */
-  .sidebar.show   { translate:0 0;   }
-
-  body.side-open > :not(.sidebar):not(.burger){
-      transform:translateX(260px);
-      transition:transform .25s ease;
+  body.side-open > :not(.sidebar):not(.burger) {
+    transform: translateX(260px);
+    transition: transform .25s ease;
+  }
 }
 
 </style>
@@ -675,7 +671,8 @@ const chatSearch   = document.getElementById('chatSearch');
     sessionId = crypto.randomUUID();
     localStorage.setItem('session_id', sessionId);
   }
-  const HISTORY_KEY = `chat_history_${sessionId}`;
+let   HISTORY_KEY = `chat_history_${sessionId}`;   // ← 改为可变
+  /**--const HISTORY_KEY = `chat_history_${sessionId}`;--**/
 
   let uploads          = [];
   let isAuthorized     = false;
@@ -889,8 +886,9 @@ function createChat(name='新聊天'){
       return;
   }
   currentChatId = 'c_'+Date.now();
-  sessionId     = currentChatId;               // 用 id 直做会话键
-  HISTORY_KEY   = `chat_history_${sessionId}`;
+  sessionId     = crypto.randomUUID();         // 真·新会话 token
+localStorage.setItem('session_id', sessionId);
+HISTORY_KEY   = `chat_history_${sessionId}`;
   chats.unshift({id:currentChatId,name,ts:Date.now()});
   saveChats(); renderChatList(chatSearch.value.trim());
   clearAllMessages();
@@ -905,7 +903,8 @@ function createChat(name='新聊天'){
 }--**/
 function activateChat(id){
   currentChatId=id;
-  sessionId=id;                                        // 直接用 id 作为会话 key
+  /**--sessionId=id; --**直接用 id 作为会话 key这里也要保持 UUID--**/                                     
+ sessionId = id.split('#')[0] || id;          // 若你愿，也可以直接用 id
   localStorage.setItem('session_id', sessionId);
   HISTORY_KEY = `chat_history_${sessionId}`;
   loadHistory();                                       // 重新渲染
@@ -1602,8 +1601,14 @@ exitClarify();
 /* === 侧栏交互 === */
 burgerBtn.addEventListener('click', ()=>{
   const opened = sidebar.classList.toggle('show');
-  document.body.classList.toggle('side-open', opened);
+  if (window.innerWidth < 801) {
+      document.body.classList.toggle('side-open', opened);
+  }
 });
+window.addEventListener('resize', ()=>{        // 尺寸变化时复位
+  if (window.innerWidth >= 801) document.body.classList.remove('side-open');
+});
+
 newChatBtn.addEventListener('click', ()=>{ createChat(); sidebar.classList.remove('show'); });
 
 chatSearch.addEventListener('input', ()=> renderChatList(chatSearch.value.trim()));
@@ -1614,6 +1619,8 @@ function closeSidebar(){
 }
 
 newChatBtn.addEventListener('click', ()=>{
+clearAllMessages();           // 新会话前立即清屏
+
   createChat();            // 新空白会话
   closeSidebar();
 });
