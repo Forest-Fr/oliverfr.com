@@ -1513,35 +1513,15 @@ if (!window._MGPT) window._MGPT = {};
 
     
     displayLargeUserInput(inputText, images);
-function paneHasContent() {
-return !!chat.querySelector('.msg');
-}
-/* === 2‑2：如果标题还是“新聊天”，用首句前 20 字自动命名 === */
-    function persistCurrentPane() {
-      if (!currentChatId) return;           // 尚未激活任何会话
-      if (!paneHasContent()) return;        // 空白面板不保存
-      /* 把 DOM 消息重新抓一遍并写入本地桶 */
-      const holder = [];
-      chat.querySelectorAll('.msg').forEach(node => {
-        const role = node.classList.contains('user') ? 'user' : 'bot';
-        holder.push({ role, content: node.innerText, ts: Date.now() });
-        });
-      localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
-      /* 如有必要，用首条 user 消息自动命名 */
-      const chatObj = chats.find(c => c.id === currentChatId);
-       if (chatObj && chatObj.title === '新聊天') {
-          const firstUser = holder.find(m => m.role === 'user');
-         chatObj.title   = firstUser
-          ? stripMarkdown(firstUser.content).slice(0, 20) || '未命名会话'
-             : '未命名会话';
-          saveChats();
-
-  renderChats(searchInput.value);
-}
-/* === END 2‑2 ======================================================= */
-
-txt.value = '';
-
+/* 以下保持原来的自动命名逻辑（你的旧代码已有） */
+     if (chats.find(c => c.id === currentChatId)?.title === '新聊天') {
+       const pretty = stripMarkdown(inputText).slice(0, 20) || '未命名会话';
+        chats = chats.map(c =>
+           c.id === currentChatId ? { ...c, title: pretty } : c
+           );
+        saveChats();
+renderChats(searchInput.value);
+        }
     txt.value=''; autoResize(); clearUploads();
     refreshSendState();
 
@@ -1645,12 +1625,38 @@ function loadHistoryToPane(id) {
   } catch { /* ignore */ }
   scrollToBottom(true);
 }
-
+// === 工具：面板是否已有消息 ===
+  function paneHasContent () {
+     return !!chat.querySelector('.msg');
+    }
+  // === 工具：把当前面板写入 localStorage，并自动命名 ===
+  function persistCurrentPane () {
+    if (!currentChatId) return;
+     if (!paneHasContent()) return;        // 空面板不处理
+     /* 收集 DOM 消息 */
+const holder = [];
+    chat.querySelectorAll('.msg').forEach(node => {
+      
+  
 /* 进入某条聊天 */
 function activateChat(id) {
   if (currentChatId) persistCurrentPane();   // <- 替换整段
+  const role = node.classList.contains('user') ? 'user' : 'bot';
+  holder.push({ role, content: node.innerText, ts: Date.now() });
   
-    
+  });
+    localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
+     /* 如标题仍为“新聊天”，用首条 user 消息自动命名 */
+    const chatObj = chats.find(c => c.id === currentChatId);
+     if (chatObj && chatObj.title === '新聊天') {
+     const firstUser = holder.find(m => m.role === 'user');
+       chatObj.title   = firstUser
+        ? stripMarkdown(firstUser.content).slice(0, 20) || '未命名会话'
+           : '未命名会话';
+        saveChats();
+       renderChats(searchInput.value);
+       }
+  }
 
   /* 2. 切换指针并加载 */
   currentChatId = id;
