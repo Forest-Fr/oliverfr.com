@@ -654,10 +654,6 @@ aside#sidebar {
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-  
- 
-
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <script>
 /* ================== 版本标识 ================== */
@@ -680,7 +676,7 @@ marked.setOptions({
 document.addEventListener('DOMContentLoaded', () => {
 
   /* 占位对象 */
-  if (!window._MGPT) window._MGPT = {};
+ /*- if (!window._MGPT) window._MGPT = {};-*/
 
   /* ================== 基础配置 ================== */
   const BASE        = "https://streaming-tts.mefans.workers.dev";
@@ -727,6 +723,8 @@ document.addEventListener('DOMContentLoaded', () => {
   /*-const HISTORY_KEY = `chat_history_${sessionId}`;-*/
   // ↓ 不再固定，而是一个函数
   const HISTORY_KEY_STATIC = `chat_history_${sessionId}`;   // 仅供首次无会话时使用
+  // 简写：任何时候要用当前桶都走这个函数
+  const histKey = id => `chat_history_${id ?? currentChatId}`;
   /*-const _histKey = id => `chat_history_${id || currentChatId}`;-*/
 
   let uploads          = [];
@@ -759,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ================== 历史 ================== */
   function loadHistory() {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
+      const raw = localStorage.getItem(histKey(currentChatId));
       if (!raw) return;
       const arr = JSON.parse(raw);
       arr.forEach(replayMessage);
@@ -771,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function saveMessage(role, content, meta={}) {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
+      const raw = localStorage.getItem(histKey(currentChatId));
       const arr = raw ? JSON.parse(raw) : [];
       arr.push({ role, content, meta, ts: Date.now() });
       localStorage.setItem(histKey(currentChatId), JSON.stringify(arr));
