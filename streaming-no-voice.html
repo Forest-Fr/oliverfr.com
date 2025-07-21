@@ -1056,9 +1056,14 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
   // 初始化
   autoResize(); 
   refreshSendState(); 
+ // —— 确保欢迎界面和授权弹窗同时可见 —— 
+if (welcome) {
+welcome.style.display = 'block';    // 显示欢迎界面
+welcome.style.zIndex  = '1001';     // 提到 mask 之上
+}
   // 等待授权通过
   await initAuth();
-  loadHistory();
+
   // 授权 OK 以后再加载历史、放开界面
    unlockUI();
 })();
