@@ -601,6 +601,22 @@ aside#sidebar {
 .pop .del-btn{color:#d92d20}
 /* === END 三点菜单样式 === */
 
+/* === mobile slide‑out effect === */
+@media (max-width: 767px) {
+  body.slide-right {                       /* 主面板随侧栏平移 */
+    transform: translateX(240px);          /* 侧栏宽度 */
+    transition: transform .25s ease;
+    overflow: hidden;                      /* 禁止背景滚动 */
+  }
+  aside#sidebar { transition: transform .25s ease; }
+}
+
+/* === 锁定状态下禁止侧栏交互 === */
+#sidebar.locked,
+#sidebar.locked * {
+  pointer-events: none;
+  opacity: .35;
+}
 
 </style>
 </head>
@@ -893,18 +909,26 @@ if (!window._MGPT) window._MGPT = {};
   }
 
 /* ======= 授权 ======= */
-  function unlockUI(){
-    txt && (txt.disabled = false);
-    plusBtn && (plusBtn.disabled = false);
-    sendBtn && (sendBtn.disabled = false);
-    refreshSendState();
-    mask && (mask.style.display='none');
-  }
-  function lockUI(){
-    txt && (txt.disabled = true);
-    plusBtn && (plusBtn.disabled = true);
-    sendBtn && (sendBtn.disabled = true);
-  }
+function lockUI () {
+  txt?.setAttribute('disabled', 'true');
+  plusBtn?.setAttribute('disabled', 'true');
+  sendBtn?.setAttribute('disabled', 'true');
+  sidebar.classList.add('locked');          // 锁侧栏
+  hamburger.style.opacity = .35;
+  hamburger.style.pointerEvents = 'none';
+}
+
+function unlockUI () {
+  txt?.removeAttribute('disabled');
+  plusBtn?.removeAttribute('disabled');
+  sendBtn?.removeAttribute('disabled');
+  refreshSendState();
+  mask.style.display = 'none';
+  sidebar.classList.remove('locked');       // 解锁侧栏
+  hamburger.style.opacity = 1;
+  hamburger.style.pointerEvents = '';
+}
+
   function initAuth(){
     if (DEV_MODE) {
       isAuthorized = true;
@@ -1580,75 +1604,40 @@ renderChats(searchInput.value);
   loadHistory();
 
 // —— Sidebar 数据 & 渲染逻辑 —— 
-const STORAGE_KEY = 'mini_gpt_chats';               // [{id,title,sessionId}]
-let chats          = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-let currentChatId  = chats[0]?.id            || null;       // 当前激活
- sessionId          = chats[0]?.sessionId     // ← 这里 **不再用 let**，而是复用上面同名变量
-       || crypto.randomUUID();      // （开头已声明过）
-  /* 根据 chatId 拼出对应历史 key （每条聊天一个桶） */
+const STORAGE_KEY = 'mini_gpt_chats';           // [{id,title,sessionId}]
+let chats         = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentChatId = chats[0]?.id || null;
+sessionId         = chats.find(c => c.id === currentChatId)?.sessionId
+                 || sessionId || crypto.randomUUID();       // 复用全局
 
-  
-/* 保存左栏目录 */
-function saveChats() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-}
-
-/* ---------- 渲染 / 切换 ---------- */
 const chatListEl  = document.getElementById('chatList');
 const searchInput = document.getElementById('chatSearch');
 const btnNewChat  = document.getElementById('btnNewChat');
+const hamburger   = document.getElementById('hamburger');
+const sidebar     = document.getElementById('sidebar');
+const overlay     = document.getElementById('sidebarOverlay');
 
-function renderChats(filter = '') {
-  chatListEl.innerHTML = '';
-  chats
-    .filter(c => c.title.includes(filter))
-    .forEach(c => {
-      const html = `
-        <div class="chat-item${c.id === currentChatId ? ' active' : ''}" data-id="${c.id}">
-          <span class="title">${c.title}</span>
-          <button class="menu dots">⋮</button>
-          <div class="pop">
-            <button class="rename">重命名</button>
-            <button class="del del-btn">删除</button>
-          </div>
-        </div>`;
-      chatListEl.insertAdjacentHTML('beforeend', html);
-    });
+/* ---------- 工具 ---------- */
+const histKey = id => `chat_history_${id || currentChatId}`;
+
+function paneHasContent () { return !!chat.querySelector('.msg'); }
+
+function saveChats () {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
 }
 
-
-/* 把聊天区消息渲染出来 */
-function loadHistoryToPane(id) {
-  chat.innerHTML = '';                            // 清空右侧
-  const raw = localStorage.getItem(histKey(id));
-  if (!raw) return;
-
-  try {
-    JSON.parse(raw).forEach(m =>
-      appendMessage(m.role, m.content, { noSave:true, meta:m.meta })
-    );
-  } catch { /* ignore */ }
-  scrollToBottom(true);
-}
-// === 工具：面板是否已有消息 ===
-/* === 工具：面板是否已有消息 === */
-function paneHasContent () {
-  return !!chat.querySelector('.msg');
-}
-
-/* === 把当前面板写入 localStorage，并自动命名 === */
 function persistCurrentPane () {
-  if (!currentChatId) return;
-  if (!paneHasContent()) return;                // 空面板不保存
-
+  if (!currentChatId || !paneHasContent()) return;
   const holder = [];
-  chat.querySelectorAll('.msg').forEach(node => {
-    const role = node.classList.contains('user') ? 'user' : 'bot';
-    holder.push({ role, content: node.innerText, ts: Date.now() });
+  chat.querySelectorAll('.msg').forEach(n=> {
+    holder.push({
+      role: n.classList.contains('user') ? 'user' : 'bot',
+      content: n.innerText,
+      ts: Date.now()
+    });
   });
   localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
 
-  // 如标题仍为“新聊天”，用首条 user 消息自动命名
   const chatObj = chats.find(c => c.id === currentChatId);
   if (chatObj && chatObj.title === '新聊天') {
     const firstUser = holder.find(m => m.role === 'user');
@@ -1660,129 +1649,122 @@ function persistCurrentPane () {
   }
 }
 
-/* === 把聊天区消息渲染出来 === */
 function loadHistoryToPane (id) {
   chat.innerHTML = '';
   const raw = localStorage.getItem(histKey(id));
-  if (!raw) return;
-  try {
-    JSON.parse(raw).forEach(m =>
-      appendMessage(m.role, m.content, { noSave: true, meta: m.meta })
-    );
-  } catch { /* ignore */ }
+  if (raw) {
+    try {
+      JSON.parse(raw).forEach(m =>
+        appendMessage(m.role, m.content, { noSave: true, meta: m.meta })
+      );
+    } catch {}
+  }
   scrollToBottom(true);
 }
 
-/* === 进入某条聊天 === */
-function activateChat (id) {
-  if (currentChatId) persistCurrentPane();      // 先保存旧面板
+function renderChats (filter = '') {
+  chatListEl.innerHTML = '';
+  chats.filter(c => c.title.includes(filter)).forEach(c => {
+    chatListEl.insertAdjacentHTML('beforeend', `
+      <div class="chat-item${c.id===currentChatId?' active':''}" data-id="${c.id}">
+        <span class="title">${c.title}</span>
+        <button class="menu dots">⋮</button>
+        <div class="pop">
+          <button class="rename">重命名</button>
+          <button class="del del-btn">删除</button>
+        </div>
+      </div>`);
+  });
+}
 
+function activateChat (id) {
+  if (currentChatId) persistCurrentPane();
   currentChatId = id;
-  const chatObj = chats.find(c => c.id === id);
-  if (chatObj) sessionId = chatObj.sessionId;   // 提供给后端
+  sessionId = chats.find(c=>c.id===id)?.sessionId || sessionId;
   renderChats(searchInput.value);
   loadHistoryToPane(id);
 }
 
-/* === 新建聊天 === */
+/* ---------- 事件 ---------- */
 btnNewChat.addEventListener('click', () => {
-  persistCurrentPane();                         // 保存当前
+  if (!isAuthorized) return;                     // 未授权禁止
+  persistCurrentPane();
   const id  = crypto.randomUUID();
   const sid = crypto.randomUUID();
   chats.unshift({ id, title: '新聊天', sessionId: sid });
   saveChats();
-  activateChat(id);                             // 切到新面板
+  activateChat(id);
   searchInput.value = '';
 });
 
-/*}*/
-
-/* === 进入某条聊天 === */
-function activateChat (id) {
-  if (currentChatId) persistCurrentPane();        // 先保存上一个
-
-  currentChatId = id;
-  const chatObj = chats.find(c => c.id === id);
-  if (chatObj) sessionId = chatObj.sessionId;     // 提供给后端
-  renderChats(searchInput.value);
-  loadHistoryToPane(id);
-}
-
-/* 新建聊天（核心） */
-btnNewChat.addEventListener('click', () => {
-  persistCurrentPane();                       // 先保存当前
-  const id  = crypto.randomUUID();            // 全新 id
-  const sid = crypto.randomUUID();            // 全新 sessionId
-  chats.unshift({ id, title: '新聊天', sessionId: sid });
-   saveChats();
-  activateChat(id);                           // 切到空白面板
-   searchInput.value = '';
-  });
-
-
-/* 点击左栏 */
-chatListEl.addEventListener('click', e=>{
+chatListEl.addEventListener('click', e => {
+  if (!isAuthorized) return;
   const item = e.target.closest('.chat-item');
   if (!item) return;
-  const id   = item.dataset.id;
-  const pop  = item.querySelector('.pop');
 
-  /* 点 ⋮ 打开 / 关闭菜单 */
+  /* 三点菜单 */
   if (e.target.classList.contains('menu')) {
-    document.querySelectorAll('.pop.show').forEach(p=>p.classList.remove('show'));
-    pop.classList.toggle('show');
+    item.querySelector('.pop').classList.toggle('show');
+    document.querySelectorAll('.pop.show').forEach(p => {
+      if (p!==item.querySelector('.pop')) p.classList.remove('show');
+    });
     return;
   }
-  /* 菜单操作 */
+
+  /* 菜单项 */
   if (e.target.classList.contains('rename')) {
+    const id = item.dataset.id;
     const name = prompt('重命名聊天', chats.find(c=>c.id===id).title);
-    if (name) {
-      chats = chats.map(c=>c.id===id?{...c,title:name.trim()||'未命名'}:c);
+    if (name !== null) {
+      chats = chats.map(c => c.id===id ? {...c, title:name.trim()||'未命名'} : c);
       saveChats(); renderChats(searchInput.value);
     }
+    return;
   }
   if (e.target.classList.contains('del-btn')) {
+    const id = item.dataset.id;
     if (confirm('确认删除？')) {
-      chats = chats.filter(c=>c.id!==id);
+      chats = chats.filter(c => c.id !== id);
       localStorage.removeItem(histKey(id));
       saveChats(); renderChats(searchInput.value);
-      if (id===currentChatId) (chats[0]?activateChat(chats[0].id):btnNewChat.click());
+      if (id === currentChatId) chats[0] ? activateChat(chats[0].id) : btnNewChat.click();
     }
+    return;
   }
+
+  /* 普通点击切换会话 */
+  activateChat(item.dataset.id);
 });
-/* 点击空白处自动关闭任何 pop */
+
+/* 点击空白关闭 pop */
 document.addEventListener('click', e=>{
   if (!e.target.closest('.chat-item')) {
     document.querySelectorAll('.pop.show').forEach(p=>p.classList.remove('show'));
   }
 });
 
-
-/* =========== 把 trySend / saveMessage 改成用当前 chatId =========== */
-// 只需把它们内部对 `HISTORY_KEY` 的引用换成 histKey(currentChatId)
-// 例：localStorage.getItem(HISTORY_KEY)  →  localStorage.getItem(histKey(currentChatId))
-//     localStorage.setItem(HISTORY_KEY, …) → localStorage.setItem(histKey(currentChatId), …)
-
-/* 首次加载 */
-if (!currentChatId) btnNewChat.click();          // 首进页面自动起一条
-else               activateChat(currentChatId);
-
-// —— 响应式汉堡 & 遮罩 —— 
-const hamburger = document.getElementById('hamburger');
-const sidebar   = document.getElementById('sidebar');
-const overlay   = document.getElementById('sidebarOverlay');
-
-hamburger.addEventListener('click', () => {
-  sidebar.classList.toggle('show');
-  overlay.classList.toggle('show');
-});
-overlay.addEventListener('click', () => {
+/* ---------- 汉堡菜单（移动端） ---------- */
+function openSidebar () {
+  sidebar.classList.add('show');
+  overlay.classList.add('show');
+  document.body.classList.add('slide-right');
+}
+function closeSidebar () {
   sidebar.classList.remove('show');
   overlay.classList.remove('show');
-});
+  document.body.classList.remove('slide-right');
+}
 
-// 首次渲染
+hamburger.addEventListener('click', () => {
+  if (!isAuthorized) return;
+  sidebar.classList.contains('show') ? closeSidebar() : openSidebar();
+});
+overlay.addEventListener('click', closeSidebar);
+
+/* ---------- 首次渲染 ---------- */
 renderChats();
+if (!currentChatId) btnNewChat.click(); else activateChat(currentChatId);
+
 
 }); // DOMContentLoaded
 
