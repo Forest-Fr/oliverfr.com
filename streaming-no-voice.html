@@ -291,7 +291,7 @@ textarea {
   background: #fafafa;
   pointer-events: none;
   z-index: 2999;
-    display: none;       /**--新增的*默认隐藏 --***/
+    display: none;  
 }
 
 /* 回到底部箭头 */
@@ -761,23 +761,28 @@ let   HISTORY_KEY = `chat_history_${sessionId}`;   // ← 改为可变
     return div;
   }
 function appendMessage(role, text, opts = {}) {
-  /* ★ 首次用户发言后，用内容片段给“新聊天”自动改名 */
-  if (role === 'user' && chats.length && currentChatId) {
-      const idx = chats.findIndex(c => c.id === currentChatId);
-      if (idx > -1 && chats[idx].name === '新聊天') {
-          chats[idx].name = stripMarkdown(text).slice(0, 20) || '新聊天';
-          saveChats();
-          renderChatList(chatSearch.value.trim());
-      }
-  }
+
   // —— 以下保持原状 ——
+function appendMessage(
+role,
+text,
+{
 
     images = [],
     streaming = false,
     noSave = false,
     meta = null,
     clarify = false
-  } = {}) {
+} = {}
+{/* ★ 首次用户发言后，用内容片段给“新聊天”自动改名 */
+ if (role === 'user' && chats.length && currentChatId) {
+const idx = chats.findIndex(c => c.id === currentChatId);
+if (idx > -1 && chats[idx].name === '新聊天') {
+ chats[idx].name = stripMarkdown(text).slice(0, 20) || '新聊天';
+saveChats();
+ renderChatList(chatSearch.value.trim());
+}
+}
     if (!chat) return;
     if (!text && !images.length && !streaming) return; // [HOTFIX-stream-placeholder]
     const extras = [];
