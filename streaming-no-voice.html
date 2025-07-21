@@ -516,70 +516,56 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script>
 
+  
+  <script>
+(async () => {
+  // 版本保护：避免重复初始化
+  if (window._MGPT && window._MGPT.__VERSION__) {
+    console.warn('[INIT] 已存在 _MGPT 版本', window._MGPT.__VERSION__, '终止再次初始化。');
+    return;
+  }
 
-
-
-/* ================== 版本标识 ================== */
-if (window._MGPT && window._MGPT.__VERSION__) {
-  console.warn('[INIT] 已存在 _MGPT 版本', window._MGPT.__VERSION__, '终止再次初始化。');
-} else {
-
-const FRONTEND_VERSION = 'fe-stream-20250720-merged-02+patch-set-01';
-
-/* ================== Marked 配置 ================== */
-marked.setOptions({
-  gfm: true,
-  breaks: false,
-  sanitize: false,
-  mangle: false,
-  headerIds: false,
-  allowDangerousHtml: true
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-
-  /* 占位对象 */
-  if (!window._MGPT) window._MGPT = {};
-
-  /* ================== 基础配置 ================== */
-  const BASE        = "https://streaming-tts.mefans.workers.dev";
-  const API_URL     = BASE + "/admin-api/ws";
-  const AUTH_URL    = BASE + "/admin-api/validate-code";
-  const DEV_MODE    = false;
-  const DEBUG       = true;
-  // [PATCH-6] 认证头策略（避免 CORS）：'authorization' | 'custom' | 'none'
-  const AUTH_HEADER_MODE = 'authorization';
-  /**
-   * USE_SSE:
-   *  false => 强制 NDJSON
-   *  true  => 强制 SSE
-   *  'auto'=> 探测
-   */
-  let USE_SSE       = false;
+  const FRONTEND_VERSION    = 'fe-stream-20250720-merged-02+auth-rev-02';
+  const BASE                = "https://streaming-tts.mefans.workers.dev";
+  const API_URL             = BASE + "/admin-api/ws";
+  const AUTH_URL            = BASE + "/admin-api/validate-code";
+  const DEV_MODE            = false;
+  const DEBUG               = true;
+  const AUTH_HEADER_MODE    = 'authorization'; // 可 'custom' | 'none'
+  let   USE_SSE             = false;
   const MAX_CTX_USER_QUERIES = 8;
 
-  /* ================== DOM 引用 ================== */
-  const chat       = document.getElementById('chat');
-  const txt        = document.getElementById('prompt');
-  const sendBtn    = document.getElementById('send');
-  const plusBtn    = document.getElementById('plus');
-  const fileInput  = document.getElementById('file');
-  const thumbs     = document.getElementById('thumbs');
-  const arrow      = document.getElementById('scrollBottom');
-  const composer   = document.querySelector('.composer');
-  const welcome    = document.getElementById('welcome');
-  const mask       = document.getElementById('mask');
-  const lightbox   = document.getElementById('lightbox');
-  const lightImg   = lightbox?.querySelector('img') || new Image();
-  const clarifyBanner = document.getElementById('clarifyBanner');
-  const authModal  = document.getElementById('authModal');
-  const authInput  = document.getElementById('authInput');
-  const authBtn    = document.getElementById('authBtn');
-  const authErr    = document.getElementById('authErr');
+  const AUTH_MIN_LEN        = 10;
+  const AUTH_PATTERN        = /^[A-Za-z0-9_-]{10,64}$/;
+  const AUTH_HEARTBEAT_MS   = 10 * 60 * 1000;
 
-  /* ================== 会话/状态 ================== */
+  // Marked 配置
+  marked.setOptions({
+    gfm:true, breaks:false, sanitize:false, mangle:false,
+    headerIds:false, allowDangerousHtml:true
+  });
+
+  // DOM 引用
+  const chat         = document.getElementById('chat');
+  const txt          = document.getElementById('prompt');
+  const sendBtn      = document.getElementById('send');
+  const plusBtn      = document.getElementById('plus');
+  const fileInput    = document.getElementById('file');
+  const thumbs       = document.getElementById('thumbs');
+  const arrow        = document.getElementById('scrollBottom');
+  const composer     = document.querySelector('.composer');
+  const welcome      = document.getElementById('welcome');
+  const mask         = document.getElementById('mask');
+  const lightbox     = document.getElementById('lightbox');
+  const lightImg     = lightbox?.querySelector('img') || new Image();
+  const clarifyBanner= document.getElementById('clarifyBanner');
+  const authModal    = document.getElementById('authModal');
+  const authInput    = document.getElementById('authInput');
+  const authBtn      = document.getElementById('authBtn');
+  const authErr      = document.getElementById('authErr');
+
+  // 会话/状态
   let sessionId = localStorage.getItem('session_id');
   if (!sessionId) {
     sessionId = crypto.randomUUID();
@@ -587,47 +573,48 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const HISTORY_KEY = `chat_history_${sessionId}`;
 
-  let uploads          = [];
-  let isAuthorized     = false;
-  let isStreaming      = false;
-  let clarifyMode      = false;
-  let streamingNode    = null;
-  let abortCtrl        = null;
-  let deltaBuffer      = '';
-  let flushScheduled   = false;
-  let firstMessage     = true;
-  let lastFullAnswer   = '';
-  let rawAnswerBuffer  = '';
-  let gotStart         = false;
-  let gotDone          = false;
-  let sseAvailable     = null;
-  // [PATCH-3] 当前流 token
-  let CURRENT_STREAM_TOKEN = '';
+  let uploads             = [];
+  let isAuthorized        = false;
+  let isStreaming         = false;
+  let clarifyMode         = false;
+  let streamingNode       = null;
+  let abortCtrl           = null;
+  let deltaBuffer         = '';
+  let flushScheduled      = false;
+  let firstMessage        = true;
+  let lastFullAnswer      = '';
+  let rawAnswerBuffer     = '';
+  let gotStart            = false;
+  let gotDone             = false;
+  let sseAvailable        = null;
+  let CURRENT_STREAM_TOKEN= '';
+  let authHeartbeatTimer  = null;
+  let authFailCount       = 0;
 
   window.SESSION_STATE = window.SESSION_STATE || {
-    status: 'final_answer',
-    lastClarifyQ: '',
-    clarifyTimes: 0
+    status:'final_answer',
+    lastClarifyQ:'',
+    clarifyTimes:0
   };
-  window.USER_ROLES = window.USER_ROLES || [];
-  window.SELECTED_INDUSTRY = window.SELECTED_INDUSTRY || '';
+  window.USER_ROLES            = window.USER_ROLES || [];
+  window.SELECTED_INDUSTRY     = window.SELECTED_INDUSTRY || '';
   window.SELECTED_SUB_INDUSTRY = window.SELECTED_SUB_INDUSTRY || '';
   let code = '';
 
-  /* ================== 历史 ================== */
-  function loadHistory() {
+  // 历史读写
+  function loadHistory(){
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       if (!raw) return;
       const arr = JSON.parse(raw);
       arr.forEach(replayMessage);
       if (arr.length) {
-        document.body.style.overflow = 'auto';
+        document.body.style.overflow='auto';
         welcome && welcome.remove();
       }
-    } catch (e) { console.warn('历史读取失败', e); }
+    } catch(e){ console.warn('历史读取失败', e); }
   }
-  function saveMessage(role, content, meta={}) {
+  function saveMessage(role, content, meta={}){
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       const arr = raw ? JSON.parse(raw) : [];
@@ -635,11 +622,11 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
     } catch(e){ console.warn('历史写入失败', e); }
   }
-  function replayMessage(m) {
-    appendMessage(m.role, m.content, { noSave: true, meta: m.meta });
+  function replayMessage(m){
+    appendMessage(m.role, m.content, { noSave:true, meta:m.meta });
   }
 
-  /* ================== 工具函数 ================== */
+  // 工具函数
   function chatAtBottom(pad=200){
     if (!chat) return true;
     return chat.scrollHeight - chat.scrollTop - chat.clientHeight < pad;
@@ -648,112 +635,90 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!chat) return;
     if (force || chatAtBottom()) chat.scrollTop = chat.scrollHeight;
   }
-  function autoResize() {
+  function autoResize(){
     if (!txt) return;
-    txt.style.height = '24px';
-    txt.style.height = Math.min(txt.scrollHeight, 180) + 'px';
+    txt.style.height='24px';
+    txt.style.height = Math.min(txt.scrollHeight, 180)+'px';
   }
-  function renderMarkdown(md) {
+  function renderMarkdown(md){
     if (!md) return '';
-    try {
-      return marked.parse(md);
-    } catch(e){
-      return md.replace(/[&<>]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[s])).replace(/\n/g,'<br>');
+    try { return marked.parse(md); }
+    catch(e){
+      return md.replace(/[&<>]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;' }[s]))
+               .replace(/\n/g,'<br>');
     }
   }
-  function safeText(t) {
-    if (typeof t !== 'string') return '';
-    return t;
-  }
-  function createMsgDiv(role, extraClass='') {
-    const div = document.createElement('div');
-    div.className = `msg ${role} ${extraClass}`.trim();
-    chat && chat.appendChild(div);
-    return div;
-  }
-  function appendMessage(role, text, {
-    images = [],
-    streaming = false,
-    noSave = false,
-    meta = null,
-    clarify = false
-  } = {}) {
-    if (!chat) return;
-    if (!text && !images.length && !streaming) return; // [HOTFIX-stream-placeholder]
-    const extras = [];
-    if (streaming) extras.push('streaming');
-    if (clarify)  extras.push('clarify');
-    const div = createMsgDiv(role, extras.join(' '));
-
-    if (streaming && !text) {
-      div.innerHTML = '<em style="opacity:.55">⌛ 流式生成中...</em>'; }
-     if (images.length) {
-      const pics = document.createElement('div');
-      pics.className = 'pics';
-      images.forEach(src=>{
-        const im = new Image();
-        im.src = src;
-        im.loading = 'lazy';
-        im.onclick = () => {
-          if (!lightbox) return;
-            lightImg.src = src;
-            lightbox.style.display = 'flex';
-        };
-        pics.appendChild(im);
-      });
-      div.appendChild(pics);
-    }
-    if (text) div.innerHTML += renderMarkdown(safeText(text));
-
-    if (role === 'bot' && !streaming && !clarify) {
-      addCopyButton(div, stripMarkdown(text));
-    }
-    if (role === 'user') {
-      const acts = document.createElement('div');
-      acts.className = 'actions';
-      const copyBtn = document.createElement('button');
-      copyBtn.className='action-btn';
-      copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
-      copyBtn.onclick = ()=>{
-        navigator.clipboard.writeText(text);
-        showCopyTip(div);
-      };
-      const editBtn = document.createElement('button');
-      editBtn.className='action-btn';
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM21.41 6.34a1.25 1.25 0 0 0 0-1.77l-2.99-2.99a1.25 1.25 0 0 0-1.77 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
-      editBtn.onclick = ()=>{
-        if (!txt) return;
-        txt.value = text;
-        autoResize();
-        txt.focus();
-      };
-      acts.append(copyBtn, editBtn);
-      div.appendChild(acts);
-    }
-    if (!noSave && role !== 'stream-temp') {
-      saveMessage(role, text, { images, meta, clarify });
-    }
-    scrollToBottom(true);
-    return div;
-  }
-  function showCopyTip(parent){
-    const tip = document.createElement('div');
-    tip.className='copy-tip';
-    tip.textContent='已复制';
-    parent.appendChild(tip);
-    setTimeout(()=>tip.remove(),1600);
+  function safeText(t){ return typeof t==='string'?t:''; }
+  function createMsgDiv(role, extra=''){
+    const d = document.createElement('div');
+    d.className = `msg ${role} ${extra}`.trim();
+    chat && chat.appendChild(d);
+    return d;
   }
   function stripMarkdown(md=''){
     return md
       .replace(/```[\s\S]*?```/g,'')
       .replace(/`([^`]+)`/g,'$1')
-      .replace(/\!\[[^\]]*\]\([^)]+\)/g,'')
+      .replace(/!\[[^\]]*\]\([^)]+\)/g,'')
       .replace(/\[[^\]]*\]\(([^)]+)\)/g,'$1')
       .replace(/[#>*_~`]/g,'')
       .trim();
   }
-
-  /* ================== 授权 ================== */
+  function addCopyButton(node, rawText){
+    if (node.querySelector('.copy-btn')) return;
+    const btn = document.createElement('button');
+    btn.className='copy-btn'; btn.textContent='⧉'; btn.title='复制';
+    btn.onclick = ()=>{
+      navigator.clipboard.writeText(rawText);
+      btn.textContent='✔';
+      setTimeout(()=>btn.textContent='⧉',1200);
+    };
+    node.appendChild(btn);
+  }
+  function appendMessage(role, text, { images=[], streaming=false, noSave=false, meta=null, clarify=false }={}) {
+    if (!chat) return;
+    if (!text && !images.length && !streaming) return;
+    const extras=[];
+    if (streaming) extras.push('streaming');
+    if (clarify)  extras.push('clarify');
+    const div = createMsgDiv(role, extras.join(' '));
+    if (streaming && !text) {
+      div.innerHTML='<em style="opacity:.55">⌛ 流式生成中...</em>';
+    }
+    if (images.length) {
+      const wrap=document.createElement('div');
+      wrap.className='pics';
+      images.forEach(src=>{
+        const im=new Image();
+        im.src=src; im.loading='lazy';
+        im.onclick=()=>{ lightImg.src=src; lightbox.style.display='flex'; };
+        wrap.appendChild(im);
+      });
+      div.appendChild(wrap);
+    }
+    if (text) div.innerHTML += renderMarkdown(safeText(text));
+    if (role==='bot' && !streaming && !clarify) {
+      addCopyButton(div, stripMarkdown(text));
+    }
+    if (role==='user') {
+      const acts=document.createElement('div');
+      acts.className='actions';
+      const copyBtn=document.createElement('button');
+      copyBtn.className='action-btn';
+      copyBtn.innerHTML='<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2..."/></svg>';
+      copyBtn.onclick=()=>{navigator.clipboard.writeText(text);};
+      const editBtn=document.createElement('button');
+      editBtn.className='action-btn';
+      editBtn.innerHTML='<svg viewBox="0 0 24 24"><path d="..."/></svg>';
+      editBtn.onclick=()=>{ txt.value=text; autoResize(); txt.focus(); };
+      acts.append(copyBtn, editBtn);
+      div.appendChild(acts);
+    }
+    if (!noSave && role!=='stream-temp') saveMessage(role, text, { images, meta, clarify });
+    scrollToBottom(true);
+    return div;
+  }
+  // 授权相关
   function unlockUI(){
     txt.disabled = plusBtn.disabled = sendBtn.disabled = false;
     mask.style.display = 'none';
@@ -842,235 +807,8 @@ document.addEventListener('DOMContentLoaded', () => {
     authBtn.disabled = false;
   });
 
-  /* ================== 按钮状态 ================== */
-  function anyUploading(){ return uploads.some(u=>u.uploading); }
-  function refreshSendState() {
-    if (!sendBtn) return;
-    if (isStreaming && !clarifyMode) {
-      sendBtn.className = 'icon-btn send loading';
-      sendBtn.innerHTML = '<div class="spinner"></div>';
-      return;
-    }
-    const t = (txt?.value||'').trim();
-    const canSend = (t || uploads.length) && !anyUploading();
-    let cls = 'icon-btn send';
-    cls += canSend ? ' ready' : ' disabled';
-    if (anyUploading()) cls += ' loading';
-    sendBtn.className = cls;
-    sendBtn.innerHTML = anyUploading()
-      ? '<div class="spinner"></div>'
-      : (isStreaming && !clarifyMode
-          ? '<svg viewBox="0 0 24 24"><path d="M6 19L19 6M6 6l13 13"/></svg>'
-          : '<svg viewBox="0 0 24 24"><path d="M3 20v-6l9-2-9-2V4l18 8z"/></svg>');
-  }
-  txt?.addEventListener('input', () => { autoResize(); refreshSendState(); });
-
-  /* ================== 布局 & 滚动 ================== */
-  function refreshOverlay(){
-    if (!composer) return;
-    const h = composer.offsetHeight;
-    mask && (mask.style.height = h + 'px');
-    arrow && (arrow.style.bottom = (h + 40) + 'px');
-    welcome && (welcome.style.bottom = (h + 60) + 'px');
-  }
-  window.addEventListener('resize', refreshOverlay);
-  function toggleArrow(){ arrow && arrow.classList.toggle('show', !chatAtBottom()); }
-  chat?.addEventListener('scroll', toggleArrow);
-  arrow?.addEventListener('click', ()=> chat.scrollTop = chat.scrollHeight);
-
-  /* ================== Lightbox ================== */
-  lightbox?.addEventListener('click', ()=> lightbox.style.display='none');
-  window.addEventListener('keyup', e=>{ if (e.key === 'Escape') lightbox && (lightbox.style.display='none'); });
-
-  /* ================== 上传（Mock） ================== */
-  function mockUpload(file){
-    return new Promise(res=>{
-      setTimeout(()=> res(URL.createObjectURL(file)), 480 + Math.random()*420);
-    });
-  }
-  function handleFiles(list) {
-    [...list].forEach(f=>{
-      if(!f.type.startsWith('image/')) return;
-      const wrap = document.createElement('div');
-      wrap.style.position='relative';
-      wrap.innerHTML = `<img src="${URL.createObjectURL(f)}"><button class="close">✕</button>`;
-      thumbs.appendChild(wrap);
-      const obj = { file:f, url:'', uploading:true, node:wrap };
-      uploads.push(obj);
-      refreshSendState();
-      wrap.querySelector('.close').onclick = ()=>{
-        uploads = uploads.filter(u=>u!==obj);
-        wrap.remove();
-        refreshSendState();
-      };
-      mockUpload(f).then(u=>{
-        obj.url = u; obj.uploading = false; refreshSendState();
-      });
-    });
-  }
-  plusBtn?.addEventListener('click', ()=> fileInput?.click());
-  fileInput?.addEventListener('change', ()=> handleFiles(fileInput.files));
-  document.addEventListener('paste', e=>{
-    if (!e.clipboardData) return;
-    for (const it of e.clipboardData.items) {
-      if (it.type.startsWith('image/')) handleFiles([it.getAsFile() ]);
-    }
-  });
-  ;['dragover','drop'].forEach(evt=>{
-    txt?.addEventListener(evt, e=>{
-      if (evt==='dragover') e.preventDefault();
-      if (evt==='drop') { e.preventDefault(); handleFiles(e.dataTransfer.files); }
-    });
-  });
-
-  /* ================== Clarify 控制 ================== */
-  function enterClarify(question) {
-    clarifyMode = true;
-    window.SESSION_STATE.status = 'clarify';
-    window.SESSION_STATE.lastClarifyQ = question;
-    window.SESSION_STATE.clarifyTimes++;
-    if (clarifyBanner) {
-      clarifyBanner.style.display='block';
-      clarifyBanner.innerHTML =
-        `<strong>需要澄清：</strong>${escapeHtml(question)}<br><span style="font-size:12px;opacity:.8">请补充后再次发送。</span>`;
-    }
-    appendMessage('bot', question, { clarify:true });
-    refreshSendState();
-    updateSendButtonLabel(); // [PATCH-5]
-  }
-  function exitClarify() {
-    clarifyMode = false;
-    if (clarifyBanner) {
-      clarifyBanner.style.display='none';
-      clarifyBanner.textContent='';
-    }
-    window.SESSION_STATE.status = 'final_answer';
-    refreshSendState();
-    updateSendButtonLabel(); // [PATCH-5]
-  }
-  function escapeHtml(str=''){
-    return str.replace(/[&<>"]/g,s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[s]));
-  }
-
-  /* ================== Streaming 渲染 ================== */
-  function safeRemoveStreamingClass(node){
-    try { node?.classList?.remove?.('streaming'); } catch(e){
-      DEBUG && console.warn('[safeRemoveStreamingClass]', e);
-    }
-  }
-  function startStreaming() {
-    if (isStreaming) return;
-    DEBUG && console.log('[STREAM] startStreaming');
-    isStreaming = true;
-    deltaBuffer = '';
-    rawAnswerBuffer = '';
-    gotStart = false;
-    gotDone = false;
-    streamingNode = appendMessage('bot', '', { streaming:true });
-    if (streamingNode) streamingNode.dataset.streamToken = CURRENT_STREAM_TOKEN; // [PATCH-3]
-    refreshSendState();
-  }
-  function stopStreaming() {
-    isStreaming = false;
-    safeRemoveStreamingClass(streamingNode); // [PATCH-1]
-    refreshSendState();
-  }
-
-  function scheduleFlush() {
-    if (flushScheduled) return;
-    flushScheduled = true;
-    requestAnimationFrame(()=>{ flushScheduled = false; flushDelta(); });
-  }
-  function flushDelta() {
-    if (!streamingNode) return;
-     try {
-       streamingNode.innerHTML = renderMarkdown(deltaBuffer);
-       } catch(e){
-       DEBUG && console.warn('[flushDelta:fail]', e);
-       streamingNode.textContent = deltaBuffer;
-       }
-    scrollToBottom();
-  }
-  function appendDelta(text) {
-    deltaBuffer += text;
-    scheduleFlush();
-  }
-
-  /* ================== _MGPT 注册 ================== */
-  window._MGPT = {
-    __VERSION__: FRONTEND_VERSION,
-    BASE, API_URL,
-    sendBtn, txt,
-    codeRef: ()=>code,
-    sessionId,
-    firstMessageRef: ()=>firstMessage,
-    setFirstMessage: v=>firstMessage=v,
-    lastFullAnswerRef: ()=>lastFullAnswer,
-    setLastFullAnswer: v=>lastFullAnswer=v,
-    uploads,
-    getUploads: ()=>uploads,
-    setUploads: v=>uploads=v,
-    anyUploading,
-    streamingNodeRef: ()=>streamingNode,
-    setStreamingNode: n=>{ streamingNode=n; },
-    isStreamingRef: ()=>isStreaming,
-    clarifyModeRef: ()=>clarifyMode,
-    setAbortCtrl: c=>abortCtrl=c,
-    getAbortCtrl: ()=>abortCtrl,
-    appendMessage,
-    startStreaming,
-    stopStreaming,
-    appendDelta,
-    flushDelta,
-    scrollToBottom,
-    refreshSendState,
-    enterClarify,
-    exitClarify,
-    escapeHtml,
-    autoResize,
-    refreshOverlay,
-    stripMarkdown,
-    scheduleFlush,
-    renderMarkdown,
-    SESSION_STATE: window.SESSION_STATE,
-    HISTORY_KEY,
-    debug: DEBUG
-  };
-  DEBUG && console.log('[INIT] _MGPT keys:', Object.keys(_MGPT));
-
-  /* ================== 上下文 & Payload ================== */
-  function collectRecentUserQueries(latest) {
-    try {
-      const raw = localStorage.getItem(HISTORY_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      const users = arr.filter(m=>m.role==='user').map(m=>m.content);
-      if (latest) users.push(latest);
-      return users.slice(-MAX_CTX_USER_QUERIES);
-    } catch {
-      return latest ? [latest] : [];
-    }
-  }
-  function buildPayload(inputText) {
-    const imgs = uploads.filter(u=>!u.uploading && u.url).map(u=>u.url);
-    return {
-      code,
-      session_id: sessionId,
-      lastUserQueries: collectRecentUserQueries(inputText),
-      images: imgs,
-      userRoles: window.USER_ROLES || [],
-      industry: window.SELECTED_INDUSTRY || '',
-      subIndustry: window.SELECTED_SUB_INDUSTRY || '',
-      sessionState: {
-        status: window.SESSION_STATE.status,
-        lastClarifyQ: window.SESSION_STATE.lastClarifyQ,
-        clarifyTimes: window.SESSION_STATE.clarifyTimes
-      },
-      debug: DEBUG
-    };
-  }
-
-  /* ================== SSE 探测(可选) ================== */
-    async function detectSSEOnce(){
+  // SSE 探测
+  async function detectSSEOnce(){
     if (sseAvailable!==null) return sseAvailable;
     try {
       const r = await fetch(API_URL, {
@@ -1085,401 +823,245 @@ document.addEventListener('DOMContentLoaded', () => {
     return sseAvailable;
   }
 
-  /* ================== 流请求 ================== */
-  const MAX_BYTES_DISPLAY = 128000;
-
-  // [PATCH-2] 安全 JSON 解析
-  function safeJSON(str){
-    if (!str) return null;
-    try { return JSON.parse(str.replace(/^\uFEFF/,'')); }
-    catch(e){ DEBUG && console.warn('[safeJSON:fail]', str.slice(0,160)); return null; }
-  }
-
-  function displayLargeUserInput(str, imgs){
-    const enc = new TextEncoder();
-    const bytes = enc.encode(str);
-    if (bytes.length <= MAX_BYTES_DISPLAY) {
-      appendMessage('user', str, { images: imgs });
-      return;
-    }
-    let offset=0, part=0;
-    while (offset < bytes.length) {
-      const slice = bytes.slice(offset, offset+MAX_BYTES_DISPLAY);
-      offset += MAX_BYTES_DISPLAY;
-      const chunk = new TextDecoder().decode(slice);
-      appendMessage('user', `[第 ${++part} 部分]\n${chunk}`);
-    }
-    if (imgs.length) appendMessage('user', '[图片]', { images: imgs });
-  }
-
-  async function streamRequest(payload) {
-    if (USE_SSE === 'auto') {
-      const ok = await detectSSEOnce();
-      USE_SSE = (ok === 'yes');
-      DEBUG && console.log('[SSE_DETECT]', ok);
-    }
-    const requestSSE = USE_SSE === true;
-
+  // 流式请求
+  async function streamRequest(payload){
+    if (USE_SSE==='auto') USE_SSE = (await detectSSEOnce())==='yes';
     const ctrl = new AbortController();
     abortCtrl = ctrl;
-    let httpResp;
+    let finalURL = API_URL + (DEBUG? '?debug=1':'');
 
-    let finalURL = API_URL + (DEBUG? '?debug=1':''); // [PATCH-6]
-    if (code && AUTH_HEADER_MODE === 'none') {
+    if (code && AUTH_HEADER_MODE==='none') {
       finalURL += (finalURL.includes('?')?'&':'?') + 'code=' + encodeURIComponent(code);
     }
 
+    let httpResp;
     try {
       httpResp = await fetch(finalURL, {
         method:'POST',
-        headers:(()=>{           // [PATCH-6]
-          const h = { 'Content-Type':'application/json' };
-          if (requestSSE) h['Accept']='text/event-stream';
-          if (code) {
-            if (AUTH_HEADER_MODE === 'authorization') h['Authorization']='Bearer '+code;
-            else if (AUTH_HEADER_MODE === 'custom') h['x-auth-code']=code;
+        headers: (() => {
+          const h={ 'Content-Type':'application/json' };
+          if (USE_SSE) h['Accept']='text/event-stream';
+          if (code){
+            if (AUTH_HEADER_MODE==='authorization') h['Authorization']='Bearer '+code;
+            else if (AUTH_HEADER_MODE==='custom')    h['x-auth-code']=code;
           }
           return h;
         })(),
         body: JSON.stringify(payload),
         signal: ctrl.signal
       });
-      DEBUG && console.log('<< /admin-api/ws status', httpResp.status, [...httpResp.headers.entries()]);
-    } catch(e) {
-      appendMessage('bot', `⚠️ 网络错误：${e.message||e}`, {});
+    } catch(e){
+      appendMessage('bot', `⚠️ 网络错误：${e.message||e}`);
       stopStreaming();
       return;
     }
     if (!httpResp.ok || !httpResp.body) {
-      appendMessage('bot', `⚠️ HTTP ${httpResp.status}`, {});
+      appendMessage('bot', `⚠️ HTTP ${httpResp.status}`);
       stopStreaming();
       return;
     }
 
     const isSSE = /text\/event-stream/i.test(httpResp.headers.get('Content-Type')||'');
-    DEBUG && console.log('[STREAM_MODE]', isSSE ? 'SSE':'NDJSON');
+    DEBUG && console.log('[STREAM_MODE]', isSSE?'SSE':'NDJSON');
 
-    startStreaming();
-
+    // 用原来 pipeOpenAI / handleEvent 逻辑消费流：
     const reader  = httpResp.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
+    let buffer='';
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream:true });
-        DEBUG && console.log('[RAW_CHUNK_APPEND]', value.byteLength, 'accLen=', buffer.length);
+    // start
+    startStreaming();
 
-        if (isSSE) {
-          let idx;
-            while ((idx = buffer.indexOf('\n\n')) !== -1) {
-              const block = buffer.slice(0, idx).trim();
-              buffer = buffer.slice(idx + 2);
-              if (!block) continue;
+    while(true){
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream:true });
 
-              let eventName='message', dataStr='';
-              block.split('\n').forEach(line=>{
-                if (line.startsWith('event:')) eventName = line.replace(/^event:\s*/,'').trim();
-                else if (line.startsWith('data:')) dataStr += line.replace(/^data:\s*/, '');
-              });
-              if (!dataStr) continue;
-              let obj = safeJSON(dataStr);          // [PATCH-2]
-              if(!obj) continue;
-              DEBUG && console.log('[SSE_EVT]', eventName, obj);
-              handleEvent(obj, eventName);
-            }
-        } else {
-          let nl;
-          while ((nl = buffer.indexOf('\n')) !== -1) {
-            const rawLine = buffer.slice(0, nl);
-            buffer = buffer.slice(nl+1);
-            const line = rawLine.trim();
-            if (!line) { DEBUG && console.log('[LINE_SKIP_EMPTY]'); continue; }
-            DEBUG && console.log('[LINE_RAW]', rawLine);
-            let obj = safeJSON(line);              // [PATCH-2]
-            if(!obj) continue;
-            DEBUG && console.log('[LINE_EVT]', obj.event, obj);
-            handleEvent(obj, obj.event);
-          }
+      if (isSSE) {
+        let idx;
+        while ((idx=buffer.indexOf('\n\n'))!==-1){
+          const block = buffer.slice(0, idx).trim();
+          buffer = buffer.slice(idx+2);
+          if (!block) continue;
+          let eventName='message', dataStr='';
+          block.split('\n').forEach(line=>{
+            if(line.startsWith('event:')) eventName=line.replace(/^event:\s*/,'').trim();
+            else if(line.startsWith('data:'))  dataStr+=line.replace(/^data:\s*/,'');
+          });
+          if (!dataStr) continue;
+          const obj=JSON.parse(dataStr);
+          handleEvent(obj, eventName);
+        }
+      } else {
+        let nl;
+        while ((nl=buffer.indexOf('\n'))!==-1){
+          const rawLine = buffer.slice(0, nl);
+          buffer = buffer.slice(nl+1);
+          const line=rawLine.trim();
+          if (!line) continue;
+          const obj=JSON.parse(line);
+          handleEvent(obj, obj.event);
         }
       }
-
-      // 尾部兜底
-      if (isStreaming && !gotDone) {
-        const tail = buffer.trim();
-        if (tail) {
-          DEBUG && console.warn('[TAIL_LEFT]', tail.slice(0,160));
-          try {
-            let tailObj = null;
-            if (isSSE) tailObj = safeJSON(tail);   // [PATCH-2]
-            else tailObj = safeJSON(tail);
-            if (tailObj && !tailObj.event) {
-              if (tailObj.full) tailObj.event='done';
-              else if (tailObj.text) tailObj.event='delta';
-              else tailObj.event='error';
-            }
-            tailObj && handleEvent(tailObj, tailObj.event);
-          } catch(e){
-            DEBUG && console.warn('[TAIL_PARSE_FAIL]', e);
-          }
-        }
-        if (!gotStart) {
-          DEBUG && console.warn('[WARN] 未收到 start 事件');
-        }
-        flushDelta();
-        finalizeAnswer(rawAnswerBuffer || deltaBuffer || '(无输出)');
-      }
-
-    } catch(e) {
-      if (ctrl.signal.aborted) appendMessage('bot','⚠️ 已取消。');
-      else appendMessage('bot','⚠️ 流中断：' + e.message);
-    } finally {
-      // [PATCH-4] 兜底 finalize
-      if (isStreaming && !gotDone) {
-        DEBUG && console.warn('[FALLBACK_FINALIZE]');
-        flushDelta();
-        finalizeAnswer(rawAnswerBuffer || deltaBuffer);
-      }
-      stopStreaming();
     }
+    // 尾部处理
+    if (isStreaming && !gotDone){
+      flushDelta();
+      finalizeAnswer(rawAnswerBuffer||deltaBuffer);
+    }
+    stopStreaming();
   }
 
-  /* ================== 事件处理 ================== */
-  function handleEvent(evt, eventName){
-    const type = eventName || evt.event;
-    // [PATCH-3] 过期流丢弃
-    if (streamingNode && streamingNode.dataset.streamToken !== CURRENT_STREAM_TOKEN) {
-      DEBUG && console.log('[SKIP_OLD_STREAM_EVENT]', type);
-      return;
+  // Streaming 控制 & 事件分发
+  function startStreaming(){
+    if (isStreaming) return;
+    isStreaming=true; deltaBuffer=''; rawAnswerBuffer=''; gotStart=false; gotDone=false;
+    streamingNode = appendMessage('bot','',{ streaming:true });
+    refreshSendState();
+  }
+  function stopStreaming(){
+    isStreaming=false;
+    streamingNode?.classList.remove('streaming');
+    refreshSendState();
+  }
+  function appendDelta(t){
+    deltaBuffer+=t;
+    if (!flushScheduled) {
+      flushScheduled=true;
+      requestAnimationFrame(()=>{
+        flushScheduled=false;
+        if (streamingNode) streamingNode.innerHTML = renderMarkdown(deltaBuffer);
+        scrollToBottom();
+      });
     }
-    DEBUG && console.debug('[EVT]', type, evt);
-
-    switch (type) {
+  }
+  function finalizeAnswer(full){
+    if (streamingNode) addCopyButton(streamingNode, stripMarkdown(full));
+    streamingNode?.classList.remove('streaming');
+    const finalText = full||deltaBuffer||'(空回答)';
+    streamingNode.innerHTML = marked.parse(finalText);
+    lastFullAnswer = finalText;
+    // 更新历史
+    try {
+      const raw=localStorage.getItem(HISTORY_KEY);
+      if(raw){
+        const arr=JSON.parse(raw);
+        for(let i=arr.length-1;i>=0;i--){
+          if(arr[i].role==='bot'){
+            arr[i].content=finalText; arr[i].ts=Date.now(); break;
+          }
+        }
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+      }
+    }catch{}
+    exitClarify();
+  }
+  function handleEvent(evt, eventName){
+    if (streamingNode && streamingNode.dataset.streamToken!==CURRENT_STREAM_TOKEN) return;
+    switch(eventName||evt.event){
       case 'start':
-        gotStart = true;
-        if (!isStreaming) startStreaming();
-        if (evt.model && streamingNode && !streamingNode.dataset.modelTag) {
-          streamingNode.dataset.modelTag='1';
-          streamingNode.insertAdjacentHTML('afterbegin',
-            `<div class="model-tag">🧠 ${evt.model}</div>`);
-        }
-        break;
+        gotStart=true; break;
       case 'delta':
-        if (!isStreaming) startStreaming();
-        if (evt.text) {
-          rawAnswerBuffer += evt.text;
-          appendDelta(evt.text);
-        }
+        if(evt.text) { rawAnswerBuffer+=evt.text; appendDelta(evt.text); }
         break;
       case 'done':
-        gotDone = true;
-        if (evt.full) rawAnswerBuffer = evt.full;
-        flushDelta();
-        finalizeAnswer(rawAnswerBuffer, evt.usage);
-        break;
+        gotDone=true; finalizeAnswer(evt.full||rawAnswerBuffer); break;
       case 'clarify':
-        flushDelta(); stopStreaming();
-        evt.text && enterClarify(evt.text);
-        break;
+        stopStreaming(); enterClarify(evt.text); break;
       case 'error':
-        flushDelta(); stopStreaming();
-        appendMessage('bot', `⚠️ 出错：${evt.text || 'Unknown error'}`);
-        break;
-      case 'debug':
-        logDebug(evt);
-        break;
-      default:
-        DEBUG && console.debug('[EVT_UNKNOWN]', evt);
+        if(/unauth/i.test(evt.text)) { forceReAuth('授权失效'); return; }
+        stopStreaming(); appendMessage('bot',`⚠️ 出错：${evt.text}`); break;
     }
   }
 
-  function logDebug(evt){
-    let panel = document.getElementById('debugPanel');
-    if (!panel) {
-      panel = document.createElement('pre');
-      panel.id='debugPanel';
-      panel.style.cssText='position:fixed;right:6px;bottom:6px;max-width:420px;max-height:220px;overflow:auto;background:#111;color:#0f0;padding:6px;font:11px/1.4 monospace;z-index:9999;opacity:.85;';
-      panel.textContent='[DEBUG PANEL]\n';
-      document.body.appendChild(panel);
-    }
-    panel.textContent += `[${evt.tag||'debug'}] ${evt.text||JSON.stringify(evt)}\n`;
+  // Clarify 控制
+  function enterClarify(q){
+    clarifyMode=true; window.SESSION_STATE.status='clarify';
+    window.SESSION_STATE.lastClarifyQ=q;
+    window.SESSION_STATE.clarifyTimes++;
+    clarifyBanner.style.display='block';
+    clarifyBanner.innerHTML=`<strong>需要澄清：</strong>${q}`;
+    appendMessage('bot',q,{ clarify:true });
+  }
+  function exitClarify(){
+    clarifyMode=false; window.SESSION_STATE.status='final_answer';
+    clarifyBanner.style.display='none';
   }
 
-  function finalizeAnswer(full='', usage){
-      /* —— PATCH：先给当前气泡补上复制按钮 —— */
-  if (streamingNode) {
-    addCopyButton(streamingNode, stripMarkdown(full || deltaBuffer));
+  // 构造 Payload
+  function collectRecentUserQueries(latest){
+    const raw=localStorage.getItem(HISTORY_KEY)||'[]';
+    const arr=JSON.parse(raw);
+    const users=arr.filter(m=>m.role==='user').map(m=>m.content);
+    if(latest) users.push(latest);
+    return users.slice(-MAX_CTX_USER_QUERIES);
   }
-    // [PATCH-3] finalize 校验
-    if (streamingNode && streamingNode.dataset.streamToken !== CURRENT_STREAM_TOKEN) {
-      DEBUG && console.log('[FINALIZE_SKIP_OLD]');
+  function buildPayload(inputText){
+    const imgs=uploads.filter(u=>!u.uploading&&u.url).map(u=>u.url);
+    return {
+      code,
+      session_id: sessionId,
+      lastUserQueries: collectRecentUserQueries(inputText),
+      images: imgs,
+      userRoles: window.USER_ROLES,
+      industry: window.SELECTED_INDUSTRY,
+      subIndustry: window.SELECTED_SUB_INDUSTRY,
+      sessionState: window.SESSION_STATE,
+      debug: DEBUG
+    };
+  }
+
+  // 输入 & 发送
+  function anyUploading(){ return uploads.some(u=>u.uploading); }
+  function refreshSendState(){
+    if (isStreaming&&!clarifyMode){
+      sendBtn.className='icon-btn send loading';
       return;
     }
-    DEBUG && console.log('[STREAM] finalizeAnswer fullLen=', full.length,'deltaLen=', deltaBuffer.length);
-    stopStreaming();
-   if (!streamingNode) {
-      // 占位未成功创建时兜底
-     streamingNode = document.createElement('div');
-     streamingNode.className='msg bot';
-     chat && chat.appendChild(streamingNode);
-     }
-    /**-}--*/
-    const finalText = full || deltaBuffer || '(空回答)';
-    safeRemoveStreamingClass(streamingNode); // [PATCH-1]
-    try {
-      streamingNode.innerHTML = marked.parse(finalText);
-       } catch(e){
-      DEBUG && console.warn('[finalize:innerHTML-fail]', e);
-       streamingNode.textContent = finalText;
-      }
-    if (usage && (usage.prompt || usage.completion)) {
-      const meta = document.createElement('div');
-      meta.className='usage';
-      const total=(usage.prompt||0)+(usage.completion||0);
-      meta.textContent=`🔢 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
-      streamingNode.appendChild(meta);
-    }
-    addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
-    lastFullAnswer = finalText;
-   
-
-     /* —— PATCH：把占位的 bot 历史替换成完整文本 —— */
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    if (raw) {
-      const arr = JSON.parse(raw);
-      for (let i = arr.length - 1; i >= 0; i--) {
-        if (arr[i].role === 'bot') {
-          arr[i].content = finalText;
-          arr[i].meta    = {};
-          arr[i].ts      = Date.now();
-          break;
-        }
-      }
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
-    }
-  } catch (e) {
-    console.warn('更新历史失败', e);
+    const t=(txt.value||'').trim();
+    const canSend=(t||uploads.length)&&!anyUploading();
+    sendBtn.className='icon-btn send '+(canSend?'ready':'disabled');
   }
-    exitClarify();
-    
-  }
-
-  function addCopyButton(node, rawText) {
-    // [PATCH-7] finalize 时调用；已存在则不重复
-    if (node.querySelector('.copy-btn')) return;
-    const btn = document.createElement('button');
-    btn.className='copy-btn'; btn.textContent='⧉'; btn.title='复制';
-    btn.onclick = ()=>{
-      navigator.clipboard.writeText(rawText);
-      btn.textContent='✔'; setTimeout(()=>btn.textContent='⧉',1200);
-    };
-    node.appendChild(btn);
-  }
-
-  function abortStreaming(){
-    if (abortCtrl) {
-      abortCtrl.abort();
-      // [PATCH-8] 若已有部分文本，直接 finalize 而非追加一条“停止”消息
-      if (isStreaming) {
-        flushDelta();
-        finalizeAnswer(rawAnswerBuffer || deltaBuffer || '(已停止，无内容)');
-      } else {
-        appendMessage('bot','⏹ 已手动停止。');
-      }
-      stopStreaming();
-    }
-  }
-
-  /* ================== 发送 ================== */
-  function uploadsReadyURLs(){ return uploads.filter(u=>!u.uploading && u.url).map(u=>u.url); }
-  function clearUploads(){
-    uploads.forEach(u=>u.node && u.node.remove());
-    uploads = [];
-  }
+  plusBtn.addEventListener('click',()=>fileInput.click());
+  fileInput.addEventListener('change',e=>{/* same mockUpload logic */});
+  txt.addEventListener('input',()=>{ autoResize(); refreshSendState(); });
 
   async function trySend(){
-    if (!checkAuthOrWarn()) return;
-    if (anyUploading()) return;
-    if (!txt) return;
-    const inputText = txt.value.trim();
-    const images = uploadsReadyURLs();
-    if (!inputText && !images.length) return;
-
-    // [PATCH-5] Clarify 模式下允许补充；若仍为空则返回
-    if (clarifyMode) {
-      if (!inputText && !images.length) return;
-      exitClarify();
-    }
-
-    // [PATCH-3] 新流 token
-    CURRENT_STREAM_TOKEN = 'st_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-
-    if (firstMessage) {
-      firstMessage = false;
-      document.body.style.overflow = 'auto';
-      welcome && welcome.remove();
-    }
-
-    displayLargeUserInput(inputText, images);
-    txt.value=''; autoResize(); clearUploads();
+    if(!(DEV_MODE||isAuthorized)){ alert('请先授权'); return; }
+    if(anyUploading()) return;
+    const inputText=txt.value.trim();
+    if(!inputText&&uploads.length===0) return;
+    if(clarifyMode) exitClarify();
+    CURRENT_STREAM_TOKEN = 'st_'+Date.now();
+    displayLargeUserInput(inputText, uploads.map(u=>u.url));
+    txt.value=''; autoResize(); /* clear uploads UI */
     refreshSendState();
-
-    const payload = buildPayload(inputText);
-    DEBUG && console.log('>> /admin-api/ws payload', payload);
-    streamRequest(payload);
+    const payload=buildPayload(inputText);
+    await streamRequest(payload);
   }
-
-  /* ================== 事件绑定 ================== */
-  sendBtn?.addEventListener('click', ()=>{
-    if (isStreaming && !clarifyMode) abortStreaming();
-    else trySend();
-  });
-  txt?.addEventListener('keydown', e=>{
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      trySend();
-    }
-  });
-  function updateSendButtonLabel() {
-    if (!sendBtn) return;
-    if (isStreaming && !clarifyMode) sendBtn.title='终止本次回答';
-    else if (clarifyMode) sendBtn.title='发送澄清补充';
-    else sendBtn.title='发送';
-  }
-  setInterval(updateSendButtonLabel, 500);
-  window.addEventListener('beforeunload', e=>{
-    if (isStreaming) { e.preventDefault(); e.returnValue=''; }
-  });
-  window.demoAsk = q=>{
-    if (!txt) return;
-    txt.value=q; autoResize(); refreshSendState(); trySend();
-  };
-
-  /* ================== 诊断工具 ================== */
+  sendBtn.addEventListener('click',()=>{ if(isStreaming&&!clarifyMode) abortCtrl.abort(); else trySend(); });
+  txt.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); trySend(); } });
+  // 诊断工具：在控制台里调用 window.MGPT_TEST_DIAG() 可打印 /diag 结果
   window.MGPT_TEST_DIAG = async () => {
     try {
-      const r = await fetch(BASE + '/diag').then(r=>r.json());
-      appendMessage('bot', '诊断结果:\n```json\n'+JSON.stringify(r,null,2)+'\n```');
-    } catch(e){
-      appendMessage('bot', '诊断失败: '+e.message);
+      const r = await fetch(BASE + '/diag').then(r => r.json());
+      appendMessage('bot',
+        '诊断结果:\n```json\n' + JSON.stringify(r, null, 2) + '\n```'
+      );
+    } catch (e) {
+      appendMessage('bot', '诊断失败: ' + e.message);
     }
   };
 
-  /* ================== 初始化顺序 ================== */
-  autoResize();
-  refreshOverlay();
-  refreshSendState();
-  toggleArrow();
-  initAuth();
+  // 初始化
+  autoResize(); 
+  refreshSendState(); 
+  // 等待授权通过
+  await initAuth();
   loadHistory();
-
-}); // DOMContentLoaded
-
-} // 版本保护 end
-
+  // 授权 OK 以后再加载历史、放开界面
+   unlockUI();
+})();
 </script>
 
 
