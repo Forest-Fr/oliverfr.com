@@ -1054,9 +1054,10 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
   };
 
   // 初始化
-  autoResize(); 
-  refreshSendState(); 
+  /**--autoResize(); --**/
+ /**-- refreshSendState(); --**/
  // —— 确保欢迎界面和授权弹窗同时可见 —— 
+   lockUI();
 if (welcome) {
 welcome.style.display = 'block';    // 显示欢迎界面
 welcome.style.zIndex  = '1001';     // 提到 mask 之上
