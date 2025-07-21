@@ -727,7 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /*-const HISTORY_KEY = `chat_history_${sessionId}`;-*/
   // ↓ 不再固定，而是一个函数
   const HISTORY_KEY_STATIC = `chat_history_${sessionId}`;   // 仅供首次无会话时使用
-  const histKey = id => `chat_history_${id || currentChatId}`;
+  /*-const _histKey = id => `chat_history_${id || currentChatId}`;-*/
 
   let uploads          = [];
   let isAuthorized     = false;
@@ -774,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const raw = localStorage.getItem(histKey(currentChatId));
       const arr = raw ? JSON.parse(raw) : [];
       arr.push({ role, content, meta, ts: Date.now() });
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+      localStorage.setItem(histKey(currentChatId), JSON.stringify(arr));
     } catch(e){ console.warn('历史写入失败', e); }
   }
   function replayMessage(m) {
@@ -1661,7 +1661,7 @@ btnNewChat.addEventListener('click', () => {
   // 若上一句已经是空白且还没内容，就直接复用，不再 push 新条
   if (currentChatId && !loadHistoryToPane(currentChatId, /*peek=*/true)) {
      chats = chats.map(c => c.id === currentChatId ? { ...c, sessionId:sid } : c);
-    +  } else {
+    } else {
     chats.unshift({ id, title:'新聊天', sessionId:sid });
     }
   saveChats();
