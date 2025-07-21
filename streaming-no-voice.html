@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -479,145 +478,6 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 }
 .msg._meta > * { max-width: none !important; }
 .msg._meta .copy-btn { display: none !important; }
-
-/* —— ChatGPT 样式侧栏 —— */
-#hamburger {
-  position: absolute;
-  top: 12px; left: 12px;
-  z-index: 1000;
-  padding: 6px;
-  border: none;
-  border-radius: 4px;
-  background: #fff;
-  cursor: pointer;
-  display: none;
-}
-@media (max-width: 767px) {
-  #hamburger { display: block; }
-}
-
-aside#sidebar {
-  position: fixed; top: 0; left: 0;
-  width: 240px; height: 100%;
-  padding: 16px;
-  background: #202123; color: #fff;
-  transform: translateX(0);
-  transition: transform .2s ease;
-  z-index: 1001;
-}
-@media (max-width: 767px) {
-  aside#sidebar { transform: translateX(-100%); }
-  aside#sidebar.show { transform: translateX(0); }
-}
-
-#sidebarOverlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.4);
-  opacity: 0; visibility: hidden;
-  transition: opacity .2s ease;
-  z-index: 1000;
-}
-#sidebarOverlay.show {
-  opacity: 1; visibility: visible;
-}
-
-/* 复用你已有的 .btn, .search-box 样式 */
-/* 新增列表项样式 */
-#chatList {
-  margin-top: 12px;
-  overflow-y: auto;
-  max-height: calc(100% - 80px);
-}
-.chat-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  cursor: pointer;
-}
-.chat-item:hover { background: #343541; }
-.chat-item span {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #fff;
-}
-.chat-item button {
-  background: none;
-  border: none;
-  color: #aaa;
-  margin-left: 4px;
-  cursor: pointer;
-}
-.chat-item button:hover { color: #fff; }
-
-/* === 三点菜单样式 === */
-.chat-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 6px;
-  padding: 6px 12px 6px 10px;
-  cursor: pointer;
-}
-.chat-item.active      { background:#343541; }
-.chat-item:hover .dots { opacity: 1; }
-
-.chat-item .title {
-  flex: 1;
-  max-width: 160px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color:#fff;
-}
-
-.menu.dots{
-  opacity:.0;
-  border:none; background:none;
-  font-size:18px; color:#aaa;
-  cursor:pointer;
-}
-.menu.dots:hover{color:#fff}
-
-.pop{
-  position:absolute; right:34px; top:6px;
-  background:#fff; color:#111;
-  border:1px solid #eee; border-radius:8px;
-  box-shadow:0 4px 18px rgb(0 0 0 / .15);
-  padding:4px 0; min-width:120px;
-  display:none;  z-index:5000;
-}
-.pop.show{display:block}
-
-.pop button{
-  width:100%; border:none; background:none;
-  padding:8px 14px; font-size:14px; text-align:left;
-  cursor:pointer;
-}
-.pop button:hover{background:#f3f4f6}
-.pop .del-btn{color:#d92d20}
-/* === END 三点菜单样式 === */
-
-/* === mobile slide‑out effect === */
-@media (max-width: 767px) {
-  body.slide-right {                       /* 主面板随侧栏平移 */
-    transform: translateX(240px);          /* 侧栏宽度 */
-    transition: transform .25s ease;
-    overflow: hidden;                      /* 禁止背景滚动 */
-  }
-  aside#sidebar { transition: transform .25s ease; }
-}
-
-/* === 锁定状态下禁止侧栏交互 === */
-#sidebar.locked,
-#sidebar.locked * {
-  pointer-events: none;
-  opacity: .35;
-}
-
 </style>
 </head>
 <body>
@@ -654,22 +514,13 @@ aside#sidebar {
     <div id="authErr"></div>
   </div>
 </div>
-<button id="hamburger">☰</button>
-
-<aside id="sidebar">
-  <button id="btnNewChat" class="btn">＋ 新建聊天</button>
-  <div class="search-box">
-    <input type="text" id="chatSearch" placeholder="搜索聊天">
-  </div>
-  <div id="chatList"></div>
-</aside>
-
-<div id="sidebarOverlay"></div>
-
-
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+  
+ 
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <script>
 /* ================== 版本标识 ================== */
@@ -692,7 +543,8 @@ marked.setOptions({
 document.addEventListener('DOMContentLoaded', () => {
 
   /* 占位对象 */
-if (!window._MGPT) window._MGPT = {};
+  if (!window._MGPT) window._MGPT = {};
+
   /* ================== 基础配置 ================== */
   const BASE        = "https://streaming-tts.mefans.workers.dev";
   const API_URL     = BASE + "/admin-api/ws";
@@ -735,12 +587,7 @@ if (!window._MGPT) window._MGPT = {};
     sessionId = crypto.randomUUID();
     localStorage.setItem('session_id', sessionId);
   }
-  /*-const HISTORY_KEY = `chat_history_${sessionId}`;-*/
-  // ↓ 不再固定，而是一个函数
-  const HISTORY_KEY_STATIC = `chat_history_${sessionId}`;   // 仅供首次无会话时使用
-  // 简写：任何时候要用当前桶都走这个函数
-  const histKey = id => `chat_history_${id ?? currentChatId}`;
-  /*-const _histKey = id => `chat_history_${id || currentChatId}`;-*/
+  const HISTORY_KEY = `chat_history_${sessionId}`;
 
   let uploads          = [];
   let isAuthorized     = false;
@@ -772,7 +619,7 @@ if (!window._MGPT) window._MGPT = {};
   /* ================== 历史 ================== */
   function loadHistory() {
     try {
-      const raw = localStorage.getItem(histKey(currentChatId));
+      const raw = localStorage.getItem(HISTORY_KEY);
       if (!raw) return;
       const arr = JSON.parse(raw);
       arr.forEach(replayMessage);
@@ -784,10 +631,10 @@ if (!window._MGPT) window._MGPT = {};
   }
   function saveMessage(role, content, meta={}) {
     try {
-      const raw = localStorage.getItem(histKey(currentChatId));
+      const raw = localStorage.getItem(HISTORY_KEY);
       const arr = raw ? JSON.parse(raw) : [];
       arr.push({ role, content, meta, ts: Date.now() });
-      localStorage.setItem(histKey(currentChatId), JSON.stringify(arr));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
     } catch(e){ console.warn('历史写入失败', e); }
   }
   function replayMessage(m) {
@@ -908,27 +755,19 @@ if (!window._MGPT) window._MGPT = {};
       .trim();
   }
 
-/* ======= 授权 ======= */
-function lockUI () {
-  txt?.setAttribute('disabled', 'true');
-  plusBtn?.setAttribute('disabled', 'true');
-  sendBtn?.setAttribute('disabled', 'true');
-  sidebar.classList.add('locked');          // 锁侧栏
-  hamburger.style.opacity = .35;
-  hamburger.style.pointerEvents = 'none';
-}
-
-function unlockUI () {
-  txt?.removeAttribute('disabled');
-  plusBtn?.removeAttribute('disabled');
-  sendBtn?.removeAttribute('disabled');
-  refreshSendState();
-  mask.style.display = 'none';
-  sidebar.classList.remove('locked');       // 解锁侧栏
-  hamburger.style.opacity = 1;
-  hamburger.style.pointerEvents = '';
-}
-
+  /* ================== 授权 ================== */
+  function unlockUI(){
+    txt && (txt.disabled = false);
+    plusBtn && (plusBtn.disabled = false);
+    sendBtn && (sendBtn.disabled = false);
+    refreshSendState();
+    mask && (mask.style.display='none');
+  }
+  function lockUI(){
+    txt && (txt.disabled = true);
+    plusBtn && (plusBtn.disabled = true);
+    sendBtn && (sendBtn.disabled = true);
+  }
   function initAuth(){
     if (DEV_MODE) {
       isAuthorized = true;
@@ -980,11 +819,6 @@ function unlockUI () {
     alert('请先输入授权码！');
     return false;
   }
-  
-
-
-
-
 
   /* ================== 按钮状态 ================== */
   function anyUploading(){ return uploads.some(u=>u.uploading); }
@@ -1177,7 +1011,7 @@ function unlockUI () {
     scheduleFlush,
     renderMarkdown,
     SESSION_STATE: window.SESSION_STATE,
-    /*HISTORY_KEY,*/
+    HISTORY_KEY,
     debug: DEBUG
   };
   DEBUG && console.log('[INIT] _MGPT keys:', Object.keys(_MGPT));
@@ -1185,7 +1019,7 @@ function unlockUI () {
   /* ================== 上下文 & Payload ================== */
   function collectRecentUserQueries(latest) {
     try {
-      const raw = localStorage.getItem(histKey(currentChatId));
+      const raw = localStorage.getItem(HISTORY_KEY);
       const arr = raw ? JSON.parse(raw) : [];
       const users = arr.filter(m=>m.role==='user').map(m=>m.content);
       if (latest) users.push(latest);
@@ -1479,10 +1313,34 @@ function unlockUI () {
       meta.textContent=`🔢 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
       streamingNode.appendChild(meta);
     }
-    addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
-    lastFullAnswer = finalText;
-    exitClarify();
+ addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
+lastFullAnswer = finalText;
+
+/* --- [FIX-HISTORY] 回写 localStorage 中最后一条 bot 记录 --- */
+try {
+  const raw = localStorage.getItem(HISTORY_KEY);
+  if (raw) {
+    const arr = JSON.parse(raw);
+    // 找到最后一条 bot 记录；若没找到就 push 一条新的
+    let idx = arr.length - 1;
+    while (idx >= 0 && arr[idx].role !== 'bot') idx--;
+    if (idx < 0) {                       // 说明历史里没有 bot 条目（极端情况）
+      arr.push({ role:'bot', content:finalText, meta:{}, ts:Date.now() });
+    } else {
+      arr[idx].content = finalText;
+      arr[idx].meta    = {};             // 如需保存 usage 可在此写入
+      arr[idx].ts      = Date.now();
+    }
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
   }
+} catch(e){
+  console.warn('[history‑write]', e);
+}
+/* --- END FIX-HISTORY --- */
+
+exitClarify();
+}
+
 
   function addCopyButton(node, rawText) {
     // [PATCH-7] finalize 时调用；已存在则不重复
@@ -1540,17 +1398,7 @@ function unlockUI () {
       welcome && welcome.remove();
     }
 
-    
     displayLargeUserInput(inputText, images);
-/* 以下保持原来的自动命名逻辑（你的旧代码已有） */
-     if (chats.find(c => c.id === currentChatId)?.title === '新聊天') {
-       const pretty = stripMarkdown(inputText).slice(0, 20) || '未命名会话';
-        chats = chats.map(c =>
-           c.id === currentChatId ? { ...c, title: pretty } : c
-           );
-        saveChats();
-renderChats(searchInput.value);
-        }
     txt.value=''; autoResize(); clearUploads();
     refreshSendState();
 
@@ -1603,174 +1451,12 @@ renderChats(searchInput.value);
   initAuth();
   loadHistory();
 
-// —— Sidebar 数据 & 渲染逻辑 —— 
-const STORAGE_KEY = 'mini_gpt_chats';           // [{id,title,sessionId}]
-let chats         = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-let currentChatId = chats[0]?.id || null;
-sessionId         = chats.find(c => c.id === currentChatId)?.sessionId
-                 || sessionId || crypto.randomUUID();       // 复用全局
-
-const chatListEl  = document.getElementById('chatList');
-const searchInput = document.getElementById('chatSearch');
-const btnNewChat  = document.getElementById('btnNewChat');
-const hamburger   = document.getElementById('hamburger');
-const sidebar     = document.getElementById('sidebar');
-const overlay     = document.getElementById('sidebarOverlay');
-
-/* ---------- 工具 ---------- */
-const histKey = id => `chat_history_${id || currentChatId}`;
-
-function paneHasContent () { return !!chat.querySelector('.msg'); }
-
-function saveChats () {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-}
-
-function persistCurrentPane () {
-  if (!currentChatId || !paneHasContent()) return;
-  const holder = [];
-  chat.querySelectorAll('.msg').forEach(n=> {
-    holder.push({
-      role: n.classList.contains('user') ? 'user' : 'bot',
-      content: n.innerText,
-      ts: Date.now()
-    });
-  });
-  localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
-
-  const chatObj = chats.find(c => c.id === currentChatId);
-  if (chatObj && chatObj.title === '新聊天') {
-    const firstUser = holder.find(m => m.role === 'user');
-    chatObj.title = firstUser
-      ? stripMarkdown(firstUser.content).slice(0, 20) || '未命名会话'
-      : '未命名会话';
-    saveChats();
-    renderChats(searchInput.value);
-  }
-}
-
-function loadHistoryToPane (id) {
-  chat.innerHTML = '';
-  const raw = localStorage.getItem(histKey(id));
-  if (raw) {
-    try {
-      JSON.parse(raw).forEach(m =>
-        appendMessage(m.role, m.content, { noSave: true, meta: m.meta })
-      );
-    } catch {}
-  }
-  scrollToBottom(true);
-}
-
-function renderChats (filter = '') {
-  chatListEl.innerHTML = '';
-  chats.filter(c => c.title.includes(filter)).forEach(c => {
-    chatListEl.insertAdjacentHTML('beforeend', `
-      <div class="chat-item${c.id===currentChatId?' active':''}" data-id="${c.id}">
-        <span class="title">${c.title}</span>
-        <button class="menu dots">⋮</button>
-        <div class="pop">
-          <button class="rename">重命名</button>
-          <button class="del del-btn">删除</button>
-        </div>
-      </div>`);
-  });
-}
-
-function activateChat (id) {
-  if (currentChatId) persistCurrentPane();
-  currentChatId = id;
-  sessionId = chats.find(c=>c.id===id)?.sessionId || sessionId;
-  renderChats(searchInput.value);
-  loadHistoryToPane(id);
-}
-
-/* ---------- 事件 ---------- */
-btnNewChat.addEventListener('click', () => {
-  if (!isAuthorized) return;                     // 未授权禁止
-  persistCurrentPane();
-  const id  = crypto.randomUUID();
-  const sid = crypto.randomUUID();
-  chats.unshift({ id, title: '新聊天', sessionId: sid });
-  saveChats();
-  activateChat(id);
-  searchInput.value = '';
-});
-
-chatListEl.addEventListener('click', e => {
-  if (!isAuthorized) return;
-  const item = e.target.closest('.chat-item');
-  if (!item) return;
-
-  /* 三点菜单 */
-  if (e.target.classList.contains('menu')) {
-    item.querySelector('.pop').classList.toggle('show');
-    document.querySelectorAll('.pop.show').forEach(p => {
-      if (p!==item.querySelector('.pop')) p.classList.remove('show');
-    });
-    return;
-  }
-
-  /* 菜单项 */
-  if (e.target.classList.contains('rename')) {
-    const id = item.dataset.id;
-    const name = prompt('重命名聊天', chats.find(c=>c.id===id).title);
-    if (name !== null) {
-      chats = chats.map(c => c.id===id ? {...c, title:name.trim()||'未命名'} : c);
-      saveChats(); renderChats(searchInput.value);
-    }
-    return;
-  }
-  if (e.target.classList.contains('del-btn')) {
-    const id = item.dataset.id;
-    if (confirm('确认删除？')) {
-      chats = chats.filter(c => c.id !== id);
-      localStorage.removeItem(histKey(id));
-      saveChats(); renderChats(searchInput.value);
-      if (id === currentChatId) chats[0] ? activateChat(chats[0].id) : btnNewChat.click();
-    }
-    return;
-  }
-
-  /* 普通点击切换会话 */
-  activateChat(item.dataset.id);
-});
-
-/* 点击空白关闭 pop */
-document.addEventListener('click', e=>{
-  if (!e.target.closest('.chat-item')) {
-    document.querySelectorAll('.pop.show').forEach(p=>p.classList.remove('show'));
-  }
-});
-
-/* ---------- 汉堡菜单（移动端） ---------- */
-function openSidebar () {
-  sidebar.classList.add('show');
-  overlay.classList.add('show');
-  document.body.classList.add('slide-right');
-}
-function closeSidebar () {
-  sidebar.classList.remove('show');
-  overlay.classList.remove('show');
-  document.body.classList.remove('slide-right');
-}
-
-hamburger.addEventListener('click', () => {
-  if (!isAuthorized) return;
-  sidebar.classList.contains('show') ? closeSidebar() : openSidebar();
-});
-overlay.addEventListener('click', closeSidebar);
-
-/* ---------- 首次渲染 ---------- */
-renderChats();
-if (!currentChatId) btnNewChat.click(); else activateChat(currentChatId);
-
-
 }); // DOMContentLoaded
 
 } // 版本保护 end
 
 </script>
+
 
 
 
