@@ -892,70 +892,88 @@ if (!window._MGPT) window._MGPT = {};
       .trim();
   }
 
-  /* ================== 授权 ================== */
-  function unlockUI(){
-    txt && (txt.disabled = false);
-    plusBtn && (plusBtn.disabled = false);
-    sendBtn && (sendBtn.disabled = false);
-    refreshSendState();
-    mask && (mask.style.display='none');
+/* ======= 授权 ======= */
+function unlockUI () {
+  txt?.removeAttribute('disabled');
+  plusBtn?.removeAttribute('disabled');
+  sendBtn?.removeAttribute('disabled');
+  refreshSendState();
+  mask.style.display = 'none';
+}
+
+function lockUI () {
+  txt?.setAttribute('disabled', 'true');
+  plusBtn?.setAttribute('disabled', 'true');
+  sendBtn?.setAttribute('disabled', 'true');
+}
+
+function initAuth () {
+  if (DEV_MODE) {            // 开发跳过
+    isAuthorized = true;
+    code = 'dev-bypass';
+    authModal.style.display = 'none';
+    unlockUI();
+    return;
   }
-  function lockUI(){
-    txt && (txt.disabled = true);
-    plusBtn && (plusBtn.disabled = true);
-    sendBtn && (sendBtn.disabled = true);
+
+  const saved = localStorage.getItem('auth_code');
+  if (saved) {
+    isAuthorized = true;
+    code = saved;
+    authModal.style.display = 'none';
+    unlockUI();
+  } else {
+    isAuthorized = false;
+    lockUI();
+    authModal.style.display = 'flex';
   }
-  function initAuth(){
-    if (DEV_MODE) {
-      isAuthorized = true;
-      code = 'dev-bypass';
-      authModal && (authModal.style.display='none');
-      unlockUI();
-      return;
+}
+
+/* 输入框变化 -> 按钮可用 */
+authInput.addEventListener('input', () => {
+  authBtn.disabled = !authInput.value.trim();
+  authErr.style.display = 'none';
+});
+
+/* 点击确认 */
+authBtn.addEventListener('click', async () => {
+  authBtn.disabled = true;
+  const val = authInput.value.trim();
+
+  try {
+    const res  = await fetch(AUTH_URL, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({ code: val })
+    });
+
+    const data = await res.json();          // 服务器返回 { ok:true|false, msg?:string }
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.msg || '授权失败');
     }
-    const saved = localStorage.getItem('auth_code');
-    if (saved) {
-      isAuthorized = true;
-      code = saved;
-      authModal && (authModal.style.display='none');
-      unlockUI();
-    } else {
-      isAuthorized = false;
-      lockUI();
-      authModal && (authModal.style.display='flex');
-    }
+
+    /* 通过 */
+    isAuthorized = true;
+    code = val;
+    localStorage.setItem('auth_code', val);
+    authModal.style.display = 'none';
+    unlockUI();
+
+  } catch (e) {
+    authErr.textContent = e.message || '授权错误';
+    authErr.style.display = 'block';
+  } finally {
+    authBtn.disabled = false;
   }
-  authInput?.addEventListener('input', ()=>{
-    authBtn && (authBtn.disabled = !authInput.value.trim());
-    authErr && (authErr.style.display='none');
-  });
-  authBtn?.addEventListener('click', async ()=>{
-    authBtn.disabled = true;
-    const val = authInput.value.trim();
-    try {
-      const r = await fetch(AUTH_URL, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code: val })
-      }).then(r=>r.json());
-      if(!r.ok) throw new Error('授权失败');
-      isAuthorized = true;
-      code = val;
-      localStorage.setItem('auth_code', val);
-      authModal && (authModal.style.display='none');
-      unlockUI();
-    } catch(e){
-      authErr && (authErr.textContent = e.message || '授权错误');
-      authErr && (authErr.style.display = 'block');
-    } finally {
-      authBtn.disabled = false;
-    }
-  });
-  function checkAuthOrWarn(){
-    if (DEV_MODE || isAuthorized) return true;
-    alert('请先输入授权码！');
-    return false;
-  }
+});
+
+function checkAuthOrWarn () {
+  if (DEV_MODE || isAuthorized) return true;
+  alert('请先输入授权码！');
+  return false;
+}
+
 
   /* ================== 按钮状态 ================== */
   function anyUploading(){ return uploads.some(u=>u.uploading); }
@@ -1626,36 +1644,47 @@ function loadHistoryToPane(id) {
   scrollToBottom(true);
 }
 // === 工具：面板是否已有消息 ===
-  function paneHasContent () {
-     return !!chat.querySelector('.msg');
-    }
-  // === 工具：把当前面板写入 localStorage，并自动命名 ===
-  function persistCurrentPane () {
-    if (!currentChatId) return;
-     if (!paneHasContent()) return;        // 空面板不处理
-     /* 收集 DOM 消息 */
-const holder = [];
-    chat.querySelectorAll('.msg').forEach(node => {
-      
-  
-/* 进入某条聊天 */
-function activateChat(id) {
-  if (currentChatId) persistCurrentPane();   // <- 替换整段
-  const role = node.classList.contains('user') ? 'user' : 'bot';
-  holder.push({ role, content: node.innerText, ts: Date.now() });
-  
+/* === 工具：面板是否已有消息 === */
+function paneHasContent () {
+  return !!chat.querySelector('.msg');
+}
+
+/* === 把当前面板写入 localStorage，并自动命名 === */
+function persistCurrentPane () {
+  if (!currentChatId) return;
+  if (!paneHasContent())  return;                 // 空面板不保存
+
+  /* 把 DOM 消息抓出来 */
+  const holder = [];
+  chat.querySelectorAll('.msg').forEach(node => {
+    const role = node.classList.contains('user') ? 'user' : 'bot';
+    holder.push({ role, content: node.innerText, ts: Date.now() });
   });
-    localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
-     /* 如标题仍为“新聊天”，用首条 user 消息自动命名 */
-    const chatObj = chats.find(c => c.id === currentChatId);
-     if (chatObj && chatObj.title === '新聊天') {
-     const firstUser = holder.find(m => m.role === 'user');
-       chatObj.title   = firstUser
-        ? stripMarkdown(firstUser.content).slice(0, 20) || '未命名会话'
-           : '未命名会话';
-        saveChats();
-       renderChats(searchInput.value);
-       }
+  localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
+
+  /* 如标题仍是“新聊天”，自动用首句命名 */
+  const chatObj = chats.find(c => c.id === currentChatId);
+  if (chatObj && chatObj.title === '新聊天') {
+    const firstUser = holder.find(m => m.role === 'user');
+    chatObj.title   = firstUser
+      ? stripMarkdown(firstUser.content).slice(0, 20) || '未命名会话'
+      : '未命名会话';
+    saveChats();
+    renderChats(searchInput.value);
+  }
+}
+
+/* === 进入某条聊天 === */
+function activateChat (id) {
+  if (currentChatId) persistCurrentPane();        // 先保存上一个
+
+  currentChatId = id;
+  const chatObj = chats.find(c => c.id === id);
+  if (chatObj) sessionId = chatObj.sessionId;     // 提供给后端
+  renderChats(searchInput.value);
+  loadHistoryToPane(id);
+}
+
   }
 
   /* 2. 切换指针并加载 */
