@@ -1652,9 +1652,8 @@ function paneHasContent () {
 /* === 把当前面板写入 localStorage，并自动命名 === */
 function persistCurrentPane () {
   if (!currentChatId) return;
-  if (!paneHasContent())  return;                 // 空面板不保存
+  if (!paneHasContent()) return;                // 空面板不保存
 
-  /* 把 DOM 消息抓出来 */
   const holder = [];
   chat.querySelectorAll('.msg').forEach(node => {
     const role = node.classList.contains('user') ? 'user' : 'bot';
@@ -1662,16 +1661,53 @@ function persistCurrentPane () {
   });
   localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
 
-  /* 如标题仍是“新聊天”，自动用首句命名 */
+  // 如标题仍为“新聊天”，用首条 user 消息自动命名
   const chatObj = chats.find(c => c.id === currentChatId);
   if (chatObj && chatObj.title === '新聊天') {
     const firstUser = holder.find(m => m.role === 'user');
-    chatObj.title   = firstUser
+    chatObj.title = firstUser
       ? stripMarkdown(firstUser.content).slice(0, 20) || '未命名会话'
       : '未命名会话';
     saveChats();
     renderChats(searchInput.value);
   }
+}
+
+/* === 把聊天区消息渲染出来 === */
+function loadHistoryToPane (id) {
+  chat.innerHTML = '';
+  const raw = localStorage.getItem(histKey(id));
+  if (!raw) return;
+  try {
+    JSON.parse(raw).forEach(m =>
+      appendMessage(m.role, m.content, { noSave: true, meta: m.meta })
+    );
+  } catch { /* ignore */ }
+  scrollToBottom(true);
+}
+
+/* === 进入某条聊天 === */
+function activateChat (id) {
+  if (currentChatId) persistCurrentPane();      // 先保存旧面板
+
+  currentChatId = id;
+  const chatObj = chats.find(c => c.id === id);
+  if (chatObj) sessionId = chatObj.sessionId;   // 提供给后端
+  renderChats(searchInput.value);
+  loadHistoryToPane(id);
+}
+
+/* === 新建聊天 === */
+btnNewChat.addEventListener('click', () => {
+  persistCurrentPane();                         // 保存当前
+  const id  = crypto.randomUUID();
+  const sid = crypto.randomUUID();
+  chats.unshift({ id, title: '新聊天', sessionId: sid });
+  saveChats();
+  activateChat(id);                             // 切到新面板
+  searchInput.value = '';
+});
+
 /*}*/
 
 /* === 进入某条聊天 === */
@@ -1681,16 +1717,6 @@ function activateChat (id) {
   currentChatId = id;
   const chatObj = chats.find(c => c.id === id);
   if (chatObj) sessionId = chatObj.sessionId;     // 提供给后端
-  renderChats(searchInput.value);
-  loadHistoryToPane(id);
-}
-
-  }
-
-  /* 2. 切换指针并加载 */
-  currentChatId = id;
-  const chatObj = chats.find(c => c.id === id);
-  sessionId     = chatObj.sessionId;             // 供后端用
   renderChats(searchInput.value);
   loadHistoryToPane(id);
 }
