@@ -765,7 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
     plusBtn && (plusBtn.disabled = true);
     sendBtn && (sendBtn.disabled = true);
   }
-  function initAuth(){
+   async function initAuth(){
     if (DEV_MODE) {
       isAuthorized = true;
       code = 'dev-bypass';
@@ -775,16 +775,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const saved = localStorage.getItem('auth_code');
     if (saved) {
-      isAuthorized = true;
-      code = saved;
-      authModal && (authModal.style.display='none');
-      unlockUI();
-    } else {
-      isAuthorized = false;
-      lockUI();
+      // 验证本地保存的 code 真正有效
+      const ok = await validateCode(saved, { silent: true });
+       if (ok) {
+          // 真通过
+         code = saved;
+         authModal && (authModal.style.display='none');
+           unlockUI();
+           return;
+          }
+       // 本地 code 已失效
+       isAuthorized = false;
+      code = '';
+        lockUI();
       authModal && (authModal.style.display='flex');
     }
-  }
+   }
+  
   authInput?.addEventListener('input', ()=>{
     authBtn && (authBtn.disabled = !authInput.value.trim());
     authErr && (authErr.style.display='none');
@@ -1421,12 +1428,16 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshOverlay();
   refreshSendState();
   toggleArrow();
-  initAuth();
-  loadHistory();
+// 先执行授权流程，完毕以后再加载历史
+(async ()=>{
+await initAuth();
+loadHistory();
 
-}); // DOMContentLoaded
+})();
 
-} // 版本保护 end
+ // DOMContentLoaded});
+
+// 版本保护 end} 
 
 </script>
 
