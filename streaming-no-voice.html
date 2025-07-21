@@ -1428,16 +1428,15 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshOverlay();
   refreshSendState();
   toggleArrow();
-// 先执行授权流程，完毕以后再加载历史
-(async ()=>{
+
 await initAuth();
 loadHistory();
 
-})();
+});
+}
 
- // DOMContentLoaded});
-
-// 版本保护 end} 
+ // DOMContentLoaded
+// 版本保护 end 
 
 </script>
 
