@@ -1511,15 +1511,31 @@ if (!window._MGPT) window._MGPT = {};
       welcome && welcome.remove();
     }
 
+    
     displayLargeUserInput(inputText, images);
-
+function paneHasContent() {
+return !!chat.querySelector('.msg');
+}
 /* === 2‑2：如果标题还是“新聊天”，用首句前 20 字自动命名 === */
-if (chats.find(c => c.id === currentChatId)?.title === '新聊天') {
-  const pretty = stripMarkdown(inputText).slice(0, 20) || '未命名会话';
-  chats = chats.map(c =>
-    c.id === currentChatId ? { ...c, title: pretty } : c
-  );
-  saveChats();
+    function persistCurrentPane() {
+      if (!currentChatId) return;           // 尚未激活任何会话
+      if (!paneHasContent()) return;        // 空白面板不保存
+      /* 把 DOM 消息重新抓一遍并写入本地桶 */
+      const holder = [];
+      chat.querySelectorAll('.msg').forEach(node => {
+        const role = node.classList.contains('user') ? 'user' : 'bot';
+        holder.push({ role, content: node.innerText, ts: Date.now() });
+        });
+      localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
+      /* 如有必要，用首条 user 消息自动命名 */
+      const chatObj = chats.find(c => c.id === currentChatId);
+       if (chatObj && chatObj.title === '新聊天') {
+          const firstUser = holder.find(m => m.role === 'user');
+         chatObj.title   = firstUser
+          ? stripMarkdown(firstUser.content).slice(0, 20) || '未命名会话'
+             : '未命名会话';
+          saveChats();
+
   renderChats(searchInput.value);
 }
 /* === END 2‑2 ======================================================= */
@@ -1632,15 +1648,9 @@ function loadHistoryToPane(id) {
 
 /* 进入某条聊天 */
 function activateChat(id) {
-  /* 1. 先把当前聊天区最新状态落盘 */
-  if (currentChatId) {
-    const holder = [];          // 重新抓取 DOM 中的消息
-    chat.querySelectorAll('.msg').forEach(node => {
-      const role = node.classList.contains('user') ? 'user' : 'bot';
-      holder.push({ role, content: node.innerText, ts: Date.now() });
-    });
-    localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
-  }
+  if (currentChatId) persistCurrentPane();   // <- 替换整段
+  
+    
 
   /* 2. 切换指针并加载 */
   currentChatId = id;
@@ -1652,19 +1662,15 @@ function activateChat(id) {
 
 /* 新建聊天（核心） */
 btnNewChat.addEventListener('click', () => {
-  const id  = crypto.randomUUID();
-  const sid = crypto.randomUUID();               // 给后端的新上下文
-  /*-chats.unshift({ id, title:'新聊天', sessionId:sid });-*/
-  // 若上一句已经是空白且还没内容，就直接复用，不再 push 新条
-  if (currentChatId && !loadHistoryToPane(currentChatId, /*peek=*/true)) {
-     chats = chats.map(c => c.id === currentChatId ? { ...c, sessionId:sid } : c);
-    } else {
-    chats.unshift({ id, title:'新聊天', sessionId:sid });
-    }
-  saveChats();
-  activateChat(id);
-  searchInput.value = '';                        // 重置搜索
-});
+  persistCurrentPane();                       // 先保存当前
+  const id  = crypto.randomUUID();            // 全新 id
+  const sid = crypto.randomUUID();            // 全新 sessionId
+  chats.unshift({ id, title: '新聊天', sessionId: sid });
+   saveChats();
+  activateChat(id);                           // 切到空白面板
+   searchInput.value = '';
+  });
+
 
 /* 点击左栏 */
 chatListEl.addEventListener('click', e=>{
