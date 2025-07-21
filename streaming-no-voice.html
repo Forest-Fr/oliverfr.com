@@ -1313,10 +1313,34 @@ document.addEventListener('DOMContentLoaded', () => {
       meta.textContent=`🔢 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
       streamingNode.appendChild(meta);
     }
-    addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
-    lastFullAnswer = finalText;
-    exitClarify();
+ addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
+lastFullAnswer = finalText;
+
+/* --- [FIX-HISTORY] 回写 localStorage 中最后一条 bot 记录 --- */
+try {
+  const raw = localStorage.getItem(HISTORY_KEY);
+  if (raw) {
+    const arr = JSON.parse(raw);
+    // 找到最后一条 bot 记录；若没找到就 push 一条新的
+    let idx = arr.length - 1;
+    while (idx >= 0 && arr[idx].role !== 'bot') idx--;
+    if (idx < 0) {                       // 说明历史里没有 bot 条目（极端情况）
+      arr.push({ role:'bot', content:finalText, meta:{}, ts:Date.now() });
+    } else {
+      arr[idx].content = finalText;
+      arr[idx].meta    = {};             // 如需保存 usage 可在此写入
+      arr[idx].ts      = Date.now();
+    }
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
   }
+} catch(e){
+  console.warn('[history‑write]', e);
+}
+/* --- END FIX-HISTORY --- */
+
+exitClarify();
+}
+
 
   function addCopyButton(node, rawText) {
     // [PATCH-7] finalize 时调用；已存在则不重复
