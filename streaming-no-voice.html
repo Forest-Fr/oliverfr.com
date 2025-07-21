@@ -1070,16 +1070,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ================== SSE 探测(可选) ================== */
-  async function detectSSEOnce() {
-    if (sseAvailable !== null) return sseAvailable;
+    async function detectSSEOnce(){
+    if (sseAvailable!==null) return sseAvailable;
     try {
       const r = await fetch(API_URL, {
         method:'POST',
-        headers:{ 'Content-Type':'application/json', 'Accept':'text/event-stream' },
+        headers:{ 'Content-Type':'application/json','Accept':'text/event-stream' },
         body: JSON.stringify({ code:'__ping__', lastUserQueries:['ping'] })
       });
-      if (/text\/event-stream/i.test(r.headers.get('Content-Type')||'')) sseAvailable='yes'; else sseAvailable='no';
-    } catch { sseAvailable='no'; }
+      sseAvailable = /text\/event-stream/i.test(r.headers.get('Content-Type')||'')?'yes':'no';
+    } catch {
+      sseAvailable='no';
+    }
     return sseAvailable;
   }
 
