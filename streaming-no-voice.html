@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -479,51 +480,77 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 .msg._meta > * { max-width: none !important; }
 .msg._meta .copy-btn { display: none !important; }
 
-/* === 侧栏 & 汉堡 === */
-.burger{
-  position:fixed;top:12px;left:12px;z-index:4100;
-  width:36px;height:36px;border:none;border-radius:8px;
-  background:#fff;border:1px solid var(--grey);font-size:22px;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;
+/* —— ChatGPT 样式侧栏 —— */
+#hamburger {
+  position: absolute;
+  top: 12px; left: 12px;
+  z-index: 1000;
+  padding: 6px;
+  border: none;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  display: none;
 }
-.burger:hover{background:#f1f1f1}
-
-.sidebar{
-  position:fixed;inset:0 0 0 0;width:260px;max-width:80%;
-  background:#fff;border-right:1px solid #e5e5e5;
-  translate:-100% 0;transition:translate .25s ease;
-  display:flex;flex-direction:column;z-index:4000;
-}
-.sidebar.show{translate:0 0;}
-
-.sidebar header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 16px;border-bottom:1px solid #e5e5e5;
-}
-.sidebar header h2{font-size:20px;font-weight:600;}
-
-.sidebar header button{
-  border:none;background:#3b82f6;color:#fff;border-radius:6px;
-  width:28px;height:28px;font-size:20px;cursor:pointer;
+@media (max-width: 767px) {
+  #hamburger { display: block; }
 }
 
-.searchBox{padding:10px 16px;border-bottom:1px solid #eee;}
-.searchBox input{
-  width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:6px;
+aside#sidebar {
+  position: fixed; top: 0; left: 0;
+  width: 240px; height: 100%;
+  padding: 16px;
+  background: #202123; color: #fff;
+  transform: translateX(0);
+  transition: transform .2s ease;
+  z-index: 1001;
+}
+@media (max-width: 767px) {
+  aside#sidebar { transform: translateX(-100%); }
+  aside#sidebar.show { transform: translateX(0); }
 }
 
-.chat-list{flex:1;overflow-y:auto;list-style:none;padding:8px 0;}
-.chat-list li{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:8px 16px;cursor:pointer;gap:6px;
+#sidebarOverlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.4);
+  opacity: 0; visibility: hidden;
+  transition: opacity .2s ease;
+  z-index: 1000;
 }
-.chat-list li.active{background:#f0f6ff;font-weight:600;}
-.chat-list li:hover{background:#f7f7f8;}
-.chat-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.chat-actions button{
-  border:none;background:none;cursor:pointer;font-size:15px;color:#888;
+#sidebarOverlay.show {
+  opacity: 1; visibility: visible;
 }
-.chat-actions button:hover{color:#555;}
+
+/* 复用你已有的 .btn, .search-box 样式 */
+/* 新增列表项样式 */
+#chatList {
+  margin-top: 12px;
+  overflow-y: auto;
+  max-height: calc(100% - 80px);
+}
+.chat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.chat-item:hover { background: #343541; }
+.chat-item span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+}
+.chat-item button {
+  background: none;
+  border: none;
+  color: #aaa;
+  margin-left: 4px;
+  cursor: pointer;
+}
+.chat-item button:hover { color: #fff; }
 @media (max-width:800px){
   .sidebar        { translate:-260px 0; }  /* 默认隐藏 */
   .sidebar.show   { translate:0 0; }
@@ -536,22 +563,6 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 </style>
 </head>
 <body>
-
-<!-- 🔄 找到 <body> 标签后立刻插入 -->
-<button id="burger" aria-label="菜单" class="burger">☰</button>
-
-<aside id="sidebar" class="sidebar">
-  <header>
-    <h2 id="appTitle">Mini‑GPT</h2>
-    <button id="newChat" title="新建聊天">＋</button>
-  </header>
-
-  <div class="searchBox">
-    <input id="chatSearch" type="search" placeholder="搜索聊天…">
-  </div>
-
-  <ul id="chatList" class="chat-list"></ul>
-</aside>
 
 <h1 id="welcome">今天有什么议程？</h1>
 
@@ -585,6 +596,17 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
     <div id="authErr"></div>
   </div>
 </div>
+<button id="hamburger">☰</button>
+
+<aside id="sidebar">
+  <button id="btnNewChat" class="btn">＋ 新建聊天</button>
+  <div class="search-box">
+    <input type="text" id="chatSearch" placeholder="搜索聊天">
+  </div>
+  <div id="chatList"></div>
+</aside>
+
+<div id="sidebarOverlay"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
@@ -632,10 +654,6 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   let USE_SSE       = false;
   const MAX_CTX_USER_QUERIES = 8;
-/* ===== 侧栏相关 ===== */
-const CHATS_KEY = 'mgpt_chats';        // 本地聊天目录
-let chats = [];                        // [{id,name,ts}]
-let currentChatId = null;
 
   /* ================== DOM 引用 ================== */
   const chat       = document.getElementById('chat');
@@ -655,13 +673,6 @@ let currentChatId = null;
   const authInput  = document.getElementById('authInput');
   const authBtn    = document.getElementById('authBtn');
   const authErr    = document.getElementById('authErr');
-
-/* 侧栏节点 */
-const sidebar      = document.getElementById('sidebar');
-const burgerBtn    = document.getElementById('burger');
-const chatListUL   = document.getElementById('chatList');
-const newChatBtn   = document.getElementById('newChat');
-const chatSearch   = document.getElementById('chatSearch');
 
   /* ================== 会话/状态 ================== */
   let sessionId = localStorage.getItem('session_id');
@@ -722,14 +733,6 @@ const chatSearch   = document.getElementById('chatSearch');
   function replayMessage(m) {
     appendMessage(m.role, m.content, { noSave: true, meta: m.meta });
   }
-
-if (role==='user' && chats.length && currentChatId){
-  const idx=chats.findIndex(c=>c.id===currentChatId);
-  if (idx>-1 && chats[idx].name==='新聊天'){
-      chats[idx].name = stripMarkdown(text).slice(0,20)||'新聊天';
-      saveChats(); renderChatList(chatSearch.value.trim());
-  }
-}
 
   /* ================== 工具函数 ================== */
   function chatAtBottom(pad=200){
@@ -844,58 +847,6 @@ if (role==='user' && chats.length && currentChatId){
       .replace(/[#>*_~`]/g,'')
       .trim();
   }
-
-/* ===== 聊天目录工具 ===== */
-function saveChats(){
-  localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
-}
-function loadChats(){
-  try{
-    chats = JSON.parse(localStorage.getItem(CHATS_KEY))||[];
-  }catch{chats=[];}
-}
-function renderChatList(filter=''){
-  chatListUL.innerHTML='';
-  const frag=document.createDocumentFragment();
-  chats
-    .filter(c=>c.name.includes(filter))
-    .sort((a,b)=>b.ts-a.ts)                     // 最近在前
-    .forEach(c=>{
-      const li=document.createElement('li');
-      li.dataset.id=c.id;
-      if(c.id===currentChatId) li.classList.add('active');
-
-      const title=document.createElement('span');
-      title.className='chat-title'; title.textContent=c.name;
-
-      const acts=document.createElement('span');
-      acts.className='chat-actions';
-      acts.innerHTML='<button class="rename">✎</button><button class="del">🗑</button>';
-
-      li.append(title,acts);
-      frag.appendChild(li);
-    });
-  chatListUL.appendChild(frag);
-}
-function createChat(name='新聊天'){
-  currentChatId = 'c_'+Date.now();
-  sessionId     = crypto.randomUUID();                 // 重新生成会话
-  localStorage.setItem('session_id', sessionId);
-  chats.unshift({id:currentChatId,name,ts:Date.now()});
-  saveChats(); renderChatList(); clearAllMessages();
-}
-function activateChat(id){
-  currentChatId=id;
-  sessionId=id;                                        // 直接用 id 作为会话 key
-  localStorage.setItem('session_id', sessionId);
-  HISTORY_KEY = `chat_history_${sessionId}`;
-  loadHistory();                                       // 重新渲染
-  renderChatList(chatSearch.value.trim());
-}
-function clearAllMessages(){
-  chat.innerHTML='';
-  localStorage.removeItem(HISTORY_KEY);
-}
 
   /* ================== 授权 ================== */
   function unlockUI(){
@@ -1455,40 +1406,10 @@ function clearAllMessages(){
       meta.textContent=`🔢 Tokens P:${usage.prompt||0} C:${usage.completion||0} T:${total}`;
       streamingNode.appendChild(meta);
     }
- addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
-lastFullAnswer = finalText;
-
-/* --- [FIX-HISTORY] 回写 localStorage 中最后一条 bot 记录 --- */
-try {
-  const raw = localStorage.getItem(HISTORY_KEY);
-  if (raw) {
-    const arr = JSON.parse(raw);
-    // 找到最后一条 bot 记录；若没找到就 push 一条新的
-    let idx = arr.length - 1;
-    while (idx >= 0 && arr[idx].role !== 'bot') idx--;
-    if (idx < 0) {                       // 说明历史里没有 bot 条目（极端情况）
-      arr.push({ role:'bot', content:finalText, meta:{}, ts:Date.now() });
-    } else {
-      arr[idx].content = finalText;
-      arr[idx].meta    = {};             // 如需保存 usage 可在此写入
-      arr[idx].ts      = Date.now();
-    }
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+    addCopyButton(streamingNode, stripMarkdown(finalText)); // [PATCH-7]
+    lastFullAnswer = finalText;
+    exitClarify();
   }
-} catch(e){
-  console.warn('[history‑write]', e);
-}
-/* --- END FIX-HISTORY --- */
-// 👉 更新目录时间 & 排序
-const idx=chats.findIndex(c=>c.id===currentChatId);
-if(idx>-1){
-  chats[idx].ts = Date.now();
-  saveChats(); renderChatList(chatSearch.value.trim());
-}
-
-exitClarify();
-}
-
 
   function addCopyButton(node, rawText) {
     // [PATCH-7] finalize 时调用；已存在则不重复
@@ -1580,33 +1501,6 @@ exitClarify();
     if (!txt) return;
     txt.value=q; autoResize(); refreshSendState(); trySend();
   };
-/* === 侧栏交互 === */
-burgerBtn.addEventListener('click', ()=> sidebar.classList.toggle('show'));
-newChatBtn.addEventListener('click', ()=>{ createChat(); sidebar.classList.remove('show'); });
-
-chatSearch.addEventListener('input', ()=> renderChatList(chatSearch.value.trim()));
-
-chatListUL.addEventListener('click', e=>{
-  const li = e.target.closest('li'); if(!li) return;
-  const id = li.dataset.id;
-  if (e.target.classList.contains('del')){
-    if(confirm('删除该聊天？')){
-      chats = chats.filter(c=>c.id!==id); saveChats();
-      if(id===currentChatId) createChat();           // 自动切到新空白会话
-      renderChatList(chatSearch.value.trim());
-    }
-  }else if (e.target.classList.contains('rename')){
-    const newName = prompt('重命名', chats.find(c=>c.id===id).name||'');
-    if(newName){
-      const obj=chats.find(c=>c.id===id);
-      obj.name=newName; obj.ts=Date.now();
-      saveChats(); renderChatList(chatSearch.value.trim());
-    }
-  }else{  // 选中
-    activateChat(id);
-    sidebar.classList.remove('show');
-  }
-});
 
   /* ================== 诊断工具 ================== */
   window.MGPT_TEST_DIAG = async () => {
@@ -1619,16 +1513,95 @@ chatListUL.addEventListener('click', e=>{
   };
 
   /* ================== 初始化顺序 ================== */
-  loadChats();
-if(!chats.length) createChat();              // 首次进入自动新建
-else{ currentChatId = chats[0].id; activateChat(currentChatId); }
-
-autoResize();
+  autoResize();
   refreshOverlay();
   refreshSendState();
   toggleArrow();
   initAuth();
- /**-- loadHistory();--**/
+  loadHistory();
+
+// —— Sidebar 数据 & 渲染逻辑 —— 
+const STORAGE_KEY = 'mini_gpt_chats';
+let chats = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+function saveChats() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+}
+
+const chatListEl   = document.getElementById('chatList');
+const searchInput  = document.getElementById('chatSearch');
+const btnNewChat   = document.getElementById('btnNewChat');
+
+function renderChats(filter = '') {
+  chatListEl.innerHTML = '';
+  chats
+    .filter(c => c.title.includes(filter))
+    .forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'chat-item';
+      div.innerHTML =
+        `<span>${c.title}</span>
+         <button data-id="${c.id}" class="rename">✎</button>
+         <button data-id="${c.id}" class="del">🗑</button>`;
+      chatListEl.append(div);
+    });
+}
+
+// 新建聊天
+btnNewChat.addEventListener('click', () => {
+  chats.unshift({
+    id: crypto.randomUUID(),
+    title: '新聊天'
+  });
+  saveChats();
+  renderChats(searchInput.value);
+});
+
+// 搜索过滤
+searchInput.addEventListener('input', () => {
+  renderChats(searchInput.value);
+});
+
+// 重命名 / 删除
+chatListEl.addEventListener('click', e => {
+  const id = e.target.getAttribute('data-id');
+  if (!id) return;
+  if (e.target.classList.contains('rename')) {
+    const old = chats.find(c => c.id === id).title;
+    const name = prompt('重命名聊天', old);
+    if (name != null) {
+      chats = chats.map(c =>
+        c.id === id ? { ...c, title: name.trim() || '未命名' } : c
+      );
+      saveChats();
+      renderChats(searchInput.value);
+    }
+  }
+  else if (e.target.classList.contains('del')) {
+    if (confirm('确认删除？')) {
+      chats = chats.filter(c => c.id !== id);
+      saveChats();
+      renderChats(searchInput.value);
+    }
+  }
+});
+
+// —— 响应式汉堡 & 遮罩 —— 
+const hamburger = document.getElementById('hamburger');
+const sidebar   = document.getElementById('sidebar');
+const overlay   = document.getElementById('sidebarOverlay');
+
+hamburger.addEventListener('click', () => {
+  sidebar.classList.toggle('show');
+  overlay.classList.toggle('show');
+});
+overlay.addEventListener('click', () => {
+  sidebar.classList.remove('show');
+  overlay.classList.remove('show');
+});
+
+// 首次渲染
+renderChats();
 
 }); // DOMContentLoaded
 
@@ -1640,5 +1613,6 @@ autoResize();
 
 
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"96295769ce6ecb66","version":"2025.7.0","r":1,"token":"96313a057489442f8b391d54606479b4","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}}}' crossorigin="anonymous"></script>
 </body>
 </html>
