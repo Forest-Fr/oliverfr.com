@@ -759,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ================== 历史 ================== */
   function loadHistory() {
     try {
-      const raw = localStorage.getItem(histKey(currentChatId));
+      const raw = localStorage.getItem(HISTORY_KEY);
       if (!raw) return;
       const arr = JSON.parse(raw);
       arr.forEach(replayMessage);
@@ -771,7 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function saveMessage(role, content, meta={}) {
     try {
-      const raw = localStorage.getItem(histKey(currentChatId));
+      const raw = localStorage.getItem(HISTORY_KEY);
       const arr = raw ? JSON.parse(raw) : [];
       arr.push({ role, content, meta, ts: Date.now() });
       localStorage.setItem(histKey(currentChatId), JSON.stringify(arr));
