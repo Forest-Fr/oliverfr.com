@@ -522,6 +522,35 @@ aside#sidebar {
 }
 
 /* 复用你已有的 .btn, .search-box 样式 */
+/* 新增列表项样式 */
+#chatList {
+  margin-top: 12px;
+  overflow-y: auto;
+  max-height: calc(100% - 80px);
+}
+.chat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.chat-item:hover { background: #343541; }
+.chat-item span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+}
+.chat-item button {
+  background: none;
+  border: none;
+  color: #aaa;
+  margin-left: 4px;
+  cursor: pointer;
+}
+.chat-item button:hover { color: #fff; }
 
 /* === 三点菜单样式 === */
 .chat-item {
