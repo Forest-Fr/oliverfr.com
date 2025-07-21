@@ -1443,20 +1443,12 @@ function checkAuthOrWarn(){
   };
 
   /* ================== 初始化顺序 ================== */
-  // —— 页面初始化时先 await initAuth() 再 loadHistory() ——
-document.addEventListener('DOMContentLoaded', ()=>{
-  // …前面保持不动…
   autoResize();
   refreshOverlay();
   refreshSendState();
   toggleArrow();
-
-  (async ()=>{
-    await initAuth();
-    loadHistory();
-  })();
-});
-
+  initAuth();
+  loadHistory();
 </script>
 
 
