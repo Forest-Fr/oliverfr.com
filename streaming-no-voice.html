@@ -291,7 +291,7 @@ textarea {
   background: #fafafa;
   pointer-events: none;
   z-index: 2999;
-    display: none;  
+    display: none;       /新增的* 默认隐藏 */
 }
 
 /* 回到底部箭头 */
@@ -524,7 +524,6 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
   border:none;background:none;cursor:pointer;font-size:15px;color:#888;
 }
 .chat-actions button:hover{color:#555;}
-/* === push‑mode for mobile (<801px) === */
 @media (max-width:800px){
   .sidebar        { translate:-260px 0; }  /* 默认隐藏 */
   .sidebar.show   { translate:0 0; }
@@ -534,7 +533,6 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
     transition: transform .25s ease;
   }
 }
-
 </style>
 </head>
 <body>
@@ -671,8 +669,7 @@ const chatSearch   = document.getElementById('chatSearch');
     sessionId = crypto.randomUUID();
     localStorage.setItem('session_id', sessionId);
   }
-let   HISTORY_KEY = `chat_history_${sessionId}`;   // ← 改为可变
-  /**--const HISTORY_KEY = `chat_history_${sessionId}`;--**/
+  const HISTORY_KEY = `chat_history_${sessionId}`;
 
   let uploads          = [];
   let isAuthorized     = false;
@@ -726,7 +723,13 @@ let   HISTORY_KEY = `chat_history_${sessionId}`;   // ← 改为可变
     appendMessage(m.role, m.content, { noSave: true, meta: m.meta });
   }
 
-
+if (role==='user' && chats.length && currentChatId){
+  const idx=chats.findIndex(c=>c.id===currentChatId);
+  if (idx>-1 && chats[idx].name==='新聊天'){
+      chats[idx].name = stripMarkdown(text).slice(0,20)||'新聊天';
+      saveChats(); renderChatList(chatSearch.value.trim());
+  }
+}
 
   /* ================== 工具函数 ================== */
   function chatAtBottom(pad=200){
@@ -760,27 +763,13 @@ let   HISTORY_KEY = `chat_history_${sessionId}`;   // ← 改为可变
     chat && chat.appendChild(div);
     return div;
   }
-
-function appendMessage(
-role,
-text,
-{
-
+  function appendMessage(role, text, {
     images = [],
     streaming = false,
     noSave = false,
     meta = null,
     clarify = false
-} = {}
-{/* ★ 首次用户发言后，用内容片段给“新聊天”自动改名 */
- if (role === 'user' && chats.length && currentChatId) {
-const idx = chats.findIndex(c => c.id === currentChatId);
-if (idx > -1 && chats[idx].name === '新聊天') {
- chats[idx].name = stripMarkdown(text).slice(0, 20) || '新聊天';
-saveChats();
- renderChatList(chatSearch.value.trim());
-}
-}
+  } = {}) {
     if (!chat) return;
     if (!text && !images.length && !streaming) return; // [HOTFIX-stream-placeholder]
     const extras = [];
@@ -889,30 +878,15 @@ function renderChatList(filter=''){
   chatListUL.appendChild(frag);
 }
 function createChat(name='新聊天'){
- // 👉 如果当前会话还在“新聊天”状态且仍是空白，则直接复用
-  if (chats.find(c=>c.id===currentChatId)?.name==='新聊天' && !chat.children.length){
-      return;
-  }
   currentChatId = 'c_'+Date.now();
-  sessionId     = crypto.randomUUID();         // 真·新会话 token
-localStorage.setItem('session_id', sessionId);
-HISTORY_KEY   = `chat_history_${sessionId}`;
-  chats.unshift({id:currentChatId,name,ts:Date.now()});
-  saveChats(); renderChatList(chatSearch.value.trim());
-  clearAllMessages();
-  txt.value=''; autoResize();                  // 清空输入框
-  chat.scrollTop = chat.scrollHeight;          // 滚到底
-}
-  /**--currentChatId = 'c_'+Date.now();
   sessionId     = crypto.randomUUID();                 // 重新生成会话
   localStorage.setItem('session_id', sessionId);
   chats.unshift({id:currentChatId,name,ts:Date.now()});
   saveChats(); renderChatList(); clearAllMessages();
-}--**/
+}
 function activateChat(id){
   currentChatId=id;
-  /**--sessionId=id; --**直接用 id 作为会话 key这里也要保持 UUID--**/                                     
- sessionId = id.split('#')[0] || id;          // 若你愿，也可以直接用 id
+  sessionId=id;                                        // 直接用 id 作为会话 key
   localStorage.setItem('session_id', sessionId);
   HISTORY_KEY = `chat_history_${sessionId}`;
   loadHistory();                                       // 重新渲染
@@ -1607,31 +1581,11 @@ exitClarify();
     txt.value=q; autoResize(); refreshSendState(); trySend();
   };
 /* === 侧栏交互 === */
-burgerBtn.addEventListener('click', ()=>{
-  const opened = sidebar.classList.toggle('show');
-  if (window.innerWidth < 801) {
-      document.body.classList.toggle('side-open', opened);
-  }
-});
-window.addEventListener('resize', ()=>{        // 尺寸变化时复位
-  if (window.innerWidth >= 801) document.body.classList.remove('side-open');
-});
-
+burgerBtn.addEventListener('click', ()=> sidebar.classList.toggle('show'));
 newChatBtn.addEventListener('click', ()=>{ createChat(); sidebar.classList.remove('show'); });
 
 chatSearch.addEventListener('input', ()=> renderChatList(chatSearch.value.trim()));
 
-function closeSidebar(){
-  sidebar.classList.remove('show');
-  document.body.classList.remove('side-open');
-}
-
-newChatBtn.addEventListener('click', ()=>{
-clearAllMessages();           // 新会话前立即清屏
-
-  createChat();            // 新空白会话
-  closeSidebar();
-});
 chatListUL.addEventListener('click', e=>{
   const li = e.target.closest('li'); if(!li) return;
   const id = li.dataset.id;
@@ -1650,8 +1604,7 @@ chatListUL.addEventListener('click', e=>{
     }
   }else{  // 选中
     activateChat(id);
-closeSidebar();
-    /**--原来sidebar.classList.remove('show');--**/
+    sidebar.classList.remove('show');
   }
 });
 
