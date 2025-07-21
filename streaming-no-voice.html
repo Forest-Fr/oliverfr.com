@@ -522,59 +522,56 @@ aside#sidebar {
 }
 
 /* 复用你已有的 .btn, .search-box 样式 */
-/* 新增列表项样式 */
-#chatList {
-  margin-top: 12px;
-  overflow-y: auto;
-  max-height: calc(100% - 80px);
-}
+
+/* === 三点菜单样式 === */
 .chat-item {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 6px 12px 6px 10px;
   cursor: pointer;
 }
-.chat-item:hover { background: #343541; }
-.chat-item span {
+.chat-item.active      { background:#343541; }
+.chat-item:hover .dots { opacity: 1; }
+
+.chat-item .title {
   flex: 1;
+  max-width: 160px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #fff;
+  color:#fff;
 }
-.chat-item button {
-  background: none;
-  border: none;
-  color: #aaa;
-  margin-left: 4px;
-  cursor: pointer;
-}
-.chat-item button:hover { color: #fff; }
 
-  .chat-item { position: relative; padding-right: 28px; }
-.chat-item .dots   { opacity: .0; transition: opacity .15s; }
-.chat-item:hover .dots { opacity: 1; }
-
-.menu {
-  position: absolute; right: 4px; top: 50%; translate: 0 -50%;
-  background: transparent; border: none; cursor: pointer; color:#aaa;
+.menu.dots{
+  opacity:.0;
+  border:none; background:none;
+  font-size:18px; color:#aaa;
+  cursor:pointer;
 }
-.menu:hover { color:#fff; }
+.menu.dots:hover{color:#fff}
 
-.pop {
-  position: absolute; right: 32px; top: 4px;
-  background:#fff; color:#111; border:1px solid #ddd;
-  border-radius:8px; padding:6px 0; font-size:14px; min-width:120px;
-  box-shadow:0 4px 16px rgb(0 0 0 / .15); display:none; z-index:5000;
+.pop{
+  position:absolute; right:34px; top:6px;
+  background:#fff; color:#111;
+  border:1px solid #eee; border-radius:8px;
+  box-shadow:0 4px 18px rgb(0 0 0 / .15);
+  padding:4px 0; min-width:120px;
+  display:none;  z-index:5000;
 }
-.pop.show { display:block; }
+.pop.show{display:block}
+
 .pop button{
-  width:100%; background:none; border:none; padding:6px 14px;
-  text-align:left; cursor:pointer;
+  width:100%; border:none; background:none;
+  padding:8px 14px; font-size:14px; text-align:left;
+  cursor:pointer;
 }
 .pop button:hover{background:#f3f4f6}
-.pop .del{color:#d92d20}
+.pop .del-btn{color:#d92d20}
+/* === END 三点菜单样式 === */
+
 
 </style>
 </head>
@@ -624,14 +621,7 @@ aside#sidebar {
 
 <div id="sidebarOverlay"></div>
 
-  <div class="chat-item" data-id="${c.id}">
-  <span>${c.title}</span>
-  <button class="menu dots">⋮</button>
-  <div class="pop">
-    <button class="rename">重命名</button>
-    <button class="del del-btn">删除</button>
-  </div>
-</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
@@ -1496,6 +1486,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     displayLargeUserInput(inputText, images);
+
+/* === 2‑2：如果标题还是“新聊天”，用首句前 20 字自动命名 === */
+if (chats.find(c => c.id === currentChatId)?.title === '新聊天') {
+  const pretty = stripMarkdown(inputText).slice(0, 20) || '未命名会话';
+  chats = chats.map(c =>
+    c.id === currentChatId ? { ...c, title: pretty } : c
+  );
+  saveChats();
+  renderChats(searchInput.value);
+}
+/* === END 2‑2 ======================================================= */
+
+txt.value = '';
+
     txt.value=''; autoResize(); clearUploads();
     refreshSendState();
 
@@ -1572,16 +1576,19 @@ function renderChats(filter = '') {
   chats
     .filter(c => c.title.includes(filter))
     .forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'chat-item' + (c.id === currentChatId ? ' active' : '');
-      div.dataset.id = c.id;
-      div.innerHTML =
-        `<span>${c.title}</span>
-         <button data-id="${c.id}" class="rename">✎</button>
-         <button data-id="${c.id}" class="del">🗑</button>`;
-      chatListEl.append(div);
+      const html = `
+        <div class="chat-item${c.id === currentChatId ? ' active' : ''}" data-id="${c.id}">
+          <span class="title">${c.title}</span>
+          <button class="menu dots">⋮</button>
+          <div class="pop">
+            <button class="rename">重命名</button>
+            <button class="del del-btn">删除</button>
+          </div>
+        </div>`;
+      chatListEl.insertAdjacentHTML('beforeend', html);
     });
 }
+
 
 /* 把聊天区消息渲染出来 */
 function loadHistoryToPane(id) {
