@@ -519,6 +519,7 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 
   
  
+
 <script>
 /* ================== 版本标识 ================== */
 if (window._MGPT && window._MGPT.__VERSION__) {
@@ -765,7 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
     plusBtn && (plusBtn.disabled = true);
     sendBtn && (sendBtn.disabled = true);
   }
-   async function initAuth(){
+  function initAuth(){
     if (DEV_MODE) {
       isAuthorized = true;
       code = 'dev-bypass';
@@ -775,23 +776,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const saved = localStorage.getItem('auth_code');
     if (saved) {
-      // 验证本地保存的 code 真正有效
-      const ok = await validateCode(saved, { silent: true });
-       if (ok) {
-          // 真通过
-         code = saved;
-         authModal && (authModal.style.display='none');
-           unlockUI();
-           return;
-          }
-       // 本地 code 已失效
-       isAuthorized = false;
-      code = '';
-        lockUI();
+      isAuthorized = true;
+      code = saved;
+      authModal && (authModal.style.display='none');
+      unlockUI();
+    } else {
+      isAuthorized = false;
+      lockUI();
       authModal && (authModal.style.display='flex');
     }
-   }
-  
+  }
   authInput?.addEventListener('input', ()=>{
     authBtn && (authBtn.disabled = !authInput.value.trim());
     authErr && (authErr.style.display='none');
@@ -1428,15 +1422,12 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshOverlay();
   refreshSendState();
   toggleArrow();
+  initAuth();
+  loadHistory();
 
-await initAuth();
-loadHistory();
+}); // DOMContentLoaded
 
-});
-}
-
- // DOMContentLoaded
-// 版本保护 end 
+} // 版本保护 end
 
 </script>
 
