@@ -1148,7 +1148,7 @@ if (!window._MGPT) window._MGPT = {};
     scheduleFlush,
     renderMarkdown,
     SESSION_STATE: window.SESSION_STATE,
-    HISTORY_KEY,
+    /*HISTORY_KEY,*/
     debug: DEBUG
   };
   DEBUG && console.log('[INIT] _MGPT keys:', Object.keys(_MGPT));
@@ -1585,7 +1585,7 @@ let currentChatId  = chats[0]?.id            || null;       // 当前激活
  sessionId          = chats[0]?.sessionId     // ← 这里 **不再用 let**，而是复用上面同名变量
        || crypto.randomUUID();      // （开头已声明过）
   /* 根据 chatId 拼出对应历史 key （每条聊天一个桶） */
-  const histKey = id => `chat_history_${id}`;
+
   
 /* 保存左栏目录 */
 function saveChats() {
