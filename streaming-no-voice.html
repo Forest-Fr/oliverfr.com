@@ -755,68 +755,92 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ================== 授权 ================== */
   function unlockUI(){
-    txt && (txt.disabled = false);
-    plusBtn && (plusBtn.disabled = false);
-    sendBtn && (sendBtn.disabled = false);
+    txt.disabled = plusBtn.disabled = sendBtn.disabled = false;
+    mask.style.display = 'none';
     refreshSendState();
-    mask && (mask.style.display='none');
   }
   function lockUI(){
-    txt && (txt.disabled = true);
-    plusBtn && (plusBtn.disabled = true);
-    sendBtn && (sendBtn.disabled = true);
+    txt.disabled = plusBtn.disabled = sendBtn.disabled = true;
   }
-  function initAuth(){
-    if (DEV_MODE) {
-      isAuthorized = true;
-      code = 'dev-bypass';
-      authModal && (authModal.style.display='none');
-      unlockUI();
-      return;
+  async function validateCode(value, { silent=false } = {}) {
+    console.log('🔑 validateCode 发出的 body：', JSON.stringify({ code: value }));
+
+    if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
+      if (!silent) {
+        authErr.textContent = `格式不正确（需≥${AUTH_MIN_LEN}且仅字母数字-_）`;
+        authErr.style.display = 'block';
+      }
+      return false;
     }
-    const saved = localStorage.getItem('auth_code');
-    if (saved) {
-      isAuthorized = true;
-      code = saved;
-      authModal && (authModal.style.display='none');
-      unlockUI();
-    } else {
-      isAuthorized = false;
-      lockUI();
-      authModal && (authModal.style.display='flex');
-    }
-  }
-  authInput?.addEventListener('input', ()=>{
-    authBtn && (authBtn.disabled = !authInput.value.trim());
-    authErr && (authErr.style.display='none');
-  });
-  authBtn?.addEventListener('click', async ()=>{
-    authBtn.disabled = true;
-    const val = authInput.value.trim();
     try {
       const r = await fetch(AUTH_URL, {
         method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code: val })
-      }).then(r=>r.json());
-      if(!r.ok) throw new Error('授权失败');
-      isAuthorized = true;
-      code = val;
-      localStorage.setItem('auth_code', val);
-      authModal && (authModal.style.display='none');
-      unlockUI();
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ code:value })
+      });
+      const ct = r.headers.get('Content-Type')||'';
+      let data={};
+      if (/json/i.test(ct)) data = await r.json().catch(()=>({}));
+      if (!r.ok || !data.ok) throw new Error('授权失败');
+      const ver = Number(r.headers.get('x-auth-version') || data.code_version || 0);
+      localStorage.setItem('auth_code', value);
+      localStorage.setItem('auth_code_version', String(ver));
+      code = value; isAuthorized = true;
+      if (!silent) authModal.style.display='none';
+      unlockUI(); startAuthHeartbeat();
+      return true;
     } catch(e){
-      authErr && (authErr.textContent = e.message || '授权错误');
-      authErr && (authErr.style.display = 'block');
-    } finally {
-      authBtn.disabled = false;
+      if (!silent) {
+        authErr.textContent = e.message || '验证错误';
+        authErr.style.display = 'block';
+      }
+      return false;
     }
-  });
-  function checkAuthOrWarn(){
-    if (DEV_MODE || isAuthorized) return true;
-    alert('请先输入授权码！');
-    return false;
   }
+  function forceReAuth(reason='授权码已失效，请重新输入'){
+    isAuthorized = false; code = '';
+    stopAuthHeartbeat();
+    localStorage.removeItem('auth_code');
+    localStorage.removeItem('auth_code_version');
+    authModal.style.display='flex';
+    lockUI();
+    if(authErr){ authErr.textContent=reason; authErr.style.display='block'; }
+  }
+  async function initAuth(){
+    if (DEV_MODE) {
+      isAuthorized=true; code='dev-bypass';
+      authModal.style.display='none'; unlockUI(); return;
+    }
+    const saved = localStorage.getItem('auth_code');
+    if (saved) {
+      const ok = await validateCode(saved, { silent:true });
+      if (ok) { unlockUI(); startAuthHeartbeat(); return; }
+      forceReAuth('本地授权码已失效，请重新输入');
+    } else {
+      forceReAuth();
+    }
+  }
+  function startAuthHeartbeat(){
+    stopAuthHeartbeat();
+    authHeartbeatTimer = setInterval(async ()=>{
+      if (!code) return;
+      const ok = await validateCode(code, { silent:true });
+      if (!ok) forceReAuth('授权码失效或已更新，请重新输入');
+    }, AUTH_HEARTBEAT_MS);
+  }
+  function stopAuthHeartbeat(){
+    clearInterval(authHeartbeatTimer); authHeartbeatTimer=null;
+  }
+  authInput.addEventListener('input', ()=>{
+    authBtn.disabled = !authInput.value.trim();
+    authErr.style.display = 'none';
+  });
+  authBtn.addEventListener('click', async ()=>{
+    authBtn.disabled = true;
+    const val = authInput.value.trim();
+    await validateCode(val, { silent:false });
+    authBtn.disabled = false;
+  });
 
   /* ================== 按钮状态 ================== */
   function anyUploading(){ return uploads.some(u=>u.uploading); }
