@@ -530,6 +530,13 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
   .burger{display:none;}
   body{padding-left:260px;}                 /* 推正文 */
   #chat{padding-left:var(--side-gap);margin-left:260px;}
+
+ .sidebar        { translate:-260px 0; }         /* 默认隐藏 */
+  .sidebar.show   { translate:0 0;   }
+
+  body.side-open > :not(.sidebar):not(.burger){
+      transform:translateX(260px);
+      transition:transform .25s ease;
 }
 
 </style>
@@ -877,12 +884,25 @@ function renderChatList(filter=''){
   chatListUL.appendChild(frag);
 }
 function createChat(name='新聊天'){
+ // 👉 如果当前会话还在“新聊天”状态且仍是空白，则直接复用
+  if (chats.find(c=>c.id===currentChatId)?.name==='新聊天' && !chat.children.length){
+      return;
+  }
   currentChatId = 'c_'+Date.now();
+  sessionId     = currentChatId;               // 用 id 直做会话键
+  HISTORY_KEY   = `chat_history_${sessionId}`;
+  chats.unshift({id:currentChatId,name,ts:Date.now()});
+  saveChats(); renderChatList(chatSearch.value.trim());
+  clearAllMessages();
+  txt.value=''; autoResize();                  // 清空输入框
+  chat.scrollTop = chat.scrollHeight;          // 滚到底
+}
+  /**--currentChatId = 'c_'+Date.now();
   sessionId     = crypto.randomUUID();                 // 重新生成会话
   localStorage.setItem('session_id', sessionId);
   chats.unshift({id:currentChatId,name,ts:Date.now()});
   saveChats(); renderChatList(); clearAllMessages();
-}
+}--**/
 function activateChat(id){
   currentChatId=id;
   sessionId=id;                                        // 直接用 id 作为会话 key
@@ -1580,11 +1600,23 @@ exitClarify();
     txt.value=q; autoResize(); refreshSendState(); trySend();
   };
 /* === 侧栏交互 === */
-burgerBtn.addEventListener('click', ()=> sidebar.classList.toggle('show'));
+burgerBtn.addEventListener('click', ()=>{
+  const opened = sidebar.classList.toggle('show');
+  document.body.classList.toggle('side-open', opened);
+});
 newChatBtn.addEventListener('click', ()=>{ createChat(); sidebar.classList.remove('show'); });
 
 chatSearch.addEventListener('input', ()=> renderChatList(chatSearch.value.trim()));
 
+function closeSidebar(){
+  sidebar.classList.remove('show');
+  document.body.classList.remove('side-open');
+}
+
+newChatBtn.addEventListener('click', ()=>{
+  createChat();            // 新空白会话
+  closeSidebar();
+});
 chatListUL.addEventListener('click', e=>{
   const li = e.target.closest('li'); if(!li) return;
   const id = li.dataset.id;
@@ -1603,7 +1635,8 @@ chatListUL.addEventListener('click', e=>{
     }
   }else{  // 选中
     activateChat(id);
-    sidebar.classList.remove('show');
+closeSidebar();
+    /**--原来sidebar.classList.remove('show');--**/
   }
 });
 
