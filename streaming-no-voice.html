@@ -478,9 +478,79 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
 }
 .msg._meta > * { max-width: none !important; }
 .msg._meta .copy-btn { display: none !important; }
+
+/* === 侧栏 & 汉堡 === */
+.burger{
+  position:fixed;top:12px;left:12px;z-index:4100;
+  width:36px;height:36px;border:none;border-radius:8px;
+  background:#fff;border:1px solid var(--grey);font-size:22px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.burger:hover{background:#f1f1f1}
+
+.sidebar{
+  position:fixed;inset:0 0 0 0;width:260px;max-width:80%;
+  background:#fff;border-right:1px solid #e5e5e5;
+  translate:-100% 0;transition:translate .25s ease;
+  display:flex;flex-direction:column;z-index:4000;
+}
+.sidebar.show{translate:0 0;}
+
+.sidebar header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid #e5e5e5;
+}
+.sidebar header h2{font-size:20px;font-weight:600;}
+
+.sidebar header button{
+  border:none;background:#3b82f6;color:#fff;border-radius:6px;
+  width:28px;height:28px;font-size:20px;cursor:pointer;
+}
+
+.searchBox{padding:10px 16px;border-bottom:1px solid #eee;}
+.searchBox input{
+  width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:6px;
+}
+
+.chat-list{flex:1;overflow-y:auto;list-style:none;padding:8px 0;}
+.chat-list li{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px;cursor:pointer;gap:6px;
+}
+.chat-list li.active{background:#f0f6ff;font-weight:600;}
+.chat-list li:hover{background:#f7f7f8;}
+.chat-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chat-actions button{
+  border:none;background:none;cursor:pointer;font-size:15px;color:#888;
+}
+.chat-actions button:hover{color:#555;}
+@media (min-width:801px){
+  /* 桌面端固定侧栏 */
+  .sidebar{translate:0 0;}
+  .burger{display:none;}
+  body{padding-left:260px;}                 /* 推正文 */
+  #chat{padding-left:var(--side-gap);margin-left:260px;}
+}
+
 </style>
 </head>
 <body>
+
+<!-- 🔄 找到 <body> 标签后立刻插入 -->
+<button id="burger" aria-label="菜单" class="burger">☰</button>
+
+<aside id="sidebar" class="sidebar">
+  <header>
+    <h2 id="appTitle">Mini‑GPT</h2>
+    <button id="newChat" title="新建聊天">＋</button>
+  </header>
+
+  <div class="searchBox">
+    <input id="chatSearch" type="search" placeholder="搜索聊天…">
+  </div>
+
+  <ul id="chatList" class="chat-list"></ul>
+</aside>
 
 <h1 id="welcome">今天有什么议程？</h1>
 
@@ -561,6 +631,10 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   let USE_SSE       = false;
   const MAX_CTX_USER_QUERIES = 8;
+/* ===== 侧栏相关 ===== */
+const CHATS_KEY = 'mgpt_chats';        // 本地聊天目录
+let chats = [];                        // [{id,name,ts}]
+let currentChatId = null;
 
   /* ================== DOM 引用 ================== */
   const chat       = document.getElementById('chat');
@@ -580,6 +654,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const authInput  = document.getElementById('authInput');
   const authBtn    = document.getElementById('authBtn');
   const authErr    = document.getElementById('authErr');
+
+/* 侧栏节点 */
+const sidebar      = document.getElementById('sidebar');
+const burgerBtn    = document.getElementById('burger');
+const chatListUL   = document.getElementById('chatList');
+const newChatBtn   = document.getElementById('newChat');
+const chatSearch   = document.getElementById('chatSearch');
 
   /* ================== 会话/状态 ================== */
   let sessionId = localStorage.getItem('session_id');
@@ -640,6 +721,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function replayMessage(m) {
     appendMessage(m.role, m.content, { noSave: true, meta: m.meta });
   }
+
+if (role==='user' && chats.length && currentChatId){
+  const idx=chats.findIndex(c=>c.id===currentChatId);
+  if (idx>-1 && chats[idx].name==='新聊天'){
+      chats[idx].name = stripMarkdown(text).slice(0,20)||'新聊天';
+      saveChats(); renderChatList(chatSearch.value.trim());
+  }
+}
 
   /* ================== 工具函数 ================== */
   function chatAtBottom(pad=200){
@@ -754,6 +843,58 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/[#>*_~`]/g,'')
       .trim();
   }
+
+/* ===== 聊天目录工具 ===== */
+function saveChats(){
+  localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
+}
+function loadChats(){
+  try{
+    chats = JSON.parse(localStorage.getItem(CHATS_KEY))||[];
+  }catch{chats=[];}
+}
+function renderChatList(filter=''){
+  chatListUL.innerHTML='';
+  const frag=document.createDocumentFragment();
+  chats
+    .filter(c=>c.name.includes(filter))
+    .sort((a,b)=>b.ts-a.ts)                     // 最近在前
+    .forEach(c=>{
+      const li=document.createElement('li');
+      li.dataset.id=c.id;
+      if(c.id===currentChatId) li.classList.add('active');
+
+      const title=document.createElement('span');
+      title.className='chat-title'; title.textContent=c.name;
+
+      const acts=document.createElement('span');
+      acts.className='chat-actions';
+      acts.innerHTML='<button class="rename">✎</button><button class="del">🗑</button>';
+
+      li.append(title,acts);
+      frag.appendChild(li);
+    });
+  chatListUL.appendChild(frag);
+}
+function createChat(name='新聊天'){
+  currentChatId = 'c_'+Date.now();
+  sessionId     = crypto.randomUUID();                 // 重新生成会话
+  localStorage.setItem('session_id', sessionId);
+  chats.unshift({id:currentChatId,name,ts:Date.now()});
+  saveChats(); renderChatList(); clearAllMessages();
+}
+function activateChat(id){
+  currentChatId=id;
+  sessionId=id;                                        // 直接用 id 作为会话 key
+  localStorage.setItem('session_id', sessionId);
+  HISTORY_KEY = `chat_history_${sessionId}`;
+  loadHistory();                                       // 重新渲染
+  renderChatList(chatSearch.value.trim());
+}
+function clearAllMessages(){
+  chat.innerHTML='';
+  localStorage.removeItem(HISTORY_KEY);
+}
 
   /* ================== 授权 ================== */
   function unlockUI(){
@@ -1337,6 +1478,12 @@ try {
   console.warn('[history‑write]', e);
 }
 /* --- END FIX-HISTORY --- */
+// 👉 更新目录时间 & 排序
+const idx=chats.findIndex(c=>c.id===currentChatId);
+if(idx>-1){
+  chats[idx].ts = Date.now();
+  saveChats(); renderChatList(chatSearch.value.trim());
+}
 
 exitClarify();
 }
@@ -1432,6 +1579,33 @@ exitClarify();
     if (!txt) return;
     txt.value=q; autoResize(); refreshSendState(); trySend();
   };
+/* === 侧栏交互 === */
+burgerBtn.addEventListener('click', ()=> sidebar.classList.toggle('show'));
+newChatBtn.addEventListener('click', ()=>{ createChat(); sidebar.classList.remove('show'); });
+
+chatSearch.addEventListener('input', ()=> renderChatList(chatSearch.value.trim()));
+
+chatListUL.addEventListener('click', e=>{
+  const li = e.target.closest('li'); if(!li) return;
+  const id = li.dataset.id;
+  if (e.target.classList.contains('del')){
+    if(confirm('删除该聊天？')){
+      chats = chats.filter(c=>c.id!==id); saveChats();
+      if(id===currentChatId) createChat();           // 自动切到新空白会话
+      renderChatList(chatSearch.value.trim());
+    }
+  }else if (e.target.classList.contains('rename')){
+    const newName = prompt('重命名', chats.find(c=>c.id===id).name||'');
+    if(newName){
+      const obj=chats.find(c=>c.id===id);
+      obj.name=newName; obj.ts=Date.now();
+      saveChats(); renderChatList(chatSearch.value.trim());
+    }
+  }else{  // 选中
+    activateChat(id);
+    sidebar.classList.remove('show');
+  }
+});
 
   /* ================== 诊断工具 ================== */
   window.MGPT_TEST_DIAG = async () => {
@@ -1444,12 +1618,16 @@ exitClarify();
   };
 
   /* ================== 初始化顺序 ================== */
-  autoResize();
+  loadChats();
+if(!chats.length) createChat();              // 首次进入自动新建
+else{ currentChatId = chats[0].id; activateChat(currentChatId); }
+
+autoResize();
   refreshOverlay();
   refreshSendState();
   toggleArrow();
   initAuth();
-  loadHistory();
+ /**-- loadHistory();--**/
 
 }); // DOMContentLoaded
 
