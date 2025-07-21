@@ -552,6 +552,30 @@ aside#sidebar {
 }
 .chat-item button:hover { color: #fff; }
 
+  .chat-item { position: relative; padding-right: 28px; }
+.chat-item .dots   { opacity: .0; transition: opacity .15s; }
+.chat-item:hover .dots { opacity: 1; }
+
+.menu {
+  position: absolute; right: 4px; top: 50%; translate: 0 -50%;
+  background: transparent; border: none; cursor: pointer; color:#aaa;
+}
+.menu:hover { color:#fff; }
+
+.pop {
+  position: absolute; right: 32px; top: 4px;
+  background:#fff; color:#111; border:1px solid #ddd;
+  border-radius:8px; padding:6px 0; font-size:14px; min-width:120px;
+  box-shadow:0 4px 16px rgb(0 0 0 / .15); display:none; z-index:5000;
+}
+.pop.show { display:block; }
+.pop button{
+  width:100%; background:none; border:none; padding:6px 14px;
+  text-align:left; cursor:pointer;
+}
+.pop button:hover{background:#f3f4f6}
+.pop .del{color:#d92d20}
+
 </style>
 </head>
 <body>
@@ -599,6 +623,15 @@ aside#sidebar {
 </aside>
 
 <div id="sidebarOverlay"></div>
+
+  <div class="chat-item" data-id="${c.id}">
+  <span>${c.title}</span>
+  <button class="menu dots">⋮</button>
+  <div class="pop">
+    <button class="rename">重命名</button>
+    <button class="del del-btn">删除</button>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
@@ -672,7 +705,10 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionId = crypto.randomUUID();
     localStorage.setItem('session_id', sessionId);
   }
-  const HISTORY_KEY = `chat_history_${sessionId}`;
+  /*-const HISTORY_KEY = `chat_history_${sessionId}`;-*/
+  // ↓ 不再固定，而是一个函数
+  const HISTORY_KEY_STATIC = `chat_history_${sessionId}`;   // 仅供首次无会话时使用
+  const histKey = id => `chat_history_${id || currentChatId}`;
 
   let uploads          = [];
   let isAuthorized     = false;
@@ -704,7 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ================== 历史 ================== */
   function loadHistory() {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
+      const raw = localStorage.getItem(histKey(currentChatId));
       if (!raw) return;
       const arr = JSON.parse(raw);
       arr.forEach(replayMessage);
@@ -716,7 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function saveMessage(role, content, meta={}) {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
+      const raw = localStorage.getItem(histKey(currentChatId));
       const arr = raw ? JSON.parse(raw) : [];
       arr.push({ role, content, meta, ts: Date.now() });
       localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
@@ -1104,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ================== 上下文 & Payload ================== */
   function collectRecentUserQueries(latest) {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
+      const raw = localStorage.getItem(histKey(currentChatId));
       const arr = raw ? JSON.parse(raw) : [];
       const users = arr.filter(m=>m.role==='user').map(m=>m.content);
       if (latest) users.push(latest);
@@ -1585,39 +1621,55 @@ function activateChat(id) {
 btnNewChat.addEventListener('click', () => {
   const id  = crypto.randomUUID();
   const sid = crypto.randomUUID();               // 给后端的新上下文
-  chats.unshift({ id, title:'新聊天', sessionId:sid });
+  /*-chats.unshift({ id, title:'新聊天', sessionId:sid });-*/
+  // 若上一句已经是空白且还没内容，就直接复用，不再 push 新条
+  if (currentChatId && !loadHistoryToPane(currentChatId, /*peek=*/true)) {
+     chats = chats.map(c => c.id === currentChatId ? { ...c, sessionId:sid } : c);
+    +  } else {
+    chats.unshift({ id, title:'新聊天', sessionId:sid });
+    }
   saveChats();
   activateChat(id);
   searchInput.value = '';                        // 重置搜索
 });
 
 /* 点击左栏 */
-chatListEl.addEventListener('click', e => {
-  const li = e.target.closest('.chat-item');
-  if (!li) return;
-  const id = li.dataset.id;
+chatListEl.addEventListener('click', e=>{
+  const item = e.target.closest('.chat-item');
+  if (!item) return;
+  const id   = item.dataset.id;
+  const pop  = item.querySelector('.pop');
 
+  /* 点 ⋮ 打开 / 关闭菜单 */
+  if (e.target.classList.contains('menu')) {
+    document.querySelectorAll('.pop.show').forEach(p=>p.classList.remove('show'));
+    pop.classList.toggle('show');
+    return;
+  }
+  /* 菜单操作 */
   if (e.target.classList.contains('rename')) {
-    const obj = chats.find(c => c.id === id);
-    const name = prompt('重命名聊天', obj.title);
-    if (name) { obj.title = name.trim(); saveChats(); renderChats(searchInput.value); }
-  } else if (e.target.classList.contains('del')) {
+    const name = prompt('重命名聊天', chats.find(c=>c.id===id).title);
+    if (name) {
+      chats = chats.map(c=>c.id===id?{...c,title:name.trim()||'未命名'}:c);
+      saveChats(); renderChats(searchInput.value);
+    }
+  }
+  if (e.target.classList.contains('del-btn')) {
     if (confirm('确认删除？')) {
-      chats = chats.filter(c => c.id !== id);
+      chats = chats.filter(c=>c.id!==id);
       localStorage.removeItem(histKey(id));
       saveChats(); renderChats(searchInput.value);
-
-      /* 删除当前激活聊天 → 自动切到第一条或新建 */
-      if (id === currentChatId) {
-        if (chats.length) activateChat(chats[0].id);
-        else btnNewChat.click();
-      }
+      if (id===currentChatId) (chats[0]?activateChat(chats[0].id):btnNewChat.click());
     }
-  } else {
-    /* 普通点击 => 切换聊天 */
-    if (id !== currentChatId) activateChat(id);
   }
 });
+/* 点击空白处自动关闭任何 pop */
+document.addEventListener('click', e=>{
+  if (!e.target.closest('.chat-item')) {
+    document.querySelectorAll('.pop.show').forEach(p=>p.classList.remove('show'));
+  }
+});
+
 
 /* =========== 把 trySend / saveMessage 改成用当前 chatId =========== */
 // 只需把它们内部对 `HISTORY_KEY` 的引用换成 histKey(currentChatId)
