@@ -726,6 +726,8 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
     txt.disabled = plusBtn.disabled = sendBtn.disabled = true;
   }
   async function validateCode(value, { silent=false } = {}) {
+    console.log('🔑 validateCode 发出的 body：', JSON.stringify({ code: value }));
+
     if (!value || value.length < AUTH_MIN_LEN || !AUTH_PATTERN.test(value)) {
       if (!silent) {
         authErr.textContent = `格式不正确（需≥${AUTH_MIN_LEN}且仅字母数字-_）`;
