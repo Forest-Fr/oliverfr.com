@@ -748,70 +748,88 @@ document.addEventListener('DOMContentLoaded', () => {
       .trim();
   }
 
-  /* ================== 授权 ================== */
-  function unlockUI(){
-    txt && (txt.disabled = false);
-    plusBtn && (plusBtn.disabled = false);
-    sendBtn && (sendBtn.disabled = false);
-    refreshSendState();
-    mask && (mask.style.display='none');
+  /* ================== 授权相关（重写开始） ================== */
+  // 锁定/解锁 UI
+  function lockUI() {
+    txt.disabled = plusBtn.disabled = sendBtn.disabled = true;
+    mask.style.display = 'block';
   }
-  function lockUI(){
-    txt && (txt.disabled = true);
-    plusBtn && (plusBtn.disabled = true);
-    sendBtn && (sendBtn.disabled = true);
+  function unlockUI() {
+    txt.disabled = plusBtn.disabled = sendBtn.disabled = false;
+    mask.style.display = 'none';
+    authModal.style.display = 'none';
   }
-  function initAuth(){
-    if (DEV_MODE) {
-      isAuthorized = true;
-      code = 'dev-bypass';
-      authModal && (authModal.style.display='none');
+
+  // 发起验证
+  async function validateCode(code) {
+    const resp = await fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ code })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      localStorage.setItem('auth_code', code);
       unlockUI();
-      return;
+      startHeartbeat(code);
+      return true;
+    } else {
+      authErr.textContent = data.error || '授权失败';
+      authErr.style.display = 'block';
+      return false;
     }
+  }
+
+  // 心跳续期
+  let heartbeatTimer = null;
+  function startHeartbeat(code) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = setInterval(async () => {
+      const ok = await validateCode(code);
+      if (!ok) {
+        clearInterval(heartbeatTimer);
+        forceReAuth('授权码失效，请重新输入');
+      }
+    }, AUTH_HEARTBEAT_MS);
+  }
+
+  // 强制重新授权
+  function forceReAuth(msg) {
+    lockUI();
+    authErr.textContent = msg;
+    authErr.style.display = 'block';
+    localStorage.removeItem('auth_code');
+    clearInterval(heartbeatTimer);
+    authModal.style.display = 'flex';
+  }
+
+  // 初始化流程
+  async function initAuth() {
+    lockUI();
     const saved = localStorage.getItem('auth_code');
     if (saved) {
-      isAuthorized = true;
-      code = saved;
-      authModal && (authModal.style.display='none');
-      unlockUI();
-    } else {
-      isAuthorized = false;
-      lockUI();
-      authModal && (authModal.style.display='flex');
+      const ok = await validateCode(saved);
+      if (ok) return;
     }
+    authModal.style.display = 'flex';
   }
-  authInput?.addEventListener('input', ()=>{
-    authBtn && (authBtn.disabled = !authInput.value.trim());
-    authErr && (authErr.style.display='none');
+
+  // 弹窗事件绑定
+  authInput.addEventListener('input', ()=> {
+    authBtn.disabled = !authInput.value.trim();
+    authErr.style.display = 'none';
   });
-  authBtn?.addEventListener('click', async ()=>{
+  authBtn.addEventListener('click', async () => {
     authBtn.disabled = true;
-    const val = authInput.value.trim();
-    try {
-      const r = await fetch(AUTH_URL, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code: val })
-      }).then(r=>r.json());
-      if(!r.ok) throw new Error('授权失败');
-      isAuthorized = true;
-      code = val;
-      localStorage.setItem('auth_code', val);
-      authModal && (authModal.style.display='none');
-      unlockUI();
-    } catch(e){
-      authErr && (authErr.textContent = e.message || '授权错误');
-      authErr && (authErr.style.display = 'block');
-    } finally {
-      authBtn.disabled = false;
-    }
+    const code = authInput.value.trim();
+    await validateCode(code);
+    authBtn.disabled = false;
   });
-  function checkAuthOrWarn(){
-    if (DEV_MODE || isAuthorized) return true;
-    alert('请先输入授权码！');
-    return false;
-  }
+
+  // 页面加载时先跑一次
+  await initAuth();
+  /* ================== 授权相关（重写结束） ================== */
 
   /* ================== 按钮状态 ================== */
   function anyUploading(){ return uploads.some(u=>u.uploading); }
