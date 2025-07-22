@@ -826,9 +826,11 @@ if (!window._MGPT) window._MGPT = {};
     return div;
   }
   // 检测当前聊天窗口是否有内容== null;
+// 检测当前聊天窗口是否有内容
 function chatHasContent() {
-  return chat.querySelector('.msg') !
+  return chat.querySelector('.msg') !== null;
 }
+
   function appendMessage(role, text, {
     images = [],
     streaming = false,
@@ -1621,7 +1623,7 @@ const sidebar     = document.getElementById('sidebar');
 const overlay     = document.getElementById('sidebarOverlay');
 
 /* ---------- 工具 ---------- */
-/*const histKey = id => `chat_history_${id || currentChatId}`;*/
+
 
 function paneHasContent () { return !!chat.querySelector('.msg'); }
 
@@ -1686,22 +1688,22 @@ btnNewChat.addEventListener('click', () => {
   const sid = crypto.randomUUID();
 
   if (chatHasContent()) {
-    // 当前有内容，生成新会话并推入目录
+    // 当前对话有消息，推入目录
     chats.unshift({ id, title: '新聊天', sessionId: sid });
   } else {
-    // 当前是空白，会话替换：不用改变 chats 数组，只修改 currentChatId
+    // 当前为空白，仅替换会话 ID，不入目录
     currentChatId = id;
-    sessionId    = sid;
-    // 直接激活即可，不 push 也不 saveChats
-    activateChat(id);
-    return;  // 早返回，避免后续重复激活
+    sessionId     = sid;
+    renderChats();    // 更新目录高亮
+    loadHistoryToPane(id);
+    return;           // 早返回，跳过 push/saveChats
   }
 
-  // 只有有内容的情况下才走到这里
   saveChats();
   activateChat(id);
   searchInput.value = '';
 });
+
 
 
 chatListEl.addEventListener('click', e => {
@@ -1709,44 +1711,56 @@ chatListEl.addEventListener('click', e => {
   const item = e.target.closest('.chat-item');
   if (!item) return;
 
-  // 点击目录项时，加载对应聊天记录到右侧窗口
-  activateChat(item.dataset.id);
-});
-
-
-  /* 三点菜单 */
+  // —— 三点菜单 弹出/收起
   if (e.target.classList.contains('menu')) {
-    item.querySelector('.pop').classList.toggle('show');
+    const pop = item.querySelector('.pop');
+    pop.classList.toggle('show');
+    // 收起其他打开的 pop
     document.querySelectorAll('.pop.show').forEach(p => {
-      if (p!==item.querySelector('.pop')) p.classList.remove('show');
+      if (p !== pop) p.classList.remove('show');
     });
     return;
   }
 
-  /* 菜单项 */
+  // —— 重命名
   if (e.target.classList.contains('rename')) {
     const id = item.dataset.id;
-    const name = prompt('重命名聊天', chats.find(c=>c.id===id).title);
+    const oldName = chats.find(c => c.id === id).title;
+    const name = prompt('重命名聊天', oldName);
     if (name !== null) {
-      chats = chats.map(c => c.id===id ? {...c, title:name.trim()||'未命名'} : c);
-      saveChats(); renderChats(searchInput.value);
+      chats = chats.map(c =>
+        c.id === id
+          ? { ...c, title: name.trim() || '未命名会话' }
+          : c
+      );
+      saveChats();
+      renderChats(searchInput.value);
     }
     return;
   }
+
+  // —— 删除
   if (e.target.classList.contains('del-btn')) {
     const id = item.dataset.id;
     if (confirm('确认删除？')) {
       chats = chats.filter(c => c.id !== id);
       localStorage.removeItem(histKey(id));
-      saveChats(); renderChats(searchInput.value);
-      if (id === currentChatId) chats[0] ? activateChat(chats[0].id) : btnNewChat.click();
+      saveChats();
+      renderChats(searchInput.value);
+      // 如果删的是当前会话，就切换到第一条或新建
+      if (id === currentChatId) {
+        chats[0]
+          ? activateChat(chats[0].id)
+          : btnNewChat.click();
+      }
     }
     return;
   }
 
-  /* 普通点击切换会话 */
+  // —— 普通点击：切换到选中的会话
   activateChat(item.dataset.id);
 });
+
 
 /* 点击空白关闭 pop */
 document.addEventListener('click', e=>{
