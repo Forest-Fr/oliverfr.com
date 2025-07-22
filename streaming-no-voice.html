@@ -689,7 +689,10 @@ body.no-scroll { overflow: hidden !important; }
 
 <aside id="sidebar">
   <button id="btnNewChat" class="btn">＋ 新建聊天</button>
-
+<div class="search-box">
+  <input type="text" id="chatSearch" placeholder="搜索聊天">
+</div>
+<div id="chatList"></div>
   
   <div id="chatList"></div>
 </aside>
@@ -709,7 +712,7 @@ body.no-scroll { overflow: hidden !important; }
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-<script>
+<script defer>
 /* ================== 版本标识 ================== */
 if (window._MGPT && window._MGPT.__VERSION__) {
   console.warn('[INIT] 已存在 _MGPT 版本', window._MGPT.__VERSION__, '终止再次初始化。');
