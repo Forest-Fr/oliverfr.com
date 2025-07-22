@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -7,45 +6,81 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root {
+  --left-gap: 255px;
+  --right-gap: 125px;
   --radius: 24px;
   --grey: #e4e4e7;
   --bubble: #f7f7f8;
-  --side-gap: 190px;
   --font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 html, body {
   height: 100%;
-  overflow-y: auto;           /* 恢复根容器纵向滚动原overflow: hidden; */
-    overscroll-behavior-y: auto;/* 允许边界“橡皮筋”回弹并触发浏览器原生下拉刷新 */
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
   font: var(--font);
   background: #fafafa;
 }
 
-body { padding: 40px var(--side-gap) 220px; }
-
-/* 开场提示 */
-/* 欢迎语固定底部（动态 JS 调整 bottom） */
-#welcome{
-  position:fixed;left:50%;transform:translateX(-50%);
-  font-size:21px;font-weight:600;line-height:1.2;
-  z-index:3000;pointer-events:none;text-align:center;
-  max-width:90%;bottom:60px; /* 初始兜底 */
+body {
+  padding: 40px var(--right-gap) 220px var(--left-gap);
 }
 
-/* 聊天区 */
+#welcome {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.2;
+  z-index: 3000;
+  pointer-events: none;
+  text-align: center;
+  max-width: 90%;
+  bottom: 60px;
+}
+
 #chat {
   display: flex;
   flex-direction: column;
   gap: 16px;
   height: calc(100vh - 190px);
-  padding-left: var(--side-gap);
+  padding-left: var(--left-gap);
   overflow-x: auto;
   overflow-y: auto;
   scroll-behavior: smooth;
 }
+
+.msg {
+  max-width: 100%;
+  width: fit-content;
+  position: relative;
+  padding: 12px 16px;
+  background: var(--bubble);
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #111;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.msg.bot {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--left-gap) + 5px) !important;
+}
+
+.msg.user {
+  align-self: flex-end;
+  background: #e0f2ff;
+}
+
 
 /* 聊天气泡 */
 .msg {
@@ -61,7 +96,7 @@ body { padding: 40px var(--side-gap) 220px; }
   word-break: break-word;
   white-space: pre-wrap;
 }
-.msg.bot { align-self: flex-start; margin-left: calc(-1 * var(--side-gap) + 5px) !important }
+.msg.bot { align-self: flex-start; margin-left: calc(-1 * var(--side-gap)) !important }
 .msg.user { align-self: flex-end; background: #e0f2ff; }
 .msg.system { align-self: center; background:#fff3cd; color:#7a5a00; }
 
@@ -506,14 +541,8 @@ aside#sidebar {
   z-index: 1001;
 }
 @media (max-width: 767px) {
-   width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    transform: translateX(-100%);
-  }
-  aside#sidebar.show {
-    transform: translateX(0);
+  aside#sidebar { transform: translateX(-100%); }
+  aside#sidebar.show { transform: translateX(0); }
 }
 
 #sidebarOverlay {
@@ -607,40 +636,22 @@ aside#sidebar {
 .pop .del-btn{color:#d92d20}
 /* === END 三点菜单样式 === */
 
-@media (max-width:800px){
-  .sidebar        { translate:-260px 0; }  /* 默认隐藏 */
-  .sidebar.show   { translate:0 0; }
-
-  body.side-open > :not(.sidebar):not(.burger) {
-    transform: translateX(260px);
+/* === mobile slide‑out effect === */
+@media (max-width: 767px) {
+  body.slide-right {                       /* 主面板随侧栏平移 */
+    transform: translateX(240px);          /* 侧栏宽度 */
     transition: transform .25s ease;
+    overflow: hidden;                      /* 禁止背景滚动 */
   }
+  aside#sidebar { transition: transform .25s ease; }
 }
-  
-body.no-scroll { overflow: hidden !important; }
-.modal {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.4);
-  display: flex; align-items: flex-start; justify-content: center;
-  padding-top: 60px; /* 距离顶部 */
-  z-index: 5000;
+
+/* === 锁定状态下禁止侧栏交互 === */
+#sidebar.locked,
+#sidebar.locked * {
+  pointer-events: none;
+  opacity: .35;
 }
-.modal.hidden { display: none; }
-.modal-content {
-  background: #fff; border-radius: 12px;
-  width: 90%; max-width: 400px;
-}
-.modal-content header {
-  display: flex; align-items: center; padding: 8px;
-  border-bottom: 1px solid #eee;
-}
-#modalSearch {
-  flex: 1; border: none; outline: none; font-size: 16px;
-}
-#modalClose {
-  background: none; border: none; font-size: 20px; cursor: pointer;
-}
-#modalChatList { max-height: 60vh; overflow-y: auto; }
 
 </style>
 </head>
@@ -682,25 +693,14 @@ body.no-scroll { overflow: hidden !important; }
 
 <aside id="sidebar">
   <button id="btnNewChat" class="btn">＋ 新建聊天</button>
-<div class="search-box">
-  <input type="text" id="chatSearch" placeholder="搜索聊天">
-</div>
-<div id="chatList"></div>
-  
+  <div class="search-box">
+    <input type="text" id="chatSearch" placeholder="搜索聊天">
+  </div>
   <div id="chatList"></div>
 </aside>
 
 <div id="sidebarOverlay"></div>
 
-<div id="searchModal" class="modal hidden">
-  <div class="modal-content">
-    <header>
-      <input type="text" id="modalSearch" placeholder="搜索聊天..." autofocus>
-      <button id="modalClose">✕</button>
-    </header>
-    <div id="modalChatList" class="chat-list"></div>
-  </div>
-</div>
 
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -762,8 +762,6 @@ if (!window._MGPT) window._MGPT = {};
   const authInput  = document.getElementById('authInput');
   const authBtn    = document.getElementById('authBtn');
   const authErr    = document.getElementById('authErr');
-
-
 
   /* ================== 会话/状态 ================== */
   let sessionId = localStorage.getItem('session_id');
@@ -1634,6 +1632,12 @@ renderChats(searchInput.value);
 // —— Sidebar 数据 & 渲染逻辑 —— 
 const STORAGE_KEY = 'mini_gpt_chats';               // [{id,title,sessionId}]
 let chats          = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  // —— 迁移老版只有一个历史桶到新目录 —— 
+  const oldRaw = localStorage.getItem(HISTORY_KEY_STATIC);
+  if (!chats.length && oldRaw) {
+    chats = [{ id: sessionId, title: '历史会话', sessionId }];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+     }
 let currentChatId  = chats[0]?.id            || null;       // 当前激活
  sessionId          = chats[0]?.sessionId     // ← 这里 **不再用 let**，而是复用上面同名变量
        || crypto.randomUUID();      // （开头已声明过）
@@ -1648,8 +1652,6 @@ function saveChats() {
 /* ---------- 渲染 / 切换 ---------- */
 const chatListEl  = document.getElementById('chatList');
 const searchInput = document.getElementById('chatSearch');
-
-
 const btnNewChat  = document.getElementById('btnNewChat');
 
 function renderChats(filter = '') {
@@ -1739,42 +1741,42 @@ function activateChat (id) {
   if (chatObj) sessionId = chatObj.sessionId;     // 提供给后端
   renderChats(searchInput.value);
   loadHistoryToPane(id);
-   // —— 只要这个会话里已有任何消息，就永久隐藏欢迎语 —— 
   if (paneHasContent()) welcome?.remove();
-
 }
 
 /* 新建聊天（核心） */
 // —— 新建聊天按钮逻辑 —— 
 // —— 新建聊天 —— 
 btnNewChat.addEventListener('click', () => {
-  // 1) 先保存旧会话（如果有消息，就写入 localStorage 并自动命名 & 存目录）
-  persistCurrentPane();
+// —— 如果目录里已有一个“新聊天”且从没写过内容，复用它 —— 
+ const empty = chats.find(c =>
+ c.title === '新聊天' &&
+!localStorage.getItem(histKey(c.id))
+);
+ if (empty) {
+activateChat(empty.id);
+ return;
+ }
 
-  // 2) 先看当前面板是否有消息
-  if (paneHasContent()) {
-    // 确实有消息，新增一条“新聊天”到目录
-    const id  = crypto.randomUUID();
-    const sid = crypto.randomUUID();
-    chats.unshift({ id, title: '新聊天', sessionId: sid });
-    saveChats();
-    activateChat(id);
-  } else {
-    // 空白面板 —— 看看目录里有没有“空白”新聊天和空白面板 —— 直接在当前 ID 上就地“替换”session，不改目录
-    const empty = chats.find(c => c.title === '新聊天' && !localStorage.getItem(histKey(c.id)));
-    if (empty) { activateChat(empty.id); return; }
-    // 真正“替换”当前会话
-    const id  = crypto.randomUUID();
-    const sid = crypto.randomUUID();
-    currentChatId = id;
-    sessionId     = sid;
-    renderChats(searchInput.value);  // 仅更新左侧高亮
-    chat.innerHTML = '';             // 清空右侧
-    firstMessage = true;
-    welcome && welcome.remove();
-    autoResize();
-    refreshSendState();
-  }
+// 目录里没有可复用的“空白”时，再走原逻辑：
+ if (paneHasContent()) {
+ const id  = crypto.randomUUID();
+const sid = crypto.randomUUID();
+chats.unshift({ id, title: '新聊天', sessionId: sid });
+saveChats();
+activateChat(id);
+} else {
+const id  = crypto.randomUUID();
+ const sid = crypto.randomUUID();
+currentChatId = id;
+sessionId     = sid;
+renderChats(searchInput.value);
+chat.innerHTML = '';
+firstMessage = true;
+welcome?.remove();
+autoResize();
+refreshSendState();
+}
   searchInput.value = '';
 });
 
@@ -1849,9 +1851,7 @@ const overlay   = document.getElementById('sidebarOverlay');
 hamburger.addEventListener('click', () => {
   sidebar.classList.toggle('show');
   overlay.classList.toggle('show');
-  document.body.classList.toggle('no-scroll', sidebar.classList.contains('show'));
 });
-
 overlay.addEventListener('click', () => {
   sidebar.classList.remove('show');
   overlay.classList.remove('show');
