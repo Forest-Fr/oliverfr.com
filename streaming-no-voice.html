@@ -634,21 +634,6 @@ aside#sidebar {
   aside#sidebar { transition: transform .25s ease; }
 }
 
-  @media (max-width: 767px) {
-  body.slide-right {                       
-    transform: translateX(240px);
-    transition: transform .25s ease;
-    overflow: hidden;
-  }
-  aside#sidebar { transition: transform .25s ease; }
-
-  /* —— 新增：当 body.slide-right 时，也把 fixed 的 composer 推过去 —— */
-  body.slide-right .composer {
-    /* 原本 .composer 是 translateX(-50%) 居中，
-       这里在它的计算里 +240px，才能和聊天区保持一致 */
-    transform: translateX(calc(-50% + 240px));
-  }
-}
 
 @media (max-width: 767px) {
   /* 取消对 body 本身的 transform 推动，只用它当开关 */
