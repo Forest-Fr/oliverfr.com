@@ -61,7 +61,7 @@ body { padding: 40px var(--side-gap) 220px; }
   word-break: break-word;
   white-space: pre-wrap;
 }
-.msg.bot { align-self: flex-start; margin-left: calc(-1 * var(--side-gap)) !important }
+.msg.bot { align-self: flex-start; margin-left: calc(-1 * var(--side-gap + 50px)) !important }
 .msg.user { align-self: flex-end; background: #e0f2ff; }
 .msg.system { align-self: center; background:#fff3cd; color:#7a5a00; }
 
@@ -187,7 +187,7 @@ body { padding: 40px var(--side-gap) 220px; }
   position: fixed;
   left: 50%;
   bottom: 27px;
-  transform: translateX(-50%) translateX(20px); /* Added translateX(20px) */
+  transform: translateX(-50%);
   width: clamp(280px, 90%, 800px);
   z-index: 3000;
 }
@@ -825,9 +825,9 @@ if (!window._MGPT) window._MGPT = {};
     chat && chat.appendChild(div);
     return div;
   }
-  // 检测当前聊天窗口是否有内容
+  // 检测当前聊天窗口是否有内容== null;
 function chatHasContent() {
-  return chat.querySelector('.msg') !== null;
+  return chat.querySelector('.msg') !
 }
   function appendMessage(role, text, {
     images = [],
@@ -1621,7 +1621,7 @@ const sidebar     = document.getElementById('sidebar');
 const overlay     = document.getElementById('sidebarOverlay');
 
 /* ---------- 工具 ---------- */
-const histKey = id => `chat_history_${id || currentChatId}`;
+/*const histKey = id => `chat_history_${id || currentChatId}`;*/
 
 function paneHasContent () { return !!chat.querySelector('.msg'); }
 
@@ -1679,23 +1679,27 @@ function activateChat (id) {
 
 /* ---------- 事件 ---------- */
 btnNewChat.addEventListener('click', () => {
-  if (!isAuthorized) return;  // 未授权禁止
-  persistCurrentPane();  // 保存当前窗口的聊天记录
-  
-  // 生成新的聊天窗口
-  const id = crypto.randomUUID();
+  if (!isAuthorized) return;
+  persistCurrentPane();
+
+  const id  = crypto.randomUUID();
   const sid = crypto.randomUUID();
 
-  // 新建聊天时，原有内容不会被清理
   if (chatHasContent()) {
+    // 当前有内容，生成新会话并推入目录
     chats.unshift({ id, title: '新聊天', sessionId: sid });
   } else {
-    // 如果当前窗口没有内容，则不保存在左侧目录
-    chats.unshift({ id, title: '新聊天', sessionId: sid });
+    // 当前是空白，会话替换：不用改变 chats 数组，只修改 currentChatId
+    currentChatId = id;
+    sessionId    = sid;
+    // 直接激活即可，不 push 也不 saveChats
+    activateChat(id);
+    return;  // 早返回，避免后续重复激活
   }
 
+  // 只有有内容的情况下才走到这里
   saveChats();
-  activateChat(id);  // 激活新建的聊天窗口
+  activateChat(id);
   searchInput.value = '';
 });
 
