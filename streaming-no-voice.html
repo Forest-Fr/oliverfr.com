@@ -1949,18 +1949,26 @@ if (!currentChatId) btnNewChat.click();          // 首进页面自动起一条
 else               activateChat(currentChatId);
 
 // —— 响应式汉堡 & 遮罩 —— 
+// —— 响应式汉堡 & 遮罩（手机端） —— 
 const hamburger = document.getElementById('hamburger');
 const sidebar   = document.getElementById('sidebar');
 const overlay   = document.getElementById('sidebarOverlay');
 
 hamburger.addEventListener('click', () => {
-  sidebar.classList.toggle('show');
-  overlay.classList.toggle('show');
+  // 打开或关闭侧栏
+  const open = sidebar.classList.toggle('show');
+  overlay.classList.toggle('show', open);
+  // 同步给 body 加 / 移除 slide-right
+  document.body.classList.toggle('slide-right', open);
 });
+
 overlay.addEventListener('click', () => {
+  // 关闭侧栏
   sidebar.classList.remove('show');
   overlay.classList.remove('show');
+  document.body.classList.remove('slide-right');
 });
+
 // —— 搜索模态相关 DOM 引用 —— 
 const searchModal     = document.getElementById('searchModal');
 const modalInput      = document.getElementById('modalSearchInput');
