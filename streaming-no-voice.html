@@ -930,6 +930,28 @@ aside#sidebar {
   box-shadow:0 8px 24px rgba(0,0,0,.22);
 }
 
+/* === PATCH: 侧栏三点菜单固定到视口，避免被滚动容器裁剪 === */
+.pop {
+  position: fixed !important;    /* 脱离 chatList */
+  right: auto;
+  top: 0;
+  left: 0;
+  z-index: 6000;                 /* 比侧栏/遮罩高即可 */
+  transform: none !important;
+  display: none;                 /* 仍用 .show 控制显示 */
+  max-width: 180px;
+}
+
+/* 默认朝下展开 */
+.pop[data-dir="down"] { transform-origin: top left; }
+/* 朝上展开时向上翻转 */
+.pop[data-dir="up"]   { transform-origin: bottom left; }
+
+/* 让 chatList 内元素可以溢出可见（保险） */
+#chatList, .chat-item { overflow: visible; }
+#chatList { padding-bottom: 60px; }
+
+
   
   /* ——— 搜索弹窗 ——— */
 #searchModal {
@@ -2182,14 +2204,43 @@ chatListEl.addEventListener('click', e => {
   const item = e.target.closest('.chat-item');
   if (!item) return;
 
-  // 1) 三点菜单
-  if (e.target.classList.contains('menu')) {
-    const pop = item.querySelector('.pop');
-    document.querySelectorAll('.pop.show')
-      .forEach(p => p !== pop && p.classList.remove('show'));
-    pop.classList.toggle('show');
-    return;
+// 1) 三点菜单
+if (e.target.classList.contains('menu')) {
+  const pop = item.querySelector('.pop');
+
+  // 先关掉其它
+  document.querySelectorAll('.pop.show').forEach(p => p !== pop && p.classList.remove('show'));
+
+  // 切换当前
+  const willShow = !pop.classList.contains('show');
+  pop.classList.toggle('show', willShow);
+  if (!willShow) return;
+
+  // === 重新定位到视口 ===
+  const btnRect = e.target.getBoundingClientRect();
+  const popWidth  = pop.offsetWidth || 140;
+  const popHeight = pop.offsetHeight || 80;
+
+  // 计算左侧：靠按钮右边对齐，如果超出视口就往左收
+  let left = btnRect.right - popWidth;
+  if (left < 8) left = 8;
+
+  // 计算顶端：默认在按钮下，如果超出底部就放到上面
+  let top  = btnRect.bottom + 6;
+  let dir  = 'down';
+  if (top + popHeight > window.innerHeight - 8) {
+    top = btnRect.top - popHeight - 6;
+    dir = 'up';
+    if (top < 8) { top = 8; dir = 'down'; } // 极端情况兜底
   }
+
+  pop.style.left = left + 'px';
+  pop.style.top  = top  + 'px';
+  pop.dataset.dir = dir;
+
+  return;
+}
+
 
   // 2) 重命名
   if (e.target.classList.contains('rename')) {
