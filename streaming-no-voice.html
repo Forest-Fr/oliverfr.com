@@ -825,7 +825,8 @@ const raw = localStorage.getItem(key);
 if (!raw) return;
 const arr = JSON.parse(raw);
  arr.forEach(replayMessage);
-if (arr.length) {
+// 只有用户已授权且有历史，才移除欢迎
+if (arr.length && isAuthorized) {
 document.body.style.overflow = 'auto';
 welcome && welcome.remove();
  }
@@ -1765,8 +1766,9 @@ function activateChat (id) {
   if (chatObj) sessionId = chatObj.sessionId;     // 提供给后端
   renderChats(searchInput.value);
   loadHistoryToPane(id);
-  if (paneHasContent()) welcome?.remove();
-}
+  // 只有用户已授权且面板有内容，才移除欢迎
+ if (paneHasContent() && isAuthorized) welcome?.remove();
+  }
 
 /* 新建聊天（核心） */
 // —— 新建聊天按钮逻辑 —— 
