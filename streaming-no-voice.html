@@ -708,45 +708,38 @@ if (!window._MGPT) window._MGPT = {};
    */
   let USE_SSE       = false;
   const MAX_CTX_USER_QUERIES = 8;
-document.addEventListener('DOMContentLoaded', () => {
-/* ================== DOM 引用 ================== */
-  const chat         = document.getElementById('chat');
-  const txt          = document.getElementById('prompt');
-  const sendBtn      = document.getElementById('send');
-  const plusBtn      = document.getElementById('plus');
-  const fileInput    = document.getElementById('file');
-  const thumbs       = document.getElementById('thumbs');
-  const arrow        = document.getElementById('scrollBottom');
-  const composer     = document.querySelector('.composer');
-  const welcome      = document.getElementById('welcome');
-  const mask         = document.getElementById('mask');
-  const lightbox     = document.getElementById('lightbox');
-  const lightImg     = lightbox?.querySelector('img') || new Image();
-  const clarifyBanner= document.getElementById('clarifyBanner');
-  const authModal    = document.getElementById('authModal');
-  const authInput    = document.getElementById('authInput');
-  const authBtn      = document.getElementById('authBtn');
-  const authErr      = document.getElementById('authErr');
-  const chatListEl   = document.getElementById('chatList');
-  const searchInput  = document.getElementById('chatSearch');
-  const btnNewChat   = document.getElementById('btnNewChat');
-  const hamburger    = document.getElementById('hamburger');
-  const sidebar      = document.getElementById('sidebar');
-  const overlay      = document.getElementById('sidebarOverlay');
 
-  /* ================== 全局状态变量 & 历史 key ================== */
-  // Chats 列表和当前会话 ID
-  const STORAGE_KEY = 'mini_gpt_chats';
-  let chats        = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  let currentChatId= chats[0]?.id || null;
+  /* ================== DOM 引用 ================== */
+  const chat       = document.getElementById('chat');
+  const txt        = document.getElementById('prompt');
+  const sendBtn    = document.getElementById('send');
+  const plusBtn    = document.getElementById('plus');
+  const fileInput  = document.getElementById('file');
+  const thumbs     = document.getElementById('thumbs');
+  const arrow      = document.getElementById('scrollBottom');
+  const composer   = document.querySelector('.composer');
+  const welcome    = document.getElementById('welcome');
+  const mask       = document.getElementById('mask');
+  const lightbox   = document.getElementById('lightbox');
+  const lightImg   = lightbox?.querySelector('img') || new Image();
+  const clarifyBanner = document.getElementById('clarifyBanner');
+  const authModal  = document.getElementById('authModal');
+  const authInput  = document.getElementById('authInput');
+  const authBtn    = document.getElementById('authBtn');
+  const authErr    = document.getElementById('authErr');
 
-  // sessionId：若已有会话，则复用，否则新建
-  let sessionId    = localStorage.getItem('session_id') 
-                    || crypto.randomUUID();
-  localStorage.setItem('session_id', sessionId);
-
-  // 存／取聊天历史的 key 工具
+  /* ================== 会话/状态 ================== */
+  let sessionId = localStorage.getItem('session_id');
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem('session_id', sessionId);
+  }
+  /*-const HISTORY_KEY = `chat_history_${sessionId}`;-*/
+  // ↓ 不再固定，而是一个函数
+  const HISTORY_KEY_STATIC = `chat_history_${sessionId}`;   // 仅供首次无会话时使用
+  // 简写：任何时候要用当前桶都走这个函数
   const histKey = id => `chat_history_${id ?? currentChatId}`;
+  /*-const _histKey = id => `chat_history_${id || currentChatId}`;-*/
 
   let uploads          = [];
   let isAuthorized     = false;
@@ -832,12 +825,6 @@ document.addEventListener('DOMContentLoaded', () => {
     chat && chat.appendChild(div);
     return div;
   }
-  // 检测当前聊天窗口是否有内容== null;
-// 检测当前聊天窗口是否有内容
-function chatHasContent() {
-  return chat.querySelector('.msg') !== null;
-}
-
   function appendMessage(role, text, {
     images = [],
     streaming = false,
@@ -994,32 +981,7 @@ function unlockUI () {
   }
   
 
- /* ================== 新建聊天／切换／渲染目录 ================== */
-  function saveChats(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-  }
-  function renderChats(filter = ''){
-    chatListEl.innerHTML = '';
-    chats.filter(c => c.title.includes(filter)).forEach(c => {
-      chatListEl.insertAdjacentHTML('beforeend', `
-        <div class="chat-item${c.id===currentChatId?' active':''}" data-id="${c.id}">
-          <span class="title">${c.title}</span>
-          <button class="menu dots">⋮</button>
-          <div class="pop">
-            <button class="rename">重命名</button>
-            <button class="del del-btn">删除</button>
-          </div>
-        </div>`);
-    });
-  }
-  function activateChat(id){
-    // 持久化当前 Pane、切换 ID、渲染目录和历史到右侧
-    persistCurrentPane();
-    currentChatId = id;
-    sessionId     = chats.find(c=>c.id===id)?.sessionId || sessionId;
-    renderChats(searchInput.value);
-    loadHistoryToPane(id);
-  }
+
 
 
 
@@ -1655,7 +1617,7 @@ const sidebar     = document.getElementById('sidebar');
 const overlay     = document.getElementById('sidebarOverlay');
 
 /* ---------- 工具 ---------- */
-
+const histKey = id => `chat_history_${id || currentChatId}`;
 
 function paneHasContent () { return !!chat.querySelector('.msg'); }
 
@@ -1663,36 +1625,47 @@ function saveChats () {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
 }
 
-function persistCurrentPane() {
+function persistCurrentPane () {
   if (!currentChatId || !paneHasContent()) return;
-
   const holder = [];
-  chat.querySelectorAll('.msg').forEach(n => {
+  chat.querySelectorAll('.msg').forEach(n=> {
     holder.push({
       role: n.classList.contains('user') ? 'user' : 'bot',
       content: n.innerText,
       ts: Date.now()
     });
   });
-
-  // 保存当前聊天的内容到 localStorage
   localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
 
-  // 更新聊天标题，默认是从用户的输入中获取
   const chatObj = chats.find(c => c.id === currentChatId);
   if (chatObj && chatObj.title === '新聊天') {
-    const firstUserMessage = holder.find(m => m.role === 'user');
-    chatObj.title = firstUserMessage ? stripMarkdown(firstUserMessage.content).slice(0, 20) || '未命名会话' : '未命名会话';
-    saveChats();  // 更新左侧目录
-    renderChats(searchInput.value);  // 更新左侧目录显示
+    const firstUser = holder.find(m => m.role === 'user');
+    chatObj.title = firstUser
+      ? stripMarkdown(firstUser.content).slice(0, 20) || '未命名会话'
+      : '未命名会话';
+    saveChats();
+    renderChats(searchInput.value);
   }
 }
 
-function renderChats(filter = '') {
+function loadHistoryToPane (id) {
+  chat.innerHTML = '';
+  const raw = localStorage.getItem(histKey(id));
+  if (raw) {
+    try {
+      JSON.parse(raw).forEach(m =>
+        appendMessage(m.role, m.content, { noSave: true, meta: m.meta })
+      );
+    } catch {}
+  }
+  scrollToBottom(true);
+}
+
+function renderChats (filter = '') {
   chatListEl.innerHTML = '';
   chats.filter(c => c.title.includes(filter)).forEach(c => {
     chatListEl.insertAdjacentHTML('beforeend', `
-      <div class="chat-item${c.id === currentChatId ? ' active' : ''}" data-id="${c.id}">
+      <div class="chat-item${c.id===currentChatId?' active':''}" data-id="${c.id}">
         <span class="title">${c.title}</span>
         <button class="menu dots">⋮</button>
         <div class="pop">
@@ -1713,86 +1686,54 @@ function activateChat (id) {
 
 /* ---------- 事件 ---------- */
 btnNewChat.addEventListener('click', () => {
-  if (!isAuthorized) return;
+  if (!isAuthorized) return;                     // 未授权禁止
   persistCurrentPane();
-
   const id  = crypto.randomUUID();
   const sid = crypto.randomUUID();
-
-  if (chatHasContent()) {
-    // 当前对话有消息，推入目录
-    chats.unshift({ id, title: '新聊天', sessionId: sid });
-  } else {
-    // 当前为空白，仅替换会话 ID，不入目录
-    currentChatId = id;
-    sessionId     = sid;
-    renderChats();    // 更新目录高亮
-    loadHistoryToPane(id);
-    return;           // 早返回，跳过 push/saveChats
-  }
-
+  chats.unshift({ id, title: '新聊天', sessionId: sid });
   saveChats();
   activateChat(id);
   searchInput.value = '';
 });
-
-
 
 chatListEl.addEventListener('click', e => {
   if (!isAuthorized) return;
   const item = e.target.closest('.chat-item');
   if (!item) return;
 
-  // —— 三点菜单 弹出/收起
+  /* 三点菜单 */
   if (e.target.classList.contains('menu')) {
-    const pop = item.querySelector('.pop');
-    pop.classList.toggle('show');
-    // 收起其他打开的 pop
+    item.querySelector('.pop').classList.toggle('show');
     document.querySelectorAll('.pop.show').forEach(p => {
-      if (p !== pop) p.classList.remove('show');
+      if (p!==item.querySelector('.pop')) p.classList.remove('show');
     });
     return;
   }
 
-  // —— 重命名
+  /* 菜单项 */
   if (e.target.classList.contains('rename')) {
     const id = item.dataset.id;
-    const oldName = chats.find(c => c.id === id).title;
-    const name = prompt('重命名聊天', oldName);
+    const name = prompt('重命名聊天', chats.find(c=>c.id===id).title);
     if (name !== null) {
-      chats = chats.map(c =>
-        c.id === id
-          ? { ...c, title: name.trim() || '未命名会话' }
-          : c
-      );
-      saveChats();
-      renderChats(searchInput.value);
+      chats = chats.map(c => c.id===id ? {...c, title:name.trim()||'未命名'} : c);
+      saveChats(); renderChats(searchInput.value);
     }
     return;
   }
-
-  // —— 删除
   if (e.target.classList.contains('del-btn')) {
     const id = item.dataset.id;
     if (confirm('确认删除？')) {
       chats = chats.filter(c => c.id !== id);
       localStorage.removeItem(histKey(id));
-      saveChats();
-      renderChats(searchInput.value);
-      // 如果删的是当前会话，就切换到第一条或新建
-      if (id === currentChatId) {
-        chats[0]
-          ? activateChat(chats[0].id)
-          : btnNewChat.click();
-      }
+      saveChats(); renderChats(searchInput.value);
+      if (id === currentChatId) chats[0] ? activateChat(chats[0].id) : btnNewChat.click();
     }
     return;
   }
 
-  // —— 普通点击：切换到选中的会话
+  /* 普通点击切换会话 */
   activateChat(item.dataset.id);
 });
-
 
 /* 点击空白关闭 pop */
 document.addEventListener('click', e=>{
