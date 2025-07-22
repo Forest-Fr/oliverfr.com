@@ -758,6 +758,23 @@ if (!window._MGPT) window._MGPT = {};
     sessionId = crypto.randomUUID();
     localStorage.setItem('session_id', sessionId);
   }
+  // ——— [PATCH‑MIGRATE] 旧单桶历史迁移 —————————————
+  (function migrateOldHistory() {
+    const OLD_KEY = 'chat_history';
+    const NEW_KEY = `chat_history_${sessionId}`;
+    try {
+       const raw = localStorage.getItem(OLD_KEY);
+      if (raw) {
+        localStorage.setItem(NEW_KEY, raw);
+        localStorage.removeItem(OLD_KEY);
+         console.log('[HISTORY] migrated old history to', NEW_KEY);
+ }
+      } catch (e) {
+
+      console.warn('[HISTORY‑MIGRATE] failed:', e);
+       }
+    })();
+        
   /*-const HISTORY_KEY = `chat_history_${sessionId}`;-*/
   // ↓ 不再固定，而是一个函数
   const HISTORY_KEY_STATIC = `chat_history_${sessionId}`;   // 仅供首次无会话时使用
