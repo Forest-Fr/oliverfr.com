@@ -61,7 +61,7 @@ body { padding: 40px var(--side-gap) 220px; }
   word-break: break-word;
   white-space: pre-wrap;
 }
-.msg.bot { align-self: flex-start; margin-left: calc(-1 * var(--side-gap + 25px)) !important }
+.msg.bot { align-self: flex-start; margin-left: calc(-1 * var(--side-gap)) !important }
 .msg.user { align-self: flex-end; background: #e0f2ff; }
 .msg.system { align-self: center; background:#fff3cd; color:#7a5a00; }
 
@@ -1700,17 +1700,7 @@ function activateChat (id) {
 }
 
 /* === 新建聊天 === */
-btnNewChat.addEventListener('click', () => {
-  persistCurrentPane();                         // 保存当前
-  const id  = crypto.randomUUID();
-  const sid = crypto.randomUUID();
-  chats.unshift({ id, title: '新聊天', sessionId: sid });
-  saveChats();
-  activateChat(id);                             // 切到新面板
-  searchInput.value = '';
-});
 
-/*}*/
 
 /* === 进入某条聊天 === */
 function activateChat (id) {
@@ -1725,23 +1715,27 @@ function activateChat (id) {
 
 /* 新建聊天（核心） */
 // —— 新建聊天按钮逻辑 —— 
+// —— 新建聊天 —— 
 btnNewChat.addEventListener('click', () => {
-  // 如果当前面板有内容，就先持久化并推入目录
+  // 1) 先保存旧会话（如果有消息，就写入 localStorage 并自动命名 & 存目录）
+  persistCurrentPane();
+
+  // 2) 判断：旧面板是否有内容
   if (paneHasContent()) {
-    persistCurrentPane();
+    // 确实有消息，新增一条“新聊天”到目录
     const id  = crypto.randomUUID();
     const sid = crypto.randomUUID();
     chats.unshift({ id, title: '新聊天', sessionId: sid });
     saveChats();
     activateChat(id);
   } else {
-    // 如果面板是空的，直接替换当前会话，不新增目录项
+    // 空白面板 —— 直接在当前 ID 上就地“替换”session，不改目录
     const id  = crypto.randomUUID();
     const sid = crypto.randomUUID();
     currentChatId = id;
     sessionId     = sid;
-    renderChats(searchInput.value);  // 更新左侧高亮
-    chat.innerHTML = '';             // 清空右侧面板
+    renderChats(searchInput.value);  // 仅更新左侧高亮
+    chat.innerHTML = '';             // 清空右侧
     firstMessage = true;
     welcome && welcome.remove();
     autoResize();
@@ -1751,29 +1745,31 @@ btnNewChat.addEventListener('click', () => {
 });
 
 
-// —— 侧边栏点击逻辑 —— 
+// —— 侧边栏点击 —— 
 chatListEl.addEventListener('click', e => {
   if (!isAuthorized) return;
   const item = e.target.closest('.chat-item');
   if (!item) return;
 
-  // 三点菜单
+  // 1) 三点菜单
   if (e.target.classList.contains('menu')) {
     const pop = item.querySelector('.pop');
-    document.querySelectorAll('.pop.show').forEach(p => p !== pop && p.classList.remove('show'));
+    document.querySelectorAll('.pop.show')
+      .forEach(p => p !== pop && p.classList.remove('show'));
     pop.classList.toggle('show');
     return;
   }
 
-  // 重命名
+  // 2) 重命名
   if (e.target.classList.contains('rename')) {
     const id = item.dataset.id;
-    const oldName = chats.find(c => c.id === id).title;
-    const name = prompt('重命名聊天', oldName);
-    if (name !== null) {
-      chats = chats.map(c => c.id === id
-        ? { ...c, title: name.trim() || '未命名会话' }
-        : c
+    const oldTitle = chats.find(c => c.id === id).title;
+    const newTitle = prompt('重命名聊天', oldTitle);
+    if (newTitle !== null) {
+      chats = chats.map(c =>
+        c.id === id
+          ? { ...c, title: newTitle.trim() || '未命名会话' }
+          : c
       );
       saveChats();
       renderChats(searchInput.value);
@@ -1781,7 +1777,7 @@ chatListEl.addEventListener('click', e => {
     return;
   }
 
-  // 删除
+  // 3) 删除
   if (e.target.classList.contains('del-btn')) {
     const id = item.dataset.id;
     if (confirm('确认删除？')) {
@@ -1789,6 +1785,7 @@ chatListEl.addEventListener('click', e => {
       localStorage.removeItem(histKey(id));
       saveChats();
       renderChats(searchInput.value);
+      // 如果删的是当前会话，自动切到第一条或新建
       if (id === currentChatId) {
         chats[0] ? activateChat(chats[0].id) : btnNewChat.click();
       }
@@ -1796,10 +1793,9 @@ chatListEl.addEventListener('click', e => {
     return;
   }
 
-  // 普通点击：切换会话
+  // 4) 普通点击：切换会话
   activateChat(item.dataset.id);
 });
-
 
 
 /* =========== 把 trySend / saveMessage 改成用当前 chatId =========== */
