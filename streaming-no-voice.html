@@ -765,7 +765,66 @@ aside#sidebar {
 }
 
 
-  
+ /* ====== FINAL PATCH: 彻底移除抽屉开启时的左侧空白 ====== */
+@media (max-width: 767px) {
+  :root { --drawer-w: 240px; }
+
+  /* 1) 抽屉没开时仍保留你的 side-gap；只在 slide-right 时清零 */
+  body.slide-right {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    /* 如果你要保持 transform 推动主屏，这里保留 */
+    transform: translateX(var(--drawer-w));
+    transition: transform .25s ease;
+    overflow-x: hidden;
+  }
+
+  /* 2) 主聊天容器的 left padding 也一起清零 */
+  body.slide-right #chat,
+  body.slide-right main#chat {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  /* 3) 任何依赖 --side-gap 的块全部打回 0（防御式覆盖）*/
+  body.slide-right [style*="var(--side-gap)"],
+  body.slide-right .use-side-gap {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  /* 4) 机器人气泡在抽屉开时不要再负移出去 */
+  body.slide-right .msg.bot {
+    margin-left: 0 !important;
+    transform: none !important;
+  }
+
+  /* 5) 固定元素整体平移（上一轮已做，这里只是补确保优先级） */
+  body.slide-right .composer,
+  body.slide-right .footnote,
+  body.slide-right #welcome,
+  body.slide-right #scrollBottom,
+  body.slide-right #mask {
+    /* 你的原版是用 translateX(-50%) 居中，所以用叠加计算 */
+    transform: translateX(calc(var(--drawer-w))) translateX(-50%) !important;
+    transition: transform .25s ease;
+  }
+  /* 非居中元素（只靠 left/right 定位）单独写 */
+  body.slide-right .footnote,
+  body.slide-right #scrollBottom {
+    transform: translateX(var(--drawer-w)) !important;
+  }
+
+  /* 6) 侧栏自身逻辑保持不变（确保它盖住最左边） */
+  aside#sidebar { transform: translateX(-100%); transition: transform .25s ease; }
+  aside#sidebar.show { transform: translateX(0); }
+
+  /* 7) 防止横向滚动条 */
+  html, body { overflow-x: hidden; }
+}
+ 
 /* === 锁定状态下禁止侧栏交互 === */
 #sidebar.locked,
 #sidebar.locked * {
