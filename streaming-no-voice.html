@@ -517,38 +517,29 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
   display: none;
 }
 /* —— 手机端汉堡可见 —— */
+/* === mobile slide‑out effect（简化版） === */
 @media (max-width: 767px) {
-  #hamburger {
-    display: block;
-  }
-}
+  /* 汉堡一定要可见 */
+  #hamburger { display: block; }
 
-/* —— 默认侧栏隐藏 —— */
-@media (max-width: 767px) {
+  /* 默认把侧栏收起来 */
   aside#sidebar {
-    position: fixed;
-    top: 0; left: 0;
-    width: 240px; height: 100%;
-    transform: translateX(-100%);      /* 默认收起 */
+    transform: translateX(-100%);
     transition: transform .25s ease;
-    z-index: 1001;
   }
   #sidebarOverlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.4);
-    opacity: 0; visibility: hidden;
+    opacity: 0;
+    visibility: hidden;
     transition: opacity .25s ease;
-    z-index: 1000;
   }
-}
 
-/* —— 滑出侧栏 & 推动主面板 —— */
-@media (max-width: 767px) {
+  /* 打开侧栏时给 <body> 加一个类，整页右移 */
   body.slide-right {
-    overflow: hidden; /* 阻止背景滚动 */
+    transform: translateX(240px);
+    transition: transform .25s ease;
+    overflow: hidden; /* 禁止背景滚动 */
   }
-
-  /* 展开侧栏和遮罩 */
+  /* 侧栏和遮罩依然靠自己的 .show 类来显示 */
   body.slide-right aside#sidebar {
     transform: translateX(0);
   }
@@ -556,32 +547,8 @@ pre.qa-report code { background: none; padding: 0; color: inherit; white-space: 
     opacity: 1;
     visibility: visible;
   }
-
-  /* 整体右移 240px 的元素列表 */
-  body.slide-right #welcome,
-  body.slide-right #chat,
-  body.slide-right #mask,
-  body.slide-right #scrollBottom,
-  body.slide-right .composer,
-  body.slide-right .footnote,
-  body.slide-right #lightbox,
-  body.slide-right #authModal,
-  body.slide-right #hamburger,
-  body.slide-right #searchModal {
-    transform: translateX(240px);
-    transition: transform .25s ease;
-  }
-
-  /* .composer 和 .footnote 原来是 translateX(-50%)，需要叠加 240px */
-  body.slide-right .composer {
-    left: calc(50% + 240px);
-    transform: translateX(-50%);
-  }
-  body.slide-right .footnote {
-    left: calc(50% + 240px);
-    transform: translateX(-50%);
-  }
 }
+
 
 
 
