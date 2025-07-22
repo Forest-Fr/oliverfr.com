@@ -637,6 +637,21 @@ aside#sidebar {
 //
 
 
+  @media (max-width: 767px) {
+  body.slide-right {                       
+    transform: translateX(240px);
+    transition: transform .25s ease;
+    overflow: hidden;
+  }
+  aside#sidebar { transition: transform .25s ease; }
+
+  /* —— 新增：当 body.slide-right 时，也把 fixed 的 composer 推过去 —— */
+  body.slide-right .composer {
+    /* 原本 .composer 是 translateX(-50%) 居中，
+       这里在它的计算里 +240px，才能和聊天区保持一致 */
+    transform: translateX(calc(-50% + 240px));
+  }
+}
 
 
   
@@ -695,6 +710,59 @@ aside#sidebar {
 #welcome { transition: transform .25s ease; }
 #mask { transition: transform .25s ease; }
 .composer { transition: transform .25s ease; }
+
+
+  /* ====== PATCH: 移除手机端抽屉展开时的左侧空白 ====== */
+@media (max-width: 767px) {
+
+  :root { --drawer-w: 240px; }
+
+  /* 主体右移仍保留，但左 padding 必须清零 */
+  body.slide-right {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  /* 聊天主面板及容器同步去掉左 padding/margin */
+  body.slide-right #chat,
+  body.slide-right main#chat,
+  body.slide-right .chat-wrapper,
+  body.slide-right #mask {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  /* 任何使用 var(--side-gap) 的块在抽屉打开时清零（防止再挤出空白） */
+  body.slide-right [style*="var(--side-gap)"] {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  /* 机器人气泡那条 calc(-1 * var(--side-gap)) 也会把内容再往左拉，抽屉开时归零 */
+  body.slide-right .msg.bot {
+    margin-left: 0 !important;
+    transform: none !important;
+  }
+
+  /* 如果你还有别的固定元素没有推过去，这里统一再右移一次（上轮已加，这里补充选择器） */
+  body.slide-right .composer,
+  body.slide-right .footnote,
+  body.slide-right #welcome,
+  body.slide-right #scrollBottom {
+    transform: translateX(calc(var(--drawer-w))) translateX(-50%) !important;
+    /* 对不采用 -50% 居中定位的元素单独写： */
+  }
+  /* 这两个不是居中，直接平移 */
+  body.slide-right .footnote,
+  body.slide-right #scrollBottom {
+    transform: translateX(var(--drawer-w)) !important;
+  }
+
+  /* 防止横向滚动条出现 */
+  html, body {
+    overflow-x: hidden;
+  }
+}
 
 
   
