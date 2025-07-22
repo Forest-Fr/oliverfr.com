@@ -767,44 +767,7 @@ if (!window._MGPT) window._MGPT = {};
   const authBtn    = document.getElementById('authBtn');
   const authErr    = document.getElementById('authErr');
 
-  const searchModal     = document.getElementById('searchModal');
-const modalSearch     = document.getElementById('modalSearch');
-const modalClose      = document.getElementById('modalClose');
-const modalChatList   = document.getElementById('modalChatList');
-// 触发搜索弹窗
-const searchTrigger   = document.createElement('button');
-searchTrigger.textContent = '🔍';
-searchTrigger.className = 'icon-btn plus';
-searchTrigger.onclick = ()=> {
-  searchModal.classList.remove('hidden');
-  document.body.classList.add('no-scroll');
-  renderModalChats(''); // 初始化列表
-  modalSearch.value = '';
-  modalSearch.focus();
-};
-// 把这个按钮插到侧栏“新建聊天”下面
-btnNewChat.after(searchTrigger);
 
-// 关闭
-modalClose.onclick = ()=> {
-  searchModal.classList.add('hidden');
-  document.body.classList.remove('no-scroll');
-};
-
-// 列表渲染
-function renderModalChats(filter) {
-  modalChatList.innerHTML = '';
-  chats
-    .filter(c => c.title.includes(filter))
-    .forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'chat-item';
-      div.textContent = c.title;
-      div.onclick = ()=> { activateChat(c.id); modalClose.onclick(); };
-      modalChatList.appendChild(div);
-    });
-}
-modalSearch.addEventListener('input', e => renderModalChats(e.target.value));
 
   /* ================== 会话/状态 ================== */
   let sessionId = localStorage.getItem('session_id');
@@ -1689,6 +1652,47 @@ function saveChats() {
 /* ---------- 渲染 / 切换 ---------- */
 const chatListEl  = document.getElementById('chatList');
 const searchInput = document.getElementById('chatSearch');
+
+  // —— 新增：OpenAI 风格的搜索弹窗——
+const searchModal   = document.getElementById('searchModal');
+const modalSearch   = document.getElementById('modalSearch');
+const modalClose    = document.getElementById('modalClose');
+const modalChatList = document.getElementById('modalChatList');
+
+// 触发搜索弹窗按钮
+const searchTrigger = document.createElement('button');
+searchTrigger.textContent = '🔍';
+searchTrigger.className = 'icon-btn plus';
+searchTrigger.onclick = () => {
+  searchModal.classList.remove('hidden');
+  document.body.classList.add('no-scroll');
+  renderModalChats('');   // 初始化列表
+  modalSearch.value = '';
+  modalSearch.focus();
+};
+btnNewChat.after(searchTrigger);
+
+// 关闭弹窗
+modalClose.onclick = () => {
+  searchModal.classList.add('hidden');
+  document.body.classList.remove('no-scroll');
+};
+
+// 弹窗内聊天列表渲染
+function renderModalChats(filter) {
+  modalChatList.innerHTML = '';
+  chats
+    .filter(c => c.title.includes(filter))
+    .forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'chat-item';
+      div.textContent = c.title;
+      div.onclick = () => { activateChat(c.id); modalClose.onclick(); };
+      modalChatList.appendChild(div);
+    });
+}
+modalSearch.addEventListener('input', e => renderModalChats(e.target.value));
+
 const btnNewChat  = document.getElementById('btnNewChat');
 
 function renderChats(filter = '') {
