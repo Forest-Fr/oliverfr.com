@@ -651,6 +651,61 @@ aside#sidebar {
   }
 }
 
+  /* ====== Mobile drawer patch pack ====== */
+@media (max-width: 767px) {
+  :root { --drawer-w: 240px; }
+
+  /* 1) 主体整体右移（你已有，但整合成一处） */
+  body.slide-right {
+    transform: translateX(var(--drawer-w));
+    transition: transform .25s ease;
+    overflow: hidden;
+  }
+  aside#sidebar { transition: transform .25s ease; }
+
+  /* 2) 所有 fixed 元素跟着右移（和 ChatGPT 一样整体推走） */
+  body.slide-right .composer,
+  body.slide-right .footnote,
+  body.slide-right #welcome,
+  body.slide-right #scrollBottom,
+  body.slide-right #mask,
+  body.slide-right #authModal .box,
+  body.slide-right #lightbox img /* 仅当你希望灯箱也跟着推；不需要可删 */
+  {
+    transform: translateX(calc(var(--drawer-w))) translateX(-50%) !important;
+  }
+  /* 注意：上面元素里有原本就用 translateX(-50%) 居中的，故加一个累加 translateX */
+
+  /* 对不需要居中、只有 left:50% 的可单独覆盖（如果某元素不用 -50% 居中的话）：*/
+  body.slide-right .footnote,
+  body.slide-right #scrollBottom {
+    transform: translateX(calc(var(--drawer-w)));
+  }
+
+  /* 3) 消除左侧“白条”——当侧栏显示时，把 body 的 padding-left 设为 0 */
+  body.slide-right {
+    padding-left: 0 !important;
+  }
+  /* chat 内 padding-left 同样处理，避免内容被挤 */
+  body.slide-right #chat {
+    padding-left: var(--side-gap);
+  }
+
+  /* 4) 侧栏默认隐藏，显示时用 .show 控制（你已有，这里只是确保优先级够） */
+  aside#sidebar { transform: translateX(-100%); }
+  aside#sidebar.show { transform: translateX(0); }
+
+  /* 5) Overlay 保持不变即可，但注意 z-index 关系 */
+  #sidebarOverlay { z-index: 1000; }
+}
+
+/* 让 footnote 不被遮挡，同时在桌面端保持原样 */
+.footnote { transition: transform .25s ease; }
+#scrollBottom { transition: transform .25s ease; }
+#welcome { transition: transform .25s ease; }
+#mask { transition: transform .25s ease; }
+.composer { transition: transform .25s ease; }
+
 
   
 /* === 锁定状态下禁止侧栏交互 === */
