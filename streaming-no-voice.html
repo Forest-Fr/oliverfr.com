@@ -1639,7 +1639,7 @@ renderChats(searchInput.value);
   refreshSendState();
   toggleArrow();
   initAuth();
-  loadHistory();
+ 
 
 // —— Sidebar 数据 & 渲染逻辑 —— 
 const STORAGE_KEY = 'mini_gpt_chats';               // [{id,title,sessionId}]
@@ -1653,8 +1653,8 @@ let chats          = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 let currentChatId  = chats[0]?.id            || null;       // 当前激活
  sessionId          = chats[0]?.sessionId     // ← 这里 **不再用 let**，而是复用上面同名变量
        || crypto.randomUUID();      // （开头已声明过）
-  /* 根据 chatId 拼出对应历史 key （每条聊天一个桶） */
-
+// —— 目录和 currentChatId 都准备好了，真正加载历史 —— 
+loadHistory();
   
 /* 保存左栏目录 */
 function saveChats() {
