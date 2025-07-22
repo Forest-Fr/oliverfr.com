@@ -1688,12 +1688,18 @@ function persistCurrentPane () {
 
   const holder = [];
   chat.querySelectorAll('.msg').forEach(node => {
+    // 1) 克隆一份 DOM，用来剥离按钮
+    const clone = node.cloneNode(true);
+    clone.querySelectorAll('.copy-btn, .actions').forEach(el => el.remove());
+    // 2) 读取纯文本，不含按钮符号
+    const text = clone.innerText.trim();
+
     const role = node.classList.contains('user') ? 'user' : 'bot';
-    holder.push({ role, content: node.innerText, ts: Date.now() });
+    holder.push({ role, content: text, ts: Date.now() });
   });
   localStorage.setItem(histKey(currentChatId), JSON.stringify(holder));
 
-  // 如标题仍为“新聊天”，用首条 user 消息自动命名
+  // —— 原来的自动命名逻辑保持不变 —— 
   const chatObj = chats.find(c => c.id === currentChatId);
   if (chatObj && chatObj.title === '新聊天') {
     const firstUser = holder.find(m => m.role === 'user');
@@ -1704,6 +1710,7 @@ function persistCurrentPane () {
     renderChats(searchInput.value);
   }
 }
+
 
 /* === 把聊天区消息渲染出来 === */
 function loadHistoryToPane (id) {
