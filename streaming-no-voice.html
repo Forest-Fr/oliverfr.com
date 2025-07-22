@@ -876,6 +876,56 @@ aside#sidebar {
   html, body { overflow-x: hidden; }
 }
 
+/* === PATCH: mobile sidebar header controls size === */
+@media (max-width: 767px) {
+
+  /* 新建聊天按钮：高度、字号、内边距统一 */
+  #sidebar .btn {
+    width: 100%;
+    height: 42px;
+    line-height: 42px;
+    font-size: 15px;
+    border-radius: 10px;
+    background: #343541;
+    color: #fff;
+    border: 1px solid #4a4b4f;
+  }
+
+  /* 搜索框高度与按钮一致 */
+  #sidebar .search-box input#chatSearch {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    font-size: 15px;
+    border-radius: 10px;
+    border: 1px solid #4a4b4f;
+    background: #2b2c2f;
+    color: #fff;
+  }
+  #sidebar .search-box { margin-top: 10px; }
+
+  /* 汉堡按钮大一些，点击区域更易点 */
+  #hamburger {
+    padding: 8px 10px;
+    font-size: 26px;        /* 原始是文字 ☰ ，调大即可 */
+    line-height: 1;
+    border-radius: 8px;
+  }
+}
+
+/* 桌面端也略微统一按钮视觉（可选）*/
+#sidebar .btn { cursor:pointer; }
+
+/* pop 菜单小优化：触摸更舒适 */
+.pop button{
+  padding:10px 16px;
+  font-size:15px;
+}
+
+/* pop 外观阴影稍强一点 */
+.pop{
+  box-shadow:0 8px 24px rgba(0,0,0,.22);
+}
 
   
   /* ——— 搜索弹窗 ——— */
@@ -2284,6 +2334,13 @@ modalInput.addEventListener('input', e => {
 modalCloseBtn.addEventListener('click', closeSearchModal);
 searchModal.addEventListener('click', e => {
   if (e.target === searchModal) closeSearchModal();
+});
+/* ===== PATCH: 点击空白关闭三点菜单 pop ===== */
+document.addEventListener('click', (e) => {
+  // 如果点击在 .menu.dots 或 .pop 内，直接返回
+  if (e.target.closest('.menu.dots') || e.target.closest('.pop')) return;
+  // 其它情况关闭所有
+  document.querySelectorAll('.pop.show').forEach(p => p.classList.remove('show'));
 });
 
 // 首次渲染
