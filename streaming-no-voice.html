@@ -832,6 +832,52 @@ aside#sidebar {
   opacity: .35;
 }
 
+/* ===== Drawer 最终补丁：不再平移 body，自然消除白条 ===== */
+@media (max-width: 767px) {
+  :root { --drawer-w: 240px; }
+
+  /* 1. 侧栏逻辑保持原状 */
+  aside#sidebar      { transform: translateX(-100%); transition: transform .25s ease; }
+  aside#sidebar.show { transform: translateX(0); }
+
+  /* 2. 不移动 body，本轮彻底移除 body 的 transform */
+  body.slide-right {
+    transform: none !important;
+    overflow: hidden;               /* 锁滚动 */
+    padding-left: 0 !important;     /* 清掉 190px padding-left 根源 */
+    margin-left: 0 !important;
+  }
+
+  /* 3. 主界面所有需要右移的元素单独推过去 */
+  body.slide-right #chat,
+  body.slide-right main#chat,
+  body.slide-right .composer,
+  body.slide-right .footnote,
+  body.slide-right #welcome,
+  body.slide-right #scrollBottom,
+  body.slide-right #mask,
+  body.slide-right #authModal .box {
+    transition: transform .25s ease;
+    transform: translateX(var(--drawer-w)) !important;
+  }
+
+  /* 4. 机器人气泡用过负 margin，把它在抽屉打开时归零 */
+  body.slide-right .msg.bot {
+    margin-left: 0 !important;
+    transform: none !important;
+  }
+
+  /* 5. chat 内部 padding-left 190 也要清零，否则还会挤空白 */
+  body.slide-right #chat {
+    padding-left: 0 !important;
+  }
+
+  /* 防止横向滚动条 */
+  html, body { overflow-x: hidden; }
+}
+
+
+  
   /* ——— 搜索弹窗 ——— */
 #searchModal {
   position: fixed;
