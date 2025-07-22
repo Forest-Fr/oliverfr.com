@@ -712,7 +712,7 @@ body.no-scroll { overflow: hidden !important; }
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-<script defer>
+<script>
 /* ================== 版本标识 ================== */
 if (window._MGPT && window._MGPT.__VERSION__) {
   console.warn('[INIT] 已存在 _MGPT 版本', window._MGPT.__VERSION__, '终止再次初始化。');
@@ -1656,45 +1656,6 @@ function saveChats() {
 const chatListEl  = document.getElementById('chatList');
 const searchInput = document.getElementById('chatSearch');
 
-  // —— 新增：OpenAI 风格的搜索弹窗——
-const searchModal   = document.getElementById('searchModal');
-const modalSearch   = document.getElementById('modalSearch');
-const modalClose    = document.getElementById('modalClose');
-const modalChatList = document.getElementById('modalChatList');
-
-// 触发搜索弹窗按钮
-const searchTrigger = document.createElement('button');
-searchTrigger.textContent = '🔍';
-searchTrigger.className = 'icon-btn plus';
-searchTrigger.onclick = () => {
-  searchModal.classList.remove('hidden');
-  document.body.classList.add('no-scroll');
-  renderModalChats('');   // 初始化列表
-  modalSearch.value = '';
-  modalSearch.focus();
-};
-btnNewChat.after(searchTrigger);
-
-// 关闭弹窗
-modalClose.onclick = () => {
-  searchModal.classList.add('hidden');
-  document.body.classList.remove('no-scroll');
-};
-
-// 弹窗内聊天列表渲染
-function renderModalChats(filter) {
-  modalChatList.innerHTML = '';
-  chats
-    .filter(c => c.title.includes(filter))
-    .forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'chat-item';
-      div.textContent = c.title;
-      div.onclick = () => { activateChat(c.id); modalClose.onclick(); };
-      modalChatList.appendChild(div);
-    });
-}
-modalSearch.addEventListener('input', e => renderModalChats(e.target.value));
 
 const btnNewChat  = document.getElementById('btnNewChat');
 
