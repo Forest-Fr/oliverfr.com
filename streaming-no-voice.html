@@ -607,21 +607,14 @@ aside#sidebar {
 .pop .del-btn{color:#d92d20}
 /* === END 三点菜单样式 === */
 
-/* === mobile slide‑out effect === */
-@media (max-width: 767px) {
-  body.slide-right {                       /* 主面板随侧栏平移 */
-    transform: translateX(240px);          /* 侧栏宽度 */
-    transition: transform .25s ease;
-    overflow: hidden;                      /* 禁止背景滚动 */
-  }
-  aside#sidebar { transition: transform .25s ease; }
-}
+@media (max-width:800px){
+  .sidebar        { translate:-260px 0; }  /* 默认隐藏 */
+  .sidebar.show   { translate:0 0; }
 
-/* === 锁定状态下禁止侧栏交互 === */
-#sidebar.locked,
-#sidebar.locked * {
-  pointer-events: none;
-  opacity: .35;
+  body.side-open > :not(.sidebar):not(.burger) {
+    transform: translateX(260px);
+    transition: transform .25s ease;
+  }
 }
   
 body.no-scroll { overflow: hidden !important; }
@@ -1734,18 +1727,7 @@ function loadHistoryToPane (id) {
   scrollToBottom(true);
 }
 
-/* === 进入某条聊天 === */
-function activateChat (id) {
-  if (currentChatId) persistCurrentPane();      // 先保存旧面板
 
-  currentChatId = id;
-  const chatObj = chats.find(c => c.id === id);
-  if (chatObj) sessionId = chatObj.sessionId;   // 提供给后端
-  renderChats(searchInput.value);
-  loadHistoryToPane(id);
-}
-
-/* === 新建聊天 === */
 
 
 /* === 进入某条聊天 === */
@@ -1757,6 +1739,9 @@ function activateChat (id) {
   if (chatObj) sessionId = chatObj.sessionId;     // 提供给后端
   renderChats(searchInput.value);
   loadHistoryToPane(id);
+   // —— 只要这个会话里已有任何消息，就永久隐藏欢迎语 —— 
+  if (paneHasContent()) welcome?.remove();
+
 }
 
 /* 新建聊天（核心） */
