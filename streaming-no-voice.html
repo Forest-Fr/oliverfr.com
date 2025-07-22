@@ -626,21 +626,46 @@ aside#sidebar {
 /* === END 三点菜单样式 === */
 
 /* === mobile slide‑out effect === */
+/* === mobile slide‑out effect & 主面板推右 === */
 @media (max-width: 767px) {
-  body.slide-right {                       
-    transform: translateX(240px);
-    transition: transform .25s ease;
+  /* 只用 body.slide-right 作“开关”，不要给 body transform */
+  body.slide-right {
     overflow: hidden;
   }
-  aside#sidebar { transition: transform .25s ease; }
 
-  /* —— 新增：当 body.slide-right 时，也把 fixed 的 composer 推过去 —— */
-  body.slide-right .composer {
-    /* 原本 .composer 是 translateX(-50%) 居中，
-       这里在它的计算里 +240px，才能和聊天区保持一致 */
+  /* 侧栏保持固定在左侧 */
+  aside#sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px; height: 100%;
+    transform: translateX(0);
+    transition: transform .25s ease;
+    z-index: 1001;
+  }
+
+  /* 这些主面板元素整体往右推 240px */
+  body.slide-right > #chat,
+  body.slide-right > #mask,
+  body.slide-right > #scrollBottom,
+  body.slide-right > .composer,
+  body.slide-right > .footnote,
+  body.slide-right > #lightbox,
+  body.slide-right > #authModal,
+  body.slide-right > #hamburger,
+  body.slide-right > #searchModal {
+    transform: translateX(240px);
+    transition: transform .25s ease;
+  }
+
+  /* composer 和 footnote 本来居中（translateX(-50%)），需要再加上 240px */
+  body.slide-right > .composer {
+    transform: translateX(calc(-50% + 240px));
+  }
+  body.slide-right > .footnote {
     transform: translateX(calc(-50% + 240px));
   }
 }
+
 
 
 /* === 锁定状态下禁止侧栏交互 === */
@@ -1957,25 +1982,26 @@ if (!currentChatId) btnNewChat.click();          // 首进页面自动起一条
 else               activateChat(currentChatId);
 
 // —— 响应式汉堡 & 遮罩 —— 
-// —— 响应式汉堡 & 遮罩（手机端） —— 
+// —— 响应式汉堡 & 遮罩 —— 
 const hamburger = document.getElementById('hamburger');
 const sidebar   = document.getElementById('sidebar');
 const overlay   = document.getElementById('sidebarOverlay');
 
 hamburger.addEventListener('click', () => {
-  // 打开或关闭侧栏
-  const open = sidebar.classList.toggle('show');
-  overlay.classList.toggle('show', open);
-  // 同步给 body 加 / 移除 slide-right
-  document.body.classList.toggle('slide-right', open);
+  // 给 body 打上/去掉 slide‑right  
+  document.body.classList.toggle('slide-right');
+  // 同时展开/收起侧栏和遮罩
+  sidebar.classList.toggle('show');
+  overlay.classList.toggle('show');
 });
 
 overlay.addEventListener('click', () => {
-  // 关闭侧栏
+  // 关闭时，去掉 slide‑right，并隐藏侧栏和遮罩
+  document.body.classList.remove('slide-right');
   sidebar.classList.remove('show');
   overlay.classList.remove('show');
-  document.body.classList.remove('slide-right');
 });
+
 
 // —— 搜索模态相关 DOM 引用 —— 
 const searchModal     = document.getElementById('searchModal');
