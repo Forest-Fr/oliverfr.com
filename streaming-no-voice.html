@@ -781,7 +781,14 @@ if (!window._MGPT) window._MGPT = {};
   // 简写：任何时候要用当前桶都走这个函数
   const histKey = id => `chat_history_${id ?? currentChatId}`;
   /*-const _histKey = id => `chat_history_${id || currentChatId}`;-*/
-
+// ——— [PATCH] 读取时优先用动态桶，否则回退静态桶 —————————
+  function getHistoryKey(id) {
+    const dyn = `chat_history_${id}`;
+     // 动态桶里有数据就用它
+    if (localStorage.getItem(dyn)) return dyn;
+     // 否则回退到最初的静态桶
+     return HISTORY_KEY_STATIC;
+    }
   let uploads          = [];
   let isAuthorized     = false;
   let isStreaming      = false;
@@ -812,15 +819,13 @@ if (!window._MGPT) window._MGPT = {};
   /* ================== 历史 ================== */
 function loadHistory() {
 try {
-// 如果 currentChatId 未定，则先读静态会话桶；否则读指定会话桶
-const key = currentChatId
-? histKey(currentChatId)
-: HISTORY_KEY_STATIC;
+// 优先读动态桶，否则回退静态桶
+ const key = getHistoryKey(currentChatId || sessionId);
 const raw = localStorage.getItem(key);
- if (!raw) return;
- const arr = JSON.parse(raw);
-arr.forEach(replayMessage);
- if (arr.length) {
+if (!raw) return;
+const arr = JSON.parse(raw);
+ arr.forEach(replayMessage);
+if (arr.length) {
 document.body.style.overflow = 'auto';
 welcome && welcome.remove();
  }
