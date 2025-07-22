@@ -650,6 +650,47 @@ aside#sidebar {
   }
 }
 
+@media (max-width: 767px) {
+  /* 取消对 body 本身的 transform 推动，只用它当开关 */
+  body.slide-right {
+    overflow: hidden;
+  }
+
+  /* 侧栏永远贴左侧，不跟着内容滑 */
+  aside#sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px; height: 100%;
+    transition: transform .25s ease;
+    transform: translateX(0);
+    z-index: 1001;
+  }
+
+  /* 下面这些主内容才整体往右推 240px */
+  body.slide-right > #chat,
+  body.slide-right > #mask,
+  body.slide-right > #scrollBottom,
+  body.slide-right > .composer,
+  body.slide-right > .footnote,
+  body.slide-right > #lightbox,
+  body.slide-right > #authModal,
+  body.slide-right > #hamburger,
+  body.slide-right > #searchModal {
+    transform: translateX(240px);
+    transition: transform .25s ease;
+  }
+
+  /* composer 本身还要保持“居中”逻辑 */
+  body.slide-right > .composer {
+    transform: translateX(calc(-50% + 240px));
+  }
+  /* 脚注也同理 */
+  body.slide-right > .footnote {
+    transform: translateX(calc(-50% + 240px));
+  }
+}
+
+  
 /* === 锁定状态下禁止侧栏交互 === */
 #sidebar.locked,
 #sidebar.locked * {
