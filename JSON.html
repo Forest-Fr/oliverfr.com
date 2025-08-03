@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>KV JSON 结构生成器</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    textarea { width: 100%; height: 200px; margin-bottom: 10px; font-family: monospace; }
+    pre { background: #f0f0f0; padding: 10px; white-space: pre-wrap; word-wrap: break-word; }
+  </style>
+</head>
+<body>
+  <h2>KV 模板转 Cloudflare Worker JSON</h2>
+  <textarea id="input" placeholder="粘贴如下格式模板：cooking: `...`"></textarea>
+  <button onclick="convert()">转换为 JSON</button>
+  <h3>输出：</h3>
+  <pre id="output"></pre>
+
+<script>
+function convert() {
+  const raw = document.getElementById('input').value;
+  const regex = /([a-zA-Z0-9_-]+)\s*:\s*`([\s\S]*?)`/g;
+  const result = {};
+  let match;
+  while ((match = regex.exec(raw)) !== null) {
+    const key = `STRUCT:${match[1]}:default`;
+    const val = match[2]
+      .replace(/\\/g, '\\\\')  // escape backslashes
+      .replace(/"/g, '\\"')    // escape double quotes
+      .replace(/\n/g, '\\n');  // escape newlines
+    result[key] = val;
+  }
+  document.getElementById('output').textContent = JSON.stringify(result, null, 2);
+}
+</script>
+</body>
+</html>
