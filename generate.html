@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<h3>POST /code/generate</h3>
+<button id="go">Run</button>
+<pre id="out" style="white-space:pre-wrap;border:1px solid #ccc;padding:8px;"></pre>
+<script>
+const ENDPOINT = 'https://api.streaming-tts.mefans.workers.dev/code/generate';
+
+document.getElementById('go').onclick = async () => {
+  const out = document.getElementById('out');
+  out.textContent = 'requesting...';
+  try {
+    const r = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': 'demo-1'
+      },
+      body: JSON.stringify({
+        input: 'Write a minimal HTML+CSS+JS page with a counter button.',
+        language: 'html',
+        returnForm: 'code',
+        styleGuide: ['no external deps','vanilla js']
+      })
+    });
+    const j = await r.json();
+    out.textContent = JSON.stringify(j, null, 2);
+  } catch (e) {
+    out.textContent = 'FAILED: ' + (e && e.message ? e.message : e);
+  }
+};
+</script>
