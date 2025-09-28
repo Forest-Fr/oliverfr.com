@@ -1,7 +1,6 @@
 name: Deploy to Cloudflare Workers
 on:
-  push:
-    branches: [ main ]
+  push: { branches: [ main ] }
   workflow_dispatch:
 
 jobs:
@@ -12,10 +11,15 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
+        with:
+          node-version: 20
+          cache: npm            # 依赖 package-lock.json 才会启用缓存
+
+      - run: npm ci             # 用锁文件安装依赖
+
       - run: |
-          if [ -f package.json ]; then npm ci; fi
           if npm run | grep -q " build"; then npm run build; fi
-      - name: Deploy with wrangler
-        run: npx wrangler deploy
+
+      - run: npx wrangler deploy
