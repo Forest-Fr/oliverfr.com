@@ -1,4 +1,0 @@
-name = "oliverfr-com"                 # Worker 名称不能带点号
-main = "src/worker.js"                # 指定入口脚本路径
-compatibility_date = "2024-11-21"
-account_id = "132140e50408eb97542b782b829678b5"
