@@ -1,7 +1,11 @@
 name: Deploy to Cloudflare Workers
+
 on:
   push: { branches: [ main ] }
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
@@ -12,12 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 只安装 Node，不启用任何缓存（不会检查 lockfile）
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 如无前端构建，这一步直接部署；也无需 npm ci
+      # 如果 wrangler.toml 在根目录，就不要 cd；保持默认工作目录 = 仓库根
       - name: Deploy with wrangler
         run: npx -y wrangler@3 deploy
