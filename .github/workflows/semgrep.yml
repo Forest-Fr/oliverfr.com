@@ -1,16 +1,35 @@
-name: Semgrep Scan
+name: semgrep-code-scanning
+
 on:
-  push:
-    branches: [ main ]
   pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write   # 关键：允许上传 Code Scanning 结果
+
+concurrency:
+  group: semgrep-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   semgrep:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # 运行 Semgrep；生成 SARIF
       - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-          SEMGREP_RULES: p/ci
+        with:
+          config: p/ci                        # 你现在用的规则集保持一致
+          generateSarif: true                 # 关键：生成 semgrep.sarif
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}   # 你已有
+          publishDeployment: true             # 可选：同时回传 Semgrep Cloud
+
+      # 把 SARIF 上传到 GitHub Code Scanning
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
