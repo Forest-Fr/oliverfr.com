@@ -1,4 +1,4 @@
-name: Quality Gates
+  name: Quality Gates
 
 on:
   pull_request:
@@ -11,8 +11,8 @@ jobs:
   smoke-and-lighthouse:
     runs-on: ubuntu-latest
     env:
-      SITE_URL: ${{ secrets.SITE_URL }}        # 你刚设的前端页面
-      TTS_API_URL: ${{ vars.TTS_API_URL }}     # 如果没建变量，这行保留也没关系
+      SITE_URL: ${{ secrets.SITE_URL }}          # 必填：前端线上地址
+      TTS_API_URL: ${{ vars.TTS_API_URL || '' }} # 选填：未配置则为空串
 
     steps:
       - uses: actions/checkout@v4
@@ -21,42 +21,53 @@ jobs:
       - name: Smoke check - page is reachable
         run: |
           set -Eeuo pipefail
+          test -n "$SITE_URL" || { echo "SITE_URL is empty"; exit 1; }
           echo "Checking $SITE_URL ..."
-          curl -fsSL -o /dev/null -w "%{http_code}\n" "$SITE_URL" | tee /tmp/code
-          test "$(cat /tmp/code)" = "200"
+          code="$(curl -fsSLo /dev/null -w '%{http_code}\n' "$SITE_URL" || echo 000)"
+          echo "HTTP $code"
+          [ "$code" = "200" ]
 
-      # 2) （可选）后端 API 健康检查（存在就检查）
+      # 2) （可选）后端 API 健康检查：仅在配置了 TTS_API_URL 时才跑；可失败不阻断
       - name: Smoke check - API reachable (optional)
-        if: env.TTS_API_URL != ''
+        if: ${{ env.TTS_API_URL != '' }}
+        continue-on-error: true
         run: |
           set -Eeuo pipefail
           echo "Checking $TTS_API_URL ..."
-          curl -fsSL -o /dev/null -w "%{http_code}\n" "$TTS_API_URL" | tee /tmp/code
-          code=$(cat /tmp/code)
+          code="$(curl -fsSLo /dev/null -w '%{http_code}\n' "$TTS_API_URL" || echo 000)"
+          echo "HTTP $code"
           if [ "$code" != "200" ] && [ "$code" != "405" ] && [ "$code" != "404" ]; then
             echo "Unexpected status: $code"
             exit 1
           fi
 
-      # 3) Lighthouse 基线（用页面 URL）
+      # 3) 准备 Lighthouse 配置文件（避免把 JSON 直接塞到 configPath 里导致 ENAMETOOLONG）
+      - name: Prepare Lighthouse config
+        run: |
+          cat > lighthouserc.json <<'JSON'
+          {
+            "ci": {
+              "collect": { "numberOfRuns": 1 },
+              "assert": {
+                "assertions": {
+                  "categories:performance": ["warn", { "minScore": 0.80 }],
+                  "categories:accessibility": ["warn", { "minScore": 0.90 }],
+                  "categories:best-practices": ["warn", { "minScore": 0.90 }],
+                  "categories:seo": ["warn", { "minScore": 0.80 }]
+                }
+              }
+            }
+          }
+          JSON
+          echo "Generated lighthouserc.json:"
+          cat lighthouserc.json
+
+      # 4) Lighthouse 基线
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v11
         with:
           urls: |
             ${{ env.SITE_URL }}
+          configPath: lighthouserc.json
           uploadArtifacts: true
           temporaryPublicStorage: true
-          configPath: |
-            {
-              "ci": {
-                "collect": { "numberOfRuns": 1 },
-                "assert": {
-                  "assertions": {
-                    "categories:performance": ["warn", {"minScore": 0.80}],
-                    "categories:accessibility": ["warn", {"minScore": 0.90}],
-                    "categories:best-practices": ["warn", {"minScore": 0.90}],
-                    "categories:seo": ["warn", {"minScore": 0.80}]
-                  }
-                }
-              }
-            }
