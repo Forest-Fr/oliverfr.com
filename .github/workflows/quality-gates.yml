@@ -1,4 +1,4 @@
-name: Quality Gates
+name: Quality Gates 
 
 on:
   pull_request:
@@ -42,21 +42,7 @@ jobs:
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v11
         with:
-          urls: |
-            ${{ env.SITE_URL }}
+          urls: ${{ env.SITE_URL }}                  # 保持单行即可
           uploadArtifacts: true
           temporaryPublicStorage: true
-          configPath: |
-            {
-              "ci": {
-                "collect": { "numberOfRuns": 1 },
-                "assert": {
-                  "assertions": {
-                    "categories:performance": ["warn", {"minScore": 0.80}],
-                    "categories:accessibility": ["warn", {"minScore": 0.90}],
-                    "categories:best-practices": ["warn", {"minScore": 0.90}],
-                    "categories:seo": ["warn", {"minScore": 0.80}]
-                  }
-                }
-              }
-            }
+          configPath: .lighthouserc.json            # ← 这里只改这一行
