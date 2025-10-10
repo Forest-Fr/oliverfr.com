@@ -1,16 +1,18 @@
-name: Semgrep Scan
+name: semgrep
 on:
-  push:
-    branches: [ main ]
   pull_request:
-
+  push: { branches: [main] }
+permissions:
+  contents: read
+  security-events: write
 jobs:
   semgrep:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run Semgrep
-        uses: returntocorp/semgrep-action@v1
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-          SEMGREP_RULES: p/ci
+      - uses: semgrep/semgrep-action@v1
+        with:
+          config: p/ci
+          generateSarif: true
+          uploadSarif: true
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
