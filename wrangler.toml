@@ -1,0 +1,4 @@
+name = "oliverfr-com-worker"
+main = "src/worker.js"
+compatibility_date = "2025-10-10"
+workers_dev = true
