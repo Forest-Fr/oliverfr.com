@@ -1,0 +1,8 @@
+name = "oliverfr-com"
+account_id = "132140e50408eb97542b782b829678b5"
+main = "src/worker.ts"          # ⬅️ 必须存在这个文件
+compatibility_date = "2025-10-10"
+workers_dev = true
+
+[observability]
+enabled = true
