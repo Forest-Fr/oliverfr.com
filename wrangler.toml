@@ -1,0 +1,12 @@
+# wrangler.toml（最小可用）
+name = "oliverfr-com-worker"          # 脚本名，任意；全局唯一即可
+main = "src/worker.js"                 # 你的入口，和截图一致
+compatibility_date = "2025-10-10"      # 或者填今天的日期：YYYY-MM-DD
+
+# 如果只是跑在 *.workers.dev 测试域，保持默认即可
+workers_dev = true
+
+# 若你后面要打到自定义域（可选），再加 routes：
+# routes = [
+#   { pattern = "oliverfr.com/*", zone_name = "oliverfr.com" }
+# ]
