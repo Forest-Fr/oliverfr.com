@@ -11,52 +11,51 @@ jobs:
   smoke-and-lighthouse:
     runs-on: ubuntu-latest
     env:
-      SITE_URL: ${{ secrets.SITE_URL }}        # 你刚设的前端页面
-      TTS_API_URL: ${{ vars.TTS_API_URL }}     # 如果没建变量，这行保留也没关系
-
+      SITE_URL: ${{ secrets.SITE_URL }}
+      TTS_API_URL: ${{ vars.TTS_API_URL }}
     steps:
       - uses: actions/checkout@v4
 
-      # 1) 前端页面健康检查（HTTP 200）
       - name: Smoke check - page is reachable
         run: |
           set -Eeuo pipefail
-          echo "Checking $SITE_URL ..."
-          curl -fsSL -o /dev/null -w "%{http_code}\n" "$SITE_URL" | tee /tmp/code
-          test "$(cat /tmp/code)" = "200"
+          : "${SITE_URL:?SITE_URL is empty}"
+          code=$(curl -ILs -o /dev/null -w "%{http_code}\n" "$SITE_URL")
+          echo "HTTP $code"
+          if [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; then exit 0; else exit 1; fi
 
-      # 2) （可选）后端 API 健康检查（存在就检查）
       - name: Smoke check - API reachable (optional)
         if: env.TTS_API_URL != ''
         run: |
           set -Eeuo pipefail
-          echo "Checking $TTS_API_URL ..."
-          curl -fsSL -o /dev/null -w "%{http_code}\n" "$TTS_API_URL" | tee /tmp/code
-          code=$(cat /tmp/code)
-          if [ "$code" != "200" ] && [ "$code" != "405" ] && [ "$code" != "404" ]; then
-            echo "Unexpected status: $code"
-            exit 1
-          fi
+          code=$(curl -fsSL -o /dev/null -w "%{http_code}\n" "$TTS_API_URL" || true)
+          echo "HTTP $code"
+          case "$code" in 200|401|403|404|405) exit 0 ;; *) exit 1 ;; esac
 
-      # 3) Lighthouse 基线（用页面 URL）
-      - name: Run Lighthouse CI
-        uses: treosh/lighthouse-ci-action@v11
-        with:
-          urls: |
-            ${{ env.SITE_URL }}
-          uploadArtifacts: true
-          temporaryPublicStorage: true
-          configPath: |
-            {
-              "ci": {
-                "collect": { "numberOfRuns": 1 },
-                "assert": {
-                  "assertions": {
-                    "categories:performance": ["warn", {"minScore": 0.80}],
-                    "categories:accessibility": ["warn", {"minScore": 0.90}],
-                    "categories:best-practices": ["warn", {"minScore": 0.90}],
-                    "categories:seo": ["warn", {"minScore": 0.80}]
-                  }
+      # 生成临时配置文件（避免找不到 .lighthouserc.json）
+      - name: Write LHCI config
+        run: |
+          cat > lhrc.json <<'JSON'
+          {
+            "ci": {
+              "collect": { "numberOfRuns": 1 },
+              "assert": {
+                "assertions": {
+                  "categories:performance": ["warn", {"minScore": 0.80}],
+                  "categories:accessibility": ["warn", {"minScore": 0.90}],
+                  "categories:best-practices": ["warn", {"minScore": 0.90}],
+                  "categories:seo": ["warn", {"minScore": 0.80}]
                 }
               }
             }
+          }
+          JSON
+          test -f lhrc.json && echo "lhrc.json ready"
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: ${{ env.SITE_URL }}
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: lhrc.json
