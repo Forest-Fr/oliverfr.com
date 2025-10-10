@@ -1,0 +1,12 @@
+name = "oliverfr-com"
+account_id = "132140e50408eb97542b782b829678b5"
+main = "src/worker.ts"
+compatibility_date = "2025-10-09"
+
+# 如果你要用 R2（示例）
+# [[r2_buckets]]
+# binding = "ASSETS"
+# bucket_name = "your-r2-bucket"
+
+[observability]
+enabled = true
