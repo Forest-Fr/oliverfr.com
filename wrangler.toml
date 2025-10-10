@@ -1,0 +1,8 @@
+name = "oliverfr-com"                         # 自定义，随意但唯一
+account_id = "132140e50408eb97542b782b829678b5"      # 仪表盘右上角/Workers 里可见
+main = "src/worker.ts"                         # 你的 Worker 入口文件相对路径
+compatibility_date = "2025-10-10"              # 填今天或近期日期
+workers_dev = true                              # 用 *.workers.dev 预览域名
+
+[observability]
+enabled = true
