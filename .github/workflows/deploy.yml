@@ -1,23 +1,27 @@
-name: Deploy to Cloudflare Workers
+name: Deploy to Cloudflare Pages
+
 on:
-  push: { branches: [ main ] }
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  deploy:
+  pages:
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT_NAME: your-pages-project-name   # 先在 Cloudflare Pages 创建项目
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
 
-      # 只安装 Node，不启用任何缓存（不会检查 lockfile）
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      # 如需构建，补充你的构建命令；否则去掉这步
+      - name: Build
+        run: |
+          npm ci
+          npm run build
 
-      # 如无前端构建，这一步直接部署；也无需 npm ci
-      - name: Deploy with wrangler
-        run: npx -y wrangler@3 deploy
+      - name: Deploy to Pages
+        run: npx -y wrangler@4 pages deploy ./dist --project-name "$PROJECT_NAME"
