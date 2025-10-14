@@ -1,0 +1,30 @@
+name: ci-contract
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  contract:
+    name: Contract Tests (Miniflare)
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Test (Miniflare)
+        env:
+          OPENAI_API_KEY: dummy
+        run: npm run -s test:contract
