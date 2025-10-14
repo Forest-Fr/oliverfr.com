@@ -1,0 +1,37 @@
+rules:
+  # 禁止内联事件处理器（如 onclick/onload/...）
+  - id: html-no-inline-event-handlers
+    message: "Inline event handlers are forbidden. Use addEventListener."
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include: ["streaming-no-voice.html"]
+    pattern-regex: 'on(?:abort|blur|change|click|contextmenu|dblclick|error|focus|input|keydown|keypress|keyup|load|mousedown|mouseenter|mouseleave|mousemove|mouseout|mouseover|mouseup|resize|scroll|submit|unload)\s*='
+
+  # 禁止 eval / new Function
+  - id: js-no-eval-new-function
+    message: "Avoid eval() / new Function()"
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include: ["streaming-no-voice.html"]
+    pattern-regex: '(?:\beval\s*\(|\bnew\s+Function\s*\()'
+
+  # 外链脚本必须带 SRI
+  - id: html-external-script-requires-sri
+    message: "External <script> must include integrity attribute (SRI)."
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include: ["streaming-no-voice.html"]
+    # 匹配含 src 的 script 标签，且缺少 integrity
+    pattern-regex: '<script[^>]*\bsrc=["'\'']https?://[^>]+>(?:(?!integrity=).)*</script>'
+
+  # 禁止 http:// 资源（必须 https）
+  - id: html-no-http-resources
+    message: "Use HTTPS only. Found http:// resource."
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include: ["streaming-no-voice.html"]
+    pattern-regex: '(?:src|href)\s*=\s*["'\'']http://'
