@@ -1,0 +1,3 @@
+* @your-org/platform-core
+src/** @your-org/edge-workers
+.github/** @your-org/infra
