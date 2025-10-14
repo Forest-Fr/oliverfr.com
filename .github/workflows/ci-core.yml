@@ -1,0 +1,37 @@
+name: ci-core
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  core:
+    name: Lint • Typecheck • Unit
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Lint
+        run: |
+          npm run -s lint || npm run -s lint --if-present
+
+      - name: Typecheck
+        run: |
+          npm run -s typecheck || npm run -s typecheck --if-present
+
+      - name: Unit (Vitest)
+        run: |
+          npm run -s test || npm run -s test --if-present
