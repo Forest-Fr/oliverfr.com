@@ -3,14 +3,28 @@ on:
   push:
     branches: [ main ]
   pull_request:
- 
+
 jobs:
   semgrep:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run Semgrep
+
+      # 若仓库里存在 .semgrep/*.yml(yaml) 就一起加载；否则仅跑 p/ci
+      - name: Run Semgrep (p/ci + local rules if present)
+        if: ${{ hashFiles('.semgrep/**/*.yml', '.semgrep/**/*.yaml') != '' }}
         uses: returntocorp/semgrep-action@v1
+        with:
+          config: |
+            p/ci
+            .semgrep
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-          SEMGREP_RULES: p/ci
+
+      - name: Run Semgrep (p/ci only)
+        if: ${{ hashFiles('.semgrep/**/*.yml', '.semgrep/**/*.yaml') == '' }}
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/ci
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
