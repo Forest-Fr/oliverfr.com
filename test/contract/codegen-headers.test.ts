@@ -1,5 +1,5 @@
 import { installOpenAIMock } from './_mock-openai';
-  
+      
 describe('codegen headers & continue rounds', () => {
   beforeAll(() => installOpenAIMock());
 
