@@ -1,5 +1,5 @@
 import { installOpenAIMock } from './_mock-openai';
-
+   
 describe('health/schema headers', () => {
   beforeAll(() => installOpenAIMock());
 
