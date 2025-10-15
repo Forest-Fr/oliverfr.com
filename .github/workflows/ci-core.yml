@@ -1,72 +1,24 @@
 name: ci-core
-
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - '**/*.ts'
-      - '**/*.js'
-      - '**/*.mjs'
-      - '**/*.cjs'
-      - 'test/**/*'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.json'
-      - '.eslint*'
-      - '.prettierrc*'
-      - '.github/workflows/ci-core.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - '**/*.ts'
-      - '**/*.js'
-      - '**/*.mjs'
-      - '**/*.cjs'
-      - 'test/**/*'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.json'
-      - '.eslint*'
-      - '.prettierrc*'
-      - '.github/workflows/ci-core.yml'
+  push: { branches: [ main ] }
+  pull_request: { branches: [ main ] }
 
-permissions:
-  contents: read
-
-concurrency:
-  group: ci-core-${{ github.ref }}
-  cancel-in-progress: true
+permissions: { contents: read }
+concurrency: { group: ci-core-${{ github.ref }}, cancel-in-progress: true }
 
 jobs:
   core:
     name: Lint • Typecheck • Unit
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      CI: true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'   # 与本地一致
-          # cache: 'npm'       # ← 故意不启用缓存，避免无 lock 直接报错
-
+          node-version: '20'          # ← 不要写 cache: 'npm'
       - name: Install deps (lock-aware)
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm i
-          fi
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm run test
+          if [ -f package-lock.json ]; then npm ci; else npm i; fi
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
