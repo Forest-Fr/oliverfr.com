@@ -1,0 +1,123 @@
+name: pr-autofill
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+# 最小权限 + 并发防抖（避免同一 PR 多次更新正文互相覆盖）
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-autofill-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hydrate-pr-body:
+    # 例：跳过 bot PR
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect diff (clamped)
+        id: diff
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          DIFF="$(git diff --unified=0 --no-color "$BASE_SHA...$HEAD_SHA" || true)"
+          # 限长，防 PR 正文/LLM token 爆表
+          echo "$DIFF" | head -c 200000 > /tmp/diff.txt || true
+          echo "patch<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/diff.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # 调你的 Worker /chat 生成“摘要”，fork 场景 secrets 不可用时自动跳过
+      - name: Call Worker /chat for summary (best effort)
+        if: ${{ secrets.WORKER_BASE_URL != '' }}
+        id: ai
+        env:
+          WORKER_BASE: ${{ secrets.WORKER_BASE_URL }}   # e.g. https://worker.example.com
+          WORKER_KEY:  ${{ secrets.WORKER_API_KEY }}
+        run: |
+          set -e
+          BODY=$(jq -n --arg raw "${{ steps.diff.outputs.patch }}" \
+            '{raw:$raw, params:{scene:"CASUAL", formatOptions:{}, model:"gpt-4o-mini"}}')
+          RESP="$(curl -sS -X POST "$WORKER_BASE/chat" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $WORKER_KEY" \
+            --data "$BODY" || true)"
+          SUMMARY="$(echo "$RESP" | jq -r '.text // empty')"
+          if [ -z "$SUMMARY" ]; then SUMMARY="（机器人暂不可用，请人工补充）"; fi
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$SUMMARY"     >> $GITHUB_OUTPUT
+          echo "EOF"          >> $GITHUB_OUTPUT
+
+      - name: Render risk block
+        id: risk
+        run: |
+          echo "risk<<EOF" >> $GITHUB_OUTPUT
+          echo "- 兼容性：关注 /codegen 围栏完整性与 /chat 的 X-Usage 成本" >> $GITHUB_OUTPUT
+          echo "- 回滚：热修回退本 PR；如涉及 KV 迁移，附回滚脚本与键名清单" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Collect artifact links (best-effort)
+        id: artifacts
+        run: |
+          echo "links<<EOF" >> $GITHUB_OUTPUT
+          echo "- Lint/Typecheck/Vitest：见 Checks → ci-core" >> $GITHUB_OUTPUT
+          echo "- Contract (Miniflare)：见 Checks → ci-contract" >> $GITHUB_OUTPUT
+          echo "- Semgrep/CodeQL/Dependency Review：见 security checks" >> $GITHUB_OUTPUT
+          echo "- Playwright/Lighthouse/Pages 预览：如配置，见对应 checks" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update PR body (replace AUTO blocks)
+        uses: actions/github-script@v7
+        env:
+          SUMMARY:  ${{ steps.ai.outputs.summary }}
+          RISK:     ${{ steps.risk.outputs.risk }}
+          LINKS:    ${{ steps.artifacts.outputs.links }}
+        with:
+          script: |
+            const { context, github } = require('@actions/github');
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+            const pull_number = context.payload.pull_request.number;
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number });
+            let body = pr.body || '';
+            const clamp = (s, n) => (s || '').slice(0, n);
+            const replace = (src, start, end, val) => {
+              const s = `<!-- ${start} -->`, e = `<!-- ${end} -->`;
+              const re = new RegExp(`${s}[\\s\\S]*?${e}`, 'm');
+              const out = `${s}\n${val}\n${e}`;
+              return re.test(src) ? src.replace(re, out) : `${src}\n\n${out}`;
+            };
+            body = replace(body, 'AUTO-SUMMARY-START',   'AUTO-SUMMARY-END',   clamp(process.env.SUMMARY, 60000));
+            body = replace(body, 'AUTO-RISK-START',      'AUTO-RISK-END',      clamp(process.env.RISK,    2000));
+            body = replace(body, 'AUTO-ARTIFACTS-START', 'AUTO-ARTIFACTS-END', clamp(process.env.LINKS,   4000));
+            await github.rest.pulls.update({ owner, repo, pull_number, body });
+
+  # 把“描述过短”视为失败，从流程上保证有足够文本
+  require-body:
+    if: ${{ github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    needs: hydrate-pr-body
+    timeout-minutes: 2
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { context, github, core } = require('@actions/github');
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+            const text = (pr.body || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+            if (text.length < 50) core.setFailed('PR 描述过短（< 50 字），请完善 Why/How/风险与回滚。');
