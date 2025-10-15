@@ -1,31 +1,10 @@
 name: ci-contract
-
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'worker.*'
-      - 'src/**/*'
-      - 'test/contract/**/*'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/ci-contract.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'worker.*'
-      - 'src/**/*'
-      - 'test/contract/**/*'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/ci-contract.yml'
+  push: { branches: [ main ] }
+  pull_request: { branches: [ main ] }
 
-permissions:
-  contents: read
-
-concurrency:
-  group: ci-contract-${{ github.ref }}
-  cancel-in-progress: true
+permissions: { contents: read }
+concurrency: { group: ci-contract-${{ github.ref }}, cancel-in-progress: true }
 
 jobs:
   contract:
@@ -33,26 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      CI: true
-      # 避免命中真实外部接口，按你的合约测试使用的假值来
       OPENAI_API_KEY: test
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          # cache: 'npm'      # ← 不启用缓存以规避 lock 缺失报错
-
+          node-version: '20'          # ← 不要写 cache: 'npm'
       - name: Install deps (lock-aware)
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm i
-          fi
-
-      - name: Run contract tests (Vitest)
+          if [ -f package-lock.json ]; then npm ci; else npm i; fi
+      - name: Run contract tests
         run: npx vitest run --config test/contract/vitest.config.ts --reporter=verbose
