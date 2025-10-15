@@ -8,22 +8,25 @@
     "format": "prettier -w .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --reporter=verbose --coverage",
-    "validate": "npm run lint && npm run typecheck && npm run test"
+    "test:contract": "vitest run -c test/contract/vitest.config.ts --reporter=verbose",
+    "validate": "npm run lint && npm run typecheck && npm run test && npm run test:contract"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241004.0",
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.6.0",
     "@typescript-eslint/parser": "^8.6.0",
+    "c8": "^9.1.0",
     "eslint": "^9.11.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
+    "miniflare": "^3.20241004.0",
     "prettier": "^3.3.3",
     "typescript": "^5.6.2",
     "vitest": "^2.0.5",
-    "c8": "^9.1.0"
+    "wrangler": "^3.77.0"
   },
   "engines": {
-    "node": ">=20.10.0"
-  },
-  "packageManager": "npm@10"
+    "node": ">=18.17"
+  }
 }
