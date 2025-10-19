@@ -1,0 +1,105 @@
+name: pre-submit
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: Task name or ticket id
+        required: true
+      anchor_path:
+        description: The main file path to modify (anchor)
+        required: true
+      allowed_ranges:
+        description: 'JSON line ranges, e.g. [[10,80],[120,200]]'
+        required: true
+      patterns:
+        description: 'Comma-separated patterns keys, e.g. indexeddb_ttl_swr,workers_fetch_timeout_retry'
+        required: true
+      incubator_branch:
+        description: 'Target incubator branch'
+        default: ''
+        required: false
+  repository_dispatch:
+    types: [pre-submit]
+
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ORCHESTRATOR_URL: ${{ secrets.CF_ORCHESTRATOR_URL }}   # 你的编排器 Worker HTTPS 入口
+      CF_API_TOKEN:     ${{ secrets.CF_API_TOKEN }}           # 编排器鉴权（例如 Bearer）
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build request payload
+        id: payload
+        run: |
+          set -euo pipefail
+          mkdir -p .orchestrator
+          branch_input="${{ github.event.inputs.incubator_branch }}"
+          if [ -z "$branch_input" ]; then
+            branch_input="incubator/${{ github.actor }}-${{ github.run_id }}"
+          fi
+          echo "incubator=$branch_input" >> $GITHUB_OUTPUT
+          jq -n \
+            --arg repo  "${{ github.repository }}" \
+            --arg sha   "${{ github.sha }}" \
+            --arg ref   "${{ github.ref_name }}" \
+            --arg task  "${{ github.event.inputs.task || '' }}" \
+            --arg path  "${{ github.event.inputs.anchor_path || '' }}" \
+            --argjson ranges "${{ github.event.inputs.allowed_ranges || '[]' }}" \
+            --arg patterns "${{ github.event.inputs.patterns || '' }}" \
+            '{
+              repo:$repo, sha:$sha, ref:$ref,
+              task:$task, anchor_path:$path,
+              allowed_ranges:$ranges,
+              patterns:($patterns | split(",") | map(.|gsub("^\\s+|\\s+$";"")) | delpaths([ [0] ] ) ),
+              wantArtifacts: true
+            }' > .orchestrator/request.json
+          cat .orchestrator/request.json
+
+      - name: Call orchestrator (plan -> diff -> tests -> repair)
+        run: |
+          set -euo pipefail
+          curl -sSf -X POST "$ORCHESTRATOR_URL" \
+            -H "Authorization: Bearer $CF_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data @.orchestrator/request.json \
+            -o .orchestrator/orchestrator.json
+          cat .orchestrator/orchestrator.json
+          jq -e '.status=="pass"' .orchestrator/orchestrator.json >/dev/null
+
+      - name: Apply patch from orchestrator
+        run: |
+          set -euo pipefail
+          jq -r '.diff_patch' .orchestrator/orchestrator.json > .orchestrator/patch.diff
+          if [ -s .orchestrator/patch.diff ]; then
+            git config user.name  "pre-submit-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git checkout -B "${{ steps.payload.outputs.incubator }}"
+            git apply -p0 .orchestrator/patch.diff
+            # 可选：把计划/报告固化进仓库便于 PR 自动摘要
+            mkdir -p .orchestrator/plan
+            jq '.plan'         .orchestrator/orchestrator.json > .orchestrator/plan/plan.json
+            jq '.test_report'  .orchestrator/orchestrator.json > .orchestrator/plan/test-report.json
+            jq '.repair_notes' .orchestrator/orchestrator.json > .orchestrator/plan/repair-notes.json
+            jq '.observability' .orchestrator/orchestrator.json > .orchestrator/plan/observability.json
+            git add -A
+            git commit -m "pre-submit: apply orchestrator patch and artifacts"
+            git push origin "${{ steps.payload.outputs.incubator }}"
+          fi
+
+      - name: Upload orchestrator artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-artifacts
+          path: |
+            .orchestrator/orchestrator.json
+            .orchestrator/patch.diff
+            .orchestrator/plan/**
