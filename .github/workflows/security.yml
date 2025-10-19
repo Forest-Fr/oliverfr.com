@@ -1,30 +1,27 @@
 name: security-codeql
 
 on:
-  push:
-    branches: [ "main", "release-*" ]
-    paths-ignore: [ "dist/**", "**/*.snap" ]
   pull_request:
     branches: [ "main", "release-*" ]
     paths-ignore: [ "dist/**", "**/*.snap" ]
   schedule:
-    - cron: '0 3 * * 1'  # 每周一例行扫描
+    - cron: '0 3 * * 1'  # 每周例行
 
 permissions:
   security-events: write
   contents: read
 
 jobs:
-  codeql:
+  analyze:
+    name: codeql
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript, typescript
-          # queries: security-extended  # 如需更激进可以打开
-      - uses: github/codeql-action/autobuild@v3
+          build-mode: none  # 关键：不需要 autobuild，避免无 package.json/构建失败
       - uses: github/codeql-action/analyze@v3
         with:
           category: "/language:javascript-typescript"
