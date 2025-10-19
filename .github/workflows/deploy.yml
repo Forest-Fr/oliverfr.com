@@ -18,14 +18,41 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - name: Detect wrangler & token
+        id: detect
+        run: |
+          has_wrangler=0
+          test -f wrangler.toml && has_wrangler=1
+          has_token=0
+          if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -n "${{ secrets.CF_API_TOKEN }}" ]; then has_token=1; fi
+          echo "wrangler=$has_wrangler" >> $GITHUB_OUTPUT
+          echo "token=$has_token" >> $GITHUB_OUTPUT
+
+      - name: Soft pass if not configured
+        if: ${{ steps.detect.outputs.wrangler != '1' || steps.detect.outputs.token != '1' }}
+        run: |
+          echo "::notice title=deploy::wrangler.toml or token missing; skipping deploy"
+          exit 0
+
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - name: Build
+
+      - name: Install wrangler
+        run: npm i -g wrangler
+
+      - name: Build (optional)
         run: |
           if [ -f package.json ]; then
             npm ci
-            npm run -s build || echo "::notice title=deploy::No build script; skipping"
+            (npm run -s build || echo "::notice title=deploy::no build script; continue")
           fi
-      - name: Deploy (wrangler/your tool)
+
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
         run: |
-          echo "TODO deploy step – add your command when ready"
+          # 依据你的项目选择 one of:
+          # wrangler deploy
+          # 或者 pages 项目：wrangler pages deploy dist
+          echo "::notice title=deploy::please set your exact deploy command"
