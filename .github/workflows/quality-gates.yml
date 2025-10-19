@@ -9,15 +9,16 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true      # 非阻断
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - name: Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npm ci
-      - name: Bundle size / typecheck / misc
+      - run: |
+          if [ -f package.json ]; then npm ci; fi
+      - name: Typecheck / bundle-size (optional)
         run: |
-          npm run -s typecheck || true
-          npm run -s bundlesize || true
-          npm run -s docs:lint || true
+          if [ -f package.json ]; then
+            (npm run -s typecheck || true)
+            (npm run -s bundlesize || true)
+          fi
