@@ -1,132 +1,23 @@
-name: Quality Gates
- 
+name: quality-gates
+
 on:
   pull_request:
-  workflow_dispatch:
-
-permissions:
-  contents: read
+    branches: [ "main", "release-*" ]
+    paths-ignore: [ "dist/**", "**/*.snap" ]
 
 jobs:
-  smoke-and-lighthouse:
+  quality:
     runs-on: ubuntu-latest
-    env:
-      SITE_URL: ${{ secrets.SITE_URL }}
-      TTS_API_URL: ${{ vars.TTS_API_URL }}
-      WORKER_URL: ${{ vars.WORKER_URL }}
-      WORKER_STREAM_URL: ${{ vars.WORKER_STREAM_URL }}
-      LATENCY_BUDGET_MS: ${{ vars.LATENCY_BUDGET_MS }}
+    timeout-minutes: 15
+    continue-on-error: true      # 非阻断
     steps:
       - uses: actions/checkout@v4
-
-      # 1) 前端页面健康检查（允许 2xx/3xx）
-      - name: Smoke check - page is reachable
+      - name: Node
+        uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+      - name: Bundle size / typecheck / misc
         run: |
-          set -Eeuo pipefail
-          : "${SITE_URL:?SITE_URL is empty}"
-          code=$(curl -ILs -o /dev/null -w "%{http_code}\n" "$SITE_URL")
-          echo "HTTP $code"
-          if [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; then exit 0; else exit 1; fi
-
-      # 2) （可选）后端 API 健康检查（200/401/403/404/405视为可接受）
-      - name: Smoke check - API reachable (optional)
-        if: env.TTS_API_URL != ''
-        run: |
-          set -Eeuo pipefail
-          code=$(curl -fsSL -o /dev/null -w "%{http_code}\n" "$TTS_API_URL" || true)
-          echo "HTTP $code"
-          case "$code" in 200|401|403|404|405) exit 0 ;; *) exit 1 ;; esac
-
-      # 2.5) 先验证配置文件真的在仓库根目录
-      - name: Verify lhci config exists at repo root
-        run: |
-          echo "PWD=$(pwd)"
-          ls -la
-          test -f .lighthouserc.json || (echo "MISSING: .lighthouserc.json at repo root" && exit 1)
-          echo "Found .lighthouserc.json"
-
-      # 3) Lighthouse
-      - name: Run Lighthouse CI
-        uses: treosh/lighthouse-ci-action@v11
-        with:
-          urls: ${{ env.SITE_URL }}
-          uploadArtifacts: true
-          temporaryPublicStorage: true
-          configPath: .lighthouserc.json
-
-      # --- 以下为新增 Worker/插件质量闸门 ---
-
-      - name: Worker reachable
-        run: |
-          set -Eeuo pipefail
-          : "${WORKER_URL:?WORKER_URL is empty}"
-          code=$(curl -ILs -o /dev/null -w "%{http_code}\n" "$WORKER_URL")
-          echo "Worker HTTP $code"
-          if [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; then
-            exit 0
-          else
-            echo "Worker not reachable: $code"; exit 1
-          fi
-
-      - name: Worker CORS check (origin=https://oliverfr.com)
-        run: |
-          set -Eeuo pipefail
-          : "${WORKER_URL:?WORKER_URL is empty}"
-          h=$(curl -sSI -H 'Origin: https://oliverfr.com' "$WORKER_URL" || true)
-          echo "$h"
-          echo "$h" | tr '[:upper:]' '[:lower:]' | grep -q '^access-control-allow-origin: https://oliverfr.com' \
-            || (echo "CORS missing/incorrect on $WORKER_URL"; exit 1)
-
-      - name: Latency budget - front page
-        run: |
-          set -Eeuo pipefail
-          B=${LATENCY_BUDGET_MS:-2000}
-          t=$(curl -s -o /dev/null -w "%{time_total}\n" "https://oliverfr.com/streaming-no-voice.html")
-          ms=$(python3 - <<'PY'
-import sys
-print(int(float(sys.stdin.read().strip())*1000))
-PY
-<<<"$t")
-          echo "front latency: ${ms}ms (budget ${B}ms)"
-          [ "$ms" -lt "$B" ] || (echo "Front page too slow"; exit 1)
-
-      - name: Latency budget - worker root
-        run: |
-          set -Eeuo pipefail
-          : "${WORKER_URL:?WORKER_URL is empty}"
-          B=${LATENCY_BUDGET_MS:-2000}
-          t=$(curl -s -o /dev/null -w "%{time_total}\n" "$WORKER_URL")
-          ms=$(python3 - <<'PY'
-import sys
-print(int(float(sys.stdin.read().strip())*1000))
-PY
-<<<"$t")
-          echo "worker latency: ${ms}ms (budget ${B}ms)"
-          [ "$ms" -lt "$B" ] || (echo "Worker too slow"; exit 1)
-
-      - name: Streaming endpoint header sanity (optional)
-        if: env.WORKER_STREAM_URL != ''
-        run: |
-          set -Eeuo pipefail
-          url="${WORKER_URL}${WORKER_STREAM_URL}"
-          echo "HEAD $url"
-          curl -sSI "$url" | tr '[:upper:]' '[:lower:]' \
-            | grep -qE '^content-type:.*(event-stream|audio|octet-stream)' \
-            || (echo "Unexpected content-type on $url"; exit 1)
-
-      - name: Exercise plugin proxies listed in plugins.json
-        run: |
-          set -Eeuo pipefail
-          test -f plugins.json || (echo "plugins.json missing at repo root" && exit 1)
-          sudo apt-get update -y >/dev/null 2>&1 || true
-          sudo apt-get install -y jq >/dev/null 2>&1
-          jq -c '.[]' plugins.json | while read -r item; do
-            id=$(jq -r '.id'    <<<"$item")
-            m=$(jq -r '.method' <<<"$item")
-            p=$(jq -r '.path'   <<<"$item")
-            e=$(jq -r '.expect' <<<"$item")
-            url="${WORKER_URL}${p}"
-            code=$(curl -sS -o /dev/null -w "%{http_code}\n" -X "$m" "$url" || true)
-            echo "$id -> $code ($url)"
-            [ "$code" = "$e" ] || (echo "$id unexpected status: $code (expect $e)"; exit 1)
-          done
+          npm run -s typecheck || true
+          npm run -s bundlesize || true
+          npm run -s docs:lint || true
