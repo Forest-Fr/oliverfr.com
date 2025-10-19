@@ -1,25 +1,21 @@
 name: ci-contract
-on:
-  push: { branches: [ main ] }
-  pull_request: { branches: [ main ] }
 
-permissions: { contents: read }
-concurrency: { group: ci-contract-${{ github.ref }}, cancel-in-progress: true }
+on:
+  pull_request:
+    branches: [ "main", "release-*" ]
+    paths-ignore: [ "dist/**", "**/*.snap" ]
+  push:
+    branches: [ "main", "release-*" ]
+    paths-ignore: [ "dist/**", "**/*.snap" ]
 
 jobs:
   contract:
-    name: Contract Tests (Miniflare)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      OPENAI_API_KEY: test
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '20'          # ← 不要写 cache: 'npm'
-      - name: Install deps (lock-aware)
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm i; fi
-      - name: Run contract tests
-        run: npx vitest run --config test/contract/vitest.config.ts --reporter=verbose
+        with: { node-version: 20, cache: 'npm' }
+      - run: npm ci
+      - name: Contract tests
+        run: npm run -s test:contract
