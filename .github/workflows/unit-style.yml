@@ -14,8 +14,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npm ci
-      - name: ESLint
-        run: npm run -s lint || true
-      - name: Prettier check
-        run: npm run -s fmt:check || npx prettier -c . || true
+      - run: |
+          if [ -f package.json ]; then
+            npm ci
+            (npm run -s lint || true)
+            (npm run -s fmt:check || npx prettier -c . || true)
+          fi
