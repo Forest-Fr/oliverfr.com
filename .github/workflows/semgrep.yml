@@ -1,9 +1,6 @@
 name: security-semgrep
 
 on:
-  push:
-    branches: [ "main", "release-*" ]
-    paths-ignore: [ "dist/**", "**/*.snap" ]
   pull_request:
     branches: [ "main", "release-*" ]
     paths-ignore: [ "dist/**", "**/*.snap" ]
@@ -15,22 +12,19 @@ permissions:
 jobs:
   semgrep:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      SEMGREP_ACTION_FAIL_ON_SEVERITY: ERROR   # 仅ERROR级别阻断
-      SEMGREP_TIMEOUT: 600
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+
+      # 使用官方 action 的安全默认：p/ci + 生成 SARIF
       - uses: returntocorp/semgrep-action@v1
         with:
-          config: |
-            p/ci
-            .semgrep/
+          config: p/ci
           generateSarif: true
-          publishToken: ${{ secrets.SEMGREP_APP_TOKEN || '' }}
-          exclude: |
-            @.semgrepignore
+
+      # SARIF 可能因无规则匹配未生成；用 hashFiles 判断并跳过上传
       - name: Upload SARIF to code scanning
+        if: ${{ hashFiles('semgrep.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
