@@ -1,21 +1,21 @@
-name: Playwright
+name: e2e-playwright
 
 on:
   pull_request:
-  workflow_dispatch:
-
-permissions:
-  contents: read
+    branches: [ "main", "release-*" ]
+    paths-ignore: [ "dist/**", "**/*.snap" ]
+  schedule:
+    - cron: '30 2 * * *'   # 每天一次可选
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    env:
-      SITE_URL: ${{ secrets.SITE_URL }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
+        with: { node-version: 20 }
       - run: npm ci
       - run: npx playwright install --with-deps
-      - run: npx playwright test --reporter=line
+      - name: Run E2E
+        run: npm run -s e2e
