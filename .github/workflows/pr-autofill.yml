@@ -1,0 +1,60 @@
+name: pr-autofill
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited]
+    branches: [ "main", "release-*" ]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  autofill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render summary from orchestrator artifacts if present
+        id: summary
+        run: |
+          set -euo pipefail
+          if [ -f ".orchestrator/plan/plan.json" ]; then
+            PLAN=$(jq -r '.' .orchestrator/plan/plan.json)
+            TEST=$(jq -r '.' .orchestrator/plan/test-report.json 2>/dev/null || echo "{}")
+            REPAIR=$(jq -r '.' .orchestrator/plan/repair-notes.json 2>/dev/null || echo "[]")
+            OBS=$(jq -r '.' .orchestrator/plan/observability.json 2>/dev/null || echo "{}")
+            {
+              echo "### 🤖 自动摘要（Pre-Submit 工件）"
+              echo ""
+              echo "<details><summary>Plan</summary>"
+              echo ""
+              echo '```json'
+              echo "$PLAN"
+              echo '```'
+              echo "</details>"
+              echo ""
+              echo "<details><summary>Test Report</summary>"
+              echo ""
+              echo '```json'
+              echo "$TEST"
+              echo '```'
+              echo "</details>"
+              echo ""
+              echo "<details><summary>Repair & Observability</summary>"
+              echo ""
+              echo '```json'
+              echo "{\"repair\": $REPAIR, \"observability\": $OBS}"
+              echo '```'
+              echo "</details>"
+            } > pr-body-addendum.md
+          else
+            echo "no=1" >> $GITHUB_OUTPUT
+          fi
+      - name: Update PR body
+        if: steps.summary.outputs.no != '1'
+        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        run: |
+          body="$(gh pr view ${{ github.event.pull_request.number }} --json body -q .body)"
+          addendum="$(cat pr-body-addendum.md)"
+          printf "%s\n\n%s" "$body" "$addendum" > new.md
+          gh pr edit ${{ github.event.pull_request.number }} --body-file new.md
