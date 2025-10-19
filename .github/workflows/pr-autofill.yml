@@ -1,5 +1,5 @@
 name: pr-autofill
-
+   
 on:
   pull_request:
     types: [opened, synchronize, edited]
