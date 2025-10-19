@@ -5,7 +5,7 @@ coverage/**
 node_modules/**
 **/*.min.js
 **/*.map
-
+   
 # test snapshots & fixtures
 **/__snapshots__/**
 **/*.snap
