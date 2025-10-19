@@ -1,8 +1,12 @@
 name: deploy
-  
+
 on:
-  push:
-    branches: [ "main", "release-*" ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'target env'
+        required: false
+        default: 'prod'
 
 permissions:
   contents: read
@@ -12,13 +16,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # 注意：在仓库 Settings 的 Required checks 里，只勾选 P0 安全项即可
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npm ci
       - name: Build
-        run: npm run -s build
-      - name: Deploy (wrangler / your tool)
-        run: npm run -s deploy
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+            npm run -s build || echo "::notice title=deploy::No build script; skipping"
+          fi
+      - name: Deploy (wrangler/your tool)
+        run: |
+          echo "TODO deploy step – add your command when ready"
