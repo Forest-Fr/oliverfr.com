@@ -1,0 +1,15 @@
+# build & vendor
+dist/**
+build/**
+coverage/**
+node_modules/**
+**/*.min.js
+**/*.map
+
+# test snapshots & fixtures
+**/__snapshots__/**
+**/*.snap
+**/fixtures/**
+
+# generated orchestrator artifacts
+.orchestrator/**
