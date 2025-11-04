@@ -1,0 +1,99 @@
+name: CI - Full Matrix
+
+on:
+  push: { branches: [ main ] }
+  pull_request:
+
+jobs:
+  # 1) Cloudflare Workers（你的 CODE_* 主战场）
+  workers:
+    name: workers (vitest + miniflare)
+    runs-on: ubuntu-latest
+    if: ${{ contains(fromJson('["", "workers", "edge"]'), github.event.pull_request.base.ref) || true }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: corepack enable
+      - run: pnpm i --frozen-lockfile || npm ci
+      # 可选：把 CODE_TESTS 从 KV 同步到 tests/unit
+      - run: node scripts/sync-code-tests-from-kv.mjs || echo "skip sync"
+      - run: pnpm vitest --run
+        working-directory: ./packages/worker       # ← 单仓删掉该行
+        env:
+          NODE_ENV: test
+          TEST_MODE: "1"
+
+  # 2) Web 前端（React/Vite/Vitest/JSDOM）
+  web:
+    name: web (vitest + jsdom)
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: corepack enable
+      - run: pnpm i --frozen-lockfile || npm ci
+      - run: pnpm -w run test:web --if-present
+
+  # 3) 端到端（Playwright）——按需开启
+  e2e:
+    name: e2e (playwright)
+    runs-on: ubuntu-latest
+    if: ${{ false }} # 需要再开
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: pnpm i --frozen-lockfile || npm ci
+      - run: npx playwright install --with-deps
+      - run: pnpm playwright test
+
+  # 4) Node 库/工具（Jest 或 Vitest）
+  node-lib:
+    name: node-lib (vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: corepack enable
+      - run: pnpm i --frozen-lockfile || npm ci
+      - run: pnpm -w run test:node --if-present
+
+  # 5) React Native（Detox/Jest）——按需开启
+  rn:
+    name: rn (jest/detox)
+    runs-on: ubuntu-latest
+    if: ${{ false }} # 先关
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: corepack enable
+      - run: pnpm i --frozen-lockfile || npm ci
+      - run: pnpm -w run test:rn --if-present
+
+  # 6) Flutter（unit/widget/integration）——按需开启
+  flutter:
+    name: flutter (flutter test)
+    runs-on: ubuntu-latest
+    if: ${{ false }} # 先关
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '3.24.0' }
+      - run: flutter pub get
+        working-directory: ./apps/flutterapp
+      - run: flutter test
+        working-directory: ./apps/flutterapp
+
+  # 7) iOS（Xcode）——成本高，按需开
+  ios:
+    name: ios (xcodebuild)
+    runs-on: macos-latest
+    if: ${{ false }} # 先关
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcodebuild -project ios/App.xcodeproj -scheme App -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' test
