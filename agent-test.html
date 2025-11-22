@@ -780,20 +780,22 @@
     overflow: hidden; /* 防止左右推时露出太大的空白 */
   }
 
-  /* 由主面板负责平移，而不是整个 app-shell */
-  .main-panel {
+  /* 由主面板负责平移*/
+
+
+    .main-panel {
     padding-top: 46px;           /* 原来就有的，用于给顶部图标腾空间 */
     transition: transform 0.2s ease-out;
-    
   }
-    /* .app-shell 一样被推走*/
-.mobile-top-bar.push-right {
-  transform: translateX(min(80%, 320px));
-}
 
-.mobile-top-bar.push-left {
-  transform: translateX(-min(80%, 340px));
-}
+  /* 顶部两条横线跟随 app-shell 一起平移 */
+  .app-shell.push-right .mobile-top-bar {
+    transform: translateX(min(80%, 320px));
+  }
+
+  .app-shell.push-left .mobile-top-bar {
+    transform: translateX(-min(80%, 340px));
+  }
 
   /* 左侧菜单打开时：主界面整体向右推 */
   .app-shell.push-right .main-panel {
@@ -2291,6 +2293,7 @@
   </script>
 </body>
 </html>
+
 
 
 
