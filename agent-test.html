@@ -1115,10 +1115,11 @@
       // Toast
       el.toast = document.getElementById("toast");
       el.toastText = document.getElementById("toastText");
-  el.mobileMenuBtn = document.getElementById("mobileMenuBtn");
-  el.appShell = document.querySelector(".app-shell");
-}
 
+      // 手机端汉堡按钮 / 外壳
+      el.mobileMenuBtn = document.getElementById("mobileMenuBtn");
+      el.appShell = document.querySelector(".app-shell");
+    }
 
     // ==========================
     // 事件绑定
@@ -1260,13 +1261,13 @@
             showToast("复制失败，请检查浏览器权限");
           }
         });
+      }
 
-        // 手机端汉堡：切换左侧会话抽屉
-  if (el.mobileMenuBtn && el.appShell) {
-    el.mobileMenuBtn.addEventListener("click", () => {
-      el.appShell.classList.toggle("sidebar-open");
-    });
-    
+      // 手机端汉堡：切换左侧会话抽屉
+      if (el.mobileMenuBtn && el.appShell) {
+        el.mobileMenuBtn.addEventListener("click", () => {
+          el.appShell.classList.toggle("sidebar-open");
+        });
       }
     }
 
@@ -1460,7 +1461,9 @@
       };
     }
 
-   /* async function initSessions() {
+    /*
+    // 旧版本：自动创建一个默认会话
+    async function initSessions() {
       let stored = await dbReadAll(SESSION_STORE, "updatedAt");
       if (!stored || stored.length === 0) {
         const session = createSessionObject();
@@ -1474,24 +1477,26 @@
       renderSessionList();
       await renderCurrentSessionMessages();
       resetTraceTimeline();
-    }*/
+    }
+    */
+
+    // 新版本：首次进入时不自动创建会话，等待用户点击“新建会话”
     async function initSessions() {
-  // 从 IndexedDB 加载已有会话，按 updatedAt 倒序
-  let stored = await dbReadAll(SESSION_STORE, "updatedAt");
-  if (!stored || stored.length === 0) {
-    // ❗不再自动创建“新会话”
-    // 首次进入页面时左侧列表为空，等待用户点击“新建会话”
-    sessions = [];
-    currentSessionId = null;
-  } else {
-    sessions = stored; // 已按 updatedAt desc 排好
-    currentSessionId = sessions[0].id;
-  }
+      // 从 IndexedDB 加载已有会话，按 updatedAt 倒序
+      let stored = await dbReadAll(SESSION_STORE, "updatedAt");
+      if (!stored || stored.length === 0) {
+        // 不再自动创建“新会话”
+        sessions = [];
+        currentSessionId = null;
+      } else {
+        sessions = stored; // 已按 updatedAt desc 排好
+        currentSessionId = sessions[0].id;
+      }
 
-  renderSessionList();
-  await renderCurrentSessionMessages();
-}
-
+      renderSessionList();
+      await renderCurrentSessionMessages();
+      resetTraceTimeline();
+    }
 
     // 视图过滤后的会话列表（分 pinned / normal）
     function getVisibleSessions() {
@@ -1636,7 +1641,9 @@
       }
     }
 
-    /*async function renderCurrentSessionMessages() {
+    /*
+    // 旧版本：如果没有会话则不显示空白提示
+    async function renderCurrentSessionMessages() {
       if (!currentSessionId || !el.chatMessages) return;
 
       const messages = await dbReadMessagesBySession(currentSessionId);
@@ -1657,32 +1664,43 @@
           appendMessageBubble(msg.role, msg.content, false);
         });
       scrollToBottom();
-    }*/
-async function renderCurrentSessionMessages() {
-  // 没有选中任何会话：显示中间的空白提示
-  if (!currentSessionId) {
-    el.chatMessages.innerHTML = "";
-    el.chatMessages.appendChild(el.chatEmpty);
-    el.chatEmpty.style.display = "flex";
-    return;
-  }
+    }
+    */
 
-  const messages = await dbReadMessagesBySession(currentSessionId);
-  if (!messages || messages.length === 0) {
-    el.chatMessages.innerHTML = "";
-    el.chatMessages.appendChild(el.chatEmpty);
-    el.chatEmpty.style.display = "flex";
-    return;
-  }
+    // 新版本：支持“无当前会话”时的中央空白提示
+    async function renderCurrentSessionMessages() {
+      if (!el.chatMessages) return;
 
-  el.chatMessages.innerHTML = "";
-  messages
-    .sort((a, b) => a.createdAt - b.createdAt)
-    .forEach((msg) => {
-      appendMessageBubble(msg.role, msg.content, false);
-    });
-  scrollToBottom();
-}
+      // 没有选中任何会话：显示中间的空白提示
+      if (!currentSessionId) {
+        el.chatMessages.innerHTML = "";
+        if (el.chatEmpty) {
+          el.chatEmpty.style.display = "flex";
+          el.chatMessages.appendChild(el.chatEmpty);
+        }
+        return;
+      }
+
+      const messages = await dbReadMessagesBySession(currentSessionId);
+      el.chatMessages.innerHTML = "";
+
+      if (!messages || messages.length === 0) {
+        if (el.chatEmpty) {
+          el.chatEmpty.style.display = "flex";
+          el.chatMessages.appendChild(el.chatEmpty);
+        }
+        return;
+      }
+
+      clearEmptyHint();
+
+      messages
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .forEach((msg) => {
+          appendMessageBubble(msg.role, msg.content, false);
+        });
+      scrollToBottom();
+    }
 
     async function handleNewSession() {
       // 如果已经存在一个空白会话，直接切过去，避免多个空白窗口
@@ -1706,7 +1724,9 @@ async function renderCurrentSessionMessages() {
       resetTraceTimeline();
     }
 
-    /*async function handleDeleteSession(sessionId) {
+    /*
+    // 旧版本：删光所有会话时会自动新建一个
+    async function handleDeleteSession(sessionId) {
       if (!sessionId) return;
 
       await dbDeleteWhereMessages(sessionId);
@@ -1726,29 +1746,32 @@ async function renderCurrentSessionMessages() {
       renderSessionList();
       await renderCurrentSessionMessages();
       resetTraceTimeline();
-    }*/
+    }
+    */
+
+    // 新版本：删光所有会话时保持“无会话”状态，中心显示空白提示
     async function handleDeleteSession(sessionId) {
-  if (!sessionId) return;
+      if (!sessionId) return;
 
-  // 删除该会话的所有消息
-  await dbDeleteWhereMessages(sessionId);
-  await dbDelete(SESSION_STORE, sessionId);
+      // 删除该会话的所有消息
+      await dbDeleteWhereMessages(sessionId);
+      await dbDelete(SESSION_STORE, sessionId);
 
-  // 内存中移除
-  sessions = sessions.filter((s) => s.id !== sessionId);
+      // 内存中移除
+      sessions = sessions.filter((s) => s.id !== sessionId);
 
-  if (sessions.length === 0) {
-    // ❗删到 0 个会话时，不再自动新建空会话
-    currentSessionId = null;
-  } else if (currentSessionId === sessionId) {
-    // 当前会话被删，切到最新的一个
-    currentSessionId = sessions[0].id;
-  }
+      if (sessions.length === 0) {
+        // 删到 0 个会话时，不再自动新建空会话
+        currentSessionId = null;
+      } else if (currentSessionId === sessionId) {
+        // 当前会话被删，切到最新的一个
+        currentSessionId = sessions[0].id;
+      }
 
-  renderSessionList();
-  await renderCurrentSessionMessages();
-}
-
+      renderSessionList();
+      await renderCurrentSessionMessages();
+      resetTraceTimeline();
+    }
 
     async function handlePinSession(sessionId) {
       const session = sessions.find((s) => s.id === sessionId);
@@ -1799,7 +1822,7 @@ async function renderCurrentSessionMessages() {
         return;
       }
       if (!currentSessionId) {
-        showToast("当前会话未就绪，请刷新页面。");
+        showToast("当前没有会话，请先点击左侧「新建会话」。");
         return;
       }
 
@@ -2145,8 +2168,10 @@ async function renderCurrentSessionMessages() {
   })();
 </script>
 
+
 </body>
 </html>
+
 
 
 
