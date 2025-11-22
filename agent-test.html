@@ -1167,6 +1167,8 @@
 
     function cacheDom() {
       el.appShell = document.querySelector(".app-shell");
+       el.mainPanel = document.querySelector(".main-panel");   // ★ 新增：主聊天面板引用
+      
       el.sessionList = document.getElementById("sessionList");
       el.btnNewSession = document.getElementById("btnNewSession");
       el.chatMessages = document.getElementById("chatMessages");
@@ -1396,7 +1398,7 @@
       if (!isMobileViewport()) return;
       const sidebar = document.querySelector(".sidebar");
       const insight = document.querySelector(".insight-panel");
-      if (!sidebar || !insight || !el.appShell) return;
+      if (!sidebar || !insight || !el.appShell || !el.mainPanel) return;
 
       const isSame = currentMobilePanel === target;
       if (isSame) {
@@ -1405,16 +1407,28 @@
       }
 
       if (target === "left") {
+        // 左侧：保持原有行为，再显式给 main-panel 一个 move-right
         sidebar.classList.add("sidebar-open");
         insight.classList.remove("insight-open");
+
         el.appShell.classList.add("push-right");
         el.appShell.classList.remove("push-left");
+
+        el.mainPanel.classList.add("move-right");
+        el.mainPanel.classList.remove("move-left");
+
         currentMobilePanel = "left";
       } else if (target === "right") {
+        // 右侧：打开 insight，并明确让主面板左移
         insight.classList.add("insight-open");
         sidebar.classList.remove("sidebar-open");
+
         el.appShell.classList.add("push-left");
         el.appShell.classList.remove("push-right");
+
+        el.mainPanel.classList.add("move-left");
+        el.mainPanel.classList.remove("move-right");
+
         currentMobilePanel = "right";
       }
 
@@ -1422,6 +1436,7 @@
         el.mobileOverlay.classList.add("visible");
       }
     }
+
 
     function closeMobilePanels() {
       const sidebar = document.querySelector(".sidebar");
@@ -1431,6 +1446,13 @@
       if (el.appShell) {
         el.appShell.classList.remove("push-right", "push-left");
       }
+            if (el.appShell) {
+        el.appShell.classList.remove("push-right", "push-left");
+      }
+      if (el.mainPanel) {
+        el.mainPanel.classList.remove("move-right", "move-left");  // ★ 新增：恢复主面板位置
+      }
+
       currentMobilePanel = null;
       if (el.mobileOverlay) {
         el.mobileOverlay.classList.remove("visible");
@@ -2293,6 +2315,7 @@
   </script>
 </body>
 </html>
+
 
 
 
