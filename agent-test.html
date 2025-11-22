@@ -784,7 +784,16 @@
   .main-panel {
     padding-top: 46px;           /* 原来就有的，用于给顶部图标腾空间 */
     transition: transform 0.2s ease-out;
+    
   }
+    /* .app-shell 一样被推走*/
+.mobile-top-bar.push-right {
+  transform: translateX(min(80%, 320px));
+}
+
+.mobile-top-bar.push-left {
+  transform: translateX(-min(80%, 340px));
+}
 
   /* 左侧菜单打开时：主界面整体向右推 */
   .app-shell.push-right .main-panel {
@@ -1129,6 +1138,11 @@
     let currentSessionId = null;
     let isSending = false;
     let lastRawResponse = "";
+
+        // 移动端抽屉状态（左右）
+    let isSidebarOpenMobile = false;
+    let isInsightOpenMobile = false;
+
     let lastOverview = null;
     let currentMobilePanel = null;
 
@@ -1176,12 +1190,108 @@
       el.toast = document.getElementById("toast");
       el.toastText = document.getElementById("toastText");
 
+            // 移动端抽屉相关（顶栏 + 遮罩 + 左右抽屉 + 整体容器）
+      el.appShell = document.querySelector(".app-shell");
+      el.mobileTopBar = document.querySelector(".mobile-top-bar");
+      el.mobileOverlay = document.getElementById("mobileOverlay");
+      el.btnToggleSidebar = document.getElementById("btnToggleSidebar");
+      el.btnToggleInsight = document.getElementById("btnToggleInsight");
+      el.sidebar = document.querySelector(".sidebar");
+      el.insightPanel = document.querySelector(".insight-panel");
+
       el.btnMobileSidebar = document.getElementById("btnMobileSidebar");
       el.btnMobileInsight = document.getElementById("btnMobileInsight");
       el.mobileOverlay = document.getElementById("mobileOverlay");
     }
 
     function bindGlobalEvents() {
+
+      // ===== 移动端左右抽屉：两条横线菜单 =====
+      if (el.btnToggleSidebar) {
+        el.btnToggleSidebar.addEventListener("click", () => {
+          const willOpen = !isSidebarOpenMobile;
+          isSidebarOpenMobile = willOpen;
+
+          if (el.sidebar) {
+            el.sidebar.classList.toggle("sidebar-open", willOpen);
+          }
+          if (el.appShell) {
+            el.appShell.classList.toggle("push-right", willOpen);
+            // 打开左侧时，确保右侧关闭
+            if (willOpen) {
+              el.appShell.classList.remove("push-left");
+            }
+          }
+          if (el.mobileTopBar) {
+            el.mobileTopBar.classList.toggle("push-right", willOpen);
+            if (willOpen) {
+              el.mobileTopBar.classList.remove("push-left");
+            }
+          }
+          if (willOpen && isInsightOpenMobile) {
+            // 左侧打开时，顺便关掉右侧抽屉
+            isInsightOpenMobile = false;
+            if (el.insightPanel) {
+              el.insightPanel.classList.remove("insight-open");
+            }
+          }
+          updateMobileOverlay();
+        });
+      }
+
+      if (el.btnToggleInsight) {
+        el.btnToggleInsight.addEventListener("click", () => {
+          const willOpen = !isInsightOpenMobile;
+          isInsightOpenMobile = willOpen;
+
+          if (el.insightPanel) {
+            el.insightPanel.classList.toggle("insight-open", willOpen);
+          }
+          if (el.appShell) {
+            el.appShell.classList.toggle("push-left", willOpen);
+            // 打开右侧时，确保左侧关闭
+            if (willOpen) {
+              el.appShell.classList.remove("push-right");
+            }
+          }
+          if (el.mobileTopBar) {
+            el.mobileTopBar.classList.toggle("push-left", willOpen);
+            if (willOpen) {
+              el.mobileTopBar.classList.remove("push-right");
+            }
+          }
+          if (willOpen && isSidebarOpenMobile) {
+            isSidebarOpenMobile = false;
+            if (el.sidebar) {
+              el.sidebar.classList.remove("sidebar-open");
+            }
+          }
+          updateMobileOverlay();
+        });
+      }
+
+      if (el.mobileOverlay) {
+        el.mobileOverlay.addEventListener("click", () => {
+          // 点击遮罩：统一关闭左右抽屉 & 复位整体 transform
+          isSidebarOpenMobile = false;
+          isInsightOpenMobile = false;
+
+          if (el.sidebar) {
+            el.sidebar.classList.remove("sidebar-open");
+          }
+          if (el.insightPanel) {
+            el.insightPanel.classList.remove("insight-open");
+          }
+          if (el.appShell) {
+            el.appShell.classList.remove("push-right", "push-left");
+          }
+          if (el.mobileTopBar) {
+            el.mobileTopBar.classList.remove("push-right", "push-left");
+          }
+          updateMobileOverlay();
+        });
+      }
+
       el.btnNewSession.addEventListener("click", () => {
         handleNewSession();
       });
@@ -2170,6 +2280,7 @@
   </script>
 </body>
 </html>
+
 
 
 
