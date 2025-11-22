@@ -4,1064 +4,939 @@
   <meta charset="UTF-8" />
   <title>Agent Worker 测试面板</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  :root {
-    --bg-page: #edf2ff;
-    --bg-card: #ffffff;
-    --bg-card-soft: #f5f7ff;
-    --border-subtle: #e2e8ff;
-    --border-strong: #c7d2fe;
-    --text-main: #111827;
-    --text-sub: #6b7280;
-    --text-mute: #9ca3af;
-    --accent: #4f46e5;
-    --accent-soft: rgba(79, 70, 229, 0.1);
-    --accent-strong: #3730a3;
-    --danger: #ef4444;
-    --radius-lg: 18px;
-    --radius-md: 10px;
-    --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.14);
-    --shadow-subtle: 0 8px 20px rgba(15, 23, 42, 0.12);
-    --sidebar-width: 280px;
-    --insight-width: 320px;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-      "Segoe UI", sans-serif;
-    background: radial-gradient(circle at top, #e0e7ff 0, #eef2ff 55%, #e5e7eb 100%);
-    color: var(--text-main);
-  }
-
-  body {
-    display: flex;
-    justify-content: center;
-    align-items: stretch;
-    padding: 20px;
-  }
-
-  .app-shell {
-    display: flex;
-    flex-direction: row;
-    width: min(1320px, 100%);
-    height: 100%;
-    max-height: 880px;
-    background: linear-gradient(145deg, #f9fafb, #eef2ff);
-    border-radius: 26px;
-    box-shadow: var(--shadow-soft);
-    overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.45);
-    position: relative;
-  }
-
-  /* 左侧：会话列表 */
-
-  .sidebar {
-    width: var(--sidebar-width);
-    background: radial-gradient(circle at top left, #1e293b 0, #020617 60%);
-    color: #e5e7eb;
-    padding: 18px 18px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    border-right: 1px solid rgba(148, 163, 184, 0.3);
-    position: relative;
-    z-index: 1;
-  }
-
-  .sidebar-header {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .sidebar-title-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .sidebar-title {
-    font-weight: 700;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .status-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 999px;
-    background: #22c55e;
-    box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.35);
-  }
-
-  .sidebar-subtitle {
-    font-size: 12px;
-    color: #9ca3af;
-  }
-
-  .sidebar-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 4px;
-  }
-
-  .tag-chip {
-    font-size: 11px;
-    padding: 3px 7px;
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.65);
-    color: #e5e7eb;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: radial-gradient(circle at top, rgba(148, 163, 184, 0.26), transparent);
-  }
-
-  .tag-chip strong {
-    font-weight: 600;
-  }
-
-  .sidebar-divider {
-    height: 1px;
-    background: linear-gradient(to right, rgba(148, 163, 184, 0.5), transparent);
-    margin-top: 6px;
-  }
-
-  .sidebar-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 4px;
-  }
-
-  .btn-new-session {
-    border: none;
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 13px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: linear-gradient(135deg, #4f46e5, #6366f1);
-    color: #f9fafb;
-    cursor: pointer;
-    box-shadow: 0 8px 18px rgba(79, 70, 229, 0.5);
-    transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, background 0.1s ease-out;
-  }
-
-  .btn-new-session:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 12px 24px rgba(79, 70, 229, 0.6);
-    background: linear-gradient(135deg, #4338ca, #4f46e5);
-  }
-
-  .btn-new-session:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.6);
-  }
-
-  .btn-icon {
-    width: 16px;
-    height: 16px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.4);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-  }
-
-  .sidebar-env {
-    font-size: 11px;
-    color: #9ca3af;
-    padding: 3px 7px;
-    border-radius: 999px;
-    border: 1px dashed rgba(148, 163, 184, 0.8);
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(15, 23, 42, 0.45);
-  }
-
-  .sidebar-env-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 999px;
-    background: #22c55e;
-  }
-
-  .session-list {
-    flex: 1;
-    margin-top: 4px;
-    padding-top: 4px;
-    overflow: hidden auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .session-item {
-    position: relative;
-    border-radius: 12px;
-    padding: 8px 9px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    background: rgba(15, 23, 42, 0.45);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    transition: background 0.08s ease-out, border 0.08s ease-out, transform 0.06s ease-out;
-  }
-
-  .session-item:hover {
-    background: rgba(15, 23, 42, 0.7);
-    border-color: rgba(148, 163, 184, 0.7);
-  }
-
-  .session-item.active {
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.6), rgba(37, 99, 235, 0.6));
-    border-color: #c7d2fe;
-    transform: translateX(2px);
-  }
-
-  .session-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .session-title {
-    font-size: 13px;
-    font-weight: 500;
-    color: #e5e7eb;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    max-width: 190px;
-  }
-
-  .session-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    color: #9ca3af;
-  }
-
-  .session-tokens {
-    padding: 2px 6px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.8);
-    border: 1px solid rgba(148, 163, 184, 0.7);
-    font-size: 10px;
-  }
-
-  .btn-delete-session {
-    border: none;
-    background: transparent;
-    color: #9ca3af;
-    font-size: 13px;
-    padding: 0 0 0 8px;
-    cursor: pointer;
-    opacity: 0.0;
-    transition: opacity 0.08s ease-out, color 0.08s ease-out;
-  }
-
-  .session-item:hover .btn-delete-session {
-    opacity: 1;
-  }
-
-  .btn-delete-session:hover {
-    color: #fecaca;
-  }
-
-  .sidebar-footer {
-    margin-top: 6px;
-    font-size: 11px;
-    color: #6b7280;
-  }
-
-  /* 中间：聊天面板 */
-
-  .main-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 16px 18px 14px;
-    gap: 10px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .main-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .main-header-left {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .breadcrumbs {
-    font-size: 11px;
-    color: var(--text-mute);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .breadcrumbs span {
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .agent-title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .agent-name {
-    font-size: 18px;
-    font-weight: 700;
-  }
-
-  .pill {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 999px;
-    border: 1px solid var(--border-strong);
-    background: var(--bg-card-soft);
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .main-header-right {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--text-mute);
-  }
-
-  .env-pill {
-    padding: 4px 8px;
-    border-radius: 999px;
-    border: 1px dashed #d4d4ff;
-    background: rgba(219, 234, 254, 0.6);
-    color: #1d4ed8;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-weight: 500;
-  }
-
-  .env-pill-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: #22c55e;
-  }
-
-  .chat-surface {
-    flex: 1;
-    border-radius: 18px;
-    background: radial-gradient(circle at top left, #eef2ff 0, #f9fafb 55%);
-    border: 1px solid var(--border-subtle);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-  }
-
-  .chat-messages {
-    flex: 1;
-    padding: 16px 18px 12px;
-    overflow: auto;
-    scroll-behavior: smooth;
-  }
-
-  .chat-empty {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    color: var(--text-mute);
-    text-align: center;
-    font-size: 13px;
-  }
-
-  .chat-message {
-    max-width: 80%;
-    padding: 10px 12px;
-    border-radius: 14px;
-    margin-bottom: 8px;
-    font-size: 14px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .chat-message.user {
-    margin-left: auto;
-    background: linear-gradient(135deg, #4f46e5, #6366f1);
-    color: white;
-    border-bottom-right-radius: 4px;
-    box-shadow: 0 10px 22px rgba(79, 70, 229, 0.35);
-  }
-
-  .chat-message.assistant {
-    margin-right: auto;
-    background: rgba(255, 255, 255, 0.95);
-    border-bottom-left-radius: 4px;
-    border: 1px solid rgba(148, 163, 184, 0.5);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-  }
-
-  .chat-meta-row {
-    display: flex;
-    justify-content: flex-end;
-    font-size: 11px;
-    color: var(--text-mute);
-    margin-bottom: 6px;
-    gap: 8px;
-  }
-
-  .chat-input-bar {
-    border-top: 1px solid var(--border-subtle);
-    padding: 10px 12px;
-    background: linear-gradient(to top, rgba(249, 250, 251, 0.94), rgba(249, 250, 251, 0.9));
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .chat-input-row {
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-  }
-
-  .chat-input {
-    flex: 1;
-    border-radius: 12px;
-    border: 1px solid var(--border-subtle);
-    padding: 8px 10px;
-    resize: none;
-    min-height: 42px;
-    max-height: 96px;
-    font-size: 14px;
-    line-height: 1.4;
-    outline: none;
-    background: rgba(255, 255, 255, 0.96);
-  }
-
-  .chat-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.3);
-  }
-
-  .send-button {
-    border: none;
-    border-radius: 999px;
-    padding: 9px 18px;
-    font-size: 13px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    background: linear-gradient(135deg, #4f46e5, #6366f1);
-    color: white;
-    box-shadow: 0 10px 24px rgba(79, 70, 229, 0.5);
-    transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, opacity 0.08s ease-out;
-  }
-
-  .send-button:hover:not([disabled]) {
-    transform: translateY(-1px);
-    box-shadow: 0 14px 28px rgba(79, 70, 229, 0.6);
-  }
-
-  .send-button:active:not([disabled]) {
-    transform: translateY(0);
-    box-shadow: 0 6px 14px rgba(31, 41, 55, 0.55);
-  }
-
-  .send-button[disabled] {
-    opacity: 0.65;
-    cursor: default;
-    box-shadow: 0 4px 10px rgba(148, 163, 184, 0.6);
-  }
-
-  .send-button-icon {
-    font-size: 14px;
-    background: rgba(15, 23, 42, 0.3);
-    border-radius: 999px;
-    padding: 4px;
-    display: inline-flex;
-  }
-
-  .input-hint-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--text-mute);
-  }
-
-  .input-hint-row strong {
-    color: var(--text-sub);
-  }
-
-  /* 右侧：调用概览 & 原始 JSON */
-
-  .insight-panel {
-    width: var(--insight-width);
-    padding: 14px 14px 12px;
-    border-left: 1px solid rgba(148, 163, 184, 0.4);
-    background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), #020617);
-    color: #e5e7eb;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .insight-card {
-    background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.96));
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    padding: 10px 11px;
-    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.8);
-  }
-
-  .insight-card h3 {
-    margin: 0 0 6px;
-    font-size: 13px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .insight-tag {
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 999px;
-    background: rgba(37, 99, 235, 0.25);
-    border: 1px solid rgba(129, 140, 248, 0.7);
-  }
-
-  .call-overview-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    margin-bottom: 2px;
-    color: #9ca3af;
-  }
-
-  .call-overview-row span:last-child {
-    color: #e5e7eb;
-  }
-
-  .call-overview-row strong {
-    color: #e5e7eb;
-  }
-
-  .call-status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 999px;
-    border: 1px solid rgba(52, 211, 153, 0.8);
-    background: rgba(5, 150, 105, 0.2);
-    color: #bbf7d0;
-  }
-
-  .call-status-pill.error {
-    border-color: rgba(248, 113, 113, 0.9);
-    background: rgba(127, 29, 29, 0.85);
-    color: #fecaca;
-  }
-
-  .call-status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: #22c55e;
-  }
-
-  .call-status-pill.error .call-status-dot {
-    background: #f97373;
-  }
-
-  .raw-json-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    color: #9ca3af;
-    margin-bottom: 6px;
-  }
-
-  .json-buttons {
-    display: flex;
-    gap: 6px;
-  }
-
-  .btn-ghost {
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.7);
-    background: rgba(15, 23, 42, 0.7);
-    font-size: 11px;
-    padding: 3px 8px;
-    color: #e5e7eb;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    transition: background 0.08s ease-out, border 0.08s ease-out, transform 0.06s ease-out;
-  }
-
-  .btn-ghost:hover {
-    background: rgba(15, 23, 42, 0.95);
-    border-color: rgba(251, 191, 36, 0.85);
-    transform: translateY(-0.5px);
-  }
-
-  .btn-ghost:active {
-    transform: translateY(0);
-  }
-
-  .raw-json-body {
-    position: relative;
-    border-radius: 10px;
-    border: 1px solid rgba(55, 65, 81, 0.9);
-    background: radial-gradient(circle at top left, rgba(17, 24, 39, 0.9), #020617);
-    padding: 8px 9px;
-    max-height: 160px;
-    overflow: hidden;
-    transition: max-height 0.18s ease-out;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-      "Courier New", monospace;
-    font-size: 11px;
-    color: #e5e7eb;
-  }
-
-  .raw-json-body.open {
-    max-height: 260px;
-    overflow: auto;
-  }
-
-  .raw-json-placeholder {
-    color: #6b7280;
-    font-size: 11px;
-  }
-
-  .raw-json-pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .agent-desc-list {
-    list-style: none;
-    padding-left: 0;
-    margin: 6px 0 0;
-    font-size: 11px;
-    color: #9ca3af;
-  }
-
-  .agent-desc-list li {
-    margin-bottom: 4px;
-    display: flex;
-    gap: 4px;
-  }
-
-  .agent-desc-list li span {
-    color: #e5e7eb;
-  }
-
-  /* toast */
-
-  .toast {
-    position: absolute;
-    right: 24px;
-    bottom: 22px;
-    z-index: 40;
-    padding: 8px 11px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.92);
-    color: #f9fafb;
-    font-size: 12px;
-    display: none;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(248, 250, 252, 0.22);
-  }
-
-  .toast.visible {
-    display: inline-flex;
-  }
-
-  .toast-icon {
-    font-size: 14px;
-  }
-
-  @media (max-width: 1120px) {
-    .insight-panel {
-      display: none;
+  <style>
+    :root {
+      --bg-page: #edf2ff;
+      --bg-card: #ffffff;
+      --bg-card-soft: #f5f7ff;
+      --border-subtle: #e2e8ff;
+      --border-strong: #c7d2fe;
+      --text-main: #111827;
+      --text-sub: #6b7280;
+      --text-mute: #9ca3af;
+      --accent: #4f46e5;
+      --accent-soft: rgba(79, 70, 229, 0.1);
+      --accent-strong: #3730a3;
+      --danger: #ef4444;
+      --radius-lg: 18px;
+      --radius-md: 10px;
+      --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.14);
+      --shadow-subtle: 0 8px 20px rgba(15, 23, 42, 0.12);
+      --sidebar-width: 280px;
+      --insight-width: 320px;
     }
-  }
 
-  @media (max-width: 900px) {
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
     body {
+      margin: 0;
       padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #e0e7ff 0, #eef2ff 55%, #e5e7eb 100%);
+      color: var(--text-main);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      padding: 20px;
     }
 
     .app-shell {
-      border-radius: 0;
-      box-shadow: none;
-      max-height: none;
+      display: flex;
+      flex-direction: row;
+      width: min(1320px, 100%);
       height: 100%;
+      max-height: 880px;
+      background: linear-gradient(145deg, #f9fafb, #eef2ff);
+      border-radius: 26px;
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.45);
     }
 
-    /* 手机端：左侧会话列表作为抽屉，不默认展示，由 JS 控制 .sidebar-open */
+    /* 左侧：会话列表 */
+
     .sidebar {
-      position: fixed;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      width: min(80vw, 300px);
-      max-width: 320px;
-      transform: translateX(-100%);
-      transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-      box-shadow: none;
-      z-index: 40;
+      width: var(--sidebar-width);
+      background: radial-gradient(circle at top left, #1e293b 0, #020617 60%);
+      color: #e5e7eb;
+      padding: 18px 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      border-right: 1px solid rgba(148, 163, 184, 0.3);
+      position: relative;
+      z-index: 1;
     }
 
-    .app-shell.sidebar-open .sidebar {
-      transform: translateX(0);
-      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+    .sidebar-header {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
-  }
 
-  /* endpoint pill 文案，不再是具体域名，限制一下宽度即可 */
-  .aw-pill-endpoint .aw-pill-value {
-    max-width: 180px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+    .sidebar-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
-  /* 基础：右侧区域保持横向对齐 */
-  .aw-header-right {
-    display: flex;
-    align-items: center;
-  }
+    .sidebar-title {
+      font-weight: 700;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-  /* 两条横线的汉堡按钮（默认隐藏，只有小屏才显示） */
-  .aw-mobile-menu {
-    display: none; /* 默认不展示，media query 里再打开 */
-    position: relative;
-    margin-left: 12px;
-    padding: 6px 4px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-  }
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.35);
+    }
 
-  .aw-mobile-menu .line {
-    display: block;
-    height: 2px;
-    border-radius: 999px;
-    background: rgba(17, 24, 39, 0.95);
-  }
+    .sidebar-subtitle {
+      font-size: 12px;
+      color: #9ca3af;
+    }
 
-  /* 上面那条更长 */
-  .aw-mobile-menu .line-1 {
-    width: 18px;
-  }
+    .sidebar-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
 
-  /* 下面那条更短、与左边对齐 */
-  .aw-mobile-menu .line-2 {
-    width: 12px;
-    margin-top: 5px;
-  }
+    .tag-chip {
+      font-size: 11px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.65);
+      color: #e5e7eb;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: radial-gradient(circle at top, rgba(148, 163, 184, 0.26), transparent);
+    }
 
-  @media (max-width: 768px) {
-    .aw-header-right {
+    .tag-chip strong {
+      font-weight: 600;
+    }
+
+    .sidebar-divider {
+      height: 1px;
+      background: linear-gradient(to right, rgba(148, 163, 184, 0.5), transparent);
+      margin-top: 6px;
+    }
+
+    .sidebar-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .btn-new-session {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: #f9fafb;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(79, 70, 229, 0.5);
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, background 0.1s ease-out;
+    }
+
+    .btn-new-session:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(79, 70, 229, 0.6);
+      background: linear-gradient(135deg, #4338ca, #4f46e5);
+    }
+
+    .btn-new-session:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.6);
+    }
+
+    .btn-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.4);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .sidebar-env {
+      font-size: 11px;
+      color: #9ca3af;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px dashed rgba(148, 163, 184, 0.8);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(15, 23, 42, 0.45);
+    }
+
+    .sidebar-env-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .session-list {
+      flex: 1;
+      margin-top: 4px;
+      padding-top: 4px;
+      overflow: hidden auto;
+      display: flex;
+      flex-direction: column;
       gap: 4px;
     }
 
-    /* 手机端不需要看到后端 pill，避免挤占空间 */
-    .aw-header-right .aw-pill-endpoint {
-      display: none;
-    }
-
-    /* 只在小屏展示汉堡按钮 */
-    .aw-mobile-menu {
-      display: inline-flex;
+    .session-item {
+      position: relative;
+      border-radius: 12px;
+      padding: 8px 9px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: rgba(15, 23, 42, 0.45);
+      display: flex;
       flex-direction: column;
-      align-items: flex-start; /* 左边对齐，右侧自然长短不一 */
-      justify-content: center;
+      gap: 4px;
+      transition: background 0.08s ease-out, border 0.08s ease-out, transform 0.06s ease-out;
     }
-  }
-</style>
 
+    .session-item:hover {
+      background: rgba(15, 23, 42, 0.7);
+      border-color: rgba(148, 163, 184, 0.7);
+    }
+
+    .session-item.active {
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.6), rgba(37, 99, 235, 0.6));
+      border-color: #c7d2fe;
+      transform: translateX(2px);
+    }
+
+    .session-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .session-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #e5e7eb;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      max-width: 190px;
+    }
+
+    .session-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .session-tokens {
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      font-size: 10px;
+    }
+
+    .btn-delete-session {
+      border: none;
+      background: transparent;
+      color: #9ca3af;
+      font-size: 13px;
+      padding: 0 0 0 8px;
+      cursor: pointer;
+      opacity: 0.0;
+      transition: opacity 0.08s ease-out, color 0.08s ease-out;
+    }
+
+    .session-item:hover .btn-delete-session {
+      opacity: 1;
+    }
+
+    .btn-delete-session:hover {
+      color: #fecaca;
+    }
+
+    .sidebar-footer {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    /* 中间：聊天面板 */
+
+    .main-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 18px 14px;
+      gap: 10px;
+      position: relative;
+      z-index: 0;
+    }
+
+    .main-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .main-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .breadcrumbs {
+      font-size: 11px;
+      color: var(--text-mute);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .breadcrumbs span {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .agent-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .agent-name {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-card-soft);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .main-header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-mute);
+    }
+
+    .env-pill {
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px dashed #d4d4ff;
+      background: rgba(219, 234, 254, 0.6);
+      color: #1d4ed8;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+    }
+
+    .env-pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .chat-surface {
+      flex: 1;
+      border-radius: 18px;
+      background: radial-gradient(circle at top left, #eef2ff 0, #f9fafb 55%);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 16px 18px 12px;
+      overflow: auto;
+      scroll-behavior: smooth;
+    }
+
+    .chat-empty {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--text-mute);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .chat-message {
+      max-width: 80%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .chat-message.user {
+      margin-left: auto;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: white;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 10px 22px rgba(79, 70, 229, 0.35);
+    }
+
+    .chat-message.assistant {
+      margin-right: auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-bottom-left-radius: 4px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .chat-meta-row {
+      display: flex;
+      justify-content: flex-end;
+      font-size: 11px;
+      color: var(--text-mute);
+      margin-bottom: 6px;
+      gap: 8px;
+    }
+
+    .chat-input-bar {
+      border-top: 1px solid var(--border-subtle);
+      padding: 10px 12px;
+      background: linear-gradient(to top, rgba(249, 250, 251, 0.94), rgba(249, 250, 251, 0.9));
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .chat-input {
+      flex: 1;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      padding: 8px 10px;
+      resize: none;
+      min-height: 42px;
+      max-height: 96px;
+      font-size: 14px;
+      line-height: 1.4;
+      outline: none;
+      background: rgba(255, 255, 255, 0.96);
+    }
+
+    .chat-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.3);
+    }
+
+    .send-button {
+      border: none;
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: white;
+      box-shadow: 0 10px 24px rgba(79, 70, 229, 0.5);
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, opacity 0.08s ease-out;
+    }
+
+    .send-button:hover:not([disabled]) {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(79, 70, 229, 0.6);
+    }
+
+    .send-button:active:not([disabled]) {
+      transform: translateY(0);
+      box-shadow: 0 6px 14px rgba(31, 41, 55, 0.55);
+    }
+
+    .send-button[disabled] {
+      opacity: 0.65;
+      cursor: default;
+      box-shadow: 0 4px 10px rgba(148, 163, 184, 0.6);
+    }
+
+    .send-button-icon {
+      font-size: 14px;
+      background: rgba(15, 23, 42, 0.3);
+      border-radius: 999px;
+      padding: 4px;
+      display: inline-flex;
+    }
+
+    .input-hint-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-mute);
+    }
+
+    .input-hint-row strong {
+      color: var(--text-sub);
+    }
+
+    /* 右侧：调用概览 & 原始 JSON */
+
+    .insight-panel {
+      width: var(--insight-width);
+      padding: 14px 14px 12px;
+      border-left: 1px solid rgba(148, 163, 184, 0.4);
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), #020617);
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .insight-card {
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.96));
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 10px 11px;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.8);
+    }
+
+    .insight-card h3 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .insight-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.25);
+      border: 1px solid rgba(129, 140, 248, 0.7);
+    }
+
+    .call-overview-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 2px;
+      color: #9ca3af;
+    }
+
+    .call-overview-row span:last-child {
+      color: #e5e7eb;
+    }
+
+    .call-overview-row strong {
+      color: #e5e7eb;
+    }
+
+    .call-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(52, 211, 153, 0.8);
+      background: rgba(5, 150, 105, 0.2);
+      color: #bbf7d0;
+    }
+
+    .call-status-pill.error {
+      border-color: rgba(248, 113, 113, 0.9);
+      background: rgba(127, 29, 29, 0.85);
+      color: #fecaca;
+    }
+
+    .call-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .call-status-pill.error .call-status-dot {
+      background: #f97373;
+    }
+
+    .raw-json-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+
+    .json-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-ghost {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.7);
+      font-size: 11px;
+      padding: 3px 8px;
+      color: #e5e7eb;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.08s ease-out, border 0.08s ease-out, transform 0.06s ease-out;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(15, 23, 42, 0.95);
+      border-color: rgba(251, 191, 36, 0.85);
+      transform: translateY(-0.5px);
+    }
+
+    .btn-ghost:active {
+      transform: translateY(0);
+    }
+
+    .raw-json-body {
+      position: relative;
+      border-radius: 10px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: radial-gradient(circle at top left, rgba(17, 24, 39, 0.9), #020617);
+      padding: 8px 9px;
+      max-height: 160px;
+      overflow: hidden;
+      transition: max-height 0.18s ease-out;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+      font-size: 11px;
+      color: #e5e7eb;
+    }
+
+    .raw-json-body.open {
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    .raw-json-placeholder {
+      color: #6b7280;
+      font-size: 11px;
+    }
+
+    .raw-json-pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .agent-desc-list {
+      list-style: none;
+      padding-left: 0;
+      margin: 6px 0 0;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .agent-desc-list li {
+      margin-bottom: 4px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .agent-desc-list li span {
+      color: #e5e7eb;
+    }
+
+    /* toast */
+
+    .toast {
+      position: absolute;
+      right: 24px;
+      bottom: 22px;
+      z-index: 40;
+      padding: 8px 11px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #f9fafb;
+      font-size: 12px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(248, 250, 252, 0.22);
+    }
+
+    .toast.visible {
+      display: inline-flex;
+    }
+
+    .toast-icon {
+      font-size: 14px;
+    }
+
+    @media (max-width: 1120px) {
+      .insight-panel {
+        display: none;
+      }
+    }
+
+    @media (max-width: 900px) {
+      body {
+        padding: 0;
+      }
+      .app-shell {
+        border-radius: 0;
+        box-shadow: none;
+        max-height: none;
+        height: 100%;
+      }
+      .sidebar {
+        display: none;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="app-shell">
-  <!-- 左侧：会话列表 -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-title-row">
-        <div class="sidebar-title">
-          <span class="status-dot"></span>
-          Agent Worker 控制台
-        </div>
-      </div>
-      <!-- 11.22 调整：文案改为 Cloudflare Worker 智能体，避免暴露具体域名 -->
-      <div class="sidebar-subtitle">本地对接 · Cloudflare AI智能体</div>
-      <div class="sidebar-tags">
-        <div class="tag-chip"><strong>Agent</strong> worker-agent</div>
-        <div class="tag-chip"><strong>Model</strong> gpt-5-mini</div>
-        <div class="tag-chip"><strong>Route</strong> Worker → OpenAI Chat</div>
-      </div>
-      <div class="sidebar-divider"></div>
-    </div>
-
-    <div class="sidebar-actions">
-      <button class="btn-new-session" id="btnNewSession">
-        <span class="btn-icon">＋</span>
-        新建会话
-      </button>
-      <div class="sidebar-env">
-        <span class="sidebar-env-dot"></span>
-        环境：Dev
-      </div>
-    </div>
-
-    <div class="session-list" id="sessionList">
-      <!-- JS 渲染会话 -->
-    </div>
-
-    <div class="sidebar-footer">
-      本页面仅作 <strong>AI 智能体链路测试</strong>，不保存服务端日志。
-    </div>
-  </aside>
-
-  <!-- 中间：主聊天区域 -->
-  <main class="main-panel">
-    <div class="main-header">
-      <div class="main-header-left">
-        <div class="breadcrumbs">
-          <span>Agent Worker 测试面板</span>
-          <span>·</span>
-          <!-- 11.22 调整：补全为 Cloudflare Worker → OpenAI Chat -->
-          <span>前端 → Cloudflare   → OpenAI Chat</span>
-        </div>
-        <div class="agent-title-row">
-          <div class="agent-name">Agent Worker 测试面板</div>
-          <div class="pill">
-            <span>Agent:</span>
-            <strong id="currentAgentLabel">worker-agent</strong>
-          </div>
-          <div class="pill">
-            <span>模型:</span>
-            <strong id="currentModelLabel">gpt-5-mini</strong>
+    <!-- 左侧：会话列表 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title-row">
+          <div class="sidebar-title">
+            <span class="status-dot"></span>
+            Agent Worker 控制台
           </div>
         </div>
+        <div class="sidebar-subtitle">本地对接 · Cloudflare Worker 智能体</div>
+        <div class="sidebar-tags">
+          <div class="tag-chip"><strong>Agent</strong> worker-agent</div>
+          <div class="tag-chip"><strong>Model</strong> gpt-5-mini</div>
+          <div class="tag-chip"><strong>Route</strong> Worker → OpenAI Chat</div>
+        </div>
+        <div class="sidebar-divider"></div>
       </div>
-      <div class="main-header-right">
-        <!-- 手机端两条横线汉堡菜单按钮，放在右侧区域的最左边 -->
-        <button class="aw-mobile-menu" id="awMobileMenu" aria-label="打开菜单">
-          <span class="line line-1"></span>
-          <span class="line line-2"></span>
+
+      <div class="sidebar-actions">
+        <button class="btn-new-session" id="btnNewSession">
+          <span class="btn-icon">＋</span>
+          新建会话
         </button>
-        <div class="env-pill">
-          <span class="env-pill-dot"></span>
-          <span>AI智能体</span>
+        <div class="sidebar-env">
+          <span class="sidebar-env-dot"></span>
+          环境：Dev
         </div>
       </div>
 
+      <div class="session-list" id="sessionList">
+        <!-- JS 渲染会话 -->
+      </div>
 
-    <section class="chat-surface">
-      <div class="chat-messages" id="chatMessages">
-        <div class="chat-empty" id="chatEmpty">
-          <div>这里会显示你和 Worker 智能体的对话记录。</div>
-          <div>试试输入：<strong>「帮我把下面的报错信息按原因拆解一下」</strong>。</div>
+      <div class="sidebar-footer">
+        本页面仅作 <strong>AI 智能体链路测试</strong>，不保存服务端日志。
+      </div>
+    </aside>
+
+    <!-- 中间：主聊天区域 -->
+    <main class="main-panel">
+      <div class="main-header">
+        <div class="main-header-left">
+          <div class="breadcrumbs">
+            <span>Agent Worker 测试面板</span>
+            <span>·</span>
+            <span>前端 → Cloudflare Worker → OpenAI Chat Completions</span>
+          </div>
+          <div class="agent-title-row">
+            <div class="agent-name">Agent Worker 测试面板</div>
+            <div class="pill">
+              <span>Agent:</span>
+              <strong id="currentAgentLabel">worker-agent</strong>
+            </div>
+            <div class="pill">
+              <span>模型:</span>
+              <strong id="currentModelLabel">gpt-5-mini</strong>
+            </div>
+          </div>
+        </div>
+        <div class="main-header-right">
+          <div class="env-pill">
+            <span class="env-pill-dot"></span>
+            <span>Worker: agent.mefans.workers.dev</span>
+          </div>
         </div>
       </div>
 
-      <div class="chat-input-bar">
-        <div class="chat-input-row">
-          <textarea
-            id="chatInput"
-            class="chat-input"
-            placeholder="在这里输入：比如『帮我总结一下今天要做的三件事』，然后按 Ctrl+Enter 或点击发送。"
-          ></textarea>
-          <button id="btnSend" class="send-button">
-            <span class="send-button-icon">↗</span>
-            <span id="btnSendLabel">发送</span>
-          </button>
+      <section class="chat-surface">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty" id="chatEmpty">
+            <div>这里会显示你和 Worker 智能体的对话记录。</div>
+            <div>试试输入：<strong>「帮我把下面的报错信息按原因拆解一下」</strong>。</div>
+          </div>
         </div>
-        <div class="input-hint-row">
-          <span>支持多行输入。<strong>Ctrl+Enter</strong> 发送。</span>
-          <!-- 11.22 调整：文案改为 Cloudflare Worker 智能体 -->
-          <span id="requestMetaHint">就绪：调用 Cloudflare  AI智能体。</span>
+
+        <div class="chat-input-bar">
+          <div class="chat-input-row">
+            <textarea
+              id="chatInput"
+              class="chat-input"
+              placeholder="在这里输入：比如『帮我总结一下今天要做的三件事』，然后按 Ctrl+Enter 或点击发送。"
+            ></textarea>
+            <button id="btnSend" class="send-button">
+              <span class="send-button-icon">↗</span>
+              <span id="btnSendLabel">发送</span>
+            </button>
+          </div>
+          <div class="input-hint-row">
+            <span>支持多行输入。<strong>Ctrl+Enter</strong> 发送。</span>
+            <span id="requestMetaHint">就绪：调用 Cloudflare Worker 智能体。</span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <div class="toast" id="toast">
-      <span class="toast-icon">⚠️</span>
-      <span id="toastText">错误信息</span>
-    </div>
-  </main>
-
-  <!-- 右侧：调用概览 -->
-  <aside class="insight-panel">
-    <div class="insight-card">
-      <h3>
-        调用概览
-        <span class="insight-tag">最近一次</span>
-      </h3>
-      <div class="call-overview-row">
-        <span>耗时</span>
-        <span id="ovDuration">-</span>
+      <div class="toast" id="toast">
+        <span class="toast-icon">⚠️</span>
+        <span id="toastText">错误信息</span>
       </div>
-      <div class="call-overview-row">
-        <span>状态</span>
-        <span id="ovStatus">
-          <span class="call-status-pill">
-            <span class="call-status-dot"></span>
-            尚未调用
+    </main>
+
+    <!-- 右侧：调用概览 -->
+    <aside class="insight-panel">
+      <div class="insight-card">
+        <h3>
+          调用概览
+          <span class="insight-tag">最近一次</span>
+        </h3>
+        <div class="call-overview-row">
+          <span>耗时</span>
+          <span id="ovDuration">-</span>
+        </div>
+        <div class="call-overview-row">
+          <span>状态</span>
+          <span id="ovStatus">
+            <span class="call-status-pill">
+              <span class="call-status-dot"></span>
+              尚未调用
+            </span>
           </span>
-        </span>
-      </div>
-      <div class="call-overview-row">
-        <span>模型</span>
-        <span id="ovModel">gpt-5-mini</span>
-      </div>
-      <div class="call-overview-row">
-        <span>Prompt tokens</span>
-        <span id="ovPromptTokens">-</span>
-      </div>
-      <div class="call-overview-row">
-        <span>Completion tokens</span>
-        <span id="ovCompletionTokens">-</span>
-      </div>
-      <div class="call-overview-row">
-        <span>Total tokens</span>
-        <span id="ovTotalTokens">-</span>
-      </div>
-    </div>
-
-    <div class="insight-card">
-      <div class="raw-json-header">
-        <span>原始返回</span>
-        <div class="json-buttons">
-          <button class="btn-ghost" id="btnToggleJson">展开 JSON</button>
-          <button class="btn-ghost" id="btnCopyJson">复制</button>
+        </div>
+        <div class="call-overview-row">
+          <span>模型</span>
+          <span id="ovModel">gpt-5-mini</span>
+        </div>
+        <div class="call-overview-row">
+          <span>Prompt tokens</span>
+          <span id="ovPromptTokens">-</span>
+        </div>
+        <div class="call-overview-row">
+          <span>Completion tokens</span>
+          <span id="ovCompletionTokens">-</span>
+        </div>
+        <div class="call-overview-row">
+          <span>Total tokens</span>
+          <span id="ovTotalTokens">-</span>
         </div>
       </div>
-      <div class="raw-json-body" id="rawJsonBody">
-        <div class="raw-json-placeholder" id="rawJsonPlaceholder">
-          尚未调用。调用后这里会显示 Worker 与 OpenAI 返回的完整 JSON。
+
+      <div class="insight-card">
+        <div class="raw-json-header">
+          <span>原始返回</span>
+          <div class="json-buttons">
+            <button class="btn-ghost" id="btnToggleJson">展开 JSON</button>
+            <button class="btn-ghost" id="btnCopyJson">复制</button>
+          </div>
         </div>
-        <pre class="raw-json-pre" id="rawJsonPre" style="display:none;"></pre>
+        <div class="raw-json-body" id="rawJsonBody">
+          <div class="raw-json-placeholder" id="rawJsonPlaceholder">
+            尚未调用。调用后这里会显示 Worker 与 OpenAI 返回的完整 JSON。
+          </div>
+          <pre class="raw-json-pre" id="rawJsonPre" style="display:none;"></pre>
+        </div>
       </div>
-    </div>
 
-    <div class="insight-card">
-      <h3>
-        智能体说明
-        <span class="insight-tag">worker-agent · Dev</span>
-      </h3>
-      <ul class="agent-desc-list">
-        <li>· <span>职责：</span>验证 Cloudflare → OpenAI gpt-5-mini 聊天链路。</li>
-        <li>· <span>能力：</span>回答自然语言问题，展示模型与 tokens 信息。</li>
-        <li>· <span>限制：</span>不访问业务数据库、不执行写操作工具调用。</li>
-        <li>· <span>适用场景：</span>对接联调、链路健康检查、最小可用智能体测试。</li>
-      </ul>
-    </div>
-  </aside>
-</div>
-
-
-
-
-
-
-
-
+      <div class="insight-card">
+        <h3>
+          智能体说明
+          <span class="insight-tag">worker-agent · Dev</span>
+        </h3>
+        <ul class="agent-desc-list">
+          <li>· <span>职责：</span>验证 Cloudflare Worker → OpenAI gpt-5-mini 聊天链路。</li>
+          <li>· <span>能力：</span>回答自然语言问题，展示模型与 tokens 信息。</li>
+          <li>· <span>限制：</span>不访问业务数据库、不执行写操作工具调用。</li>
+          <li>· <span>适用场景：</span>本地联调、链路健康检查、最小可用智能体测试。</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
 
   <script>
-  (function () {
-    "use strict";
-
-    // === Agent / Model Config ===
-    const AGENT_CONFIGS = {
-      "worker-agent": {
-        key: "worker-agent",
-        label: "worker-agent · Dev",
-        endpoint: "https://agent.mefans.workers.dev/",
-        defaultModel: "gpt-5-mini",
-      },
-      // 如果以后要扩展更多智能体，可以在这里加：
-      // "ops-agent": { key: "ops-agent", label: "Ops Agent", endpoint: "...", defaultModel: "gpt-5-mini" }
-    };
-
-    let currentAgentKey = "worker-agent"; // 默认智能体
-    let currentModelName = AGENT_CONFIGS["worker-agent"].defaultModel;
-
-    // === IndexedDB Config ===
+    // === Config ===
+    const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
     const DB_NAME = "agentWorkerDB";
     const DB_VERSION = 1;
     const SESSION_STORE = "sessions";
     const MESSAGE_STORE = "messages";
+    const MAX_SESSIONS = 50; // 自动清理过多历史会话
 
-    const MAX_DYNAMIC_SESSIONS = 50; // 动态桶最多保留多少条
-    const BUCKET_DYNAMIC = "dynamic"; // 动态桶：最近会话，自动回收
-    const BUCKET_STATIC = "static"; // 静态桶：pin 固定的会话，不自动回收
-
-    // === In-memory State ===
+    // === State (in-memory) ===
     let dbPromise = null;
     let sessions = [];
     let currentSessionId = null;
     let isSending = false;
     let lastRawResponse = "";
-    let lastCallDurationMs = 0;
-
-    // 会话列表视图状态
-    const viewState = {
-      searchKeyword: "",
-      showPinnedOnly: false,
-      agentFilter: "all", // "all" 或具体 agentKey
-    };
 
     // === DOM refs ===
     const el = {};
@@ -1069,24 +944,12 @@
     document.addEventListener("DOMContentLoaded", () => {
       cacheDom();
       bindGlobalEvents();
-      initIndexedDB()
-        .then(initSessions)
-        .catch(showFatalError);
+      initIndexedDB().then(initSessions).catch(showFatalError);
     });
 
-    // ==========================
-    // DOM 缓存
-    // ==========================
     function cacheDom() {
-      // 左侧会话栏
       el.sessionList = document.getElementById("sessionList");
       el.btnNewSession = document.getElementById("btnNewSession");
-      el.sessionSearchInput = document.getElementById("sessionSearch"); // 可选
-      el.sessionFilterPinned = document.getElementById("sessionFilterPinned"); // 可选
-      el.agentFilterSelect = document.getElementById("agentFilter"); // 可选
-      el.agentTabs = document.querySelectorAll("[data-agent-key]"); // 可选 tab 形式
-
-      // 中间聊天区域
       el.chatMessages = document.getElementById("chatMessages");
       el.chatEmpty = document.getElementById("chatEmpty");
       el.chatInput = document.getElementById("chatInput");
@@ -1094,13 +957,6 @@
       el.btnSendLabel = document.getElementById("btnSendLabel");
       el.requestMetaHint = document.getElementById("requestMetaHint");
 
-      // 顶部 / 右侧 Agent/Model 展示（可选）
-      el.currentAgentLabel = document.getElementById("currentAgentLabel"); // 例如 “worker-agent · Dev”
-      el.currentModelLabel = document.getElementById("currentModelLabel"); // 例如 “gpt-5-mini”
-      el.agentSelector = document.getElementById("agentSelector"); // 下拉选择智能体（可选）
-      el.modelSelector = document.getElementById("modelSelector"); // 下拉选择模型（可选）
-
-      // 调用概览
       el.ovDuration = document.getElementById("ovDuration");
       el.ovStatus = document.getElementById("ovStatus");
       el.ovModel = document.getElementById("ovModel");
@@ -1108,197 +964,88 @@
       el.ovCompletionTokens = document.getElementById("ovCompletionTokens");
       el.ovTotalTokens = document.getElementById("ovTotalTokens");
 
-      // 原始 JSON
       el.rawJsonBody = document.getElementById("rawJsonBody");
       el.rawJsonPlaceholder = document.getElementById("rawJsonPlaceholder");
       el.rawJsonPre = document.getElementById("rawJsonPre");
       el.btnToggleJson = document.getElementById("btnToggleJson");
       el.btnCopyJson = document.getElementById("btnCopyJson");
 
-      // 调用轨迹 / 工具时间线（可选容器）
-      el.traceTimeline = document.getElementById("traceTimeline");
-      el.traceEmpty = document.getElementById("traceEmpty");
-
-      // Toast
       el.toast = document.getElementById("toast");
       el.toastText = document.getElementById("toastText");
     }
 
-    // ==========================
-    // 事件绑定
-    // ==========================
     function bindGlobalEvents() {
-      // 新建会话
-      if (el.btnNewSession) {
-        el.btnNewSession.addEventListener("click", () => {
-          handleNewSession();
-        });
-      }
+      // New session button
+      el.btnNewSession.addEventListener("click", () => {
+        handleNewSession();
+      });
 
-      // 会话列表点击（选择 / 删除 / pin）
-      if (el.sessionList) {
-        el.sessionList.addEventListener("click", (event) => {
-          const target = event.target;
-          const deleteBtn = target.closest("[data-action='delete-session']");
-          const pinBtn = target.closest("[data-action='pin-session']");
-          const item = target.closest("[data-session-id]");
+      // Session list click (event delegation)
+      el.sessionList.addEventListener("click", (event) => {
+        const target = event.target;
+        const deleteBtn = target.closest("[data-action='delete-session']");
+        const item = target.closest("[data-session-id]");
 
-          if (!item) return;
+        if (deleteBtn && item) {
           const id = item.getAttribute("data-session-id");
+          event.stopPropagation();
+          handleDeleteSession(id);
+          return;
+        }
 
-          if (deleteBtn) {
-            event.stopPropagation();
-            handleDeleteSession(id);
-            return;
-          }
-
-          if (pinBtn) {
-            event.stopPropagation();
-            handlePinSession(id);
-            return;
-          }
-
+        if (item) {
+          const id = item.getAttribute("data-session-id");
           selectSession(id);
-        });
-      }
+        }
+      });
 
-      // 搜索 / 过滤
-      if (el.sessionSearchInput) {
-        el.sessionSearchInput.addEventListener("input", (e) => {
-          viewState.searchKeyword = e.target.value.trim();
-          renderSessionList();
-        });
-      }
+      // Send button
+      el.btnSend.addEventListener("click", () => {
+        triggerSend();
+      });
 
-      if (el.sessionFilterPinned) {
-        el.sessionFilterPinned.addEventListener("change", (e) => {
-          viewState.showPinnedOnly = !!e.target.checked;
-          renderSessionList();
-        });
-      }
-
-      if (el.agentFilterSelect) {
-        el.agentFilterSelect.addEventListener("change", (e) => {
-          viewState.agentFilter = e.target.value || "all";
-          renderSessionList();
-        });
-      }
-
-      // Agent tabs 点击切换
-      if (el.agentTabs && el.agentTabs.length) {
-        el.agentTabs.forEach((tab) => {
-          tab.addEventListener("click", () => {
-            const key = tab.getAttribute("data-agent-key");
-            if (key && AGENT_CONFIGS[key]) {
-              setCurrentAgent(key);
-              // 高亮 tab
-              el.agentTabs.forEach((t) =>
-                t.classList.toggle("active", t === tab)
-              );
-            }
-          });
-        });
-      }
-
-      // Agent / Model 下拉切换
-      if (el.agentSelector) {
-        el.agentSelector.addEventListener("change", (e) => {
-          const key = e.target.value;
-          if (key && AGENT_CONFIGS[key]) {
-            setCurrentAgent(key);
-          }
-        });
-      }
-
-      if (el.modelSelector) {
-        el.modelSelector.addEventListener("change", (e) => {
-          const val = e.target.value;
-          if (val) {
-            currentModelName = val;
-            if (el.currentModelLabel) el.currentModelLabel.textContent = val;
-          }
-        });
-      }
-
-      // 发送
-      if (el.btnSend) {
-        el.btnSend.addEventListener("click", () => {
+      // Ctrl+Enter to send
+      el.chatInput.addEventListener("keydown", (event) => {
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          event.key === "Enter" &&
+          !event.shiftKey
+        ) {
+          event.preventDefault();
           triggerSend();
-        });
-      }
+        }
+      });
 
-      // Ctrl+Enter 发送
-      if (el.chatInput) {
-        el.chatInput.addEventListener("keydown", (event) => {
-          if (
-            (event.ctrlKey || event.metaKey) &&
-            event.key === "Enter" &&
-            !event.shiftKey
-          ) {
-            event.preventDefault();
-            triggerSend();
-          }
-        });
-      }
+      // Toggle JSON
+      el.btnToggleJson.addEventListener("click", () => {
+        const isOpen = el.rawJsonBody.classList.toggle("open");
+        el.btnToggleJson.textContent = isOpen ? "收起 JSON" : "展开 JSON";
+      });
 
-      // 展开 / 收起 JSON
-      if (el.btnToggleJson && el.rawJsonBody) {
-        el.btnToggleJson.addEventListener("click", () => {
-          const isOpen = el.rawJsonBody.classList.toggle("open");
-          el.btnToggleJson.textContent = isOpen ? "收起 JSON" : "展开 JSON";
-        });
-      }
-
-      // 复制 JSON
-      if (el.btnCopyJson) {
-        el.btnCopyJson.addEventListener("click", async () => {
-          if (!lastRawResponse) {
-            showToast("当前没有可复制的 JSON");
-            return;
-          }
-          try {
-            await navigator.clipboard.writeText(lastRawResponse);
-            showToast("已复制 JSON 到剪贴板");
-          } catch (err) {
-            console.error(err);
-            showToast("复制失败，请检查浏览器权限");
-          }
-        });
-      }
+      // Copy JSON
+      el.btnCopyJson.addEventListener("click", async () => {
+        if (!lastRawResponse) {
+          showToast("当前没有可复制的 JSON");
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(lastRawResponse);
+          showToast("已复制 JSON 到剪贴板");
+        } catch (err) {
+          console.error(err);
+          showToast("复制失败，请检查浏览器权限");
+        }
+      });
     }
 
-    // ==========================
-    // Agent 切换
-    // ==========================
-    function getCurrentAgentConfig() {
-      return AGENT_CONFIGS[currentAgentKey] || AGENT_CONFIGS["worker-agent"];
-    }
+    // === IndexedDB helpers ===
 
-    function setCurrentAgent(agentKey) {
-      if (!AGENT_CONFIGS[agentKey]) return;
-      currentAgentKey = agentKey;
-      const cfg = getCurrentAgentConfig();
-      currentModelName = cfg.defaultModel || "gpt-5-mini";
-
-      if (el.currentAgentLabel) el.currentAgentLabel.textContent = cfg.label;
-      if (el.currentModelLabel) el.currentModelLabel.textContent = currentModelName;
-
-      // 如果有 Agent 过滤器，选择对应项
-      if (el.agentFilterSelect) {
-        const options = Array.from(el.agentFilterSelect.options);
-        const matched = options.find((opt) => opt.value === agentKey);
-        if (matched) el.agentFilterSelect.value = agentKey;
-      }
-    }
-
-    // ==========================
-    // IndexedDB helpers
-    // ==========================
     function initIndexedDB() {
       if (!("indexedDB" in window)) {
         showToast("当前浏览器不支持 IndexedDB，将使用内存模式（刷新后丢失）。");
         return Promise.resolve();
       }
+
       if (dbPromise) return dbPromise;
 
       dbPromise = new Promise((resolve, reject) => {
@@ -1309,21 +1056,19 @@
 
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
-          // sessions
           if (!db.objectStoreNames.contains(SESSION_STORE)) {
             const sessionStore = db.createObjectStore(SESSION_STORE, {
               keyPath: "id",
             });
             sessionStore.createIndex("updatedAt", "updatedAt", { unique: false });
-            sessionStore.createIndex("bucket", "bucket", { unique: false });
-            sessionStore.createIndex("agentKey", "agentKey", { unique: false });
           }
-          // messages
           if (!db.objectStoreNames.contains(MESSAGE_STORE)) {
             const messageStore = db.createObjectStore(MESSAGE_STORE, {
               keyPath: "id",
             });
-            messageStore.createIndex("sessionId", "sessionId", { unique: false });
+            messageStore.createIndex("sessionId", "sessionId", {
+              unique: false,
+            });
           }
         };
       });
@@ -1332,28 +1077,30 @@
     }
 
     function dbReadAll(storeName, indexName, query, direction = "prev") {
-      if (!dbPromise) return Promise.resolve([]);
-      return dbPromise.then(
-        (db) =>
-          new Promise((resolve, reject) => {
-            const tx = db.transaction(storeName, "readonly");
-            let store = tx.objectStore(storeName);
-            if (indexName) store = store.index(indexName);
-
-            const items = [];
-            const req = store.openCursor(query, direction);
-            req.onerror = () => reject(req.error);
-            req.onsuccess = (event) => {
-              const cursor = event.target.result;
-              if (cursor) {
-                items.push(cursor.value);
-                cursor.continue();
-              } else {
-                resolve(items);
-              }
-            };
-          })
-      );
+      return dbPromise
+        ? dbPromise.then(
+            (db) =>
+              new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, "readonly");
+                let store = tx.objectStore(storeName);
+                if (indexName) {
+                  store = store.index(indexName);
+                }
+                const items = [];
+                const req = store.openCursor(query, direction);
+                req.onerror = () => reject(req.error);
+                req.onsuccess = (event) => {
+                  const cursor = event.target.result;
+                  if (cursor) {
+                    items.push(cursor.value);
+                    cursor.continue();
+                  } else {
+                    resolve(items);
+                  }
+                };
+              })
+          )
+        : Promise.resolve([]);
     }
 
     function dbPut(storeName, value) {
@@ -1408,27 +1155,25 @@
     }
 
     function dbReadMessagesBySession(sessionId) {
-      if (!dbPromise) return Promise.resolve([]);
-      return dbPromise.then(
-        (db) =>
-          new Promise((resolve, reject) => {
-            const tx = db.transaction(MESSAGE_STORE, "readonly");
-            const store = tx.objectStore(MESSAGE_STORE);
-            const index = store.index("sessionId");
-            const req = index.getAll(IDBKeyRange.only(sessionId));
-            req.onerror = () => reject(req.error);
-            req.onsuccess = () => resolve(req.result || []);
-          })
-      );
+      return dbPromise
+        ? dbPromise.then(
+            (db) =>
+              new Promise((resolve, reject) => {
+                const tx = db.transaction(MESSAGE_STORE, "readonly");
+                const store = tx.objectStore(MESSAGE_STORE);
+                const index = store.index("sessionId");
+                const req = index.getAll(IDBKeyRange.only(sessionId));
+                req.onerror = () => reject(req.error);
+                req.onsuccess = () => resolve(req.result || []);
+              })
+          )
+        : Promise.resolve([]);
     }
 
-    // ==========================
-    // Session / message model
-    // ==========================
+    // === Session / message model helpers ===
+
     function createSessionObject() {
-      const id = crypto.randomUUID
-        ? crypto.randomUUID()
-        : "s_" + Date.now() + "_" + Math.random();
+      const id = crypto.randomUUID ? crypto.randomUUID() : "s_" + Date.now();
       const ts = Date.now();
       return {
         id,
@@ -1437,17 +1182,11 @@
         updatedAt: ts,
         totalTokens: 0,
         isEmpty: true,
-        pinned: false,
-        bucket: BUCKET_DYNAMIC, // 默认进入动态桶
-        agentKey: currentAgentKey,
-        lastUserText: "",
       };
     }
 
     function createMessage(sessionId, role, content) {
-      const id = crypto.randomUUID
-        ? crypto.randomUUID()
-        : "m_" + Date.now() + "_" + Math.random();
+      const id = crypto.randomUUID ? crypto.randomUUID() : "m_" + Date.now() + "_" + Math.random();
       return {
         id,
         sessionId,
@@ -1458,6 +1197,7 @@
     }
 
     async function initSessions() {
+      // load from DB
       let stored = await dbReadAll(SESSION_STORE, "updatedAt");
       if (!stored || stored.length === 0) {
         const session = createSessionObject();
@@ -1465,131 +1205,54 @@
         currentSessionId = session.id;
         await dbPut(SESSION_STORE, session);
       } else {
-        sessions = stored;
+        sessions = stored; // 已按 updatedAt desc
         currentSessionId = sessions[0].id;
       }
       renderSessionList();
       await renderCurrentSessionMessages();
-      resetTraceTimeline();
-    }
-
-    // 视图过滤后的会话列表（分 pinned / normal）
-    function getVisibleSessions() {
-      let list = [...sessions];
-
-      if (viewState.agentFilter !== "all") {
-        list = list.filter((s) => s.agentKey === viewState.agentFilter);
-      }
-      if (viewState.searchKeyword) {
-        const q = viewState.searchKeyword.toLowerCase();
-        list = list.filter((s) => {
-          const title = (s.title || "").toLowerCase();
-          const last = (s.lastUserText || "").toLowerCase();
-          return title.includes(q) || last.includes(q);
-        });
-      }
-      if (viewState.showPinnedOnly) {
-        list = list.filter((s) => s.pinned);
-      }
-
-      const pinned = list.filter((s) => s.pinned);
-      const normal = list.filter((s) => !s.pinned);
-
-      pinned.sort((a, b) => b.updatedAt - a.updatedAt);
-      normal.sort((a, b) => b.updatedAt - a.updatedAt);
-
-      return { pinned, normal };
     }
 
     function renderSessionList() {
-      if (!el.sessionList) return;
       el.sessionList.innerHTML = "";
+      sessions.forEach((session) => {
+        const item = document.createElement("div");
+        item.className =
+          "session-item" + (session.id === currentSessionId ? " active" : "");
+        item.setAttribute("data-session-id", session.id);
 
-      const { pinned, normal } = getVisibleSessions();
+        const headerRow = document.createElement("div");
+        headerRow.className = "session-header-row";
 
-      if (pinned.length === 0 && normal.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "session-empty-hint";
-        empty.textContent = "暂无会话。";
-        el.sessionList.appendChild(empty);
-        return;
-      }
+        const titleSpan = document.createElement("div");
+        titleSpan.className = "session-title";
+        titleSpan.textContent = session.title || "未命名会话";
 
-      if (pinned.length > 0) {
-        const header = document.createElement("div");
-        header.className = "session-section-title";
-        header.textContent = "已固定";
-        el.sessionList.appendChild(header);
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "btn-delete-session";
+        deleteBtn.setAttribute("data-action", "delete-session");
+        deleteBtn.textContent = "×";
 
-        pinned.forEach((session) => {
-          el.sessionList.appendChild(renderSessionItem(session));
-        });
-      }
+        headerRow.appendChild(titleSpan);
+        headerRow.appendChild(deleteBtn);
 
-      if (normal.length > 0) {
-        if (pinned.length > 0) {
-          const header = document.createElement("div");
-          header.className = "session-section-title";
-          header.textContent = "最近";
-          el.sessionList.appendChild(header);
-        }
-        normal.forEach((session) => {
-          el.sessionList.appendChild(renderSessionItem(session));
-        });
-      }
-    }
+        const metaRow = document.createElement("div");
+        metaRow.className = "session-meta";
 
-    function renderSessionItem(session) {
-      const item = document.createElement("div");
-      item.className =
-        "session-item" + (session.id === currentSessionId ? " active" : "");
-      item.setAttribute("data-session-id", session.id);
+        const timeSpan = document.createElement("span");
+        timeSpan.textContent = formatShortTime(session.updatedAt);
 
-      const headerRow = document.createElement("div");
-      headerRow.className = "session-header-row";
+        const tokenSpan = document.createElement("span");
+        tokenSpan.className = "session-tokens";
+        tokenSpan.textContent = `${session.totalTokens || 0} tokens`;
 
-      const titleSpan = document.createElement("div");
-      titleSpan.className = "session-title";
-      titleSpan.textContent = session.title || "未命名会话";
+        metaRow.appendChild(timeSpan);
+        metaRow.appendChild(tokenSpan);
 
-      const actions = document.createElement("div");
-      actions.className = "session-actions";
+        item.appendChild(headerRow);
+        item.appendChild(metaRow);
 
-      const pinBtn = document.createElement("button");
-      pinBtn.className =
-        "btn-pin-session" + (session.pinned ? " pinned" : "");
-      pinBtn.setAttribute("type", "button");
-      pinBtn.setAttribute("data-action", "pin-session");
-      pinBtn.textContent = session.pinned ? "📌" : "📍";
-
-      const deleteBtn = document.createElement("button");
-      deleteBtn.className = "btn-delete-session";
-      deleteBtn.setAttribute("type", "button");
-      deleteBtn.setAttribute("data-action", "delete-session");
-      deleteBtn.textContent = "×";
-
-      actions.appendChild(pinBtn);
-      actions.appendChild(deleteBtn);
-
-      headerRow.appendChild(titleSpan);
-      headerRow.appendChild(actions);
-
-      const metaRow = document.createElement("div");
-      metaRow.className = "session-meta";
-
-      const timeSpan = document.createElement("span");
-      timeSpan.textContent = formatShortTime(session.updatedAt);
-
-      const tokenSpan = document.createElement("span");
-      tokenSpan.className = "session-tokens";
-      tokenSpan.textContent = `${session.totalTokens || 0} tokens`;
-
-      metaRow.appendChild(timeSpan);
-      metaRow.appendChild(tokenSpan);
-
-      item.appendChild(headerRow);
-      item.appendChild(metaRow);
-      return item;
+        el.sessionList.appendChild(item);
+      });
     }
 
     function formatShortTime(timestamp) {
@@ -1605,32 +1268,18 @@
       currentSessionId = sessionId;
       renderSessionList();
       await renderCurrentSessionMessages();
-      resetTraceTimeline();
-    }
-
-    function clearEmptyHint() {
-      if (!el.chatEmpty) return;
-      el.chatEmpty.style.display = "none";
-      if (el.chatEmpty.parentNode) {
-        el.chatEmpty.parentNode.removeChild(el.chatEmpty);
-      }
     }
 
     async function renderCurrentSessionMessages() {
-      if (!currentSessionId || !el.chatMessages) return;
-
+      if (!currentSessionId) return;
       const messages = await dbReadMessagesBySession(currentSessionId);
-      clearEmptyHint();
-      el.chatMessages.innerHTML = "";
-
       if (!messages || messages.length === 0) {
-        if (el.chatEmpty) {
-          el.chatEmpty.style.display = "flex";
-          el.chatMessages.appendChild(el.chatEmpty);
-        }
+        el.chatMessages.innerHTML = "";
+        el.chatMessages.appendChild(el.chatEmpty);
+        el.chatEmpty.style.display = "flex";
         return;
       }
-
+      el.chatMessages.innerHTML = "";
       messages
         .sort((a, b) => a.createdAt - b.createdAt)
         .forEach((msg) => {
@@ -1640,7 +1289,7 @@
     }
 
     async function handleNewSession() {
-      // 如果已经存在一个空白会话，直接切过去，避免多个空白窗口
+      // 如果存在一个 isEmpty 的会话，则直接切换过去
       const existingEmpty = sessions.find((s) => s.isEmpty);
       if (existingEmpty) {
         currentSessionId = existingEmpty.id;
@@ -1658,15 +1307,15 @@
 
       renderSessionList();
       await renderCurrentSessionMessages();
-      resetTraceTimeline();
     }
 
     async function handleDeleteSession(sessionId) {
       if (!sessionId) return;
-
+      // 删除 DB 中的 messages
       await dbDeleteWhereMessages(sessionId);
       await dbDelete(SESSION_STORE, sessionId);
 
+      // 更新内存
       sessions = sessions.filter((s) => s.id !== sessionId);
 
       if (sessions.length === 0) {
@@ -1680,52 +1329,26 @@
 
       renderSessionList();
       await renderCurrentSessionMessages();
-      resetTraceTimeline();
-    }
-
-    async function handlePinSession(sessionId) {
-      const session = sessions.find((s) => s.id === sessionId);
-      if (!session) return;
-
-      session.pinned = !session.pinned;
-      // pinned → 静态桶；取消 pin → 动态桶
-      session.bucket = session.pinned ? BUCKET_STATIC : BUCKET_DYNAMIC;
-      await dbPut(SESSION_STORE, session);
-
-      renderSessionList();
     }
 
     async function cleanupOldSessionsIfNecessary() {
-      // 只清理动态桶中未 pin 的会话
-      const dynamic = sessions.filter(
-        (s) => s.bucket === BUCKET_DYNAMIC && !s.pinned
-      );
-      if (dynamic.length <= MAX_DYNAMIC_SESSIONS) return;
+      if (sessions.length <= MAX_SESSIONS) return;
+      const sorted = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+      const keep = sorted.slice(0, MAX_SESSIONS);
+      const remove = sorted.slice(MAX_SESSIONS);
 
-      const sorted = [...dynamic].sort((a, b) => b.updatedAt - a.updatedAt);
-      const keepDynamic = sorted.slice(0, MAX_DYNAMIC_SESSIONS);
-      const removeDynamic = sorted.slice(MAX_DYNAMIC_SESSIONS);
-
-      const keepIds = new Set(keepDynamic.map((s) => s.id));
-      const toRemove = removeDynamic.map((s) => s.id);
-
-      for (const sid of toRemove) {
-        await dbDeleteWhereMessages(sid);
-        await dbDelete(SESSION_STORE, sid);
+      for (const s of remove) {
+        await dbDeleteWhereMessages(s.id);
+        await dbDelete(SESSION_STORE, s.id);
       }
 
-      sessions = sessions.filter(
-        (s) => !toRemove.includes(s.id) // 删除的
-      );
+      sessions = keep;
     }
 
-    // ==========================
-    // 发送 & Worker 交互
-    // ==========================
+    // === Sending & Worker interaction ===
+
     async function triggerSend() {
       if (isSending) return;
-      if (!el.chatInput) return;
-
       const raw = el.chatInput.value.trim();
       if (!raw) {
         showToast("请输入内容后再发送。");
@@ -1742,58 +1365,42 @@
       const userMsg = createMessage(currentSessionId, "user", raw);
       await dbPut(MESSAGE_STORE, userMsg);
 
-      // 更新会话元信息
+      // 更新 session 标题（如果还是空白会话）
       const session = sessions.find((s) => s.id === currentSessionId);
-      if (session) {
-        session.lastUserText = raw;
+      if (session && session.isEmpty) {
+        session.isEmpty = false;
+        session.title = deriveTitleFromText(raw);
         session.updatedAt = Date.now();
-
-        if (session.isEmpty) {
-          session.isEmpty = false;
-          session.title = deriveTitleFromText(raw);
-        }
         await dbPut(SESSION_STORE, session);
       }
 
+      // 添加到内存 & UI
       appendMessageBubble("user", raw, true);
       el.chatInput.value = "";
 
-      const agentCfg = getCurrentAgentConfig();
-      const endpoint = agentCfg.endpoint;
-      const payload = {
-        agent: agentCfg.key,
-        model: currentModelName,
-        input: raw,
-      };
-
+      // 调用 Worker
       const start = performance.now();
       let ok = false;
-      let modelName = currentModelName || "gpt-5-mini";
+      let modelName = "gpt-5-mini";
       let usage = null;
       let outputText = "";
-      lastCallDurationMs = 0;
 
       try {
-        const res = await fetch(endpoint, {
+        const res = await fetch(WORKER_ENDPOINT, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ input: raw }),
         });
 
         const durationMs = performance.now() - start;
-        lastCallDurationMs = durationMs;
 
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           lastRawResponse = text || "";
           updateCallOverviewError(res.status, durationMs, null);
           updateRawJson(text || "");
-          updateTraceTimelineFromResponse(null, durationMs, {
-            ok: false,
-            status: res.status,
-          });
           showToast("Worker 调用失败，请检查 Worker 日志。");
         } else {
           const data = await res.json();
@@ -1802,23 +1409,15 @@
           modelName = data.model || modelName;
           usage = data.usage || null;
           lastRawResponse = JSON.stringify(data, null, 2);
-
           updateCallOverviewSuccess(durationMs, modelName, usage);
           updateRawJson(lastRawResponse);
-          updateTraceTimelineFromResponse(data, durationMs, { ok: true });
         }
       } catch (err) {
         console.error(err);
         const durationMs = performance.now() - start;
-        lastCallDurationMs = durationMs;
-
         updateCallOverviewError("网络错误", durationMs, null);
         lastRawResponse = String(err || "Unknown error");
         updateRawJson(lastRawResponse);
-        updateTraceTimelineFromResponse(null, durationMs, {
-          ok: false,
-          status: "network-error",
-        });
         showToast("网络异常，无法访问 Worker。");
       } finally {
         isSending = false;
@@ -1833,10 +1432,13 @@
         );
         await dbPut(MESSAGE_STORE, assistantMsg);
 
+        // 更新会话 tokens 与时间
         const session = sessions.find((s) => s.id === currentSessionId);
         if (session) {
           const usedTokens =
-            (usage && (usage.total_tokens || usage.totalTokens)) || 0;
+            (usage && usage.total_tokens) ||
+            (usage && usage.totalTokens) ||
+            0;
           session.totalTokens = (session.totalTokens || 0) + usedTokens;
           session.updatedAt = Date.now();
           await dbPut(SESSION_STORE, session);
@@ -1844,139 +1446,91 @@
 
         appendMessageBubble("assistant", assistantMsg.content, true);
         scrollToBottom();
+        // 重新渲染列表（更新 tokens 与时间）
         renderSessionList();
       }
     }
 
     function setSendingState(sending) {
-      if (el.btnSend) el.btnSend.disabled = sending;
-      if (el.btnSendLabel)
-        el.btnSendLabel.textContent = sending ? "调用中…" : "发送";
-      if (el.requestMetaHint)
-        el.requestMetaHint.textContent = sending
-          ? "正在调用 Cloudflare Worker 智能体…"
-          : "就绪：调用 Cloudflare Worker 智能体。";
+      el.btnSend.disabled = sending;
+      el.btnSendLabel.textContent = sending ? "调用中…" : "发送";
+      el.requestMetaHint.textContent = sending
+        ? "正在调用 Cloudflare Worker 智能体…"
+        : "就绪：调用 Cloudflare Worker 智能体。";
     }
 
-    // ==========================
-    // 会话标题：按意图自动命名
-    // ==========================
     function deriveTitleFromText(text) {
       const trimmed = text.replace(/\s+/g, " ").trim();
       if (!trimmed) return "新会话";
-
-      const lower = trimmed.toLowerCase();
-
-      // 粗粒度“意图识别”，不用额外请求模型
-      const rules = [
-        { test: /(bug|错误|异常|报错|trace|stack)/i, prefix: "错误排查" },
-        { test: /(部署|发布|docker|k8s|上线|环境)/i, prefix: "部署运维" },
-        { test: /(sql|数据库|查询|索引|表结构)/i, prefix: "数据库问题" },
-        { test: /(接口|api|http|请求头|返回值)/i, prefix: "接口调试" },
-        { test: /(前端|react|vue|样式|css|dom)/i, prefix: "前端问题" },
-        { test: /(后端|node|java|spring|go|gin)/i, prefix: "后端问题" },
-        { test: /(文案|改写|润色|翻译|总结)/i, prefix: "内容处理" },
-        { test: /(prompt|提示词|智能体|agent)/i, prefix: "智能体设计" },
-      ];
-
-      for (const rule of rules) {
-        if (rule.test.test(trimmed) || rule.test.test(lower)) {
-          const tail =
-            trimmed.length > 18 ? trimmed.slice(0, 18).trim() + "…" : trimmed;
-          return `${rule.prefix} · ${tail}`;
-        }
-      }
-
-      // 默认：截取开头一段
       return trimmed.length > 22 ? trimmed.slice(0, 22) + "…" : trimmed;
     }
 
-    // ==========================
-    // 消息渲染
-    // ==========================
     function appendMessageBubble(role, content, hideEmptyHint) {
-      if (!el.chatMessages) return;
-
-      if (hideEmptyHint) {
-        clearEmptyHint();
-      } else {
-        // 保险：只要有消息渲染，确保伪提示不再出现
-        clearEmptyHint();
+      if (hideEmptyHint && el.chatEmpty.parentNode === el.chatMessages) {
+        el.chatEmpty.style.display = "none";
+        el.chatMessages.innerHTML = "";
       }
 
       const bubble = document.createElement("div");
       bubble.className = "chat-message " + role;
       bubble.textContent = content;
+
       el.chatMessages.appendChild(bubble);
     }
 
     function scrollToBottom() {
-      if (!el.chatMessages) return;
       requestAnimationFrame(() => {
         el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
       });
     }
 
-    // ==========================
-    // 调用概览 & JSON
-    // ==========================
+    // === Call overview / JSON ===
+
     function updateCallOverviewSuccess(durationMs, modelName, usage) {
-      if (el.ovDuration)
-        el.ovDuration.textContent = `${durationMs.toFixed(0)} ms`;
+      el.ovDuration.textContent = `${durationMs.toFixed(0)} ms`;
 
-      if (el.ovStatus) {
-        const pill = document.createElement("span");
-        pill.className = "call-status-pill";
-        pill.innerHTML = `<span class="call-status-dot"></span> 成功`;
-        el.ovStatus.innerHTML = "";
-        el.ovStatus.appendChild(pill);
-      }
+      const pill = document.createElement("span");
+      pill.className = "call-status-pill";
+      pill.innerHTML = `<span class="call-status-dot"></span> 成功`;
+      el.ovStatus.innerHTML = "";
+      el.ovStatus.appendChild(pill);
 
-      if (el.ovModel) el.ovModel.textContent = modelName || "gpt-5-mini";
-
+      el.ovModel.textContent = modelName || "gpt-5-mini";
       const pt =
         (usage && (usage.prompt_tokens || usage.promptTokens)) || "-";
       const ct =
         (usage && (usage.completion_tokens || usage.completionTokens)) || "-";
       const tt =
         (usage && (usage.total_tokens || usage.totalTokens)) || "-";
-
-      if (el.ovPromptTokens) el.ovPromptTokens.textContent = pt;
-      if (el.ovCompletionTokens) el.ovCompletionTokens.textContent = ct;
-      if (el.ovTotalTokens) el.ovTotalTokens.textContent = tt;
+      el.ovPromptTokens.textContent = pt;
+      el.ovCompletionTokens.textContent = ct;
+      el.ovTotalTokens.textContent = tt;
     }
 
     function updateCallOverviewError(status, durationMs, usage) {
-      if (el.ovDuration) {
-        el.ovDuration.textContent =
-          typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
-      }
+      el.ovDuration.textContent =
+        typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
 
-      if (el.ovStatus) {
-        const pill = document.createElement("span");
-        pill.className = "call-status-pill error";
-        pill.innerHTML = `<span class="call-status-dot"></span> 失败（${status}）`;
-        el.ovStatus.innerHTML = "";
-        el.ovStatus.appendChild(pill);
-      }
+      const pill = document.createElement("span");
+      pill.className = "call-status-pill error";
+      pill.innerHTML = `<span class="call-status-dot"></span> 失败（${status}）`;
+      el.ovStatus.innerHTML = "";
+      el.ovStatus.appendChild(pill);
 
       if (!usage) {
-        if (el.ovPromptTokens) el.ovPromptTokens.textContent = "-";
-        if (el.ovCompletionTokens) el.ovCompletionTokens.textContent = "-";
-        if (el.ovTotalTokens) el.ovTotalTokens.textContent = "-";
+        el.ovPromptTokens.textContent = "-";
+        el.ovCompletionTokens.textContent = "-";
+        el.ovTotalTokens.textContent = "-";
       }
     }
 
     function updateRawJson(text) {
-      if (!el.rawJsonPlaceholder || !el.rawJsonPre) return;
-
       if (!text) {
         el.rawJsonPlaceholder.style.display = "block";
         el.rawJsonPre.style.display = "none";
         el.rawJsonPre.textContent = "";
         return;
       }
-
       el.rawJsonPlaceholder.style.display = "none";
       el.rawJsonPre.style.display = "block";
 
@@ -1984,85 +1538,16 @@
         const parsed = typeof text === "string" ? JSON.parse(text) : text;
         el.rawJsonPre.textContent = JSON.stringify(parsed, null, 2);
       } catch {
+        // 不一定是 JSON，用原始文本
         el.rawJsonPre.textContent = text;
       }
     }
 
-    // ==========================
-    // 运行轨迹 / 时间线
-    // ==========================
-    function resetTraceTimeline() {
-      if (!el.traceTimeline) return;
-      el.traceTimeline.innerHTML = "";
-      if (el.traceEmpty) el.traceEmpty.style.display = "block";
-    }
+    // === Toast ===
 
-    function updateTraceTimelineFromResponse(data, durationMs, meta) {
-      if (!el.traceTimeline) return;
-
-      el.traceTimeline.innerHTML = "";
-      if (el.traceEmpty) el.traceEmpty.style.display = "none";
-
-      const list = document.createElement("ul");
-      list.className = "trace-list";
-
-      const cfg = getCurrentAgentConfig();
-      const model = (data && data.model) || currentModelName || "gpt-5-mini";
-
-      // 如果 Worker 将来返回 data.trace（数组），按步骤渲染
-      if (data && Array.isArray(data.trace) && data.trace.length > 0) {
-        data.trace.forEach((step, idx) => {
-          const li = document.createElement("li");
-          li.className = "trace-item";
-
-          const name = step.name || `Step ${idx + 1}`;
-          const t =
-            typeof step.latencyMs === "number"
-              ? `${step.latencyMs.toFixed(0)} ms`
-              : "-";
-
-          li.innerHTML = `
-            <div class="trace-item-main">
-              <div class="trace-item-title">${name}</div>
-              <div class="trace-item-sub">
-                ${step.type || ""} · ${t}
-              </div>
-            </div>
-          `;
-          list.appendChild(li);
-        });
-      } else {
-        // 兜底：至少展示一个 LLM 调用节点
-        const li = document.createElement("li");
-        li.className = "trace-item";
-
-        const d = typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
-        const statusText = meta && meta.ok === false ? "失败" : "成功";
-
-        li.innerHTML = `
-          <div class="trace-item-main">
-            <div class="trace-item-title">LLM 调用 · ${cfg.label}</div>
-            <div class="trace-item-sub">
-              模型：${model} · 用时：${d} · 状态：${statusText}
-            </div>
-          </div>
-        `;
-        list.appendChild(li);
-      }
-
-      el.traceTimeline.appendChild(list);
-    }
-
-    // ==========================
-    // Toast & Error
-    // ==========================
     let toastTimer = null;
 
     function showToast(message) {
-      if (!el.toast || !el.toastText) {
-        console.log("[Toast]", message);
-        return;
-      }
       el.toastText.textContent = message;
       el.toast.classList.add("visible");
       if (toastTimer) clearTimeout(toastTimer);
@@ -2075,16 +1560,6 @@
       console.error(err);
       showToast("初始化失败，请检查浏览器控制台。");
     }
-  })();
-</script>
-
+  </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
