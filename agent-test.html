@@ -242,6 +242,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 4px;
+    }
+
+    .session-header-left {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
     }
 
     .session-title {
@@ -251,7 +260,26 @@
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
-      max-width: 190px;
+      max-width: 160px;
+    }
+
+    .btn-rename-session {
+      border: none;
+      background: transparent;
+      color: #9ca3af;
+      font-size: 11px;
+      padding: 0;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.08s ease-out, color 0.08s ease-out;
+    }
+
+    .session-item:hover .btn-rename-session {
+      opacity: 1;
+    }
+
+    .btn-rename-session:hover {
+      color: #e5e7eb;
     }
 
     .session-meta {
@@ -275,7 +303,7 @@
       background: transparent;
       color: #9ca3af;
       font-size: 13px;
-      padding: 0 0 0 8px;
+      padding: 0 0 0 4px;
       cursor: pointer;
       opacity: 0.0;
       transition: opacity 0.08s ease-out, color 0.08s ease-out;
@@ -437,15 +465,6 @@
       border-bottom-left-radius: 4px;
       border: 1px solid rgba(148, 163, 184, 0.5);
       box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-    }
-
-    .chat-meta-row {
-      display: flex;
-      justify-content: flex-end;
-      font-size: 11px;
-      color: var(--text-mute);
-      margin-bottom: 6px;
-      gap: 8px;
     }
 
     .chat-input-bar {
@@ -757,6 +776,15 @@
         box-shadow: none;
         max-height: none;
         height: 100%;
+        transition: transform 0.2s ease-out;
+      }
+
+      .app-shell.push-right {
+        transform: translateX(min(80%, 320px));
+      }
+
+      .app-shell.push-left {
+        transform: translateX(-min(80%, 340px));
       }
 
       /* 顶部左右“二横线”按钮条 */
@@ -812,7 +840,7 @@
         right: 3px;
       }
 
-      /* 右侧图标：两条线偏右（与左侧镜像） */
+      /* 右侧图标：两条线偏右（镜像） */
       .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(1) {
         top: 2px;
         left: 8px;
@@ -842,7 +870,7 @@
         pointer-events: auto;
       }
 
-      /* 左侧侧边栏改为抽屉 */
+      /* 左侧 sidebar 抽屉 */
       .sidebar {
         position: fixed;
         top: 0;
@@ -865,7 +893,7 @@
         padding-top: 46px;
       }
 
-      /* 右侧 insight 面板改为抽屉 */
+      /* 右侧 insight 抽屉 */
       .insight-panel {
         display: flex;
         position: fixed;
@@ -1081,12 +1109,16 @@
     const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
     const DB_NAME = "agentWorkerDB";
     const DB_VERSION = 1;
-    const SESSION_STORE = "sessions"; // 静态桶：会话级元信息 + 右侧预览
+    const SESSION_STORE = "sessions"; // 静态桶：会话 + 右侧 overview
     const MESSAGE_STORE = "messages"; // 动态桶：消息流水
-    const MAX_SESSIONS = 50; // 自动清理过多历史会话
+    const MAX_SESSIONS = 50;
 
-    // === State (in-memory) ===
+    const LS_SESSIONS_KEY = "agentWorker:sessions";
+    const LS_MESSAGES_KEY = "agentWorker:messages";
+
+    // === State ===
     let dbPromise = null;
+    let useIndexedDB = true;
     let sessions = [];
     let currentSessionId = null;
     let isSending = false;
@@ -1094,7 +1126,6 @@
     let lastOverview = null;
     let currentMobilePanel = null;
 
-    // === DOM refs ===
     const el = {};
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -1105,14 +1136,7 @@
 
     async function initApp() {
       try {
-        // IndexedDB 初始化失败时降级为内存模式，不视为致命错误
-        try {
-          await initIndexedDB();
-        } catch (err) {
-          console.warn("[IndexedDB] 初始化失败，切换为内存模式。", err);
-          dbPromise = null;
-          showToast("本地存储不可用，会话仅在本次打开中有效。");
-        }
+        await initIndexedDB();
         await initSessions();
       } catch (err) {
         showFatalError(err);
@@ -1120,6 +1144,7 @@
     }
 
     function cacheDom() {
+      el.appShell = document.querySelector(".app-shell");
       el.sessionList = document.getElementById("sessionList");
       el.btnNewSession = document.getElementById("btnNewSession");
       el.chatMessages = document.getElementById("chatMessages");
@@ -1151,54 +1176,50 @@
     }
 
     function bindGlobalEvents() {
-      // New session button
       el.btnNewSession.addEventListener("click", () => {
         handleNewSession();
       });
 
-      // Session list click (event delegation)
       el.sessionList.addEventListener("click", (event) => {
         const target = event.target;
-        const deleteBtn = target.closest("[data-action='delete-session']");
         const item = target.closest("[data-session-id]");
+        if (!item) return;
 
-        if (deleteBtn && item) {
-          const id = item.getAttribute("data-session-id");
+        const id = item.getAttribute("data-session-id");
+        const deleteBtn = target.closest("[data-action='delete-session']");
+        const renameBtn = target.closest("[data-action='rename-session']");
+
+        if (deleteBtn) {
           event.stopPropagation();
           handleDeleteSession(id);
           return;
         }
 
-        if (item) {
-          const id = item.getAttribute("data-session-id");
-          selectSession(id);
+        if (renameBtn) {
+          event.stopPropagation();
+          handleRenameSession(id);
+          return;
         }
+
+        selectSession(id);
       });
 
-      // Send button
       el.btnSend.addEventListener("click", () => {
         triggerSend();
       });
 
-      // Ctrl+Enter to send
       el.chatInput.addEventListener("keydown", (event) => {
-        if (
-          (event.ctrlKey || event.metaKey) &&
-          event.key === "Enter" &&
-          !event.shiftKey
-        ) {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
           triggerSend();
         }
       });
 
-      // Toggle JSON
       el.btnToggleJson.addEventListener("click", () => {
         const isOpen = el.rawJsonBody.classList.toggle("open");
         el.btnToggleJson.textContent = isOpen ? "收起 JSON" : "展开 JSON";
       });
 
-      // Copy JSON
       el.btnCopyJson.addEventListener("click", async () => {
         if (!lastRawResponse) {
           showToast("当前没有可复制的 JSON");
@@ -1213,22 +1234,24 @@
         }
       });
 
-      // 手机端：左右抽屉按钮
       if (el.btnMobileSidebar) {
         el.btnMobileSidebar.addEventListener("click", () => {
           toggleMobilePanel("left");
         });
       }
+
       if (el.btnMobileInsight) {
         el.btnMobileInsight.addEventListener("click", () => {
           toggleMobilePanel("right");
         });
       }
+
       if (el.mobileOverlay) {
         el.mobileOverlay.addEventListener("click", () => {
           closeMobilePanels();
         });
       }
+
       window.addEventListener("resize", () => {
         if (!isMobileViewport()) {
           closeMobilePanels();
@@ -1244,7 +1267,7 @@
       if (!isMobileViewport()) return;
       const sidebar = document.querySelector(".sidebar");
       const insight = document.querySelector(".insight-panel");
-      if (!sidebar || !insight) return;
+      if (!sidebar || !insight || !el.appShell) return;
 
       const isSame = currentMobilePanel === target;
       if (isSame) {
@@ -1255,10 +1278,14 @@
       if (target === "left") {
         sidebar.classList.add("sidebar-open");
         insight.classList.remove("insight-open");
+        el.appShell.classList.add("push-right");
+        el.appShell.classList.remove("push-left");
         currentMobilePanel = "left";
       } else if (target === "right") {
         insight.classList.add("insight-open");
         sidebar.classList.remove("sidebar-open");
+        el.appShell.classList.add("push-left");
+        el.appShell.classList.remove("push-right");
         currentMobilePanel = "right";
       }
 
@@ -1272,145 +1299,297 @@
       const insight = document.querySelector(".insight-panel");
       if (sidebar) sidebar.classList.remove("sidebar-open");
       if (insight) insight.classList.remove("insight-open");
+      if (el.appShell) {
+        el.appShell.classList.remove("push-right", "push-left");
+      }
       currentMobilePanel = null;
       if (el.mobileOverlay) {
         el.mobileOverlay.classList.remove("visible");
       }
     }
 
-    // === IndexedDB helpers ===
+    // === IndexedDB + localStorage 封装 ===
 
-    function initIndexedDB() {
+    async function initIndexedDB() {
       if (!("indexedDB" in window)) {
-        showToast("当前浏览器不支持 IndexedDB，会话仅在本次打开中有效。");
-        return Promise.resolve();
+        useIndexedDB = false;
+        console.warn("[IndexedDB] 不支持，自动使用 localStorage。");
+        return;
       }
 
-      if (dbPromise) return dbPromise;
-
-      dbPromise = new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-          if (!db.objectStoreNames.contains(SESSION_STORE)) {
-            const sessionStore = db.createObjectStore(SESSION_STORE, {
-              keyPath: "id",
-            });
-            sessionStore.createIndex("updatedAt", "updatedAt", { unique: false });
+      try {
+        dbPromise = new Promise((resolve, reject) => {
+          let request;
+          try {
+            request = indexedDB.open(DB_NAME, DB_VERSION);
+          } catch (err) {
+            reject(err);
+            return;
           }
-          if (!db.objectStoreNames.contains(MESSAGE_STORE)) {
-            const messageStore = db.createObjectStore(MESSAGE_STORE, {
-              keyPath: "id",
-            });
-            messageStore.createIndex("sessionId", "sessionId", {
-              unique: false,
-            });
-          }
-        };
-      });
 
-      return dbPromise;
+          request.onerror = () => {
+            reject(request.error || new Error("indexedDB open error"));
+          };
+
+          request.onsuccess = () => {
+            resolve(request.result);
+          };
+
+          request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(SESSION_STORE)) {
+              const sessionStore = db.createObjectStore(SESSION_STORE, { keyPath: "id" });
+              sessionStore.createIndex("updatedAt", "updatedAt", { unique: false });
+            }
+            if (!db.objectStoreNames.contains(MESSAGE_STORE)) {
+              const messageStore = db.createObjectStore(MESSAGE_STORE, { keyPath: "id" });
+              messageStore.createIndex("sessionId", "sessionId", { unique: false });
+            }
+          };
+        });
+
+        await dbPromise;
+      } catch (err) {
+        console.warn("[IndexedDB] 初始化失败，自动切换 localStorage。", err);
+        dbPromise = null;
+        useIndexedDB = false;
+      }
     }
 
     function dbReadAll(storeName, indexName, query, direction = "prev") {
-      return dbPromise
-        ? dbPromise.then(
-            (db) =>
-              new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, "readonly");
-                let store = tx.objectStore(storeName);
-                if (indexName) {
-                  store = store.index(indexName);
-                }
-                const items = [];
-                const req = store.openCursor(query, direction);
-                req.onerror = () => reject(req.error);
-                req.onsuccess = (event) => {
-                  const cursor = event.target.result;
-                  if (cursor) {
-                    items.push(cursor.value);
-                    cursor.continue();
-                  } else {
-                    resolve(items);
-                  }
-                };
-              })
-          )
-        : Promise.resolve([]);
-    }
-
-    function dbPut(storeName, value) {
-      if (!dbPromise) return Promise.resolve();
+      if (!useIndexedDB || !dbPromise) return Promise.resolve([]);
       return dbPromise.then(
         (db) =>
           new Promise((resolve, reject) => {
-            const tx = db.transaction(storeName, "readwrite");
-            const store = tx.objectStore(storeName);
-            const req = store.put(value);
-            req.onerror = () => reject(req.error);
-            req.onsuccess = () => resolve();
+            try {
+              const tx = db.transaction(storeName, "readonly");
+              let store = tx.objectStore(storeName);
+              if (indexName) {
+                store = store.index(indexName);
+              }
+              const items = [];
+              const req = store.openCursor(query, direction);
+              req.onerror = () => reject(req.error);
+              req.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                  items.push(cursor.value);
+                  cursor.continue();
+                } else {
+                  resolve(items);
+                }
+              };
+            } catch (e) {
+              reject(e);
+            }
+          })
+      );
+    }
+
+    function dbPut(storeName, value) {
+      if (!useIndexedDB || !dbPromise) return Promise.resolve();
+      return dbPromise.then(
+        (db) =>
+          new Promise((resolve, reject) => {
+            try {
+              const tx = db.transaction(storeName, "readwrite");
+              const store = tx.objectStore(storeName);
+              const req = store.put(value);
+              req.onerror = () => reject(req.error);
+              req.onsuccess = () => resolve();
+            } catch (e) {
+              reject(e);
+            }
           })
       );
     }
 
     function dbDelete(storeName, key) {
-      if (!dbPromise) return Promise.resolve();
+      if (!useIndexedDB || !dbPromise) return Promise.resolve();
       return dbPromise.then(
         (db) =>
           new Promise((resolve, reject) => {
-            const tx = db.transaction(storeName, "readwrite");
-            const store = tx.objectStore(storeName);
-            const req = store.delete(key);
-            req.onerror = () => reject(req.error);
-            req.onsuccess = () => resolve();
+            try {
+              const tx = db.transaction(storeName, "readwrite");
+              const store = tx.objectStore(storeName);
+              const req = store.delete(key);
+              req.onerror = () => reject(req.error);
+              req.onsuccess = () => resolve();
+            } catch (e) {
+              reject(e);
+            }
           })
       );
     }
 
     function dbDeleteWhereMessages(sessionId) {
-      if (!dbPromise) return Promise.resolve();
+      if (!useIndexedDB || !dbPromise) return Promise.resolve();
       return dbPromise.then(
         (db) =>
           new Promise((resolve, reject) => {
-            const tx = db.transaction(MESSAGE_STORE, "readwrite");
-            const store = tx.objectStore(MESSAGE_STORE);
-            const index = store.index("sessionId");
-            const req = index.openCursor(IDBKeyRange.only(sessionId));
-            req.onerror = () => reject(req.error);
-            req.onsuccess = (event) => {
-              const cursor = event.target.result;
-              if (cursor) {
-                cursor.delete();
-                cursor.continue();
-              } else {
-                resolve();
-              }
-            };
+            try {
+              const tx = db.transaction(MESSAGE_STORE, "readwrite");
+              const store = tx.objectStore(MESSAGE_STORE);
+              const index = store.index("sessionId");
+              const req = index.openCursor(IDBKeyRange.only(sessionId));
+              req.onerror = () => reject(req.error);
+              req.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                  cursor.delete();
+                  cursor.continue();
+                } else {
+                  resolve();
+                }
+              };
+            } catch (e) {
+              reject(e);
+            }
           })
       );
     }
 
     function dbReadMessagesBySession(sessionId) {
-      return dbPromise
-        ? dbPromise.then(
-            (db) =>
-              new Promise((resolve, reject) => {
-                const tx = db.transaction(MESSAGE_STORE, "readonly");
-                const store = tx.objectStore(MESSAGE_STORE);
-                const index = store.index("sessionId");
-                const req = index.getAll(IDBKeyRange.only(sessionId));
-                req.onerror = () => reject(req.error);
-                req.onsuccess = () => resolve(req.result || []);
-              })
-          )
-        : Promise.resolve([]);
+      if (!useIndexedDB || !dbPromise) return Promise.resolve([]);
+      return dbPromise.then(
+        (db) =>
+          new Promise((resolve, reject) => {
+            try {
+              const tx = db.transaction(MESSAGE_STORE, "readonly");
+              const store = tx.objectStore(MESSAGE_STORE);
+              const index = store.index("sessionId");
+              const req = index.getAll(IDBKeyRange.only(sessionId));
+              req.onerror = () => reject(req.error);
+              req.onsuccess = () => resolve(req.result || []);
+            } catch (e) {
+              reject(e);
+            }
+          })
+      );
     }
 
-    // === Session / message model helpers ===
+    async function loadSessionsFromStorage() {
+      if (useIndexedDB && dbPromise) {
+        try {
+          return await dbReadAll(SESSION_STORE, "updatedAt");
+        } catch (err) {
+          console.warn("[IndexedDB] 读取 sessions 失败，降级到 localStorage。", err);
+          useIndexedDB = false;
+          dbPromise = null;
+        }
+      }
+      try {
+        const raw = localStorage.getItem(LS_SESSIONS_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (err) {
+        console.warn("[localStorage] 读取 sessions 失败。", err);
+        return [];
+      }
+    }
+
+    async function loadMessagesFromStorage(sessionId) {
+      if (useIndexedDB && dbPromise) {
+        try {
+          return await dbReadMessagesBySession(sessionId);
+        } catch (err) {
+          console.warn("[IndexedDB] 读取 messages 失败，降级到 localStorage。", err);
+          useIndexedDB = false;
+          dbPromise = null;
+        }
+      }
+      try {
+        const raw = localStorage.getItem(LS_MESSAGES_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter((m) => m.sessionId === sessionId);
+      } catch (err) {
+        console.warn("[localStorage] 读取 messages 失败。", err);
+        return [];
+      }
+    }
+
+    async function saveSession(session) {
+      // 先确保内存 sessions 更新
+      const idx = sessions.findIndex((s) => s.id === session.id);
+      if (idx === -1) sessions.push(session);
+      else sessions[idx] = session;
+
+      if (useIndexedDB && dbPromise) {
+        try {
+          await dbPut(SESSION_STORE, session);
+          return;
+        } catch (err) {
+          console.warn("[IndexedDB] 写入 session 失败，降级到 localStorage。", err);
+          useIndexedDB = false;
+          dbPromise = null;
+        }
+      }
+
+      try {
+        localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sessions));
+      } catch (err) {
+        console.warn("[localStorage] 写入 sessions 失败。", err);
+      }
+    }
+
+    async function saveMessage(message) {
+      if (useIndexedDB && dbPromise) {
+        try {
+          await dbPut(MESSAGE_STORE, message);
+          return;
+        } catch (err) {
+          console.warn("[IndexedDB] 写入 message 失败，降级到 localStorage。", err);
+          useIndexedDB = false;
+          dbPromise = null;
+        }
+      }
+
+      try {
+        const raw = localStorage.getItem(LS_MESSAGES_KEY);
+        const arr = raw ? (JSON.parse(raw) || []) : [];
+        arr.push(message);
+        localStorage.setItem(LS_MESSAGES_KEY, JSON.stringify(arr));
+      } catch (err) {
+        console.warn("[localStorage] 写入 messages 失败。", err);
+      }
+    }
+
+    async function deleteSessionAndMessages(sessionId) {
+      if (useIndexedDB && dbPromise) {
+        try {
+          await dbDeleteWhereMessages(sessionId);
+          await dbDelete(SESSION_STORE, sessionId);
+        } catch (err) {
+          console.warn("[IndexedDB] 删除会话失败，尝试 localStorage。", err);
+          useIndexedDB = false;
+          dbPromise = null;
+        }
+      }
+
+      if (!useIndexedDB || !dbPromise) {
+        try {
+          const rawS = localStorage.getItem(LS_SESSIONS_KEY);
+          let arrS = rawS ? JSON.parse(rawS) : [];
+          if (Array.isArray(arrS)) {
+            arrS = arrS.filter((s) => s.id !== sessionId);
+            localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(arrS));
+          }
+          const rawM = localStorage.getItem(LS_MESSAGES_KEY);
+          let arrM = rawM ? JSON.parse(rawM) : [];
+          if (Array.isArray(arrM)) {
+            arrM = arrM.filter((m) => m.sessionId !== sessionId);
+            localStorage.setItem(LS_MESSAGES_KEY, JSON.stringify(arrM));
+          }
+        } catch (err) {
+          console.warn("[localStorage] 删除会话失败。", err);
+        }
+      }
+    }
+
+    // === Session / message model ===
 
     function createSessionObject() {
       const id = crypto.randomUUID ? crypto.randomUUID() : "s_" + Date.now();
@@ -1428,7 +1607,9 @@
     }
 
     function createMessage(sessionId, role, content) {
-      const id = crypto.randomUUID ? crypto.randomUUID() : "m_" + Date.now() + "_" + Math.random();
+      const id = crypto.randomUUID
+        ? crypto.randomUUID()
+        : "m_" + Date.now() + "_" + Math.random();
       return {
         id,
         sessionId,
@@ -1439,13 +1620,12 @@
     }
 
     async function initSessions() {
-      // load from DB（按 updatedAt desc）
-      let stored = await dbReadAll(SESSION_STORE, "updatedAt");
+      let stored = await loadSessionsFromStorage();
       if (!stored || stored.length === 0) {
         const session = createSessionObject();
         sessions = [session];
         currentSessionId = session.id;
-        await dbPut(SESSION_STORE, session);
+        await saveSession(session);
       } else {
         sessions = stored;
         currentSessionId = sessions[0].id;
@@ -1455,27 +1635,45 @@
       hydrateCurrentSessionInsights();
     }
 
+    function formatShortTime(timestamp) {
+      if (!timestamp) return "-";
+      const d = new Date(timestamp);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    }
+
     function renderSessionList() {
       el.sessionList.innerHTML = "";
       sessions.forEach((session) => {
         const item = document.createElement("div");
-        item.className =
-          "session-item" + (session.id === currentSessionId ? " active" : "");
+        item.className = "session-item" + (session.id === currentSessionId ? " active" : "");
         item.setAttribute("data-session-id", session.id);
 
         const headerRow = document.createElement("div");
         headerRow.className = "session-header-row";
 
+        const headerLeft = document.createElement("div");
+        headerLeft.className = "session-header-left";
+
         const titleSpan = document.createElement("div");
         titleSpan.className = "session-title";
         titleSpan.textContent = session.title || "未命名会话";
+
+        const renameBtn = document.createElement("button");
+        renameBtn.className = "btn-rename-session";
+        renameBtn.setAttribute("data-action", "rename-session");
+        renameBtn.textContent = "✎";
+
+        headerLeft.appendChild(titleSpan);
+        headerLeft.appendChild(renameBtn);
 
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "btn-delete-session";
         deleteBtn.setAttribute("data-action", "delete-session");
         deleteBtn.textContent = "×";
 
-        headerRow.appendChild(titleSpan);
+        headerRow.appendChild(headerLeft);
         headerRow.appendChild(deleteBtn);
 
         const metaRow = document.createElement("div");
@@ -1498,25 +1696,22 @@
       });
     }
 
-    function formatShortTime(timestamp) {
-      if (!timestamp) return "-";
-      const d = new Date(timestamp);
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      return `${hh}:${mm}`;
-    }
-
     async function selectSession(sessionId) {
-      if (sessionId === currentSessionId) return;
+      if (!sessionId) return;
+      if (sessionId === currentSessionId) {
+        if (isMobileViewport()) closeMobilePanels();
+        return;
+      }
       currentSessionId = sessionId;
       renderSessionList();
       await renderCurrentSessionMessages();
       hydrateCurrentSessionInsights();
+      if (isMobileViewport()) closeMobilePanels();
     }
 
     async function renderCurrentSessionMessages() {
       if (!currentSessionId) return;
-      const messages = await dbReadMessagesBySession(currentSessionId);
+      const messages = await loadMessagesFromStorage(currentSessionId);
       if (!messages || messages.length === 0) {
         el.chatMessages.innerHTML = "";
         el.chatMessages.appendChild(el.chatEmpty);
@@ -1533,21 +1728,20 @@
     }
 
     async function handleNewSession() {
-      // 如果存在一个 isEmpty 的会话，则直接切换过去（避免出现第二个空白页）
       const existingEmpty = sessions.find((s) => s.isEmpty);
       if (existingEmpty) {
         currentSessionId = existingEmpty.id;
         renderSessionList();
         await renderCurrentSessionMessages();
         hydrateCurrentSessionInsights();
+        if (isMobileViewport()) closeMobilePanels();
         return;
       }
 
       const session = createSessionObject();
       sessions.unshift(session);
       currentSessionId = session.id;
-
-      await dbPut(SESSION_STORE, session);
+      await saveSession(session);
       await cleanupOldSessionsIfNecessary();
 
       renderSessionList();
@@ -1557,25 +1751,43 @@
 
     async function handleDeleteSession(sessionId) {
       if (!sessionId) return;
-      // 删除 DB 中的 messages
-      await dbDeleteWhereMessages(sessionId);
-      await dbDelete(SESSION_STORE, sessionId);
 
-      // 更新内存
+      await deleteSessionAndMessages(sessionId);
+
       sessions = sessions.filter((s) => s.id !== sessionId);
 
       if (sessions.length === 0) {
         const newSession = createSessionObject();
         sessions = [newSession];
         currentSessionId = newSession.id;
-        await dbPut(SESSION_STORE, newSession);
+        await saveSession(newSession);
       } else if (currentSessionId === sessionId) {
         currentSessionId = sessions[0].id;
+      }
+
+      if (!useIndexedDB || !dbPromise) {
+        try {
+          localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sessions));
+        } catch (e) {
+          console.warn("[localStorage] 同步 sessions 失败。", e);
+        }
       }
 
       renderSessionList();
       await renderCurrentSessionMessages();
       hydrateCurrentSessionInsights();
+    }
+
+    async function handleRenameSession(sessionId) {
+      const session = sessions.find((s) => s.id === sessionId);
+      if (!session) return;
+      const newTitle = window.prompt("请输入会话标题：", session.title || "");
+      if (newTitle === null) return;
+      const trimmed = newTitle.trim();
+      session.title = trimmed || "未命名会话";
+      session.updatedAt = Date.now();
+      await saveSession(session);
+      renderSessionList();
     }
 
     async function cleanupOldSessionsIfNecessary() {
@@ -1584,15 +1796,22 @@
       const keep = sorted.slice(0, MAX_SESSIONS);
       const remove = sorted.slice(MAX_SESSIONS);
 
+      sessions = keep;
+
       for (const s of remove) {
-        await dbDeleteWhereMessages(s.id);
-        await dbDelete(SESSION_STORE, s.id);
+        await deleteSessionAndMessages(s.id);
       }
 
-      sessions = keep;
+      if (!useIndexedDB || !dbPromise) {
+        try {
+          localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sessions));
+        } catch (e) {
+          console.warn("[localStorage] 清理 sessions 时同步失败。", e);
+        }
+      }
     }
 
-    // === Sending & Worker interaction ===
+    // === Worker 调用 ===
 
     async function triggerSend() {
       if (isSending) return;
@@ -1610,18 +1829,16 @@
       setSendingState(true);
 
       const userMsg = createMessage(currentSessionId, "user", raw);
-      await dbPut(MESSAGE_STORE, userMsg);
+      await saveMessage(userMsg);
 
-      // 更新 session 标题（空白会话或旧数据“新会话”）
       const session = sessions.find((s) => s.id === currentSessionId);
       if (session && (session.isEmpty || !session.title || session.title === "新会话")) {
         session.isEmpty = false;
         session.title = deriveTitleFromText(raw);
         session.updatedAt = Date.now();
-        await dbPut(SESSION_STORE, session);
+        await saveSession(session);
       }
 
-      // 添加到 UI
       appendMessageBubble("user", raw, true);
       el.chatInput.value = "";
 
@@ -1636,9 +1853,7 @@
       try {
         const res = await fetch(WORKER_ENDPOINT, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ input: raw }),
         });
 
@@ -1701,7 +1916,7 @@
           "assistant",
           outputText || "（Worker 未返回内容）"
         );
-        await dbPut(MESSAGE_STORE, assistantMsg);
+        await saveMessage(assistantMsg);
 
         if (sessionForMeta) {
           const usedTokens =
@@ -1711,27 +1926,30 @@
           sessionForMeta.updatedAt = Date.now();
         }
 
-        appendMessageBubble("assistant", assistantMsg.content, true);
+        appendMessageBubble("assistant", outputText || "（Worker 未返回内容）", true);
         scrollToBottom();
       }
 
-      // 静态桶：同步右侧调用概览 & JSON
       if (sessionForMeta && lastOverview) {
         sessionForMeta.lastCallOverview = lastOverview;
         sessionForMeta.lastRawJson = lastRawResponse;
         if (!sessionForMeta.updatedAt) {
           sessionForMeta.updatedAt = Date.now();
         }
-        await dbPut(SESSION_STORE, sessionForMeta);
+        await saveSession(sessionForMeta);
       }
 
       if (ok) {
-        // 刷新左侧列表（时间 & tokens）
         renderSessionList();
       }
 
-      // 切换 / 刷新当前会话的右侧信息
       hydrateCurrentSessionInsights();
+    }
+
+    function deriveTitleFromText(text) {
+      const trimmed = text.replace(/\s+/g, " ").trim();
+      if (!trimmed) return "新会话";
+      return trimmed.length > 22 ? trimmed.slice(0, 22) + "…" : trimmed;
     }
 
     function setSendingState(sending) {
@@ -1740,12 +1958,6 @@
       el.requestMetaHint.textContent = sending
         ? "正在调用 Cloudflare Worker 智能体…"
         : "就绪：调用 Cloudflare Worker 智能体。";
-    }
-
-    function deriveTitleFromText(text) {
-      const trimmed = text.replace(/\s+/g, " ").trim();
-      if (!trimmed) return "新会话";
-      return trimmed.length > 22 ? trimmed.slice(0, 22) + "…" : trimmed;
     }
 
     function appendMessageBubble(role, content, hideEmptyHint) {
@@ -1767,7 +1979,7 @@
       });
     }
 
-    // === Call overview / JSON ===
+    // === 调用概览 / JSON ===
 
     function resetCallOverview() {
       el.ovDuration.textContent = "-";
@@ -1784,8 +1996,7 @@
     }
 
     function hydrateCurrentSessionInsights() {
-      const session =
-        sessions.find((s) => s.id === currentSessionId) || null;
+      const session = sessions.find((s) => s.id === currentSessionId) || null;
       if (!session || !session.lastCallOverview || !session.lastRawJson) {
         resetCallOverview();
         updateRawJson("");
@@ -1816,17 +2027,15 @@
 
       const pill = document.createElement("span");
       pill.className = "call-status-pill";
-      pill.innerHTML = `<span class="call-status-dot"></span> 成功`;
+      pill.innerHTML = '<span class="call-status-dot"></span> 成功';
       el.ovStatus.innerHTML = "";
       el.ovStatus.appendChild(pill);
 
       el.ovModel.textContent = modelName || "gpt-5-mini";
-      const pt =
-        (usage && (usage.prompt_tokens || usage.promptTokens)) || "-";
+      const pt = (usage && (usage.prompt_tokens || usage.promptTokens)) || "-";
       const ct =
         (usage && (usage.completion_tokens || usage.completionTokens)) || "-";
-      const tt =
-        (usage && (usage.total_tokens || usage.totalTokens)) || "-";
+      const tt = (usage && (usage.total_tokens || usage.totalTokens)) || "-";
       el.ovPromptTokens.textContent = pt;
       el.ovCompletionTokens.textContent = ct;
       el.ovTotalTokens.textContent = tt;
@@ -1863,7 +2072,6 @@
         const parsed = typeof text === "string" ? JSON.parse(text) : text;
         el.rawJsonPre.textContent = JSON.stringify(parsed, null, 2);
       } catch {
-        // 不一定是 JSON，用原始文本
         el.rawJsonPre.textContent = text;
       }
     }
