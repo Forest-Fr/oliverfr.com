@@ -777,26 +777,26 @@
     box-shadow: none;
     max-height: none;
     height: 100%;
-    /* 注意：这里不再对 .app-shell 做 transform 位移 */
+    overflow: hidden; /* 防止左右推时露出太大的空白 */
   }
 
-  /* 主面板：在手机端由它负责“向左/向右被推开” */
+  /* 由主面板负责平移，而不是整个 app-shell */
   .main-panel {
-    padding-top: 46px;           /* 给顶部按钮留空间 */
+    padding-top: 46px;           /* 原来就有的，用于给顶部图标腾空间 */
     transition: transform 0.2s ease-out;
   }
 
-  .main-panel.push-right {
-    /* 打开左侧会话栏时，中间主内容整体向右推开 */
+  /* 左侧菜单打开时：主界面整体向右推 */
+  .app-shell.push-right .main-panel {
     transform: translateX(min(80%, 320px));
   }
 
-  .main-panel.push-left {
-    /* 打开右侧 insight 时，中间主内容向左推开 */
+  /* 右侧 insight 打开时：主界面整体向左推 */
+  .app-shell.push-left .main-panel {
     transform: translateX(-min(80%, 340px));
   }
 
-  /* 顶部左右“二横线”按钮条 —— 保留原图标样式 */
+  /* 顶部左右“二横线”按钮条 */
   .mobile-top-bar {
     position: fixed;
     top: 10px;
@@ -842,7 +842,6 @@
     left: 0;
     right: 8px;
   }
-
   .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(2) {
     bottom: 2px;
     left: 0;
@@ -855,7 +854,6 @@
     left: 8px;
     right: 0;
   }
-
   .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(2) {
     bottom: 2px;
     left: 3px;
@@ -879,7 +877,7 @@
     pointer-events: auto;
   }
 
-  /* 左侧 sidebar 抽屉：固定在左侧，自己滑出来 */
+  /* 左侧 sidebar 抽屉（固定在视口左边，不随主界面一起移动） */
   .sidebar {
     position: fixed;
     top: 0;
@@ -897,7 +895,7 @@
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
   }
 
-  /* 右侧 insight 抽屉：固定在右侧，自己滑出来 */
+  /* 右侧 insight 抽屉（固定在视口右边） */
   .insight-panel {
     display: flex;
     position: fixed;
@@ -916,6 +914,7 @@
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
   }
 }
+
 
 
 
@@ -2171,6 +2170,7 @@
   </script>
 </body>
 </html>
+
 
 
 
