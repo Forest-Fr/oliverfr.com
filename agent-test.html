@@ -768,16 +768,8 @@
 
 /* === 手机端布局（替换原有 @media (max-width: 900px) 整段）=== */
 @media (max-width: 900px) {
-  html,
   body {
-    width: 100%;
-    height: 100%;
-  }
-
-  body {
-    margin: 0;
     padding: 0;
-    overflow: hidden;
   }
 
   .app-shell {
@@ -785,20 +777,26 @@
     box-shadow: none;
     max-height: none;
     height: 100%;
-    transition: transform 0.2s ease-out;
-    position: relative; /* 确保整体平移时层级正常 */
+    /* 注意：这里不再对 .app-shell 做 transform 位移 */
   }
 
-  /* 中间主区域被“推开”的位移 */
-  .app-shell.push-right {
+  /* 主面板：在手机端由它负责“向左/向右被推开” */
+  .main-panel {
+    padding-top: 46px;           /* 给顶部按钮留空间 */
+    transition: transform 0.2s ease-out;
+  }
+
+  .main-panel.push-right {
+    /* 打开左侧会话栏时，中间主内容整体向右推开 */
     transform: translateX(min(80%, 320px));
   }
 
-  .app-shell.push-left {
+  .main-panel.push-left {
+    /* 打开右侧 insight 时，中间主内容向左推开 */
     transform: translateX(-min(80%, 340px));
   }
 
-  /* 顶部左右“二横线”按钮条 —— 始终悬浮在最上层 */
+  /* 顶部左右“二横线”按钮条 —— 保留原图标样式 */
   .mobile-top-bar {
     position: fixed;
     top: 10px;
@@ -808,8 +806,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    z-index: 50;           /* 高于 sidebar / insight-panel */
-    pointer-events: none;  /* 只让里面的按钮接收点击 */
+    z-index: 40;
+    pointer-events: none;
   }
 
   .mobile-toggle-btn {
@@ -820,7 +818,7 @@
     justify-content: center;
     pointer-events: auto;
     border: none;
-    background: transparent; /* 只保留两横线，不要按钮底色 */
+    background: transparent;
     padding: 0;
     margin: 0;
   }
@@ -835,19 +833,19 @@
     position: absolute;
     height: 2px;
     border-radius: 999px;
-    background: #111827; /* 深色线条，在浅背景上清晰可见 */
-    left: 0;
-    right: 0;
+    background: #111827;
   }
 
   /* 左侧图标：两条线偏左 */
   .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(1) {
     top: 2px;
+    left: 0;
     right: 8px;
   }
 
   .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(2) {
     bottom: 2px;
+    left: 0;
     right: 3px;
   }
 
@@ -855,11 +853,13 @@
   .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(1) {
     top: 2px;
     left: 8px;
+    right: 0;
   }
 
   .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(2) {
     bottom: 2px;
     left: 3px;
+    right: 0;
   }
 
   /* 遮罩层：在主界面和抽屉之间 */
@@ -879,7 +879,7 @@
     pointer-events: auto;
   }
 
-  /* 左侧 sidebar 抽屉 */
+  /* 左侧 sidebar 抽屉：固定在左侧，自己滑出来 */
   .sidebar {
     position: fixed;
     top: 0;
@@ -897,12 +897,7 @@
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
   }
 
-  /* 主面板顶上留出按钮空间 */
-  .main-panel {
-    padding-top: 46px;
-  }
-
-  /* 右侧 insight 抽屉 */
+  /* 右侧 insight 抽屉：固定在右侧，自己滑出来 */
   .insight-panel {
     display: flex;
     position: fixed;
@@ -921,6 +916,7 @@
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
   }
 }
+
 
 
   </style>
@@ -2087,7 +2083,7 @@
       }
     }
 
-    // === Toast ===
+       // === Toast ===
 
     let toastTimer = null;
 
@@ -2104,9 +2100,79 @@
       console.error(err);
       showToast("初始化失败，请检查浏览器控制台。");
     }
+
+    // === Mobile drawer logic · 仅手机端使用 ===
+    (function () {
+      const mainPanel  = document.querySelector(".main-panel");
+      const sidebarEl  = document.querySelector(".sidebar");
+      const insightEl  = document.querySelector(".insight-panel");
+      const overlayEl  = document.getElementById("mobileOverlay");
+      const btnSidebar = document.getElementById("btnMobileSidebarToggle");
+      const btnInsight = document.getElementById("btnMobileInsightToggle");
+
+      // 桌面端或元素缺失时，直接退出，不影响其它逻辑
+      if (!mainPanel || !sidebarEl || !overlayEl || !btnSidebar || !btnInsight) return;
+
+      let sidebarOpen = false;
+      let insightOpen = false;
+
+      function syncOverlay() {
+        if (sidebarOpen || insightOpen) {
+          overlayEl.classList.add("visible");
+        } else {
+          overlayEl.classList.remove("visible");
+        }
+      }
+
+      // 左侧会话栏按钮：打开时主面板向右推
+      btnSidebar.addEventListener("click", () => {
+        sidebarOpen = !sidebarOpen;
+        sidebarEl.classList.toggle("sidebar-open", sidebarOpen);
+        mainPanel.classList.toggle("push-right", sidebarOpen);
+
+        if (sidebarOpen) {
+          // 只允许一侧打开
+          insightOpen = false;
+          if (insightEl) insightEl.classList.remove("insight-open");
+          mainPanel.classList.remove("push-left");
+        }
+
+        syncOverlay();
+      });
+
+      // 右侧调用概览按钮：打开时主面板向左推
+      btnInsight.addEventListener("click", () => {
+        insightOpen = !insightOpen;
+        if (insightEl) {
+          insightEl.classList.toggle("insight-open", insightOpen);
+        }
+        mainPanel.classList.toggle("push-left", insightOpen);
+
+        if (insightOpen) {
+          sidebarOpen = false;
+          sidebarEl.classList.remove("sidebar-open");
+          mainPanel.classList.remove("push-right");
+        }
+
+        syncOverlay();
+      });
+
+      // 点击遮罩：关闭两边抽屉 & 还原主界面
+      overlayEl.addEventListener("click", () => {
+        sidebarOpen = false;
+        insightOpen = false;
+        sidebarEl.classList.remove("sidebar-open");
+        if (insightEl) insightEl.classList.remove("insight-open");
+        mainPanel.classList.remove("push-right");
+        mainPanel.classList.remove("push-left");
+        syncOverlay();
+      });
+    })();
   </script>
 </body>
 </html>
+
+
 
 
 
