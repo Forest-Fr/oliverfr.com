@@ -1067,179 +1067,253 @@
     font-size: 12px;
   }
 }
+
+/* endpoint pill 文案，不再是具体域名，限制一下宽度即可 */
+.aw-pill-endpoint .aw-pill-value {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+    /* 基础：右侧区域保持横向对齐 */
+.aw-header-right {
+  display: flex;
+  align-items: center;
+}
+
+/* 两条横线的汉堡按钮（默认隐藏，只有小屏才显示） */
+.aw-mobile-menu {
+  display: none;              /* 默认不展示，media query 里再打开 */
+  position: relative;
+  margin-left: 12px;
+  padding: 6px 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.aw-mobile-menu .line {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* 上面那条更长 */
+.aw-mobile-menu .line-1 {
+  width: 18px;
+}
+
+/* 下面那条更短、与左边对齐 */
+.aw-mobile-menu .line-2 {
+  width: 12px;
+  margin-top: 5px;
+}
+
+
+    @media (max-width: 768px) {
+  .aw-header-right {
+    gap: 4px;
+  }
+
+  /* 手机端不需要看到后端 pill，避免挤占空间 */
+  .aw-header-right .aw-pill-endpoint {
+    display: none;
+  }
+
+  /* 只在小屏展示汉堡按钮 */
+  .aw-mobile-menu {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;   /* 左边对齐，右侧自然长短不一 */
+    justify-content: center;
+  }
+}
+
     
   </style>
 </head>
 <body>
   <div class="app-shell">
-    <!-- 左侧：会话列表 -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-title-row">
-          <div class="sidebar-title">
-            <span class="status-dot"></span>
-            Agent Worker 控制台
+  <!-- 左侧：会话列表 -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title-row">
+        <div class="sidebar-title">
+          <span class="status-dot"></span>
+          Agent Worker 控制台
+        </div>
+      </div>
+      <!-- 11.22 调整：文案改为 Cloudflare Worker 智能体，避免暴露具体域名 -->
+      <div class="sidebar-subtitle">本地对接 · Cloudflare AI智能体</div>
+      <div class="sidebar-tags">
+        <div class="tag-chip"><strong>Agent</strong> worker-agent</div>
+        <div class="tag-chip"><strong>Model</strong> gpt-5-mini</div>
+        <div class="tag-chip"><strong>Route</strong> Worker → OpenAI Chat</div>
+      </div>
+      <div class="sidebar-divider"></div>
+    </div>
+
+    <div class="sidebar-actions">
+      <button class="btn-new-session" id="btnNewSession">
+        <span class="btn-icon">＋</span>
+        新建会话
+      </button>
+      <div class="sidebar-env">
+        <span class="sidebar-env-dot"></span>
+        环境：Dev
+      </div>
+    </div>
+
+    <div class="session-list" id="sessionList">
+      <!-- JS 渲染会话 -->
+    </div>
+
+    <div class="sidebar-footer">
+      本页面仅作 <strong>AI 智能体链路测试</strong>，不保存服务端日志。
+    </div>
+  </aside>
+
+  <!-- 中间：主聊天区域 -->
+  <main class="main-panel">
+    <div class="main-header">
+      <div class="main-header-left">
+        <div class="breadcrumbs">
+          <span>Agent Worker 测试面板</span>
+          <span>·</span>
+          <!-- 11.22 调整：补全为 Cloudflare Worker → OpenAI Chat -->
+          <span>前端 → Cloudflare   → OpenAI Chat</span>
+        </div>
+        <div class="agent-title-row">
+          <div class="agent-name">Agent Worker 测试面板</div>
+          <div class="pill">
+            <span>Agent:</span>
+            <strong id="currentAgentLabel">worker-agent</strong>
+          </div>
+          <div class="pill">
+            <span>模型:</span>
+            <strong id="currentModelLabel">gpt-5-mini</strong>
           </div>
         </div>
-        <div class="sidebar-subtitle">本地对接 · Cloudflare Worker 智能体</div>
-        <div class="sidebar-tags">
-          <div class="tag-chip"><strong>Agent</strong> worker-agent</div>
-          <div class="tag-chip"><strong>Model</strong> gpt-5-mini</div>
-          <div class="tag-chip"><strong>Route</strong> Worker → OpenAI Chat</div>
-        </div>
-        <div class="sidebar-divider"></div>
       </div>
-
-      <div class="sidebar-actions">
-        <button class="btn-new-session" id="btnNewSession">
-          <span class="btn-icon">＋</span>
-          新建会话
+      <div class="main-header-right">
+        <div class="env-pill">
+          <span class="env-pill-dot"></span>
+          <span>AI智能体</span>
+        </div>
+        <!-- 11.22 新增：手机端两条横线汉堡菜单按钮，仅在小屏显示（配合 CSS） -->
+        <button class="aw-mobile-menu" id="awMobileMenu" aria-label="打开菜单">
+          <span class="line line-1"></span>
+          <span class="line line-2"></span>
         </button>
-        <div class="sidebar-env">
-          <span class="sidebar-env-dot"></span>
-          环境：Dev
+      </div>
+    </div>
+
+    <section class="chat-surface">
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-empty" id="chatEmpty">
+          <div>这里会显示你和 Worker 智能体的对话记录。</div>
+          <div>试试输入：<strong>「帮我把下面的报错信息按原因拆解一下」</strong>。</div>
         </div>
       </div>
 
-      <div class="session-list" id="sessionList">
-        <!-- JS 渲染会话 -->
-      </div>
-
-      <div class="sidebar-footer">
-        本页面仅作 <strong>AI 智能体链路测试</strong>，不保存服务端日志。
-      </div>
-    </aside>
-
-    <!-- 中间：主聊天区域 -->
-    <main class="main-panel">
-      <div class="main-header">
-        <div class="main-header-left">
-          <div class="breadcrumbs">
-            <span>Agent Worker 测试面板</span>
-            <span>·</span>
-            <span>前端 → Cloudflare Worker → OpenAI Chat Completions</span>
-          </div>
-          <div class="agent-title-row">
-            <div class="agent-name">Agent Worker 测试面板</div>
-            <div class="pill">
-              <span>Agent:</span>
-              <strong id="currentAgentLabel">worker-agent</strong>
-            </div>
-            <div class="pill">
-              <span>模型:</span>
-              <strong id="currentModelLabel">gpt-5-mini</strong>
-            </div>
-          </div>
+      <div class="chat-input-bar">
+        <div class="chat-input-row">
+          <textarea
+            id="chatInput"
+            class="chat-input"
+            placeholder="在这里输入：比如『帮我总结一下今天要做的三件事』，然后按 Ctrl+Enter 或点击发送。"
+          ></textarea>
+          <button id="btnSend" class="send-button">
+            <span class="send-button-icon">↗</span>
+            <span id="btnSendLabel">发送</span>
+          </button>
         </div>
-        <div class="main-header-right">
-          <div class="env-pill">
-            <span class="env-pill-dot"></span>
-            <span>Worker: agent.mefans.workers.dev</span>
-          </div>
+        <div class="input-hint-row">
+          <span>支持多行输入。<strong>Ctrl+Enter</strong> 发送。</span>
+          <!-- 11.22 调整：文案改为 Cloudflare Worker 智能体 -->
+          <span id="requestMetaHint">就绪：调用 Cloudflare  AI智能体。</span>
         </div>
       </div>
+    </section>
 
-      <section class="chat-surface">
-        <div class="chat-messages" id="chatMessages">
-          <div class="chat-empty" id="chatEmpty">
-            <div>这里会显示你和 Worker 智能体的对话记录。</div>
-            <div>试试输入：<strong>「帮我把下面的报错信息按原因拆解一下」</strong>。</div>
-          </div>
-        </div>
+    <div class="toast" id="toast">
+      <span class="toast-icon">⚠️</span>
+      <span id="toastText">错误信息</span>
+    </div>
+  </main>
 
-        <div class="chat-input-bar">
-          <div class="chat-input-row">
-            <textarea
-              id="chatInput"
-              class="chat-input"
-              placeholder="在这里输入：比如『帮我总结一下今天要做的三件事』，然后按 Ctrl+Enter 或点击发送。"
-            ></textarea>
-            <button id="btnSend" class="send-button">
-              <span class="send-button-icon">↗</span>
-              <span id="btnSendLabel">发送</span>
-            </button>
-          </div>
-          <div class="input-hint-row">
-            <span>支持多行输入。<strong>Ctrl+Enter</strong> 发送。</span>
-            <span id="requestMetaHint">就绪：调用 Cloudflare Worker 智能体。</span>
-          </div>
-        </div>
-      </section>
-
-      <div class="toast" id="toast">
-        <span class="toast-icon">⚠️</span>
-        <span id="toastText">错误信息</span>
+  <!-- 右侧：调用概览 -->
+  <aside class="insight-panel">
+    <div class="insight-card">
+      <h3>
+        调用概览
+        <span class="insight-tag">最近一次</span>
+      </h3>
+      <div class="call-overview-row">
+        <span>耗时</span>
+        <span id="ovDuration">-</span>
       </div>
-    </main>
-
-    <!-- 右侧：调用概览 -->
-    <aside class="insight-panel">
-      <div class="insight-card">
-        <h3>
-          调用概览
-          <span class="insight-tag">最近一次</span>
-        </h3>
-        <div class="call-overview-row">
-          <span>耗时</span>
-          <span id="ovDuration">-</span>
-        </div>
-        <div class="call-overview-row">
-          <span>状态</span>
-          <span id="ovStatus">
-            <span class="call-status-pill">
-              <span class="call-status-dot"></span>
-              尚未调用
-            </span>
+      <div class="call-overview-row">
+        <span>状态</span>
+        <span id="ovStatus">
+          <span class="call-status-pill">
+            <span class="call-status-dot"></span>
+            尚未调用
           </span>
-        </div>
-        <div class="call-overview-row">
-          <span>模型</span>
-          <span id="ovModel">gpt-5-mini</span>
-        </div>
-        <div class="call-overview-row">
-          <span>Prompt tokens</span>
-          <span id="ovPromptTokens">-</span>
-        </div>
-        <div class="call-overview-row">
-          <span>Completion tokens</span>
-          <span id="ovCompletionTokens">-</span>
-        </div>
-        <div class="call-overview-row">
-          <span>Total tokens</span>
-          <span id="ovTotalTokens">-</span>
-        </div>
+        </span>
       </div>
+      <div class="call-overview-row">
+        <span>模型</span>
+        <span id="ovModel">gpt-5-mini</span>
+      </div>
+      <div class="call-overview-row">
+        <span>Prompt tokens</span>
+        <span id="ovPromptTokens">-</span>
+      </div>
+      <div class="call-overview-row">
+        <span>Completion tokens</span>
+        <span id="ovCompletionTokens">-</span>
+      </div>
+      <div class="call-overview-row">
+        <span>Total tokens</span>
+        <span id="ovTotalTokens">-</span>
+      </div>
+    </div>
 
-      <div class="insight-card">
-        <div class="raw-json-header">
-          <span>原始返回</span>
-          <div class="json-buttons">
-            <button class="btn-ghost" id="btnToggleJson">展开 JSON</button>
-            <button class="btn-ghost" id="btnCopyJson">复制</button>
-          </div>
-        </div>
-        <div class="raw-json-body" id="rawJsonBody">
-          <div class="raw-json-placeholder" id="rawJsonPlaceholder">
-            尚未调用。调用后这里会显示 Worker 与 OpenAI 返回的完整 JSON。
-          </div>
-          <pre class="raw-json-pre" id="rawJsonPre" style="display:none;"></pre>
+    <div class="insight-card">
+      <div class="raw-json-header">
+        <span>原始返回</span>
+        <div class="json-buttons">
+          <button class="btn-ghost" id="btnToggleJson">展开 JSON</button>
+          <button class="btn-ghost" id="btnCopyJson">复制</button>
         </div>
       </div>
+      <div class="raw-json-body" id="rawJsonBody">
+        <div class="raw-json-placeholder" id="rawJsonPlaceholder">
+          尚未调用。调用后这里会显示 Worker 与 OpenAI 返回的完整 JSON。
+        </div>
+        <pre class="raw-json-pre" id="rawJsonPre" style="display:none;"></pre>
+      </div>
+    </div>
 
-      <div class="insight-card">
-        <h3>
-          智能体说明
-          <span class="insight-tag">worker-agent · Dev</span>
-        </h3>
-        <ul class="agent-desc-list">
-          <li>· <span>职责：</span>验证 Cloudflare Worker → OpenAI gpt-5-mini 聊天链路。</li>
-          <li>· <span>能力：</span>回答自然语言问题，展示模型与 tokens 信息。</li>
-          <li>· <span>限制：</span>不访问业务数据库、不执行写操作工具调用。</li>
-          <li>· <span>适用场景：</span>本地联调、链路健康检查、最小可用智能体测试。</li>
-        </ul>
-      </div>
-    </aside>
-  </div>
+    <div class="insight-card">
+      <h3>
+        智能体说明
+        <span class="insight-tag">worker-agent · Dev</span>
+      </h3>
+      <ul class="agent-desc-list">
+        <li>· <span>职责：</span>验证 Cloudflare → OpenAI gpt-5-mini 聊天链路。</li>
+        <li>· <span>能力：</span>回答自然语言问题，展示模型与 tokens 信息。</li>
+        <li>· <span>限制：</span>不访问业务数据库、不执行写操作工具调用。</li>
+        <li>· <span>适用场景：</span>对接联调、链路健康检查、最小可用智能体测试。</li>
+      </ul>
+    </div>
+  </aside>
+</div>
+
 
 <script>
   (function () {
@@ -2302,4 +2376,5 @@
 
 </body>
 </html>
+
 
