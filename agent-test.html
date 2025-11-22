@@ -766,189 +766,247 @@
       }
     }
 
-/* === 手机端布局（替换原有 @media (max-width: 900px) 整段）=== */
-@media (max-width: 900px) {
-  body {
-    padding: 0;
+  /* === 手机端布局（替换原有 @media (max-width: 900px) 整段）=== */
+  @media (max-width: 900px) {
+    body {
+      padding: 0;
+    }
+
+    .app-shell {
+      border-radius: 0;
+      box-shadow: none;
+      max-height: none;
+      height: 100%;
+      overflow: hidden; /* 防止左右推时露出太大的空白 */
+    }
+
+    /* 由主面板负责平移*/
+
+
+    /* 主聊天面板：手机端左右平移 */
+    .main-panel {
+      padding-top: 46px;           /* 给顶部两横线留空间 */
+      transition: transform 0.2s ease-out;
+    }
+
+    /* 左边抽屉打开时，主面板向右推 —— 保持当前行为不变 */
+    .main-panel.move-right,
+    .app-shell.push-right .main-panel {
+      transform: translateX(min(80%, 320px));
+    }
+
+    /* 右边抽屉打开时，主面板向左推（这次强制平移） */
+    .main-panel.move-left,
+    .app-shell.push-left .main-panel {
+      transform: translateX(-min(80%, 340px));
+    }
+
+    /* 顶部左右“二横线”按钮条 */
+    .mobile-top-bar {
+      position: fixed;
+      top: 10px;
+      left: 0;
+      right: 0;
+      padding: 0 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 40;
+      pointer-events: none;
+      transition: transform 0.2s ease-out;
+    }
+
+    /* 顶部两横线跟随整体移动（左右都保持现有效果） */
+    .app-shell.push-right .mobile-top-bar {
+      transform: translateX(min(80%, 320px));
+    }
+
+    .app-shell.push-left .mobile-top-bar {
+      transform: translateX(-min(80%, 340px));
+    }
+
+
+    /* 顶部左右“二横线”按钮条 */
+    .mobile-top-bar {
+      position: fixed;
+      top: 10px;
+      left: 0;
+      right: 0;
+      padding: 0 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 40;
+      pointer-events: none;
+    }
+
+    .mobile-toggle-btn {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      border: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+    }
+
+    .mobile-toggle-icon {
+      position: relative;
+      width: 18px;
+      height: 14px;
+    }
+
+    .mobile-toggle-icon span {
+      position: absolute;
+      height: 2px;
+      border-radius: 999px;
+      background: #111827;
+    }
+
+    /* 左侧图标：两条线偏左 */
+    .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(1) {
+      top: 2px;
+      left: 0;
+      right: 8px;
+    }
+    .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(2) {
+      bottom: 2px;
+      left: 0;
+      right: 3px;
+    }
+
+    /* 右侧图标：两条线偏右（镜像） */
+    .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(1) {
+      top: 2px;
+      left: 8px;
+      right: 0;
+    }
+    .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(2) {
+      bottom: 2px;
+      left: 3px;
+      right: 0;
+    }
+
+    /* 遮罩层：在主界面和抽屉之间 */
+    .mobile-overlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      z-index: 25;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease-out;
+    }
+
+    .mobile-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* 左侧 sidebar 抽屉（固定在视口左边，不随主界面一起移动） */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: min(80%, 320px);
+      max-width: 320px;
+      transform: translateX(-100%);
+      transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+      z-index: 30;
+    }
+
+    .sidebar.sidebar-open {
+      transform: translateX(0);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
+    }
+
+    /* 右侧 insight 抽屉（固定在视口右边） */
+    .insight-panel {
+      display: flex;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      width: min(80%, 340px);
+      max-width: 340px;
+      transform: translateX(100%);
+      transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+      z-index: 30;
+    }
+
+    .insight-panel.insight-open {
+      transform: translateX(0);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
+    }
   }
-
-  .app-shell {
-    border-radius: 0;
-    box-shadow: none;
-    max-height: none;
-    height: 100%;
-    overflow: hidden; /* 防止左右推时露出太大的空白 */
-  }
-
-  /* 由主面板负责平移*/
-
-
-  /* 主聊天面板：手机端左右平移 */
-  .main-panel {
-    padding-top: 46px;           /* 给顶部两横线留空间 */
-    transition: transform 0.2s ease-out;
-  }
-
-  /* 左边抽屉打开时，主面板向右推 —— 保持当前行为不变 */
-  .main-panel.move-right,
-  .app-shell.push-right .main-panel {
-    transform: translateX(min(80%, 320px));
-  }
-
-  /* 右边抽屉打开时，主面板向左推（这次强制平移） */
-  .main-panel.move-left,
-  .app-shell.push-left .main-panel {
-    transform: translateX(-min(80%, 340px));
-  }
-
-  /* 顶部左右“二横线”按钮条 */
-  .mobile-top-bar {
-    position: fixed;
-    top: 10px;
-    left: 0;
-    right: 0;
-    padding: 0 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    z-index: 40;
-    pointer-events: none;
-    transition: transform 0.2s ease-out;
-  }
-
-  /* 顶部两横线跟随整体移动（左右都保持现有效果） */
-  .app-shell.push-right .mobile-top-bar {
-    transform: translateX(min(80%, 320px));
-  }
-
-  .app-shell.push-left .mobile-top-bar {
-    transform: translateX(-min(80%, 340px));
-  }
-
-
-  /* 顶部左右“二横线”按钮条 */
-  .mobile-top-bar {
-    position: fixed;
-    top: 10px;
-    left: 0;
-    right: 0;
-    padding: 0 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    z-index: 40;
-    pointer-events: none;
-  }
-
-  .mobile-toggle-btn {
-    width: 34px;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: auto;
-    border: none;
-    background: transparent;
-    padding: 0;
-    margin: 0;
-  }
-
-  .mobile-toggle-icon {
-    position: relative;
-    width: 18px;
-    height: 14px;
-  }
-
-  .mobile-toggle-icon span {
-    position: absolute;
-    height: 2px;
-    border-radius: 999px;
-    background: #111827;
-  }
-
-  /* 左侧图标：两条线偏左 */
-  .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(1) {
-    top: 2px;
-    left: 0;
-    right: 8px;
-  }
-  .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(2) {
-    bottom: 2px;
-    left: 0;
-    right: 3px;
-  }
-
-  /* 右侧图标：两条线偏右（镜像） */
-  .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(1) {
-    top: 2px;
-    left: 8px;
-    right: 0;
-  }
-  .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(2) {
-    bottom: 2px;
-    left: 3px;
-    right: 0;
-  }
-
-  /* 遮罩层：在主界面和抽屉之间 */
-  .mobile-overlay {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.35);
-    z-index: 25;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.18s ease-out;
-  }
-
-  .mobile-overlay.visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  /* 左侧 sidebar 抽屉（固定在视口左边，不随主界面一起移动） */
-  .sidebar {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: min(80%, 320px);
-    max-width: 320px;
-    transform: translateX(-100%);
-    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-    z-index: 30;
-  }
-
-  .sidebar.sidebar-open {
-    transform: translateX(0);
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
-  }
-
-  /* 右侧 insight 抽屉（固定在视口右边） */
-  .insight-panel {
-    display: flex;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    width: min(80%, 340px);
-    max-width: 340px;
-    transform: translateX(100%);
-    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-    z-index: 30;
-  }
-
-  .insight-panel.insight-open {
-    transform: translateX(0);
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
-  }
-}
-
-
-
 
   </style>
+
+  <!-- =================
+       无损补丁：追加覆盖（Option B） — 保留原始样式不变，仅通过覆盖规则确保 token 徽章不被裁切
+       说明：不要把下面的 CSS 插入到已经被压缩/优化过的位置外（推荐追加到样式表末尾）。
+       ================= -->
+  <style>
+  /* ===== PATCH BEGIN: session-title / token badge safe spacing (无损覆盖) ===== */
+
+  /* 1) session-item：保留原始 padding（8px 9px），但在补丁中用更精确的 padding & overflow 覆盖以避免徽章溢出
+     修改痕迹：原始为 `padding: 8px 9px;`（见上方），这里使用更细粒度的右内边距控制并加 !important 以确保生效 */
+  .session-item {
+    /* 原始（仅作记录，未删除）： padding: 8px 9px; */
+    padding: 8px 8px 8px 9px !important;
+    overflow: hidden !important; /* 防止子元素（徽章）在视觉上溢出容器边界 */
+    box-sizing: border-box !important;
+  }
+
+  /* 2) session-title：不改 DOM，动态限制标题宽度，给时间/徽章留出空间
+     说明：`120px` 是保守值（用于时间 + token 徽章 + 缓冲），若视觉上仍然靠右可微增到 128 或 140 */
+  .session-title {
+    /* 原始（仅作记录，未删除）： max-width: 160px; */
+    max-width: calc(var(--sidebar-width) - 120px) !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
+  }
+
+  /* 3) session-meta：保证徽章区域右对齐且不被压缩（保持原 display: flex 的语义） */
+  .session-meta {
+    /* 原始（仅作记录，未删除）： display:flex; justify-content: space-between; ... */
+    min-width: 0 !important;
+    display: flex !important;
+    gap: 6px !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+  }
+
+  /* 4) session-list：微小右侧缓冲，避免紧贴侧栏边缘导致裁切（安全、无功能改动） */
+  .session-list {
+    /* 原始（仅作记录，未删除）： padding-top: 4px; */
+    padding-right: 6px !important;
+  }
+
+  /* 5) 手机端抽屉兼容：在手机抽屉（width: min(80%,320px)）场景下提供合适的 max-width */
+  @media (max-width: 900px) {
+    .session-title {
+      max-width: calc(min(80vw, 320px) - 120px) !important;
+    }
+  }
+
+  /* 6) 可选短期调试项（注释掉，非必须）：如果确实发现 app-shell overflow:hidden 是导致裁切的真正原因，
+     可以短期打开下面一行做验证（请注意：改变此项可能影响圆角遮罩与整体视觉）。 */
+  /*
+  .app-shell {
+    overflow: visible !important; /!* 仅用于调试：请谨慎启用 *!/
+  }
+  */
+
+  /* ===== PATCH END ===== */
+  </style>
+
 </head>
 <body>
   <div class="app-shell">
@@ -2362,6 +2420,7 @@
   </script>
 </body>
 </html>
+
 
 
 
