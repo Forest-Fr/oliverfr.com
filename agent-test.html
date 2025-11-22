@@ -1413,7 +1413,7 @@
       return window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
     }
 
-    function toggleMobilePanel(target) {
+     function toggleMobilePanel(target) {
       if (!isMobileViewport()) return;
       const sidebar = document.querySelector(".sidebar");
       const insight = document.querySelector(".insight-panel");
@@ -1425,8 +1425,11 @@
         return;
       }
 
+      // 打开任意一侧前，先清理主面板的内联 transform，避免残留
+      el.mainPanel.style.transform = "";
+
       if (target === "left") {
-        // 左侧：保持原有行为，再显式给 main-panel 一个 move-right
+        // 左侧：保持现有行为不变
         sidebar.classList.add("sidebar-open");
         insight.classList.remove("insight-open");
 
@@ -1438,14 +1441,21 @@
 
         currentMobilePanel = "left";
       } else if (target === "right") {
-        // 右侧：打开 insight，并明确让主面板左移
+        // 右侧：抽屉滑出 + 主面板整体向左推
         insight.classList.add("insight-open");
         sidebar.classList.remove("sidebar-open");
 
         el.appShell.classList.add("push-left");
         el.appShell.classList.remove("push-right");
 
-        el.mainPanel.classList.add("move-left");
+        // ★ 关键：用右侧抽屉的实际宽度来平移主面板，避免“纯覆盖”
+        const drawerWidth = insight.offsetWidth || 0;
+        if (drawerWidth > 0) {
+          el.mainPanel.style.transform = `translateX(-${drawerWidth}px)`;
+        } else {
+          // 兜底：偶尔拿不到宽度时，还可以退回 CSS class 方案
+          el.mainPanel.classList.add("move-left");
+        }
         el.mainPanel.classList.remove("move-right");
 
         currentMobilePanel = "right";
@@ -1457,19 +1467,20 @@
     }
 
 
+
     function closeMobilePanels() {
       const sidebar = document.querySelector(".sidebar");
       const insight = document.querySelector(".insight-panel");
       if (sidebar) sidebar.classList.remove("sidebar-open");
       if (insight) insight.classList.remove("insight-open");
+
       if (el.appShell) {
         el.appShell.classList.remove("push-right", "push-left");
       }
-            if (el.appShell) {
-        el.appShell.classList.remove("push-right", "push-left");
-      }
+
       if (el.mainPanel) {
-        el.mainPanel.classList.remove("move-right", "move-left");  // ★ 新增：恢复主面板位置
+        el.mainPanel.classList.remove("move-right", "move-left");
+        el.mainPanel.style.transform = ""; // ★ 清掉右侧打开时设置的内联位移
       }
 
       currentMobilePanel = null;
@@ -1477,6 +1488,7 @@
         el.mobileOverlay.classList.remove("visible");
       }
     }
+
 
     // === IndexedDB + localStorage 封装 ===
 
@@ -2228,13 +2240,27 @@
       }
     }
 
-    function updateRawJson(text) {
+     function updateRawJson(text) {
       if (!text) {
+        // 没有内容时，同时清空复制用的 lastRawResponse
+        lastRawResponse = "";
         el.rawJsonPlaceholder.style.display = "block";
         el.rawJsonPre.style.display = "none";
         el.rawJsonPre.textContent = "";
         return;
       }
+
+      // 同步 lastRawResponse，保证“复制 JSON”按钮和右侧展示始终一致
+      if (typeof text === "string") {
+        lastRawResponse = text;
+      } else {
+        try {
+          lastRawResponse = JSON.stringify(text, null, 2);
+        } catch {
+          lastRawResponse = String(text);
+        }
+      }
+
       el.rawJsonPlaceholder.style.display = "none";
       el.rawJsonPre.style.display = "block";
 
@@ -2242,9 +2268,11 @@
         const parsed = typeof text === "string" ? JSON.parse(text) : text;
         el.rawJsonPre.textContent = JSON.stringify(parsed, null, 2);
       } catch {
-        el.rawJsonPre.textContent = text;
+        // 解析失败时，直接展示 lastRawResponse 文本
+        el.rawJsonPre.textContent = lastRawResponse;
       }
     }
+
 
        // === Toast ===
 
@@ -2334,6 +2362,7 @@
   </script>
 </body>
 </html>
+
 
 
 
