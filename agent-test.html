@@ -749,6 +749,325 @@
         display: none;
       }
     }
+    /* ===== Mobile: ≤ 767px ===== */
+@media (max-width: 767px) {
+  /* 整体容器从三列收缩为一列 */
+  .agent-shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto auto; /* 会话条 + 聊天 + 输入 + 信息区 */
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* 左侧会话列表变成顶部横向 tabs 条 */
+  .agent-sidebar {
+    grid-row: 1;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    background: var(--surface-1, #050816);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
+  }
+
+  /* 左侧顶部标题/说明在手机上可以隐藏或缩小 */
+  .agent-sidebar-header,
+  .agent-sidebar-footer {
+    display: none;
+  }
+
+  /* 新建会话按钮压缩为小圆按钮/图标按钮 */
+  .agent-sidebar-new-session-btn {
+    flex: 0 0 auto;
+    min-width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  /* 单个会话卡片：变成小 pill，横向滚动 */
+  .agent-session-item {
+    flex: 0 0 auto;
+    min-width: 120px;
+    max-width: 160px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    margin: 0;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .agent-session-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 110px;
+  }
+
+  .agent-session-tokens {
+    font-size: 11px;
+    opacity: 0.7;
+    flex: 0 0 auto;
+  }
+
+  /* 当前活动会话高亮 */
+  .agent-session-item.is-active {
+    background: rgba(59, 130, 246, 0.16);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+  }
+
+  /* 中间聊天区域占据中间全部空间 */
+  .agent-main {
+    grid-row: 2;
+    grid-column: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .agent-main-header {
+    padding: 10px 14px 4px;
+    font-size: 13px;
+  }
+
+  .agent-chat-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px 12px 12px;
+    overflow-y: auto;
+  }
+
+  .agent-message {
+    max-width: 100%;
+  }
+
+  /* 输入区沉底，全宽 */
+  .agent-input-bar {
+    grid-row: 3;
+    grid-column: 1;
+    padding: 8px 10px 12px;
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.6));
+    backdrop-filter: blur(16px);
+  }
+
+  .agent-input-inner {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .agent-input-textarea {
+    min-height: 72px;
+    max-height: 160px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .agent-input-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .agent-send-button {
+    width: 100%;
+    justify-content: center;
+    border-radius: 999px;
+    padding-block: 10px;
+  }
+
+  /* 右侧 inspector 区域移动到底部，缩成信息抽屉 */
+  .agent-inspector {
+    grid-row: 4;
+    grid-column: 1;
+    border-left: none;
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    background: radial-gradient(circle at top left, rgba(56,189,248,0.1), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(94,234,212,0.1), transparent 55%),
+                rgba(5, 6, 15, 0.98);
+    padding: 8px 12px 10px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+
+  /* 调用概览卡片压缩展示 */
+  .agent-metrics-card {
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .agent-metrics-card h3 {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .agent-metrics-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* 原始 JSON / 复制按钮水平排布，适合手指点击 */
+  .agent-raw-card {
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .agent-raw-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .agent-raw-button {
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+  }
+
+  /* 智能体说明压缩为可折叠信息（先只处理视觉） */
+  .agent-profile-card {
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .agent-profile-card h3 {
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+
+  .agent-profile-list {
+    margin-top: 4px;
+    padding-left: 1em;
+  }
+
+  .agent-profile-list li {
+    margin-bottom: 2px;
+  }
+}
+/*平板*/
+/* ===== Tablet: 768px ~ 1199px ===== */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .agent-shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto; /* 顶部可选 header + 主体 + 输入 + inspector */
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* 左侧会话保持纵向列表，但压缩宽度 */
+  .agent-sidebar {
+    grid-row: 1 / span 4;
+    grid-column: 1;
+    border-right: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-bottom: none;
+    padding-inline: 12px;
+  }
+
+  .agent-session-item {
+    border-radius: 12px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  /* 中间主对话区域占据第二列上方空间 */
+  .agent-main {
+    grid-row: 1 / span 3;
+    grid-column: 2;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .agent-main-header {
+    padding: 12px 16px 6px;
+    font-size: 14px;
+  }
+
+  .agent-chat-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 10px 16px 14px;
+    overflow-y: auto;
+  }
+
+  .agent-input-bar {
+    grid-row: 3;
+    grid-column: 2;
+    padding: 10px 16px 14px;
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  }
+
+  .agent-input-textarea {
+    min-height: 80px;
+    max-height: 200px;
+    font-size: 14px;
+  }
+
+  .agent-send-button {
+    min-width: 120px;
+    padding-inline: 16px;
+    padding-block: 10px;
+    border-radius: 999px;
+  }
+
+  /* inspector 下移到底部，占两列宽度 */
+  .agent-inspector {
+    grid-row: 4;
+    grid-column: 1 / span 2;
+    border-left: none;
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    padding: 10px 16px 14px;
+    background: radial-gradient(circle at top left, rgba(56,189,248,0.08), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(94,234,212,0.08), transparent 55%),
+                rgba(5, 6, 15, 0.98);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    max-height: 36vh;
+    overflow-y: auto;
+  }
+
+  .agent-metrics-card,
+  .agent-raw-card,
+  .agent-profile-card {
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+  }
+
+  .agent-raw-actions {
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .agent-raw-button {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+}
+    
   </style>
 </head>
 <body>
@@ -922,21 +1241,49 @@
     </aside>
   </div>
 
-  <script>
-    // === Config ===
-    const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
+<script>
+  (function () {
+    "use strict";
+
+    // === Agent / Model Config ===
+    const AGENT_CONFIGS = {
+      "worker-agent": {
+        key: "worker-agent",
+        label: "worker-agent · Dev",
+        endpoint: "https://agent.mefans.workers.dev/",
+        defaultModel: "gpt-5-mini",
+      },
+      // 如果以后要扩展更多智能体，可以在这里加：
+      // "ops-agent": { key: "ops-agent", label: "Ops Agent", endpoint: "...", defaultModel: "gpt-5-mini" }
+    };
+
+    let currentAgentKey = "worker-agent"; // 默认智能体
+    let currentModelName = AGENT_CONFIGS["worker-agent"].defaultModel;
+
+    // === IndexedDB Config ===
     const DB_NAME = "agentWorkerDB";
     const DB_VERSION = 1;
     const SESSION_STORE = "sessions";
     const MESSAGE_STORE = "messages";
-    const MAX_SESSIONS = 50; // 自动清理过多历史会话
 
-    // === State (in-memory) ===
+    const MAX_DYNAMIC_SESSIONS = 50; // 动态桶最多保留多少条
+    const BUCKET_DYNAMIC = "dynamic"; // 动态桶：最近会话，自动回收
+    const BUCKET_STATIC = "static"; // 静态桶：pin 固定的会话，不自动回收
+
+    // === In-memory State ===
     let dbPromise = null;
     let sessions = [];
     let currentSessionId = null;
     let isSending = false;
     let lastRawResponse = "";
+    let lastCallDurationMs = 0;
+
+    // 会话列表视图状态
+    const viewState = {
+      searchKeyword: "",
+      showPinnedOnly: false,
+      agentFilter: "all", // "all" 或具体 agentKey
+    };
 
     // === DOM refs ===
     const el = {};
@@ -944,12 +1291,24 @@
     document.addEventListener("DOMContentLoaded", () => {
       cacheDom();
       bindGlobalEvents();
-      initIndexedDB().then(initSessions).catch(showFatalError);
+      initIndexedDB()
+        .then(initSessions)
+        .catch(showFatalError);
     });
 
+    // ==========================
+    // DOM 缓存
+    // ==========================
     function cacheDom() {
+      // 左侧会话栏
       el.sessionList = document.getElementById("sessionList");
       el.btnNewSession = document.getElementById("btnNewSession");
+      el.sessionSearchInput = document.getElementById("sessionSearch"); // 可选
+      el.sessionFilterPinned = document.getElementById("sessionFilterPinned"); // 可选
+      el.agentFilterSelect = document.getElementById("agentFilter"); // 可选
+      el.agentTabs = document.querySelectorAll("[data-agent-key]"); // 可选 tab 形式
+
+      // 中间聊天区域
       el.chatMessages = document.getElementById("chatMessages");
       el.chatEmpty = document.getElementById("chatEmpty");
       el.chatInput = document.getElementById("chatInput");
@@ -957,6 +1316,13 @@
       el.btnSendLabel = document.getElementById("btnSendLabel");
       el.requestMetaHint = document.getElementById("requestMetaHint");
 
+      // 顶部 / 右侧 Agent/Model 展示（可选）
+      el.currentAgentLabel = document.getElementById("currentAgentLabel"); // 例如 “worker-agent · Dev”
+      el.currentModelLabel = document.getElementById("currentModelLabel"); // 例如 “gpt-5-mini”
+      el.agentSelector = document.getElementById("agentSelector"); // 下拉选择智能体（可选）
+      el.modelSelector = document.getElementById("modelSelector"); // 下拉选择模型（可选）
+
+      // 调用概览
       el.ovDuration = document.getElementById("ovDuration");
       el.ovStatus = document.getElementById("ovStatus");
       el.ovModel = document.getElementById("ovModel");
@@ -964,88 +1330,197 @@
       el.ovCompletionTokens = document.getElementById("ovCompletionTokens");
       el.ovTotalTokens = document.getElementById("ovTotalTokens");
 
+      // 原始 JSON
       el.rawJsonBody = document.getElementById("rawJsonBody");
       el.rawJsonPlaceholder = document.getElementById("rawJsonPlaceholder");
       el.rawJsonPre = document.getElementById("rawJsonPre");
       el.btnToggleJson = document.getElementById("btnToggleJson");
       el.btnCopyJson = document.getElementById("btnCopyJson");
 
+      // 调用轨迹 / 工具时间线（可选容器）
+      el.traceTimeline = document.getElementById("traceTimeline");
+      el.traceEmpty = document.getElementById("traceEmpty");
+
+      // Toast
       el.toast = document.getElementById("toast");
       el.toastText = document.getElementById("toastText");
     }
 
+    // ==========================
+    // 事件绑定
+    // ==========================
     function bindGlobalEvents() {
-      // New session button
-      el.btnNewSession.addEventListener("click", () => {
-        handleNewSession();
-      });
+      // 新建会话
+      if (el.btnNewSession) {
+        el.btnNewSession.addEventListener("click", () => {
+          handleNewSession();
+        });
+      }
 
-      // Session list click (event delegation)
-      el.sessionList.addEventListener("click", (event) => {
-        const target = event.target;
-        const deleteBtn = target.closest("[data-action='delete-session']");
-        const item = target.closest("[data-session-id]");
+      // 会话列表点击（选择 / 删除 / pin）
+      if (el.sessionList) {
+        el.sessionList.addEventListener("click", (event) => {
+          const target = event.target;
+          const deleteBtn = target.closest("[data-action='delete-session']");
+          const pinBtn = target.closest("[data-action='pin-session']");
+          const item = target.closest("[data-session-id]");
 
-        if (deleteBtn && item) {
+          if (!item) return;
           const id = item.getAttribute("data-session-id");
-          event.stopPropagation();
-          handleDeleteSession(id);
-          return;
-        }
 
-        if (item) {
-          const id = item.getAttribute("data-session-id");
+          if (deleteBtn) {
+            event.stopPropagation();
+            handleDeleteSession(id);
+            return;
+          }
+
+          if (pinBtn) {
+            event.stopPropagation();
+            handlePinSession(id);
+            return;
+          }
+
           selectSession(id);
-        }
-      });
+        });
+      }
 
-      // Send button
-      el.btnSend.addEventListener("click", () => {
-        triggerSend();
-      });
+      // 搜索 / 过滤
+      if (el.sessionSearchInput) {
+        el.sessionSearchInput.addEventListener("input", (e) => {
+          viewState.searchKeyword = e.target.value.trim();
+          renderSessionList();
+        });
+      }
 
-      // Ctrl+Enter to send
-      el.chatInput.addEventListener("keydown", (event) => {
-        if (
-          (event.ctrlKey || event.metaKey) &&
-          event.key === "Enter" &&
-          !event.shiftKey
-        ) {
-          event.preventDefault();
+      if (el.sessionFilterPinned) {
+        el.sessionFilterPinned.addEventListener("change", (e) => {
+          viewState.showPinnedOnly = !!e.target.checked;
+          renderSessionList();
+        });
+      }
+
+      if (el.agentFilterSelect) {
+        el.agentFilterSelect.addEventListener("change", (e) => {
+          viewState.agentFilter = e.target.value || "all";
+          renderSessionList();
+        });
+      }
+
+      // Agent tabs 点击切换
+      if (el.agentTabs && el.agentTabs.length) {
+        el.agentTabs.forEach((tab) => {
+          tab.addEventListener("click", () => {
+            const key = tab.getAttribute("data-agent-key");
+            if (key && AGENT_CONFIGS[key]) {
+              setCurrentAgent(key);
+              // 高亮 tab
+              el.agentTabs.forEach((t) =>
+                t.classList.toggle("active", t === tab)
+              );
+            }
+          });
+        });
+      }
+
+      // Agent / Model 下拉切换
+      if (el.agentSelector) {
+        el.agentSelector.addEventListener("change", (e) => {
+          const key = e.target.value;
+          if (key && AGENT_CONFIGS[key]) {
+            setCurrentAgent(key);
+          }
+        });
+      }
+
+      if (el.modelSelector) {
+        el.modelSelector.addEventListener("change", (e) => {
+          const val = e.target.value;
+          if (val) {
+            currentModelName = val;
+            if (el.currentModelLabel) el.currentModelLabel.textContent = val;
+          }
+        });
+      }
+
+      // 发送
+      if (el.btnSend) {
+        el.btnSend.addEventListener("click", () => {
           triggerSend();
-        }
-      });
+        });
+      }
 
-      // Toggle JSON
-      el.btnToggleJson.addEventListener("click", () => {
-        const isOpen = el.rawJsonBody.classList.toggle("open");
-        el.btnToggleJson.textContent = isOpen ? "收起 JSON" : "展开 JSON";
-      });
+      // Ctrl+Enter 发送
+      if (el.chatInput) {
+        el.chatInput.addEventListener("keydown", (event) => {
+          if (
+            (event.ctrlKey || event.metaKey) &&
+            event.key === "Enter" &&
+            !event.shiftKey
+          ) {
+            event.preventDefault();
+            triggerSend();
+          }
+        });
+      }
 
-      // Copy JSON
-      el.btnCopyJson.addEventListener("click", async () => {
-        if (!lastRawResponse) {
-          showToast("当前没有可复制的 JSON");
-          return;
-        }
-        try {
-          await navigator.clipboard.writeText(lastRawResponse);
-          showToast("已复制 JSON 到剪贴板");
-        } catch (err) {
-          console.error(err);
-          showToast("复制失败，请检查浏览器权限");
-        }
-      });
+      // 展开 / 收起 JSON
+      if (el.btnToggleJson && el.rawJsonBody) {
+        el.btnToggleJson.addEventListener("click", () => {
+          const isOpen = el.rawJsonBody.classList.toggle("open");
+          el.btnToggleJson.textContent = isOpen ? "收起 JSON" : "展开 JSON";
+        });
+      }
+
+      // 复制 JSON
+      if (el.btnCopyJson) {
+        el.btnCopyJson.addEventListener("click", async () => {
+          if (!lastRawResponse) {
+            showToast("当前没有可复制的 JSON");
+            return;
+          }
+          try {
+            await navigator.clipboard.writeText(lastRawResponse);
+            showToast("已复制 JSON 到剪贴板");
+          } catch (err) {
+            console.error(err);
+            showToast("复制失败，请检查浏览器权限");
+          }
+        });
+      }
     }
 
-    // === IndexedDB helpers ===
+    // ==========================
+    // Agent 切换
+    // ==========================
+    function getCurrentAgentConfig() {
+      return AGENT_CONFIGS[currentAgentKey] || AGENT_CONFIGS["worker-agent"];
+    }
 
+    function setCurrentAgent(agentKey) {
+      if (!AGENT_CONFIGS[agentKey]) return;
+      currentAgentKey = agentKey;
+      const cfg = getCurrentAgentConfig();
+      currentModelName = cfg.defaultModel || "gpt-5-mini";
+
+      if (el.currentAgentLabel) el.currentAgentLabel.textContent = cfg.label;
+      if (el.currentModelLabel) el.currentModelLabel.textContent = currentModelName;
+
+      // 如果有 Agent 过滤器，选择对应项
+      if (el.agentFilterSelect) {
+        const options = Array.from(el.agentFilterSelect.options);
+        const matched = options.find((opt) => opt.value === agentKey);
+        if (matched) el.agentFilterSelect.value = agentKey;
+      }
+    }
+
+    // ==========================
+    // IndexedDB helpers
+    // ==========================
     function initIndexedDB() {
       if (!("indexedDB" in window)) {
         showToast("当前浏览器不支持 IndexedDB，将使用内存模式（刷新后丢失）。");
         return Promise.resolve();
       }
-
       if (dbPromise) return dbPromise;
 
       dbPromise = new Promise((resolve, reject) => {
@@ -1056,19 +1531,21 @@
 
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
+          // sessions
           if (!db.objectStoreNames.contains(SESSION_STORE)) {
             const sessionStore = db.createObjectStore(SESSION_STORE, {
               keyPath: "id",
             });
             sessionStore.createIndex("updatedAt", "updatedAt", { unique: false });
+            sessionStore.createIndex("bucket", "bucket", { unique: false });
+            sessionStore.createIndex("agentKey", "agentKey", { unique: false });
           }
+          // messages
           if (!db.objectStoreNames.contains(MESSAGE_STORE)) {
             const messageStore = db.createObjectStore(MESSAGE_STORE, {
               keyPath: "id",
             });
-            messageStore.createIndex("sessionId", "sessionId", {
-              unique: false,
-            });
+            messageStore.createIndex("sessionId", "sessionId", { unique: false });
           }
         };
       });
@@ -1077,30 +1554,28 @@
     }
 
     function dbReadAll(storeName, indexName, query, direction = "prev") {
-      return dbPromise
-        ? dbPromise.then(
-            (db) =>
-              new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, "readonly");
-                let store = tx.objectStore(storeName);
-                if (indexName) {
-                  store = store.index(indexName);
-                }
-                const items = [];
-                const req = store.openCursor(query, direction);
-                req.onerror = () => reject(req.error);
-                req.onsuccess = (event) => {
-                  const cursor = event.target.result;
-                  if (cursor) {
-                    items.push(cursor.value);
-                    cursor.continue();
-                  } else {
-                    resolve(items);
-                  }
-                };
-              })
-          )
-        : Promise.resolve([]);
+      if (!dbPromise) return Promise.resolve([]);
+      return dbPromise.then(
+        (db) =>
+          new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, "readonly");
+            let store = tx.objectStore(storeName);
+            if (indexName) store = store.index(indexName);
+
+            const items = [];
+            const req = store.openCursor(query, direction);
+            req.onerror = () => reject(req.error);
+            req.onsuccess = (event) => {
+              const cursor = event.target.result;
+              if (cursor) {
+                items.push(cursor.value);
+                cursor.continue();
+              } else {
+                resolve(items);
+              }
+            };
+          })
+      );
     }
 
     function dbPut(storeName, value) {
@@ -1155,25 +1630,27 @@
     }
 
     function dbReadMessagesBySession(sessionId) {
-      return dbPromise
-        ? dbPromise.then(
-            (db) =>
-              new Promise((resolve, reject) => {
-                const tx = db.transaction(MESSAGE_STORE, "readonly");
-                const store = tx.objectStore(MESSAGE_STORE);
-                const index = store.index("sessionId");
-                const req = index.getAll(IDBKeyRange.only(sessionId));
-                req.onerror = () => reject(req.error);
-                req.onsuccess = () => resolve(req.result || []);
-              })
-          )
-        : Promise.resolve([]);
+      if (!dbPromise) return Promise.resolve([]);
+      return dbPromise.then(
+        (db) =>
+          new Promise((resolve, reject) => {
+            const tx = db.transaction(MESSAGE_STORE, "readonly");
+            const store = tx.objectStore(MESSAGE_STORE);
+            const index = store.index("sessionId");
+            const req = index.getAll(IDBKeyRange.only(sessionId));
+            req.onerror = () => reject(req.error);
+            req.onsuccess = () => resolve(req.result || []);
+          })
+      );
     }
 
-    // === Session / message model helpers ===
-
+    // ==========================
+    // Session / message model
+    // ==========================
     function createSessionObject() {
-      const id = crypto.randomUUID ? crypto.randomUUID() : "s_" + Date.now();
+      const id = crypto.randomUUID
+        ? crypto.randomUUID()
+        : "s_" + Date.now() + "_" + Math.random();
       const ts = Date.now();
       return {
         id,
@@ -1182,11 +1659,17 @@
         updatedAt: ts,
         totalTokens: 0,
         isEmpty: true,
+        pinned: false,
+        bucket: BUCKET_DYNAMIC, // 默认进入动态桶
+        agentKey: currentAgentKey,
+        lastUserText: "",
       };
     }
 
     function createMessage(sessionId, role, content) {
-      const id = crypto.randomUUID ? crypto.randomUUID() : "m_" + Date.now() + "_" + Math.random();
+      const id = crypto.randomUUID
+        ? crypto.randomUUID()
+        : "m_" + Date.now() + "_" + Math.random();
       return {
         id,
         sessionId,
@@ -1197,7 +1680,6 @@
     }
 
     async function initSessions() {
-      // load from DB
       let stored = await dbReadAll(SESSION_STORE, "updatedAt");
       if (!stored || stored.length === 0) {
         const session = createSessionObject();
@@ -1205,54 +1687,131 @@
         currentSessionId = session.id;
         await dbPut(SESSION_STORE, session);
       } else {
-        sessions = stored; // 已按 updatedAt desc
+        sessions = stored;
         currentSessionId = sessions[0].id;
       }
       renderSessionList();
       await renderCurrentSessionMessages();
+      resetTraceTimeline();
+    }
+
+    // 视图过滤后的会话列表（分 pinned / normal）
+    function getVisibleSessions() {
+      let list = [...sessions];
+
+      if (viewState.agentFilter !== "all") {
+        list = list.filter((s) => s.agentKey === viewState.agentFilter);
+      }
+      if (viewState.searchKeyword) {
+        const q = viewState.searchKeyword.toLowerCase();
+        list = list.filter((s) => {
+          const title = (s.title || "").toLowerCase();
+          const last = (s.lastUserText || "").toLowerCase();
+          return title.includes(q) || last.includes(q);
+        });
+      }
+      if (viewState.showPinnedOnly) {
+        list = list.filter((s) => s.pinned);
+      }
+
+      const pinned = list.filter((s) => s.pinned);
+      const normal = list.filter((s) => !s.pinned);
+
+      pinned.sort((a, b) => b.updatedAt - a.updatedAt);
+      normal.sort((a, b) => b.updatedAt - a.updatedAt);
+
+      return { pinned, normal };
     }
 
     function renderSessionList() {
+      if (!el.sessionList) return;
       el.sessionList.innerHTML = "";
-      sessions.forEach((session) => {
-        const item = document.createElement("div");
-        item.className =
-          "session-item" + (session.id === currentSessionId ? " active" : "");
-        item.setAttribute("data-session-id", session.id);
 
-        const headerRow = document.createElement("div");
-        headerRow.className = "session-header-row";
+      const { pinned, normal } = getVisibleSessions();
 
-        const titleSpan = document.createElement("div");
-        titleSpan.className = "session-title";
-        titleSpan.textContent = session.title || "未命名会话";
+      if (pinned.length === 0 && normal.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "session-empty-hint";
+        empty.textContent = "暂无会话。";
+        el.sessionList.appendChild(empty);
+        return;
+      }
 
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "btn-delete-session";
-        deleteBtn.setAttribute("data-action", "delete-session");
-        deleteBtn.textContent = "×";
+      if (pinned.length > 0) {
+        const header = document.createElement("div");
+        header.className = "session-section-title";
+        header.textContent = "已固定";
+        el.sessionList.appendChild(header);
 
-        headerRow.appendChild(titleSpan);
-        headerRow.appendChild(deleteBtn);
+        pinned.forEach((session) => {
+          el.sessionList.appendChild(renderSessionItem(session));
+        });
+      }
 
-        const metaRow = document.createElement("div");
-        metaRow.className = "session-meta";
+      if (normal.length > 0) {
+        if (pinned.length > 0) {
+          const header = document.createElement("div");
+          header.className = "session-section-title";
+          header.textContent = "最近";
+          el.sessionList.appendChild(header);
+        }
+        normal.forEach((session) => {
+          el.sessionList.appendChild(renderSessionItem(session));
+        });
+      }
+    }
 
-        const timeSpan = document.createElement("span");
-        timeSpan.textContent = formatShortTime(session.updatedAt);
+    function renderSessionItem(session) {
+      const item = document.createElement("div");
+      item.className =
+        "session-item" + (session.id === currentSessionId ? " active" : "");
+      item.setAttribute("data-session-id", session.id);
 
-        const tokenSpan = document.createElement("span");
-        tokenSpan.className = "session-tokens";
-        tokenSpan.textContent = `${session.totalTokens || 0} tokens`;
+      const headerRow = document.createElement("div");
+      headerRow.className = "session-header-row";
 
-        metaRow.appendChild(timeSpan);
-        metaRow.appendChild(tokenSpan);
+      const titleSpan = document.createElement("div");
+      titleSpan.className = "session-title";
+      titleSpan.textContent = session.title || "未命名会话";
 
-        item.appendChild(headerRow);
-        item.appendChild(metaRow);
+      const actions = document.createElement("div");
+      actions.className = "session-actions";
 
-        el.sessionList.appendChild(item);
-      });
+      const pinBtn = document.createElement("button");
+      pinBtn.className =
+        "btn-pin-session" + (session.pinned ? " pinned" : "");
+      pinBtn.setAttribute("type", "button");
+      pinBtn.setAttribute("data-action", "pin-session");
+      pinBtn.textContent = session.pinned ? "📌" : "📍";
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "btn-delete-session";
+      deleteBtn.setAttribute("type", "button");
+      deleteBtn.setAttribute("data-action", "delete-session");
+      deleteBtn.textContent = "×";
+
+      actions.appendChild(pinBtn);
+      actions.appendChild(deleteBtn);
+
+      headerRow.appendChild(titleSpan);
+      headerRow.appendChild(actions);
+
+      const metaRow = document.createElement("div");
+      metaRow.className = "session-meta";
+
+      const timeSpan = document.createElement("span");
+      timeSpan.textContent = formatShortTime(session.updatedAt);
+
+      const tokenSpan = document.createElement("span");
+      tokenSpan.className = "session-tokens";
+      tokenSpan.textContent = `${session.totalTokens || 0} tokens`;
+
+      metaRow.appendChild(timeSpan);
+      metaRow.appendChild(tokenSpan);
+
+      item.appendChild(headerRow);
+      item.appendChild(metaRow);
+      return item;
     }
 
     function formatShortTime(timestamp) {
@@ -1268,18 +1827,32 @@
       currentSessionId = sessionId;
       renderSessionList();
       await renderCurrentSessionMessages();
+      resetTraceTimeline();
+    }
+
+    function clearEmptyHint() {
+      if (!el.chatEmpty) return;
+      el.chatEmpty.style.display = "none";
+      if (el.chatEmpty.parentNode) {
+        el.chatEmpty.parentNode.removeChild(el.chatEmpty);
+      }
     }
 
     async function renderCurrentSessionMessages() {
-      if (!currentSessionId) return;
+      if (!currentSessionId || !el.chatMessages) return;
+
       const messages = await dbReadMessagesBySession(currentSessionId);
+      clearEmptyHint();
+      el.chatMessages.innerHTML = "";
+
       if (!messages || messages.length === 0) {
-        el.chatMessages.innerHTML = "";
-        el.chatMessages.appendChild(el.chatEmpty);
-        el.chatEmpty.style.display = "flex";
+        if (el.chatEmpty) {
+          el.chatEmpty.style.display = "flex";
+          el.chatMessages.appendChild(el.chatEmpty);
+        }
         return;
       }
-      el.chatMessages.innerHTML = "";
+
       messages
         .sort((a, b) => a.createdAt - b.createdAt)
         .forEach((msg) => {
@@ -1289,7 +1862,7 @@
     }
 
     async function handleNewSession() {
-      // 如果存在一个 isEmpty 的会话，则直接切换过去
+      // 如果已经存在一个空白会话，直接切过去，避免多个空白窗口
       const existingEmpty = sessions.find((s) => s.isEmpty);
       if (existingEmpty) {
         currentSessionId = existingEmpty.id;
@@ -1307,15 +1880,15 @@
 
       renderSessionList();
       await renderCurrentSessionMessages();
+      resetTraceTimeline();
     }
 
     async function handleDeleteSession(sessionId) {
       if (!sessionId) return;
-      // 删除 DB 中的 messages
+
       await dbDeleteWhereMessages(sessionId);
       await dbDelete(SESSION_STORE, sessionId);
 
-      // 更新内存
       sessions = sessions.filter((s) => s.id !== sessionId);
 
       if (sessions.length === 0) {
@@ -1329,26 +1902,52 @@
 
       renderSessionList();
       await renderCurrentSessionMessages();
+      resetTraceTimeline();
+    }
+
+    async function handlePinSession(sessionId) {
+      const session = sessions.find((s) => s.id === sessionId);
+      if (!session) return;
+
+      session.pinned = !session.pinned;
+      // pinned → 静态桶；取消 pin → 动态桶
+      session.bucket = session.pinned ? BUCKET_STATIC : BUCKET_DYNAMIC;
+      await dbPut(SESSION_STORE, session);
+
+      renderSessionList();
     }
 
     async function cleanupOldSessionsIfNecessary() {
-      if (sessions.length <= MAX_SESSIONS) return;
-      const sorted = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
-      const keep = sorted.slice(0, MAX_SESSIONS);
-      const remove = sorted.slice(MAX_SESSIONS);
+      // 只清理动态桶中未 pin 的会话
+      const dynamic = sessions.filter(
+        (s) => s.bucket === BUCKET_DYNAMIC && !s.pinned
+      );
+      if (dynamic.length <= MAX_DYNAMIC_SESSIONS) return;
 
-      for (const s of remove) {
-        await dbDeleteWhereMessages(s.id);
-        await dbDelete(SESSION_STORE, s.id);
+      const sorted = [...dynamic].sort((a, b) => b.updatedAt - a.updatedAt);
+      const keepDynamic = sorted.slice(0, MAX_DYNAMIC_SESSIONS);
+      const removeDynamic = sorted.slice(MAX_DYNAMIC_SESSIONS);
+
+      const keepIds = new Set(keepDynamic.map((s) => s.id));
+      const toRemove = removeDynamic.map((s) => s.id);
+
+      for (const sid of toRemove) {
+        await dbDeleteWhereMessages(sid);
+        await dbDelete(SESSION_STORE, sid);
       }
 
-      sessions = keep;
+      sessions = sessions.filter(
+        (s) => !toRemove.includes(s.id) // 删除的
+      );
     }
 
-    // === Sending & Worker interaction ===
-
+    // ==========================
+    // 发送 & Worker 交互
+    // ==========================
     async function triggerSend() {
       if (isSending) return;
+      if (!el.chatInput) return;
+
       const raw = el.chatInput.value.trim();
       if (!raw) {
         showToast("请输入内容后再发送。");
@@ -1365,42 +1964,58 @@
       const userMsg = createMessage(currentSessionId, "user", raw);
       await dbPut(MESSAGE_STORE, userMsg);
 
-      // 更新 session 标题（如果还是空白会话）
+      // 更新会话元信息
       const session = sessions.find((s) => s.id === currentSessionId);
-      if (session && session.isEmpty) {
-        session.isEmpty = false;
-        session.title = deriveTitleFromText(raw);
+      if (session) {
+        session.lastUserText = raw;
         session.updatedAt = Date.now();
+
+        if (session.isEmpty) {
+          session.isEmpty = false;
+          session.title = deriveTitleFromText(raw);
+        }
         await dbPut(SESSION_STORE, session);
       }
 
-      // 添加到内存 & UI
       appendMessageBubble("user", raw, true);
       el.chatInput.value = "";
 
-      // 调用 Worker
+      const agentCfg = getCurrentAgentConfig();
+      const endpoint = agentCfg.endpoint;
+      const payload = {
+        agent: agentCfg.key,
+        model: currentModelName,
+        input: raw,
+      };
+
       const start = performance.now();
       let ok = false;
-      let modelName = "gpt-5-mini";
+      let modelName = currentModelName || "gpt-5-mini";
       let usage = null;
       let outputText = "";
+      lastCallDurationMs = 0;
 
       try {
-        const res = await fetch(WORKER_ENDPOINT, {
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ input: raw }),
+          body: JSON.stringify(payload),
         });
 
         const durationMs = performance.now() - start;
+        lastCallDurationMs = durationMs;
 
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           lastRawResponse = text || "";
           updateCallOverviewError(res.status, durationMs, null);
           updateRawJson(text || "");
+          updateTraceTimelineFromResponse(null, durationMs, {
+            ok: false,
+            status: res.status,
+          });
           showToast("Worker 调用失败，请检查 Worker 日志。");
         } else {
           const data = await res.json();
@@ -1409,15 +2024,23 @@
           modelName = data.model || modelName;
           usage = data.usage || null;
           lastRawResponse = JSON.stringify(data, null, 2);
+
           updateCallOverviewSuccess(durationMs, modelName, usage);
           updateRawJson(lastRawResponse);
+          updateTraceTimelineFromResponse(data, durationMs, { ok: true });
         }
       } catch (err) {
         console.error(err);
         const durationMs = performance.now() - start;
+        lastCallDurationMs = durationMs;
+
         updateCallOverviewError("网络错误", durationMs, null);
         lastRawResponse = String(err || "Unknown error");
         updateRawJson(lastRawResponse);
+        updateTraceTimelineFromResponse(null, durationMs, {
+          ok: false,
+          status: "network-error",
+        });
         showToast("网络异常，无法访问 Worker。");
       } finally {
         isSending = false;
@@ -1432,13 +2055,10 @@
         );
         await dbPut(MESSAGE_STORE, assistantMsg);
 
-        // 更新会话 tokens 与时间
         const session = sessions.find((s) => s.id === currentSessionId);
         if (session) {
           const usedTokens =
-            (usage && usage.total_tokens) ||
-            (usage && usage.totalTokens) ||
-            0;
+            (usage && (usage.total_tokens || usage.totalTokens)) || 0;
           session.totalTokens = (session.totalTokens || 0) + usedTokens;
           session.updatedAt = Date.now();
           await dbPut(SESSION_STORE, session);
@@ -1446,91 +2066,139 @@
 
         appendMessageBubble("assistant", assistantMsg.content, true);
         scrollToBottom();
-        // 重新渲染列表（更新 tokens 与时间）
         renderSessionList();
       }
     }
 
     function setSendingState(sending) {
-      el.btnSend.disabled = sending;
-      el.btnSendLabel.textContent = sending ? "调用中…" : "发送";
-      el.requestMetaHint.textContent = sending
-        ? "正在调用 Cloudflare Worker 智能体…"
-        : "就绪：调用 Cloudflare Worker 智能体。";
+      if (el.btnSend) el.btnSend.disabled = sending;
+      if (el.btnSendLabel)
+        el.btnSendLabel.textContent = sending ? "调用中…" : "发送";
+      if (el.requestMetaHint)
+        el.requestMetaHint.textContent = sending
+          ? "正在调用 Cloudflare Worker 智能体…"
+          : "就绪：调用 Cloudflare Worker 智能体。";
     }
 
+    // ==========================
+    // 会话标题：按意图自动命名
+    // ==========================
     function deriveTitleFromText(text) {
       const trimmed = text.replace(/\s+/g, " ").trim();
       if (!trimmed) return "新会话";
+
+      const lower = trimmed.toLowerCase();
+
+      // 粗粒度“意图识别”，不用额外请求模型
+      const rules = [
+        { test: /(bug|错误|异常|报错|trace|stack)/i, prefix: "错误排查" },
+        { test: /(部署|发布|docker|k8s|上线|环境)/i, prefix: "部署运维" },
+        { test: /(sql|数据库|查询|索引|表结构)/i, prefix: "数据库问题" },
+        { test: /(接口|api|http|请求头|返回值)/i, prefix: "接口调试" },
+        { test: /(前端|react|vue|样式|css|dom)/i, prefix: "前端问题" },
+        { test: /(后端|node|java|spring|go|gin)/i, prefix: "后端问题" },
+        { test: /(文案|改写|润色|翻译|总结)/i, prefix: "内容处理" },
+        { test: /(prompt|提示词|智能体|agent)/i, prefix: "智能体设计" },
+      ];
+
+      for (const rule of rules) {
+        if (rule.test.test(trimmed) || rule.test.test(lower)) {
+          const tail =
+            trimmed.length > 18 ? trimmed.slice(0, 18).trim() + "…" : trimmed;
+          return `${rule.prefix} · ${tail}`;
+        }
+      }
+
+      // 默认：截取开头一段
       return trimmed.length > 22 ? trimmed.slice(0, 22) + "…" : trimmed;
     }
 
+    // ==========================
+    // 消息渲染
+    // ==========================
     function appendMessageBubble(role, content, hideEmptyHint) {
-      if (hideEmptyHint && el.chatEmpty.parentNode === el.chatMessages) {
-        el.chatEmpty.style.display = "none";
-        el.chatMessages.innerHTML = "";
+      if (!el.chatMessages) return;
+
+      if (hideEmptyHint) {
+        clearEmptyHint();
+      } else {
+        // 保险：只要有消息渲染，确保伪提示不再出现
+        clearEmptyHint();
       }
 
       const bubble = document.createElement("div");
       bubble.className = "chat-message " + role;
       bubble.textContent = content;
-
       el.chatMessages.appendChild(bubble);
     }
 
     function scrollToBottom() {
+      if (!el.chatMessages) return;
       requestAnimationFrame(() => {
         el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
       });
     }
 
-    // === Call overview / JSON ===
-
+    // ==========================
+    // 调用概览 & JSON
+    // ==========================
     function updateCallOverviewSuccess(durationMs, modelName, usage) {
-      el.ovDuration.textContent = `${durationMs.toFixed(0)} ms`;
+      if (el.ovDuration)
+        el.ovDuration.textContent = `${durationMs.toFixed(0)} ms`;
 
-      const pill = document.createElement("span");
-      pill.className = "call-status-pill";
-      pill.innerHTML = `<span class="call-status-dot"></span> 成功`;
-      el.ovStatus.innerHTML = "";
-      el.ovStatus.appendChild(pill);
+      if (el.ovStatus) {
+        const pill = document.createElement("span");
+        pill.className = "call-status-pill";
+        pill.innerHTML = `<span class="call-status-dot"></span> 成功`;
+        el.ovStatus.innerHTML = "";
+        el.ovStatus.appendChild(pill);
+      }
 
-      el.ovModel.textContent = modelName || "gpt-5-mini";
+      if (el.ovModel) el.ovModel.textContent = modelName || "gpt-5-mini";
+
       const pt =
         (usage && (usage.prompt_tokens || usage.promptTokens)) || "-";
       const ct =
         (usage && (usage.completion_tokens || usage.completionTokens)) || "-";
       const tt =
         (usage && (usage.total_tokens || usage.totalTokens)) || "-";
-      el.ovPromptTokens.textContent = pt;
-      el.ovCompletionTokens.textContent = ct;
-      el.ovTotalTokens.textContent = tt;
+
+      if (el.ovPromptTokens) el.ovPromptTokens.textContent = pt;
+      if (el.ovCompletionTokens) el.ovCompletionTokens.textContent = ct;
+      if (el.ovTotalTokens) el.ovTotalTokens.textContent = tt;
     }
 
     function updateCallOverviewError(status, durationMs, usage) {
-      el.ovDuration.textContent =
-        typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
+      if (el.ovDuration) {
+        el.ovDuration.textContent =
+          typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
+      }
 
-      const pill = document.createElement("span");
-      pill.className = "call-status-pill error";
-      pill.innerHTML = `<span class="call-status-dot"></span> 失败（${status}）`;
-      el.ovStatus.innerHTML = "";
-      el.ovStatus.appendChild(pill);
+      if (el.ovStatus) {
+        const pill = document.createElement("span");
+        pill.className = "call-status-pill error";
+        pill.innerHTML = `<span class="call-status-dot"></span> 失败（${status}）`;
+        el.ovStatus.innerHTML = "";
+        el.ovStatus.appendChild(pill);
+      }
 
       if (!usage) {
-        el.ovPromptTokens.textContent = "-";
-        el.ovCompletionTokens.textContent = "-";
-        el.ovTotalTokens.textContent = "-";
+        if (el.ovPromptTokens) el.ovPromptTokens.textContent = "-";
+        if (el.ovCompletionTokens) el.ovCompletionTokens.textContent = "-";
+        if (el.ovTotalTokens) el.ovTotalTokens.textContent = "-";
       }
     }
 
     function updateRawJson(text) {
+      if (!el.rawJsonPlaceholder || !el.rawJsonPre) return;
+
       if (!text) {
         el.rawJsonPlaceholder.style.display = "block";
         el.rawJsonPre.style.display = "none";
         el.rawJsonPre.textContent = "";
         return;
       }
+
       el.rawJsonPlaceholder.style.display = "none";
       el.rawJsonPre.style.display = "block";
 
@@ -1538,16 +2206,85 @@
         const parsed = typeof text === "string" ? JSON.parse(text) : text;
         el.rawJsonPre.textContent = JSON.stringify(parsed, null, 2);
       } catch {
-        // 不一定是 JSON，用原始文本
         el.rawJsonPre.textContent = text;
       }
     }
 
-    // === Toast ===
+    // ==========================
+    // 运行轨迹 / 时间线
+    // ==========================
+    function resetTraceTimeline() {
+      if (!el.traceTimeline) return;
+      el.traceTimeline.innerHTML = "";
+      if (el.traceEmpty) el.traceEmpty.style.display = "block";
+    }
 
+    function updateTraceTimelineFromResponse(data, durationMs, meta) {
+      if (!el.traceTimeline) return;
+
+      el.traceTimeline.innerHTML = "";
+      if (el.traceEmpty) el.traceEmpty.style.display = "none";
+
+      const list = document.createElement("ul");
+      list.className = "trace-list";
+
+      const cfg = getCurrentAgentConfig();
+      const model = (data && data.model) || currentModelName || "gpt-5-mini";
+
+      // 如果 Worker 将来返回 data.trace（数组），按步骤渲染
+      if (data && Array.isArray(data.trace) && data.trace.length > 0) {
+        data.trace.forEach((step, idx) => {
+          const li = document.createElement("li");
+          li.className = "trace-item";
+
+          const name = step.name || `Step ${idx + 1}`;
+          const t =
+            typeof step.latencyMs === "number"
+              ? `${step.latencyMs.toFixed(0)} ms`
+              : "-";
+
+          li.innerHTML = `
+            <div class="trace-item-main">
+              <div class="trace-item-title">${name}</div>
+              <div class="trace-item-sub">
+                ${step.type || ""} · ${t}
+              </div>
+            </div>
+          `;
+          list.appendChild(li);
+        });
+      } else {
+        // 兜底：至少展示一个 LLM 调用节点
+        const li = document.createElement("li");
+        li.className = "trace-item";
+
+        const d = typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
+        const statusText = meta && meta.ok === false ? "失败" : "成功";
+
+        li.innerHTML = `
+          <div class="trace-item-main">
+            <div class="trace-item-title">LLM 调用 · ${cfg.label}</div>
+            <div class="trace-item-sub">
+              模型：${model} · 用时：${d} · 状态：${statusText}
+            </div>
+          </div>
+        `;
+        list.appendChild(li);
+      }
+
+      el.traceTimeline.appendChild(list);
+    }
+
+    // ==========================
+    // Toast & Error
+    // ==========================
     let toastTimer = null;
 
     function showToast(message) {
+      if (!el.toast || !el.toastText) {
+        console.log("[Toast]", message);
+        return;
+      }
       el.toastText.textContent = message;
       el.toast.classList.add("visible");
       if (toastTimer) clearTimeout(toastTimer);
@@ -1560,6 +2297,9 @@
       console.error(err);
       showToast("初始化失败，请检查浏览器控制台。");
     }
-  </script>
+  })();
+</script>
+
 </body>
 </html>
+
