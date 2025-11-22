@@ -1012,7 +1012,14 @@
 </div>
 
 
-<script>
+
+
+
+
+
+
+
+  <script>
   (function () {
     "use strict";
 
@@ -1115,11 +1122,6 @@
       // Toast
       el.toast = document.getElementById("toast");
       el.toastText = document.getElementById("toastText");
-
-          // 手机端汉堡按钮 / 外壳（id 与 HTML 保持一致：awMobileMenu）
-      el.mobileMenuBtn = document.getElementById("awMobileMenu");
-      el.appShell = document.querySelector(".app-shell");
-
     }
 
     // ==========================
@@ -1130,21 +1132,15 @@
       if (el.btnNewSession) {
         el.btnNewSession.addEventListener("click", () => {
           handleNewSession();
-           // ✅ 手机端：新建会话后自动收起侧边栏
-    if (el.appShell) {
-      el.appShell.classList.remove("sidebar-open");
-    }
-          
         });
       }
 
-        // 会话列表点击（选择 / 删除 / pin / 重命名）
+      // 会话列表点击（选择 / 删除 / pin）
       if (el.sessionList) {
         el.sessionList.addEventListener("click", (event) => {
           const target = event.target;
           const deleteBtn = target.closest("[data-action='delete-session']");
           const pinBtn = target.closest("[data-action='pin-session']");
-          const renameTarget = target.closest("[data-action='rename-session']");
           const item = target.closest("[data-session-id]");
 
           if (!item) return;
@@ -1162,23 +1158,9 @@
             return;
           }
 
-          // ✅ 点击标题触发重命名，而不是切换会话
-          if (renameTarget) {
-            event.stopPropagation();
-            handleRenameSession(id);
-            return;
-          }
-
-          // 默认行为：切换会话
           selectSession(id);
-
-          // ✅ 手机端：选择会话后自动收起侧边栏
-          if (el.appShell) {
-            el.appShell.classList.remove("sidebar-open");
-          }
         });
       }
-
 
       // 搜索 / 过滤
       if (el.sessionSearchInput) {
@@ -1281,13 +1263,6 @@
             console.error(err);
             showToast("复制失败，请检查浏览器权限");
           }
-        });
-      }
-
-      // 手机端汉堡：切换左侧会话抽屉
-      if (el.mobileMenuBtn && el.appShell) {
-        el.mobileMenuBtn.addEventListener("click", () => {
-          el.appShell.classList.toggle("sidebar-open");
         });
       }
     }
@@ -1482,9 +1457,7 @@
       };
     }
 
-    
-    // 旧版本：自动创建一个默认会话
-    /*async function initSessions() {
+    async function initSessions() {
       let stored = await dbReadAll(SESSION_STORE, "updatedAt");
       if (!stored || stored.length === 0) {
         const session = createSessionObject();
@@ -1499,32 +1472,6 @@
       await renderCurrentSessionMessages();
       resetTraceTimeline();
     }
-    */
-
-     // 新版本：首次进入时不自动创建会话，等待用户点击“新建会话”
-    async function initSessions() {
-      // 从 IndexedDB 加载已有会话，按 updatedAt 倒序
-      let stored = await dbReadAll(SESSION_STORE, "updatedAt");
-      if (!stored || stored.length === 0) {
-        // 不再自动创建“新会话”
-        sessions = [];
-        currentSessionId = null;
-      } else {
-        sessions = stored; // 已按 updatedAt desc 排好
-
-        // ✅ 只在“非空会话”中选择最近一个作为当前会话
-        //    旧数据里没有 isEmpty 字段的会话，也当作非空处理。
-        const nonEmpty = sessions.filter((s) => !s.isEmpty);
-        currentSessionId = nonEmpty.length ? nonEmpty[0].id : null;
-      }
-
-      renderSessionList();
-      applySessionMetaToUi();
-
-      await renderCurrentSessionMessages();
-      resetTraceTimeline();
-    }
-
 
     // 视图过滤后的会话列表（分 pinned / normal）
     function getVisibleSessions() {
@@ -1544,10 +1491,7 @@
       if (viewState.showPinnedOnly) {
         list = list.filter((s) => s.pinned);
       }
-// ✅ 不在左侧列表渲染空白会话（isEmpty=true）
-  // 旧数据里可能没有 isEmpty，undefined 也会被当成「非空」正常展示
-  list = list.filter((s) => !s.isEmpty);
-      
+
       const pinned = list.filter((s) => s.pinned);
       const normal = list.filter((s) => !s.pinned);
 
@@ -1607,9 +1551,7 @@
       const titleSpan = document.createElement("div");
       titleSpan.className = "session-title";
       titleSpan.textContent = session.title || "未命名会话";
-// ✅ 支持点击标题进行重命名
-titleSpan.setAttribute("data-action", "rename-session");
-      
+
       const actions = document.createElement("div");
       actions.className = "session-actions";
 
@@ -1662,7 +1604,6 @@ titleSpan.setAttribute("data-action", "rename-session");
       if (sessionId === currentSessionId) return;
       currentSessionId = sessionId;
       renderSessionList();
-       applySessionMetaToUi();        // ✅ 切换会话时同步右侧 tokens + JSON
       await renderCurrentSessionMessages();
       resetTraceTimeline();
     }
@@ -1675,9 +1616,7 @@ titleSpan.setAttribute("data-action", "rename-session");
       }
     }
 
-   
-    // 旧版本：如果没有会话则不显示空白提示
-   /* async function renderCurrentSessionMessages() {
+    async function renderCurrentSessionMessages() {
       if (!currentSessionId || !el.chatMessages) return;
 
       const messages = await dbReadMessagesBySession(currentSessionId);
@@ -1691,42 +1630,6 @@ titleSpan.setAttribute("data-action", "rename-session");
         }
         return;
       }
-
-      messages
-        .sort((a, b) => a.createdAt - b.createdAt)
-        .forEach((msg) => {
-          appendMessageBubble(msg.role, msg.content, false);
-        });
-      scrollToBottom();
-    }
-    */
-
-    // 新版本：支持“无当前会话”时的中央空白提示
-    async function renderCurrentSessionMessages() {
-      if (!el.chatMessages) return;
-
-      // 没有选中任何会话：显示中间的空白提示
-      if (!currentSessionId) {
-        el.chatMessages.innerHTML = "";
-        if (el.chatEmpty) {
-          el.chatEmpty.style.display = "flex";
-          el.chatMessages.appendChild(el.chatEmpty);
-        }
-        return;
-      }
-
-      const messages = await dbReadMessagesBySession(currentSessionId);
-      el.chatMessages.innerHTML = "";
-
-      if (!messages || messages.length === 0) {
-        if (el.chatEmpty) {
-          el.chatEmpty.style.display = "flex";
-          el.chatMessages.appendChild(el.chatEmpty);
-        }
-        return;
-      }
-
-      clearEmptyHint();
 
       messages
         .sort((a, b) => a.createdAt - b.createdAt)
@@ -1758,9 +1661,7 @@ titleSpan.setAttribute("data-action", "rename-session");
       resetTraceTimeline();
     }
 
-   
-    // 旧版本：删光所有会话时会自动新建一个
-    /*async function handleDeleteSession(sessionId) {
+    async function handleDeleteSession(sessionId) {
       if (!sessionId) return;
 
       await dbDeleteWhereMessages(sessionId);
@@ -1781,48 +1682,6 @@ titleSpan.setAttribute("data-action", "rename-session");
       await renderCurrentSessionMessages();
       resetTraceTimeline();
     }
-    */
-
-    // 新版本：删光所有会话时保持“无会话”状态，中心显示空白提示
-    async function handleDeleteSession(sessionId) {
-      if (!sessionId) return;
-
-      // 删除该会话的所有消息
-      await dbDeleteWhereMessages(sessionId);
-      await dbDelete(SESSION_STORE, sessionId);
-
-      // 内存中移除
-      sessions = sessions.filter((s) => s.id !== sessionId);
-
-      if (sessions.length === 0) {
-        // 删到 0 个会话时，不再自动新建空会话
-        currentSessionId = null;
-      } else if (currentSessionId === sessionId) {
-        // 当前会话被删，切到最新的一个
-        currentSessionId = sessions[0].id;
-      }
-
-      renderSessionList();
-      await renderCurrentSessionMessages();
-      resetTraceTimeline();
-    }
-//新增rename函数
-    async function handleRenameSession(sessionId) {
-  if (!sessionId) return;
-  const session = sessions.find((s) => s.id === sessionId);
-  if (!session) return;
-
-  const nextTitle = window.prompt("重命名会话", session.title || "未命名会话");
-  if (nextTitle == null) return; // 用户取消
-  const trimmed = nextTitle.trim();
-  if (!trimmed) return;
-
-  session.title = trimmed;
-  session.updatedAt = Date.now();
-  await dbPut(SESSION_STORE, session);
-
-  renderSessionList();
-}
 
     async function handlePinSession(sessionId) {
       const session = sessions.find((s) => s.id === sessionId);
@@ -1873,7 +1732,7 @@ titleSpan.setAttribute("data-action", "rename-session");
         return;
       }
       if (!currentSessionId) {
-        showToast("当前没有会话，请先点击左侧「新建会话」。");
+        showToast("当前会话未就绪，请刷新页面。");
         return;
       }
 
@@ -1948,7 +1807,7 @@ titleSpan.setAttribute("data-action", "rename-session");
           updateRawJson(lastRawResponse);
           updateTraceTimelineFromResponse(data, durationMs, { ok: true });
         }
-         } catch (err) {
+      } catch (err) {
         console.error(err);
         const durationMs = performance.now() - start;
         lastCallDurationMs = durationMs;
@@ -1966,8 +1825,6 @@ titleSpan.setAttribute("data-action", "rename-session");
         setSendingState(false);
       }
 
-      const session = sessions.find((s) => s.id === currentSessionId);
-
       if (ok) {
         const assistantMsg = createMessage(
           currentSessionId,
@@ -1976,30 +1833,19 @@ titleSpan.setAttribute("data-action", "rename-session");
         );
         await dbPut(MESSAGE_STORE, assistantMsg);
 
+        const session = sessions.find((s) => s.id === currentSessionId);
         if (session) {
           const usedTokens =
             (usage && (usage.total_tokens || usage.totalTokens)) || 0;
           session.totalTokens = (session.totalTokens || 0) + usedTokens;
           session.updatedAt = Date.now();
+          await dbPut(SESSION_STORE, session);
         }
 
         appendMessageBubble("assistant", assistantMsg.content, true);
         scrollToBottom();
         renderSessionList();
       }
-
-      // ✅ 将右侧调用概览 + JSON 同步持久化到会话（无论成功或失败）
-      if (session) {
-        session.lastOverview = {
-          durationMs: lastCallDurationMs,
-          status: ok ? "success" : "error",
-          model: modelName,
-          usage: usage || null,
-        };
-        session.lastRawJson = lastRawResponse || "";
-        await dbPut(SESSION_STORE, session);
-      }
-
     }
 
     function setSendingState(sending) {
@@ -2141,55 +1987,6 @@ titleSpan.setAttribute("data-action", "rename-session");
         el.rawJsonPre.textContent = text;
       }
     }
-function applySessionMetaToUi() {
-  const session = sessions.find((s) => s.id === currentSessionId);
-  if (!session) {
-    // ✅ 没有当前会话时清空右侧概览 & JSON
-    if (el.ovDuration) el.ovDuration.textContent = "-";
-    if (el.ovStatus) el.ovStatus.innerHTML = "";
-    if (el.ovModel) el.ovModel.textContent = "";
-    if (el.ovPromptTokens) el.ovPromptTokens.textContent = "-";
-    if (el.ovCompletionTokens) el.ovCompletionTokens.textContent = "-";
-    if (el.ovTotalTokens) el.ovTotalTokens.textContent = "-";
-    lastRawResponse = "";
-    updateRawJson("");
-    return;
-  }
-
-  const overview = session.lastOverview;
-  if (overview) {
-    const { durationMs, status, model, usage } = overview;
-    if (!status || status === "success") {
-      updateCallOverviewSuccess(
-        typeof durationMs === "number" ? durationMs : 0,
-        model,
-        usage || null
-      );
-    } else {
-      updateCallOverviewError(
-        status,
-        typeof durationMs === "number" ? durationMs : "-",
-        usage || null
-      );
-    }
-  } else {
-    // ✅ 没有记录：清空概览
-    if (el.ovDuration) el.ovDuration.textContent = "-";
-    if (el.ovStatus) el.ovStatus.innerHTML = "";
-    if (el.ovModel) el.ovModel.textContent = "";
-    if (el.ovPromptTokens) el.ovPromptTokens.textContent = "-";
-    if (el.ovCompletionTokens) el.ovCompletionTokens.textContent = "-";
-    if (el.ovTotalTokens) el.ovTotalTokens.textContent = "-";
-  }
-
-  if (session.lastRawJson) {
-    lastRawResponse = session.lastRawJson;
-    updateRawJson(session.lastRawJson);
-  } else {
-    lastRawResponse = "";
-    updateRawJson("");
-  }
-}
 
     // ==========================
     // 运行轨迹 / 时间线
@@ -2281,9 +2078,9 @@ function applySessionMetaToUi() {
   })();
 </script>
 
-
 </body>
 </html>
+
 
 
 
