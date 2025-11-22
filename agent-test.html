@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>Agent Worker 测试</title>
+</head>
+<body>
+  <h1>Agent Worker 测试</h1>
+
+  <textarea id="input" rows="5" cols="60"
+    placeholder="在这里输入：比如 你好，简单自我介绍一下"></textarea>
+  <br />
+  <button id="send">发送</button>
+
+  <h2>回复：</h2>
+  <pre id="output"></pre>
+
+  <script>
+    async function callAgent(input) {
+      const res = await fetch('https://agent.mefans.workers.dev/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error('Worker 调用失败：' + res.status + ' ' + res.statusText + ' ' + text);
+      }
+      return await res.json(); // { output, model, usage }
+    }
+
+    document.getElementById('send').addEventListener('click', async () => {
+      const input = document.getElementById('input').value.trim();
+      const outEl = document.getElementById('output');
+      if (!input) {
+        outEl.textContent = '请输入内容再发送';
+        return;
+      }
+      outEl.textContent = '请求中...';
+
+      try {
+        const data = await callAgent(input);
+        outEl.textContent = data.output + '\n\n[model] ' + data.model;
+      } catch (err) {
+        outEl.textContent = '出错：' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
