@@ -1374,6 +1374,17 @@
         }
       });
     }
+    //在 bindGlobalEvents 下面加一个小 helper
+    // 控制遮罩显示：只要有任一抽屉打开就显示
+    function updateMobileOverlay() {
+      if (!el.mobileOverlay) return;
+      const visible = isSidebarOpenMobile || isInsightOpenMobile;
+      if (visible) {
+        el.mobileOverlay.classList.add("visible");
+      } else {
+        el.mobileOverlay.classList.remove("visible");
+      }
+    }
 
     function isMobileViewport() {
       return window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
@@ -2280,6 +2291,7 @@
   </script>
 </body>
 </html>
+
 
 
 
