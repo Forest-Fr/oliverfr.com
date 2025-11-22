@@ -766,152 +766,78 @@
       }
     }
 
-    @media (max-width: 900px) {
-      body {
-        padding: 0;
-      }
+/* === 手机端布局（替换原有 @media (max-width: 900px) 整段）=== */
+@media (max-width: 900px) {
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
 
-      .app-shell {
-        border-radius: 0;
-        box-shadow: none;
-        max-height: none;
-        height: 100%;
-        transition: transform 0.2s ease-out;
-      }
+  /* 不再在手机端把 app-shell 居中，铺满整个屏幕 */
+  body {
+    display: block;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
 
-      .app-shell.push-right {
-        transform: translateX(min(80%, 320px));
-      }
+  .app-shell {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+    /* 核心：整体平移动画，用来“推开”主页面 */
+    transition: transform 0.26s ease-out;
+  }
 
-      .app-shell.push-left {
-        transform: translateX(-min(80%, 340px));
-      }
+  /* 三列在手机端的宽度规划：
+     - 左侧栏、右侧栏：80vw（抽屉宽度）
+     - 中间主面板：100vw（占满视口）
+  */
+  .sidebar,
+  .insight-panel {
+    flex: 0 0 80vw;
+    max-width: 320px;
+    display: block;      /* 覆盖 1120px 那里对 insight-panel 的隐藏 */
+  }
 
-      /* 顶部左右“二横线”按钮条 */
-      .mobile-top-bar {
-        position: fixed;
-        top: 10px;
-        left: 0;
-        right: 0;
-        padding: 0 14px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        z-index: 40;
-        pointer-events: none;
-      }
+  .main-panel {
+    flex: 1 0 100vw;
+  }
 
-      .mobile-toggle-btn {
-        width: 34px;
-        height: 34px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: auto;
-        border: none;
-        background: transparent;
-        padding: 0;
-        margin: 0;
-      }
+  /* 默认：左右栏都收起，只显示主面板。
+     通过负 margin 把左右栏“挤出”视口之外。
+   */
+  body:not(.mobile-left-open):not(.mobile-right-open) .sidebar {
+    margin-left: -80vw;
+  }
 
-      .mobile-toggle-icon {
-        position: relative;
-        width: 18px;
-        height: 14px;
-      }
+  body:not(.mobile-left-open):not(.mobile-right-open) .insight-panel {
+    margin-right: -80vw;
+  }
 
-      .mobile-toggle-icon span {
-        position: absolute;
-        height: 2px;
-        border-radius: 999px;
-        background: #111827;
-      }
+  /* 左侧菜单打开：整体向右推 80vw，
+     把原本在视口外的 sidebar 推回到视口内，同时主面板被推到右侧，只露出一部分。
+   */
+  body.mobile-left-open .app-shell {
+    transform: translateX(80vw);
+  }
 
-      /* 左侧图标：两条线偏左 */
-      .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(1) {
-        top: 2px;
-        left: 0;
-        right: 8px;
-      }
+  /* 右侧菜单打开：整体向左推 80vw，
+     右侧 insight-panel 被推回视口内，主面板向左被“挤走”。
+   */
+  body.mobile-right-open .app-shell {
+    transform: translateX(-80vw);
+  }
+}
 
-      .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(2) {
-        bottom: 2px;
-        left: 0;
-        right: 3px;
-      }
-
-      /* 右侧图标：两条线偏右（镜像） */
-      .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(1) {
-        top: 2px;
-        left: 8px;
-        right: 0;
-      }
-
-      .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(2) {
-        bottom: 2px;
-        left: 3px;
-        right: 0;
-      }
-
-      /* 遮罩层：在主界面和抽屉之间 */
-      .mobile-overlay {
-        display: block;
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.35);
-        z-index: 25;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.18s ease-out;
-      }
-
-      .mobile-overlay.visible {
-        opacity: 1;
-        pointer-events: auto;
-      }
-
-      /* 左侧 sidebar 抽屉 */
-      .sidebar {
-        position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        width: min(80%, 320px);
-        max-width: 320px;
-        transform: translateX(-100%);
-        transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-        z-index: 30;
-      }
-
-      .sidebar.sidebar-open {
-        transform: translateX(0);
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
-      }
-
-      /* 主面板顶上留出按钮空间 */
-      .main-panel {
-        padding-top: 46px;
-      }
-
-      /* 右侧 insight 抽屉 */
-      .insight-panel {
-        display: flex;
-        position: fixed;
-        top: 0;
-        bottom: 0;
-        right: 0;
-        width: min(80%, 340px);
-        max-width: 340px;
-        transform: translateX(100%);
-        transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-        z-index: 30;
-      }
-
-      .insight-panel.insight-open {
-        transform: translateX(0);
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
-      }
-    }
   </style>
 </head>
 <body>
@@ -941,7 +867,7 @@
             Agent Worker 控制台
           </div>
         </div>
-        <div class="sidebar-subtitle">本地对接 · Cloudflare Worker 智能体</div>
+        <div class="sidebar-subtitle">本地对接 · Cloudflare &AI 智能体</div>
         <div class="sidebar-tags">
           <div class="tag-chip"><strong>Agent</strong> worker-agent</div>
           <div class="tag-chip"><strong>Model</strong> gpt-5-mini</div>
@@ -994,7 +920,7 @@
         <div class="main-header-right">
           <div class="env-pill">
             <span class="env-pill-dot"></span>
-            <span>Worker: agent.mefans.workers.dev</span>
+            <span>Worker: AI Agent</span>
           </div>
         </div>
       </div>
@@ -1092,7 +1018,7 @@
           <span class="insight-tag">worker-agent · Dev</span>
         </h3>
         <ul class="agent-desc-list">
-          <li>· <span>职责：</span>验证 Cloudflare Worker → OpenAI gpt-5-mini 聊天链路。</li>
+          <li>· <span>职责：</span>验证 Cloudflare  → OpenAI gpt-5-mini 聊天链路。</li>
           <li>· <span>能力：</span>回答自然语言问题，展示模型与 tokens 信息。</li>
           <li>· <span>限制：</span>不访问业务数据库、不执行写操作工具调用。</li>
           <li>· <span>适用场景：</span>本地联调、链路健康检查、最小可用智能体测试。</li>
@@ -1956,7 +1882,7 @@
       el.btnSend.disabled = sending;
       el.btnSendLabel.textContent = sending ? "调用中…" : "发送";
       el.requestMetaHint.textContent = sending
-        ? "正在调用 Cloudflare Worker 智能体…"
+        ? "正在调用 Cloudflare  &AI智能体…"
         : "就绪：调用 Cloudflare Worker 智能体。";
     }
 
@@ -2096,3 +2022,4 @@
   </script>
 </body>
 </html>
+
