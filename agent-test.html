@@ -60,7 +60,6 @@
       box-shadow: var(--shadow-soft);
       overflow: hidden;
       border: 1px solid rgba(148, 163, 184, 0.45);
-      position: relative;
     }
 
     /* 左侧：会话列表 */
@@ -74,6 +73,7 @@
       flex-direction: column;
       gap: 14px;
       border-right: 1px solid rgba(148, 163, 184, 0.3);
+      position: relative;
       z-index: 1;
     }
 
@@ -319,12 +319,6 @@
       gap: 4px;
     }
 
-    .main-header-top-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
     .breadcrumbs {
       font-size: 11px;
       color: var(--text-mute);
@@ -336,32 +330,6 @@
     .breadcrumbs span {
       display: inline-flex;
       align-items: center;
-    }
-
-    .mobile-menu-btn {
-      display: none;
-      border: 1px solid rgba(148, 163, 184, 0.7);
-      background: rgba(249, 250, 251, 0.95);
-      border-radius: 999px;
-      width: 32px;
-      height: 26px;
-      padding: 0 8px;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 6px 12px rgba(148, 163, 184, 0.45);
-    }
-
-    .mobile-menu-btn span {
-      display: block;
-      width: 14px;
-      height: 1.6px;
-      border-radius: 999px;
-      background: #4b5563;
-    }
-
-    .mobile-menu-btn span + span {
-      margin-top: 4px;
     }
 
     .agent-title-row {
@@ -761,23 +729,86 @@
       font-size: 14px;
     }
 
-    .mobile-mask {
+    /* 移动端左右两侧菜单按钮 + 遮罩 */
+
+    .mobile-toggle {
+      position: absolute;
+      top: 10px;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      border: none;
+      background: rgba(15, 23, 42, 0.92);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      cursor: pointer;
+      z-index: 35;
+    }
+
+    .mobile-toggle-left {
+      left: 10px;
+    }
+
+    .mobile-toggle-right {
+      right: 10px;
+    }
+
+    .mobile-toggle-lines {
+      position: relative;
+      width: 20px;
+      height: 12px;
+    }
+
+    .mobile-toggle-lines::before,
+    .mobile-toggle-lines::after {
+      content: "";
+      position: absolute;
+      height: 2px;
+      border-radius: 999px;
+      background: #f9fafb;
+    }
+
+    /* 左侧图标：上短下长（向右延伸） */
+    .mobile-toggle-left .mobile-toggle-lines::before {
+      width: 12px;
+      left: 4px;
+      top: 2px;
+    }
+
+    .mobile-toggle-left .mobile-toggle-lines::after {
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+    }
+
+    /* 右侧图标：上长下短（向左延伸，与左侧相反） */
+    .mobile-toggle-right .mobile-toggle-lines::before {
+      width: 18px;
+      right: 2px;
+      top: 2px;
+    }
+
+    .mobile-toggle-right .mobile-toggle-lines::after {
+      width: 12px;
+      right: 4px;
+      bottom: 2px;
+    }
+
+    .mobile-overlay {
       position: fixed;
       inset: 0;
       background: rgba(15, 23, 42, 0.45);
+      z-index: 25;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.18s ease-out;
-      z-index: 20;
+      transition: opacity 0.16s ease-out;
     }
 
-    .mobile-mask.visible {
+    .mobile-overlay.visible {
       opacity: 1;
       pointer-events: auto;
-    }
-
-    .no-scroll {
-      overflow: hidden;
     }
 
     @media (max-width: 1120px) {
@@ -790,36 +821,55 @@
       body {
         padding: 0;
       }
+
       .app-shell {
         border-radius: 0;
         box-shadow: none;
         max-height: none;
         height: 100%;
         position: relative;
-        overflow: hidden;
       }
+
+      /* 左边会话列表：覆盖式，从左滑出 */
       .sidebar {
         position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        height: 100%;
+        inset: 0 auto 0 0;
+        width: 80%;
+        max-width: 320px;
         transform: translateX(-100%);
-        width: min(var(--sidebar-width), 80vw);
+        transition: transform 0.2s ease-out;
         z-index: 30;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.95);
+        display: flex;
       }
+
       .sidebar.open {
         transform: translateX(0);
       }
-      .main-panel {
+
+      /* 右侧调用预览：覆盖式，从右滑出 */
+      .insight-panel {
+        display: flex;
+        position: fixed;
+        inset: 0 0 0 auto;
+        width: 80%;
+        max-width: 320px;
+        transform: translateX(100%);
         transition: transform 0.2s ease-out;
+        z-index: 30;
+        padding-top: 18px;
       }
-      .app-shell.mobile-menu-open .main-panel {
-        transform: translateX(min(var(--sidebar-width), 80vw));
+
+      .insight-panel.open {
+        transform: translateX(0);
       }
-      .mobile-menu-btn {
-        display: inline-flex;
+
+      .mobile-toggle {
+        display: flex;
+      }
+
+      /* 给顶部留出一点按钮空间 */
+      .main-header {
+        margin-top: 6px;
       }
     }
   </style>
@@ -866,18 +916,28 @@
 
     <!-- 中间：主聊天区域 -->
     <main class="main-panel">
+      <!-- 手机端左右两侧菜单按钮 -->
+      <button
+        class="mobile-toggle mobile-toggle-left"
+        id="mobileToggleSidebar"
+        aria-label="打开会话列表"
+      >
+        <span class="mobile-toggle-lines"></span>
+      </button>
+      <button
+        class="mobile-toggle mobile-toggle-right"
+        id="mobileToggleInsight"
+        aria-label="打开调用概览"
+      >
+        <span class="mobile-toggle-lines"></span>
+      </button>
+
       <div class="main-header">
         <div class="main-header-left">
-          <div class="main-header-top-row">
-            <button class="mobile-menu-btn" id="btnMobileMenu" aria-label="打开会话列表">
-              <span></span>
-              <span></span>
-            </button>
-            <div class="breadcrumbs">
-              <span>Agent Worker 测试面板</span>
-              <span>·</span>
-              <span>前端 → Cloudflare Worker → OpenAI Chat Completions</span>
-            </div>
+          <div class="breadcrumbs">
+            <span>Agent Worker 测试面板</span>
+            <span>·</span>
+            <span>前端 → Cloudflare Worker → OpenAI Chat Completions</span>
           </div>
           <div class="agent-title-row">
             <div class="agent-name">Agent Worker 测试面板</div>
@@ -1001,18 +1061,16 @@
     </aside>
   </div>
 
-  <!-- 手机端遮罩 -->
-  <div class="mobile-mask" id="mobileMask"></div>
+  <!-- 手机端遮罩层：左右任一面板展开时显示 -->
+  <div id="mobileOverlay" class="mobile-overlay"></div>
 
   <script>
     // === Config ===
     const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
     const DB_NAME = "agentWorkerDB";
-    const DB_VERSION = 2;
+    const DB_VERSION = 1;
     const SESSION_STORE = "sessions";
     const MESSAGE_STORE = "messages";
-    const META_STORE = "session_meta";          // 静态桶：每个会话最近一次调用概览
-    const CALLLOG_STORE = "session_call_logs";  // 动态桶：每次调用明细
     const MAX_SESSIONS = 50; // 自动清理过多历史会话
 
     // === State (in-memory) ===
@@ -1021,7 +1079,6 @@
     let currentSessionId = null;
     let isSending = false;
     let lastRawResponse = "";
-    let toastTimer = null;
 
     // === DOM refs ===
     const el = {};
@@ -1033,8 +1090,6 @@
     });
 
     function cacheDom() {
-      el.appShell = document.querySelector(".app-shell");
-      el.sidebar = document.querySelector(".sidebar");
       el.sessionList = document.getElementById("sessionList");
       el.btnNewSession = document.getElementById("btnNewSession");
       el.chatMessages = document.getElementById("chatMessages");
@@ -1060,8 +1115,12 @@
       el.toast = document.getElementById("toast");
       el.toastText = document.getElementById("toastText");
 
-      el.btnMobileMenu = document.getElementById("btnMobileMenu");
-      el.mobileMask = document.getElementById("mobileMask");
+      // 新增：移动端左右菜单 + 面板引用
+      el.sidebar = document.querySelector(".sidebar");
+      el.insightPanel = document.querySelector(".insight-panel");
+      el.mobileToggleSidebar = document.getElementById("mobileToggleSidebar");
+      el.mobileToggleInsight = document.getElementById("mobileToggleInsight");
+      el.mobileOverlay = document.getElementById("mobileOverlay");
     }
 
     function bindGlobalEvents() {
@@ -1127,51 +1186,84 @@
         }
       });
 
-      // Mobile sidebar open/close
-      if (el.btnMobileMenu) {
-        el.btnMobileMenu.addEventListener("click", () => {
-          openMobileSidebar();
+      // === 新增：移动端左右菜单按钮 ===
+      if (el.mobileToggleSidebar && el.sidebar) {
+        el.mobileToggleSidebar.addEventListener("click", () => {
+          toggleMobilePanel("sidebar");
         });
       }
 
-      if (el.mobileMask) {
-        el.mobileMask.addEventListener("click", () => {
-          closeMobileSidebar();
+      if (el.mobileToggleInsight && el.insightPanel) {
+        el.mobileToggleInsight.addEventListener("click", () => {
+          toggleMobilePanel("insight");
         });
       }
 
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          closeMobileSidebar();
-        }
-      });
+      if (el.mobileOverlay) {
+        el.mobileOverlay.addEventListener("click", () => {
+          closeAllMobilePanels();
+        });
+      }
 
-      window.addEventListener("resize", () => {
-        if (window.innerWidth > 900) {
-          closeMobileSidebar(true);
-        }
-      });
+      window.addEventListener("resize", handleResizeForMobilePanels);
+      handleResizeForMobilePanels();
     }
 
-    // === Mobile sidebar helpers ===
-    function openMobileSidebar() {
-      if (!el.appShell || !el.sidebar) return;
-      el.appShell.classList.add("mobile-menu-open");
-      el.sidebar.classList.add("open");
-      if (el.mobileMask) {
-        el.mobileMask.classList.add("visible");
+    // === 移动端面板开关 ===
+
+    function toggleMobilePanel(which) {
+      if (window.innerWidth > 900) return;
+      const isSidebar = which === "sidebar";
+      const panel = isSidebar ? el.sidebar : el.insightPanel;
+      if (!panel) return;
+
+      const willOpen = !panel.classList.contains("open");
+
+      // 同一时间只打开一侧
+      if (el.sidebar && !isSidebar) {
+        el.sidebar.classList.remove("open");
       }
-      document.body.classList.add("no-scroll");
+      if (el.insightPanel && isSidebar) {
+        el.insightPanel.classList.remove("open");
+      }
+
+      if (willOpen) {
+        panel.classList.add("open");
+      } else {
+        panel.classList.remove("open");
+      }
+
+      updateMobileOverlayState();
     }
 
-    function closeMobileSidebar(fromResize) {
-      if (!el.appShell || !el.sidebar) return;
-      el.appShell.classList.remove("mobile-menu-open");
-      el.sidebar.classList.remove("open");
-      if (el.mobileMask) {
-        el.mobileMask.classList.remove("visible");
+    function closeAllMobilePanels() {
+      if (el.sidebar) el.sidebar.classList.remove("open");
+      if (el.insightPanel) el.insightPanel.classList.remove("open");
+      updateMobileOverlayState();
+    }
+
+    function updateMobileOverlayState() {
+      if (!el.mobileOverlay) return;
+      const anyOpen =
+        (el.sidebar && el.sidebar.classList.contains("open")) ||
+        (el.insightPanel && el.insightPanel.classList.contains("open"));
+      if (anyOpen && window.innerWidth <= 900) {
+        el.mobileOverlay.classList.add("visible");
+      } else {
+        el.mobileOverlay.classList.remove("visible");
       }
-      document.body.classList.remove("no-scroll");
+    }
+
+    function handleResizeForMobilePanels() {
+      if (window.innerWidth > 900) {
+        // 回到桌面端：关闭浮层 & 面板
+        if (el.sidebar) el.sidebar.classList.remove("open");
+        if (el.insightPanel) el.insightPanel.classList.remove("open");
+        if (el.mobileOverlay) el.mobileOverlay.classList.remove("visible");
+      } else {
+        // 保证初始状态下也是关闭的
+        updateMobileOverlayState();
+      }
     }
 
     // === IndexedDB helpers ===
@@ -1205,20 +1297,6 @@
             messageStore.createIndex("sessionId", "sessionId", {
               unique: false,
             });
-          }
-          if (!db.objectStoreNames.contains(META_STORE)) {
-            const metaStore = db.createObjectStore(META_STORE, {
-              keyPath: "sessionId",
-            });
-            metaStore.createIndex("sessionId", "sessionId", { unique: true });
-            metaStore.createIndex("updatedAt", "updatedAt", { unique: false });
-          }
-          if (!db.objectStoreNames.contains(CALLLOG_STORE)) {
-            const logStore = db.createObjectStore(CALLLOG_STORE, {
-              keyPath: "id",
-            });
-            logStore.createIndex("sessionId", "sessionId", { unique: false });
-            logStore.createIndex("createdAt", "createdAt", { unique: false });
           }
         };
       });
@@ -1281,20 +1359,6 @@
       );
     }
 
-    function dbGet(storeName, key) {
-      if (!dbPromise) return Promise.resolve(undefined);
-      return dbPromise.then(
-        (db) =>
-          new Promise((resolve, reject) => {
-            const tx = db.transaction(storeName, "readonly");
-            const store = tx.objectStore(storeName);
-            const req = store.get(key);
-            req.onerror = () => reject(req.error);
-            req.onsuccess = () => resolve(req.result);
-          })
-      );
-    }
-
     function dbDeleteWhereMessages(sessionId) {
       if (!dbPromise) return Promise.resolve();
       return dbPromise.then(
@@ -1350,8 +1414,7 @@
     }
 
     function createMessage(sessionId, role, content) {
-      const id =
-        crypto.randomUUID ? crypto.randomUUID() : "m_" + Date.now() + "_" + Math.random();
+      const id = crypto.randomUUID ? crypto.randomUUID() : "m_" + Date.now() + "_" + Math.random();
       return {
         id,
         sessionId,
@@ -1362,24 +1425,19 @@
     }
 
     async function initSessions() {
+      // load from DB
       let stored = await dbReadAll(SESSION_STORE, "updatedAt");
       if (!stored || stored.length === 0) {
-        // 初次进入：没有任何会话，不自动创建空会话
-        sessions = [];
-        currentSessionId = null;
-        renderSessionList();
-        resetChatToEmpty();
-        resetCallOverviewUI();
-        updateRawJson("");
-        lastRawResponse = "";
-        return;
+        const session = createSessionObject();
+        sessions = [session];
+        currentSessionId = session.id;
+        await dbPut(SESSION_STORE, session);
+      } else {
+        sessions = stored; // 已按 updatedAt desc
+        currentSessionId = sessions[0].id;
       }
-
-      sessions = stored; // 已按 updatedAt desc
-      currentSessionId = sessions[0].id;
       renderSessionList();
       await renderCurrentSessionMessages();
-      await hydrateInsightsForSession(currentSessionId);
     }
 
     function renderSessionList() {
@@ -1434,32 +1492,19 @@
     }
 
     async function selectSession(sessionId) {
-      if (!sessionId || sessionId === currentSessionId) {
-        closeMobileSidebar();
-        return;
-      }
+      if (sessionId === currentSessionId) return;
       currentSessionId = sessionId;
       renderSessionList();
       await renderCurrentSessionMessages();
-      await hydrateInsightsForSession(sessionId);
-      closeMobileSidebar();
-    }
-
-    function resetChatToEmpty() {
-      if (!el.chatMessages || !el.chatEmpty) return;
-      el.chatMessages.innerHTML = "";
-      el.chatEmpty.style.display = "flex";
-      el.chatMessages.appendChild(el.chatEmpty);
     }
 
     async function renderCurrentSessionMessages() {
-      if (!currentSessionId) {
-        resetChatToEmpty();
-        return;
-      }
+      if (!currentSessionId) return;
       const messages = await dbReadMessagesBySession(currentSessionId);
       if (!messages || messages.length === 0) {
-        resetChatToEmpty();
+        el.chatMessages.innerHTML = "";
+        el.chatMessages.appendChild(el.chatEmpty);
+        el.chatEmpty.style.display = "flex";
         return;
       }
       el.chatMessages.innerHTML = "";
@@ -1472,14 +1517,12 @@
     }
 
     async function handleNewSession() {
-      // 如果存在一个 isEmpty 的会话，则直接切换过去（保证只有一个空白会话）
+      // 如果存在一个 isEmpty 的会话，则直接切换过去（只允许一个空白会话）
       const existingEmpty = sessions.find((s) => s.isEmpty);
       if (existingEmpty) {
         currentSessionId = existingEmpty.id;
         renderSessionList();
         await renderCurrentSessionMessages();
-        await hydrateInsightsForSession(currentSessionId);
-        closeMobileSidebar();
         return;
       }
 
@@ -1492,8 +1535,6 @@
 
       renderSessionList();
       await renderCurrentSessionMessages();
-      await hydrateInsightsForSession(currentSessionId);
-      closeMobileSidebar();
     }
 
     async function handleDeleteSession(sessionId) {
@@ -1501,28 +1542,21 @@
       // 删除 DB 中的 messages
       await dbDeleteWhereMessages(sessionId);
       await dbDelete(SESSION_STORE, sessionId);
-      await dbDelete(META_STORE, sessionId);
 
       // 更新内存
       sessions = sessions.filter((s) => s.id !== sessionId);
 
       if (sessions.length === 0) {
-        // 删除到 0：回到“无会话空主页”状态
-        sessions = [];
-        currentSessionId = null;
-        renderSessionList();
-        resetChatToEmpty();
-        resetCallOverviewUI();
-        updateRawJson("");
-        lastRawResponse = "";
-        return;
+        const newSession = createSessionObject();
+        sessions = [newSession];
+        currentSessionId = newSession.id;
+        await dbPut(SESSION_STORE, newSession);
       } else if (currentSessionId === sessionId) {
         currentSessionId = sessions[0].id;
       }
 
       renderSessionList();
       await renderCurrentSessionMessages();
-      await hydrateInsightsForSession(currentSessionId);
     }
 
     async function cleanupOldSessionsIfNecessary() {
@@ -1534,7 +1568,6 @@
       for (const s of remove) {
         await dbDeleteWhereMessages(s.id);
         await dbDelete(SESSION_STORE, s.id);
-        await dbDelete(META_STORE, s.id);
       }
 
       sessions = keep;
@@ -1550,7 +1583,7 @@
         return;
       }
       if (!currentSessionId) {
-        showToast("当前会话未就绪，请先新建会话。");
+        showToast("当前会话未就绪，请刷新页面。");
         return;
       }
 
@@ -1594,8 +1627,8 @@
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           lastRawResponse = text || "";
-          updateCallOverviewError(res.status, durationMs, null, lastRawResponse);
-          updateRawJson(lastRawResponse);
+          updateCallOverviewError(res.status, durationMs, null);
+          updateRawJson(text || "");
           showToast("Worker 调用失败，请检查 Worker 日志。");
         } else {
           const data = await res.json();
@@ -1604,14 +1637,14 @@
           modelName = data.model || modelName;
           usage = data.usage || null;
           lastRawResponse = JSON.stringify(data, null, 2);
-          updateCallOverviewSuccess(durationMs, modelName, usage, lastRawResponse);
+          updateCallOverviewSuccess(durationMs, modelName, usage);
           updateRawJson(lastRawResponse);
         }
       } catch (err) {
         console.error(err);
         const durationMs = performance.now() - start;
+        updateCallOverviewError("网络错误", durationMs, null);
         lastRawResponse = String(err || "Unknown error");
-        updateCallOverviewError("网络错误", durationMs, null, lastRawResponse);
         updateRawJson(lastRawResponse);
         showToast("网络异常，无法访问 Worker。");
       } finally {
@@ -1630,8 +1663,10 @@
         // 更新会话 tokens 与时间
         const session = sessions.find((s) => s.id === currentSessionId);
         if (session) {
-          const norm = normalizeUsage(usage);
-          const usedTokens = norm.totalTokens || 0;
+          const usedTokens =
+            (usage && usage.total_tokens) ||
+            (usage && usage.totalTokens) ||
+            0;
           session.totalTokens = (session.totalTokens || 0) + usedTokens;
           session.updatedAt = Date.now();
           await dbPut(SESSION_STORE, session);
@@ -1679,26 +1714,7 @@
 
     // === Call overview / JSON ===
 
-    function normalizeUsage(usage) {
-      if (!usage) return {};
-      return {
-        promptTokens:
-          usage.promptTokens ??
-          usage.prompt_tokens ??
-          undefined,
-        completionTokens:
-          usage.completionTokens ??
-          usage.completion_tokens ??
-          undefined,
-        totalTokens:
-          usage.totalTokens ??
-          usage.total_tokens ??
-          undefined,
-      };
-    }
-
-    function updateCallOverviewSuccess(durationMs, modelName, usage, rawJsonText) {
-      if (!el.ovDuration) return;
+    function updateCallOverviewSuccess(durationMs, modelName, usage) {
       el.ovDuration.textContent = `${durationMs.toFixed(0)} ms`;
 
       const pill = document.createElement("span");
@@ -1707,25 +1723,19 @@
       el.ovStatus.innerHTML = "";
       el.ovStatus.appendChild(pill);
 
-      const norm = normalizeUsage(usage);
       el.ovModel.textContent = modelName || "gpt-5-mini";
-      el.ovPromptTokens.textContent = norm.promptTokens ?? "-";
-      el.ovCompletionTokens.textContent = norm.completionTokens ?? "-";
-      el.ovTotalTokens.textContent = norm.totalTokens ?? "-";
-
-      if (currentSessionId) {
-        persistCallOverview(currentSessionId, {
-          status: "success",
-          durationMs,
-          modelName: modelName || "gpt-5-mini",
-          usage: norm,
-          rawJson: rawJsonText || "",
-        });
-      }
+      const pt =
+        (usage && (usage.prompt_tokens || usage.promptTokens)) || "-";
+      const ct =
+        (usage && (usage.completion_tokens || usage.completionTokens)) || "-";
+      const tt =
+        (usage && (usage.total_tokens || usage.totalTokens)) || "-";
+      el.ovPromptTokens.textContent = pt;
+      el.ovCompletionTokens.textContent = ct;
+      el.ovTotalTokens.textContent = tt;
     }
 
-    function updateCallOverviewError(status, durationMs, usage, rawJsonText) {
-      if (!el.ovDuration) return;
+    function updateCallOverviewError(status, durationMs, usage) {
       el.ovDuration.textContent =
         typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
 
@@ -1735,122 +1745,11 @@
       el.ovStatus.innerHTML = "";
       el.ovStatus.appendChild(pill);
 
-      const norm = normalizeUsage(usage);
-      el.ovPromptTokens.textContent = norm.promptTokens ?? "-";
-      el.ovCompletionTokens.textContent = norm.completionTokens ?? "-";
-      el.ovTotalTokens.textContent = norm.totalTokens ?? "-";
-
-      if (currentSessionId) {
-        persistCallOverview(currentSessionId, {
-          status: `error(${status})`,
-          durationMs: typeof durationMs === "number" ? durationMs : null,
-          modelName: el.ovModel.textContent || "gpt-5-mini",
-          usage: norm,
-          rawJson: rawJsonText || "",
-        });
+      if (!usage) {
+        el.ovPromptTokens.textContent = "-";
+        el.ovCompletionTokens.textContent = "-";
+        el.ovTotalTokens.textContent = "-";
       }
-    }
-
-    function resetCallOverviewUI() {
-      if (!el.ovDuration) return;
-      el.ovDuration.textContent = "-";
-
-      const pill = document.createElement("span");
-      pill.className = "call-status-pill";
-      pill.innerHTML = `<span class="call-status-dot"></span> 尚未调用`;
-      el.ovStatus.innerHTML = "";
-      el.ovStatus.appendChild(pill);
-
-      el.ovModel.textContent = "gpt-5-mini";
-      el.ovPromptTokens.textContent = "-";
-      el.ovCompletionTokens.textContent = "-";
-      el.ovTotalTokens.textContent = "-";
-    }
-
-    async function hydrateInsightsForSession(sessionId) {
-      if (!sessionId || !dbPromise) {
-        resetCallOverviewUI();
-        updateRawJson("");
-        lastRawResponse = "";
-        return;
-      }
-      try {
-        const meta = await dbGet(META_STORE, sessionId);
-        if (!meta) {
-          resetCallOverviewUI();
-          updateRawJson("");
-          lastRawResponse = "";
-          return;
-        }
-
-        if (typeof meta.lastDurationMs === "number") {
-          el.ovDuration.textContent = `${meta.lastDurationMs.toFixed(0)} ms`;
-        } else {
-          el.ovDuration.textContent = "-";
-        }
-
-        const pill = document.createElement("span");
-        const isError =
-          meta.lastStatus && String(meta.lastStatus).startsWith("error");
-        pill.className = "call-status-pill" + (isError ? " error" : "");
-        const statusLabel = isError ? `失败（${meta.lastStatus}）` : "成功";
-        pill.innerHTML = `<span class="call-status-dot"></span> ${statusLabel}`;
-        el.ovStatus.innerHTML = "";
-        el.ovStatus.appendChild(pill);
-
-        el.ovModel.textContent = meta.lastModel || "gpt-5-mini";
-
-        const usage = meta.lastUsage || {};
-        el.ovPromptTokens.textContent =
-          usage.promptTokens ?? usage.prompt_tokens ?? "-";
-        el.ovCompletionTokens.textContent =
-          usage.completionTokens ?? usage.completion_tokens ?? "-";
-        el.ovTotalTokens.textContent =
-          usage.totalTokens ?? usage.total_tokens ?? "-";
-
-        const rawText = meta.lastRawJson || "";
-        lastRawResponse = rawText;
-        updateRawJson(rawText);
-      } catch (err) {
-        console.error(err);
-        resetCallOverviewUI();
-        updateRawJson("");
-        lastRawResponse = "";
-      }
-    }
-
-    function persistCallOverview(sessionId, payload) {
-      if (!dbPromise || !sessionId) return;
-      const now = Date.now();
-      const staticRecord = {
-        sessionId,
-        lastStatus: payload.status,
-        lastDurationMs: payload.durationMs,
-        lastModel: payload.modelName,
-        lastUsage: payload.usage,
-        lastRawJson: payload.rawJson,
-        updatedAt: now,
-      };
-      const logRecord = {
-        id:
-          crypto.randomUUID ?
-          crypto.randomUUID() :
-          "log_" + now + "_" + Math.random(),
-        sessionId,
-        status: payload.status,
-        durationMs: payload.durationMs,
-        modelName: payload.modelName,
-        usage: payload.usage,
-        rawJson: payload.rawJson,
-        createdAt: now,
-      };
-
-      dbPut(META_STORE, staticRecord).catch((err) =>
-        console.error("save META_STORE failed", err)
-      );
-      dbPut(CALLLOG_STORE, logRecord).catch((err) =>
-        console.error("save CALLLOG_STORE failed", err)
-      );
     }
 
     function updateRawJson(text) {
@@ -1873,6 +1772,8 @@
     }
 
     // === Toast ===
+
+    let toastTimer = null;
 
     function showToast(message) {
       el.toastText.textContent = message;
