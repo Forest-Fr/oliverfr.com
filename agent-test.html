@@ -896,17 +896,17 @@
         </div>
       </div>
       <div class="main-header-right">
-        <div class="env-pill">
-          <span class="env-pill-dot"></span>
-          <span>AI智能体</span>
-        </div>
-        <!-- 11.22 新增：手机端两条横线汉堡菜单按钮，仅在小屏显示（配合 CSS） -->
+        <!-- 手机端两条横线汉堡菜单按钮，放在右侧区域的最左边 -->
         <button class="aw-mobile-menu" id="awMobileMenu" aria-label="打开菜单">
           <span class="line line-1"></span>
           <span class="line line-2"></span>
         </button>
+        <div class="env-pill">
+          <span class="env-pill-dot"></span>
+          <span>AI智能体</span>
+        </div>
       </div>
-    </div>
+
 
     <section class="chat-surface">
       <div class="chat-messages" id="chatMessages">
@@ -1116,9 +1116,10 @@
       el.toast = document.getElementById("toast");
       el.toastText = document.getElementById("toastText");
 
-      // 手机端汉堡按钮 / 外壳
-      el.mobileMenuBtn = document.getElementById("mobileMenuBtn");
+          // 手机端汉堡按钮 / 外壳（id 与 HTML 保持一致：awMobileMenu）
+      el.mobileMenuBtn = document.getElementById("awMobileMenu");
       el.appShell = document.querySelector(".app-shell");
+
     }
 
     // ==========================
@@ -1137,12 +1138,13 @@
         });
       }
 
-      // 会话列表点击（选择 / 删除 / pin）
+        // 会话列表点击（选择 / 删除 / pin / 重命名）
       if (el.sessionList) {
         el.sessionList.addEventListener("click", (event) => {
           const target = event.target;
           const deleteBtn = target.closest("[data-action='delete-session']");
           const pinBtn = target.closest("[data-action='pin-session']");
+          const renameTarget = target.closest("[data-action='rename-session']");
           const item = target.closest("[data-session-id]");
 
           if (!item) return;
@@ -1159,21 +1161,24 @@
             handlePinSession(id);
             return;
           }
- // ✅ 点击标题触发重命名，而不是切换会话
-    if (renameTarget) {
-      event.stopPropagation();
-      handleRenameSession(id);
-      return;
-    }
 
+          // ✅ 点击标题触发重命名，而不是切换会话
+          if (renameTarget) {
+            event.stopPropagation();
+            handleRenameSession(id);
+            return;
+          }
+
+          // 默认行为：切换会话
           selectSession(id);
-     // ✅ 手机端：选择会话后自动收起侧边栏
-    if (el.appShell) {
-      el.appShell.classList.remove("sidebar-open");
-    }
-          
+
+          // ✅ 手机端：选择会话后自动收起侧边栏
+          if (el.appShell) {
+            el.appShell.classList.remove("sidebar-open");
+          }
         });
       }
+
 
       // 搜索 / 过滤
       if (el.sessionSearchInput) {
@@ -1496,7 +1501,7 @@
     }
     */
 
-    // 新版本：首次进入时不自动创建会话，等待用户点击“新建会话”
+     // 新版本：首次进入时不自动创建会话，等待用户点击“新建会话”
     async function initSessions() {
       // 从 IndexedDB 加载已有会话，按 updatedAt 倒序
       let stored = await dbReadAll(SESSION_STORE, "updatedAt");
@@ -1506,15 +1511,20 @@
         currentSessionId = null;
       } else {
         sessions = stored; // 已按 updatedAt desc 排好
-        currentSessionId = sessions[0].id;
+
+        // ✅ 只在“非空会话”中选择最近一个作为当前会话
+        //    旧数据里没有 isEmpty 字段的会话，也当作非空处理。
+        const nonEmpty = sessions.filter((s) => !s.isEmpty);
+        currentSessionId = nonEmpty.length ? nonEmpty[0].id : null;
       }
 
       renderSessionList();
-       applySessionMetaToUi();
-      
+      applySessionMetaToUi();
+
       await renderCurrentSessionMessages();
       resetTraceTimeline();
     }
+
 
     // 视图过滤后的会话列表（分 pinned / normal）
     function getVisibleSessions() {
@@ -1938,7 +1948,7 @@ titleSpan.setAttribute("data-action", "rename-session");
           updateRawJson(lastRawResponse);
           updateTraceTimelineFromResponse(data, durationMs, { ok: true });
         }
-      } catch (err) {
+         } catch (err) {
         console.error(err);
         const durationMs = performance.now() - start;
         lastCallDurationMs = durationMs;
@@ -1956,6 +1966,8 @@ titleSpan.setAttribute("data-action", "rename-session");
         setSendingState(false);
       }
 
+      const session = sessions.find((s) => s.id === currentSessionId);
+
       if (ok) {
         const assistantMsg = createMessage(
           currentSessionId,
@@ -1964,29 +1976,30 @@ titleSpan.setAttribute("data-action", "rename-session");
         );
         await dbPut(MESSAGE_STORE, assistantMsg);
 
-        const session = sessions.find((s) => s.id === currentSessionId);
         if (session) {
           const usedTokens =
             (usage && (usage.total_tokens || usage.totalTokens)) || 0;
           session.totalTokens = (session.totalTokens || 0) + usedTokens;
           session.updatedAt = Date.now();
-
-            // ✅ 记录本次调用概览和原始 JSON，刷新后也能恢复
-    session.lastOverview = {
-      durationMs: lastCallDurationMs,
-      status: "success",
-      model: modelName,
-      usage: usage || null,
-    };
-    session.lastRawJson = lastRawResponse || "";
-          
-          await dbPut(SESSION_STORE, session);
         }
 
         appendMessageBubble("assistant", assistantMsg.content, true);
         scrollToBottom();
         renderSessionList();
       }
+
+      // ✅ 将右侧调用概览 + JSON 同步持久化到会话（无论成功或失败）
+      if (session) {
+        session.lastOverview = {
+          durationMs: lastCallDurationMs,
+          status: ok ? "success" : "error",
+          model: modelName,
+          usage: usage || null,
+        };
+        session.lastRawJson = lastRawResponse || "";
+        await dbPut(SESSION_STORE, session);
+      }
+
     }
 
     function setSendingState(sending) {
@@ -2271,6 +2284,7 @@ function applySessionMetaToUi() {
 
 </body>
 </html>
+
 
 
 
