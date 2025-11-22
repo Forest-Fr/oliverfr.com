@@ -1,49 +1,318 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <title>Agent Worker 测试</title>
-</head>
-<body>
-  <h1>Agent Worker 测试</h1>
-
-  <textarea id="input" rows="5" cols="60"
-    placeholder="在这里输入：比如 你好，简单自我介绍一下"></textarea>
-  <br />
-  <button id="send">发送</button>
-
-  <h2>回复：</h2>
-  <pre id="output"></pre>
-
-  <script>
-    async function callAgent(input) {
-      const res = await fetch('https://agent.mefans.workers.dev/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error('Worker 调用失败：' + res.status + ' ' + res.statusText + ' ' + text);
-      }
-      return await res.json(); // { output, model, usage }
+  <meta charset="UTF-8" />
+  <title>Agent Worker 测试台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #f4f4f5;
+      --card: #ffffff;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --border: #e4e4e7;
+      --text-main: #111827;
+      --text-sub: #6b7280;
+      --radius: 14px;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 24px 12px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+    }
+    .page {
+      width: 100%;
+      max-width: 840px;
+    }
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: 0.04em;
+    }
+    .subtitle {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-sub);
     }
 
-    document.getElementById('send').addEventListener('click', async () => {
-      const input = document.getElementById('input').value.trim();
-      const outEl = document.getElementById('output');
-      if (!input) {
-        outEl.textContent = '请输入内容再发送';
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 16px 16px 18px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.03);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-size: 14px;
+      color: var(--text-sub);
+    }
+
+    select {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #f9fafb;
+      font-size: 14px;
+      outline: none;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: #f9fafb;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+      background: #ffffff;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 7px 18px;
+      font-size: 14px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
+    .section-title {
+      margin: 18px 0 6px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .reply-card {
+      margin-top: 6px;
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 14px 16px 12px;
+      min-height: 80px;
+      white-space: pre-wrap;
+      line-height: 1.55;
+    }
+
+    .reply-meta {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-sub);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .agent-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #1d4ed8;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .agent-pill span {
+      font-weight: 500;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-top: 4px;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="title-row">
+      <div>
+        <h1>Agent Worker 测试台</h1>
+        <p class="subtitle">
+          这里是「智能体后端 Worker」的最小前端控制台，方便你验证路由与角色效果。
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <label for="agentSelect">智能体：</label>
+        <select id="agentSelect">
+          <option value="general">通用助手（general）</option>
+          <option value="devops">DevOps 助手（devops）</option>
+          <option value="writer">写作助手（writer）</option>
+        </select>
+      </div>
+
+      <textarea
+        id="input"
+        placeholder="在这里输入：例如『帮我分析一个 TypeError 日志』或『帮我润色下面这段话』…"
+      ></textarea>
+
+      <div class="actions">
+        <button id="sendBtn">
+          <span>发送</span>
+        </button>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <h2 class="section-title">回复：</h2>
+    <div class="reply-card" id="reply">
+      输入内容后点击发送。
+    </div>
+    <div class="reply-meta" id="meta"></div>
+  </div>
+
+  <script>
+    const endpoint = 'https://agent.mefans.workers.dev/';
+
+    const inputEl = document.getElementById('input');
+    const agentSelect = document.getElementById('agentSelect');
+    const sendBtn = document.getElementById('sendBtn');
+    const replyEl = document.getElementById('reply');
+    const metaEl = document.getElementById('meta');
+    const statusEl = document.getElementById('status');
+
+    // 页面级 session_id（简单版）
+    const sessionId =
+      (window.crypto && crypto.randomUUID && crypto.randomUUID()) ||
+      'session-' + Date.now();
+
+    async function callAgent() {
+      const text = inputEl.value.trim();
+      const agent = agentSelect.value;
+
+      if (!text) {
+        statusEl.textContent = '请输入内容再发送。';
         return;
       }
-      outEl.textContent = '请求中...';
+
+      sendBtn.disabled = true;
+      statusEl.textContent = '调用 Worker 中…';
+      replyEl.textContent = '';
+      metaEl.textContent = '';
 
       try {
-        const data = await callAgent(input);
-        outEl.textContent = data.output + '\n\n[model] ' + data.model;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            input: text,
+            agent,
+            session_id: sessionId,
+            // 下面字段为后续真正平台化做准备
+            tenant_id: 'oliverfr',
+            user_id: 'demo-user',
+            meta: {
+              source: 'agent-test.html',
+            },
+          }),
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok || !data) {
+          replyEl.textContent =
+            '调用失败：' + (data && data.error
+              ? data.error
+              : res.status + ' ' + res.statusText);
+          statusEl.textContent = '';
+          return;
+        }
+
+        // 显示回复
+        const agentLabelMap = {
+          general: '通用助手（general）',
+          devops: 'DevOps 助手（devops）',
+          writer: '写作助手（writer）',
+        };
+        const agentName =
+          agentLabelMap[data.agent] || agentLabelMap[agent] || '智能体';
+
+        replyEl.innerHTML =
+          '<div class="agent-pill"><span>' +
+          agentName +
+          '</span></div>\n' +
+          (data.output || '(没有返回内容)');
+
+        metaEl.textContent = '';
+        const metaPieces = [];
+        if (data.model) {
+          metaPieces.push('[model] ' + data.model);
+        }
+        if (data.trace_id) {
+          metaPieces.push('[trace_id] ' + data.trace_id);
+        }
+        if (data.agent_version) {
+          metaPieces.push('[agent_version] ' + data.agent_version);
+        }
+        metaEl.textContent = metaPieces.join('   ');
+
+        statusEl.textContent = '';
       } catch (err) {
-        outEl.textContent = '出错：' + err.message;
+        replyEl.textContent = '调用异常：' + String(err);
+        statusEl.textContent = '';
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener('click', callAgent);
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        callAgent();
       }
     });
   </script>
