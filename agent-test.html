@@ -390,6 +390,70 @@
       font-size: 11px;
       color: var(--text-mute);
     }
+    /* ===== PATCH BEGIN: Agent / Env 选择器样式 ===== */
+    .agent-env-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-mute);
+    }
+
+    .agent-env-controls label {
+      opacity: 0.8;
+    }
+
+    .agent-env-select {
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-card-soft);
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--text-main);
+      outline: none;
+    }
+
+    .agent-env-select:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
+    .agent-env-select option {
+      font-size: 11px;
+    }
+
+    .agent-trace-summary {
+      margin-top: 4px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: rgba(37, 99, 235, 0.04);
+      border: 1px dashed rgba(129, 140, 248, 0.6);
+      font-size: 11px;
+      color: var(--text-sub);
+      cursor: pointer;
+    }
+
+    .agent-trace-summary strong {
+      color: var(--accent-strong);
+    }
+
+    .agent-trace-detail {
+      margin-top: 4px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.03);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      font-size: 11px;
+      color: var(--text-sub);
+      display: none;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .agent-trace-detail.open {
+      display: block;
+    }
+    /* ===== PATCH END ===== */
 
     .env-pill {
       padding: 4px 8px;
@@ -1085,12 +1149,39 @@
             </div>
           </div>
         </div>
-        <div class="main-header-right">
+       /* <div class="main-header-right">
           <div class="env-pill">
             <span class="env-pill-dot"></span>
             <span>Worker: AI Agent</span>
           </div>
-        </div>
+        </div>*/
+               <div class="main-header-right">
+          <div class="env-pill">
+            <span class="env-pill-dot"></span>
+            <span id="routeLabel">模式：直连 Worker</span>
+          </div>
+
+          <!-- ===== PATCH BEGIN: Agent / Env 选择控件（Step 4.1） ===== -->
+          <div class="agent-env-controls">
+            <label for="modeSelect">Call:</label>
+            <select id="modeSelect" class="agent-env-select">
+              <option value="direct">直连 Worker</option>
+              <option value="agent-devops">Agent · devops</option>
+            </select>
+
+            <label for="agentSelect">Agent:</label>
+            <select id="agentSelect" class="agent-env-select">
+              <option value="devops">devops</option>
+            </select>
+
+            <label for="envSelect">Env:</label>
+            <select id="envSelect" class="agent-env-select">
+              <option value="dev">Dev</option>
+              <option value="prod" disabled>Prod（预留）</option>
+            </select>
+          </div>
+          <!-- ===== PATCH END ===== -->
+ 
       </div>
 
       <section class="chat-surface">
@@ -1201,6 +1292,25 @@
   <script>
     // === Config ===
     const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
+      // === Config ===
+    const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
+
+    // ===== PATCH BEGIN: Agent 模式后端端点常量 / Step 4.1 =====
+    const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
+
+    const MODE_DIRECT = "direct";
+    const MODE_AGENT_DEVOPS = "agent-devops";
+
+    const AGENT_PROFILES = [
+      { id: "devops", label: "devops · DevOps Agent" },
+      // 后续可以扩展 cs / analytics 等
+    ];
+
+    const ENV_PROFILES = [
+      { id: "dev", label: "Dev" },
+      { id: "prod", label: "Prod", disabled: true }, // 预留
+    ];
+    // ===== PATCH END =====
     const DB_NAME = "agentWorkerDB";
     const DB_VERSION = 1;
     const SESSION_STORE = "sessions"; // 静态桶：会话 + 右侧 overview
@@ -1217,7 +1327,16 @@
     let currentSessionId = null;
     let isSending = false;
     let lastRawResponse = "";
-
+// ===== PATCH BEGIN: Agent 模式前端状态 / Step 4.1 =====
+    // 当前调用模式：直连 Worker / Agent Runtime
+    let currentMode = MODE_DIRECT;
+    // 当前 Agent profile（截图中的 devops / cs / analytics 之一，这里先只实现 devops）
+    let currentAgentId = "devops";
+    // 当前环境：Dev / Prod
+    let currentEnvId = "dev";
+    // 用于 /api/agent 的 user_id（延迟初始化，写入 localStorage）
+    let currentUserId = null;
+    // ===== PATCH END =====
         // 移动端抽屉状态（左右）
     let isSidebarOpenMobile = false;
     let isInsightOpenMobile = false;
@@ -1237,6 +1356,10 @@
       try {
         await initIndexedDB();
         await initSessions();
+          // ===== PATCH BEGIN: 初始化 Agent 模式 UI 状态 / Step 4.1 =====
+        currentUserId = getOrInitUserId();
+        applyModeUiState();
+        // ===== PATCH END =====
       } catch (err) {
         showFatalError(err);
       }
@@ -1254,6 +1377,13 @@
       el.btnSend = document.getElementById("btnSend");
       el.btnSendLabel = document.getElementById("btnSendLabel");
       el.requestMetaHint = document.getElementById("requestMetaHint");
+//11.23新增step4.1
+            el.currentAgentLabel = document.getElementById("currentAgentLabel");
+      el.currentModelLabel = document.getElementById("currentModelLabel");
+      el.routeLabel = document.getElementById("routeLabel");
+      el.modeSelect = document.getElementById("modeSelect");
+      el.agentSelect = document.getElementById("agentSelect");
+      el.envSelect = document.getElementById("envSelect");
 
       el.ovDuration = document.getElementById("ovDuration");
       el.ovStatus = document.getElementById("ovStatus");
@@ -1286,7 +1416,30 @@
     }
 
     function bindGlobalEvents() {
+//11.23新增step4.1
+       // ===== PATCH BEGIN: Agent / Env 控件事件绑定 =====
+      if (el.modeSelect) {
+        el.modeSelect.addEventListener("change", () => {
+          const value = el.modeSelect.value === MODE_AGENT_DEVOPS ? MODE_AGENT_DEVOPS : MODE_DIRECT;
+          currentMode = value;
+          applyModeUiState();
+        });
+      }
 
+      if (el.agentSelect) {
+        el.agentSelect.addEventListener("change", () => {
+          currentAgentId = el.agentSelect.value || "devops";
+          applyModeUiState();
+        });
+      }
+
+      if (el.envSelect) {
+        el.envSelect.addEventListener("change", () => {
+          currentEnvId = el.envSelect.value || "dev";
+          applyModeUiState();
+        });
+      }
+      // ===== PATCH END =====
       // ===== 移动端左右抽屉：两条横线菜单 =====
       if (el.btnToggleSidebar) {
         el.btnToggleSidebar.addEventListener("click", () => {
@@ -1846,7 +1999,7 @@
       };
     }
 
-    function createMessage(sessionId, role, content) {
+    /*function createMessage(sessionId, role, content) {
       const id = crypto.randomUUID
         ? crypto.randomUUID()
         : "m_" + Date.now() + "_" + Math.random();
@@ -1857,7 +2010,21 @@
         content,
         createdAt: Date.now(),
       };
+    }*/
+        function createMessage(sessionId, role, content, meta) {
+      const id = crypto.randomUUID
+        ? crypto.randomUUID()
+        : "m_" + Date.now() + "_" + Math.random();
+      return {
+        id,
+        sessionId,
+        role,
+        content,
+        createdAt: Date.now(),
+        meta: meta || null,
+      };
     }
+
 
     async function initSessions() {
       let stored = await loadSessionsFromStorage();
@@ -1959,11 +2126,18 @@
         return;
       }
       el.chatMessages.innerHTML = "";
-      messages
+    /*  messages
         .sort((a, b) => a.createdAt - b.createdAt)
         .forEach((msg) => {
           appendMessageBubble(msg.role, msg.content, false);
+        });*/
+
+            messages
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .forEach((msg) => {
+          appendMessageBubble(msg.role, msg.content, false, msg.meta || null);
         });
+
       scrollToBottom();
     }
 
@@ -2050,10 +2224,244 @@
         }
       }
     }
+//11.23新增step4.1相关的4段函数
+        // ===== PATCH BEGIN: Agent 模式辅助函数 / userId =====
+    function getOrInitUserId() {
+      const key = "agentWorker:userId";
+      try {
+        const existing = localStorage.getItem(key);
+        if (existing) return existing;
 
+        const id =
+          (crypto.randomUUID && crypto.randomUUID()) ||
+          "u_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+        localStorage.setItem(key, id);
+        return id;
+      } catch (e) {
+        return "anonymous";
+      }
+    }
+    // ===== PATCH END =====
+    // ===== PATCH BEGIN: Agent 模式 UI 状态同步 =====
+    function applyModeUiState() {
+      if (el.modeSelect) {
+        el.modeSelect.value = currentMode;
+      }
+      if (el.agentSelect) {
+        el.agentSelect.value = currentAgentId;
+        // 只有 Agent 模式才允许切换 Agent
+        el.agentSelect.disabled = currentMode !== MODE_AGENT_DEVOPS;
+      }
+      if (el.envSelect) {
+        el.envSelect.value = currentEnvId;
+      }
+
+      if (el.currentAgentLabel) {
+        el.currentAgentLabel.textContent =
+          currentMode === MODE_AGENT_DEVOPS
+            ? `agent:${currentAgentId}`
+            : "worker-direct";
+      }
+
+      if (el.routeLabel) {
+        el.routeLabel.textContent =
+          currentMode === MODE_AGENT_DEVOPS
+            ? "模式：Agent Runtime /api/agent"
+            : "模式：直连 Worker";
+      }
+
+      // 仅在非发送中时更新提示文案
+      if (el.requestMetaHint && !isSending) {
+        el.requestMetaHint.textContent =
+          currentMode === MODE_AGENT_DEVOPS
+            ? "就绪：调用 Agent Runtime 智能体。"
+            : "就绪：调用 Cloudflare Worker 智能体。";
+      }
+    }
+    // ===== PATCH END =====
+    // ===== PATCH BEGIN: Agent payload 组装 & runtime 摘要提取 =====
+    function buildAgentPayload(inputText) {
+      return {
+        tenant_id: "oliverfr",
+        agent: currentAgentId,
+        env: currentEnvId,
+        session_id: currentSessionId,
+        user_id: currentUserId || "anonymous",
+        input: inputText,
+        meta: {
+          source: "agent-worker-ui",
+          mode: currentMode,
+          ua: navigator.userAgent || "",
+        },
+      };
+    }
+
+    function extractRuntimeMetaFromAgentResponse(data) {
+      if (!data) return null;
+      const rt = data.runtime || data.agent_runtime || null;
+
+      const nodes = (rt && (rt.nodes || rt.steps)) || [];
+      const tools = (rt && (rt.tools || rt.tool_calls)) || [];
+      const rag = rt && (rt.rag || rt.rag_stats || null);
+
+      const ragHits =
+        (rag &&
+          (rag.hits_count ||
+            rag.hits ||
+            rag.top_k ||
+            (Array.isArray(rag.docs) ? rag.docs.length : 0))) ||
+        0;
+
+      return {
+        graphVersion:
+          data.graph_version || (rt && rt.graph_version) || null,
+        taskType: data.task_type || (rt && rt.task_type) || null,
+        traceId: data.trace_id || data._gateway_trace_id || null,
+        nodeCount: Array.isArray(nodes) ? nodes.length : 0,
+        toolCount: Array.isArray(tools) ? tools.length : 0,
+        ragHits,
+        rawNodes: nodes,
+        rawTools: tools,
+        rawRag: rag,
+      };
+    }
+    // ===== PATCH END =====
+    // ===== PATCH BEGIN: 统一调用后端（直连 Worker / Agent Runtime） =====
+    async function callBackendWithMode(userText) {
+      const start = performance.now();
+      let durationMs = 0;
+      let rawResponse = "";
+      let replyText = "";
+      let modelName = "gpt-5-mini";
+      let usage = null;
+      let runtimeMeta = null;
+      let status = 0;
+      let ok = false;
+
+      try {
+        if (currentMode === MODE_AGENT_DEVOPS) {
+          const payload = buildAgentPayload(userText);
+          const res = await fetch(AGENT_ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          durationMs = performance.now() - start;
+          status = res.status;
+          const text = await res.text();
+          rawResponse = text;
+
+          if (!res.ok) {
+            return {
+              ok: false,
+              status,
+              durationMs,
+              rawResponse,
+              replyText,
+              modelName,
+              usage,
+              runtimeMeta,
+            };
+          }
+
+          let data = null;
+          try {
+            data = text ? JSON.parse(text) : null;
+          } catch (_) {
+            data = null;
+          }
+
+          if (data) {
+            replyText = data.reply || data.output || "";
+            modelName =
+              data.model ||
+              (data.runtime && data.runtime.model_profile) ||
+              modelName;
+            usage = data.usage || (data.cost && data.cost.usage) || null;
+            runtimeMeta = extractRuntimeMetaFromAgentResponse(data);
+          }
+
+          ok = true;
+          return {
+            ok,
+            status,
+            durationMs,
+            rawResponse,
+            replyText,
+            modelName,
+            usage,
+            runtimeMeta,
+          };
+        } else {
+          // 直连 Worker 原逻辑
+          const res = await fetch(WORKER_ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ input: userText }),
+          });
+          durationMs = performance.now() - start;
+          status = res.status;
+          const text = await res.text();
+          rawResponse = text;
+
+          if (!res.ok) {
+            return {
+              ok: false,
+              status,
+              durationMs,
+              rawResponse,
+              replyText,
+              modelName,
+              usage,
+              runtimeMeta,
+            };
+          }
+
+          let data = null;
+          try {
+            data = text ? JSON.parse(text) : null;
+          } catch (_) {
+            data = null;
+          }
+
+          if (data) {
+            replyText = data.output || "";
+            modelName = data.model || modelName;
+            usage = data.usage || null;
+          }
+
+          ok = true;
+          return {
+            ok,
+            status,
+            durationMs,
+            rawResponse,
+            replyText,
+            modelName,
+            usage,
+            runtimeMeta,
+          };
+        }
+      } catch (err) {
+        durationMs = performance.now() - start;
+        rawResponse = String(err || "Unknown error");
+        return {
+          ok: false,
+          status: "network_error",
+          durationMs,
+          rawResponse,
+          replyText: "",
+          modelName,
+          usage: null,
+          runtimeMeta: null,
+        };
+      }
+    }
+    // ===== PATCH END =====
+  
     // === Worker 调用 ===
 
-    async function triggerSend() {
+    /*async function triggerSend() {
       if (isSending) return;
       const raw = el.chatInput.value.trim();
       if (!raw) {
@@ -2184,6 +2592,137 @@
       }
 
       hydrateCurrentSessionInsights();
+    }*/
+    // === Worker 调用 ===
+
+    async function triggerSend() {
+      if (isSending) return;
+      const raw = el.chatInput.value.trim();
+      if (!raw) {
+        showToast("请输入内容后再发送。");
+        return;
+      }
+      if (!currentSessionId) {
+        showToast("当前会话未就绪，请刷新页面。");
+        return;
+      }
+
+      isSending = true;
+      setSendingState(true);
+
+      const userMeta = {
+        mode: currentMode,
+      };
+
+      const userMsg = createMessage(currentSessionId, "user", raw, userMeta);
+      await saveMessage(userMsg);
+
+      const session = sessions.find((s) => s.id === currentSessionId);
+      if (session && (session.isEmpty || !session.title || session.title === "新会话")) {
+        session.isEmpty = false;
+        session.title = deriveTitleFromText(raw);
+        session.updatedAt = Date.now();
+        await saveSession(session);
+      }
+
+      appendMessageBubble("user", raw, true, userMeta);
+      el.chatInput.value = "";
+
+      // ===== PATCH BEGIN: 按模式调用后端（直连 / Agent） =====
+      const result = await callBackendWithMode(raw);
+      const {
+        ok,
+        status,
+        durationMs,
+        rawResponse,
+        replyText,
+        modelName,
+        usage,
+        runtimeMeta,
+      } = result;
+
+      lastRawResponse = rawResponse || "";
+      lastOverview = {
+        ok,
+        status,
+        durationMs,
+        modelName,
+        usage: usage || null,
+        mode: currentMode,
+        runtimeMeta: runtimeMeta || null,
+      };
+
+      if (ok) {
+        updateCallOverviewSuccess(
+          typeof durationMs === "number" ? durationMs : 0,
+          modelName,
+          usage || null
+        );
+      } else {
+        updateCallOverviewError(
+          status || "-",
+          typeof durationMs === "number" ? durationMs : null,
+          usage || null
+        );
+      }
+      updateRawJson(rawResponse || "");
+
+      if (!ok) {
+        if (status === "network_error") {
+          showToast("网络异常，无法访问后端。");
+        } else if (currentMode === MODE_AGENT_DEVOPS) {
+          showToast(`Agent 调用失败（${status}），请检查 Agent Worker 日志。`);
+        } else {
+          showToast(`Worker 调用失败（${status}），请检查 Worker 日志。`);
+        }
+      }
+      // ===== PATCH END =====
+
+      const sessionForMeta = sessions.find((s) => s.id === currentSessionId);
+
+      if (ok) {
+        const safeReply = replyText || "（后端未返回内容）";
+        const assistantMeta = {
+          mode: currentMode,
+          runtimeMeta: runtimeMeta || null,
+        };
+        const assistantMsg = createMessage(
+          currentSessionId,
+          "assistant",
+          safeReply,
+          assistantMeta
+        );
+        await saveMessage(assistantMsg);
+
+        if (sessionForMeta) {
+          const usedTokens =
+            (usage && (usage.total_tokens || usage.totalTokens)) || 0;
+          sessionForMeta.totalTokens =
+            (sessionForMeta.totalTokens || 0) + usedTokens;
+          sessionForMeta.updatedAt = Date.now();
+        }
+
+        appendMessageBubble("assistant", safeReply, true, assistantMeta);
+        scrollToBottom();
+      }
+
+      if (sessionForMeta && lastOverview) {
+        sessionForMeta.lastCallOverview = lastOverview;
+        sessionForMeta.lastRawJson = lastRawResponse;
+        if (!sessionForMeta.updatedAt) {
+          sessionForMeta.updatedAt = Date.now();
+        }
+        await saveSession(sessionForMeta);
+      }
+
+      if (ok) {
+        renderSessionList();
+      }
+
+      hydrateCurrentSessionInsights();
+
+      isSending = false;
+      setSendingState(false);
     }
 
     function deriveTitleFromText(text) {
@@ -2192,13 +2731,32 @@
       return trimmed.length > 22 ? trimmed.slice(0, 22) + "…" : trimmed;
     }
 
-    function setSendingState(sending) {
+    /*function setSendingState(sending) {
       el.btnSend.disabled = sending;
       el.btnSendLabel.textContent = sending ? "调用中…" : "发送";
       el.requestMetaHint.textContent = sending
         ? "正在调用 Cloudflare  &AI智能体…"
         : "就绪：调用 Cloudflare Worker 智能体。";
+    }*/
+        function setSendingState(sending) {
+      el.btnSend.disabled = sending;
+      el.btnSendLabel.textContent = sending ? "调用中…" : "发送";
+
+      if (!el.requestMetaHint) return;
+
+      if (sending) {
+        el.requestMetaHint.textContent =
+          currentMode === MODE_AGENT_DEVOPS
+            ? "正在调用 Agent Runtime 智能体…"
+            : "正在调用 Cloudflare Worker 智能体…";
+      } else {
+        el.requestMetaHint.textContent =
+          currentMode === MODE_AGENT_DEVOPS
+            ? "就绪：调用 Agent Runtime 智能体。"
+            : "就绪：调用 Cloudflare Worker 智能体。";
+      }
     }
+
 
     function appendMessageBubble(role, content, hideEmptyHint) {
       if (hideEmptyHint && el.chatEmpty.parentNode === el.chatMessages) {
@@ -2211,6 +2769,74 @@
       bubble.textContent = content;
 
       el.chatMessages.appendChild(bubble);
+
+       // ===== PATCH BEGIN: Agent Trace 可视化（仅 Agent 模式的 assistant 消息） =====
+      if (
+        role === "assistant" &&
+        meta &&
+        meta.mode === MODE_AGENT_DEVOPS &&
+        meta.runtimeMeta
+      ) {
+        const rm = meta.runtimeMeta;
+
+        const nodeCount =
+          typeof rm.nodeCount === "number" ? rm.nodeCount : 0;
+        const toolCount =
+          typeof rm.toolCount === "number" ? rm.toolCount : 0;
+        const ragHits =
+          typeof rm.ragHits === "number" ? rm.ragHits : 0;
+        const task = rm.taskType || "-";
+        const traceId = rm.traceId || "-";
+
+        const summary = document.createElement("div");
+        summary.className = "agent-trace-summary";
+        summary.innerHTML =
+          `<strong>Agent trace</strong> · task=${task} · nodes=${nodeCount}` +
+          ` · tools=${toolCount} · RAG hits=${ragHits} · trace=${traceId}（点击展开详情）`;
+
+        const detail = document.createElement("div");
+        detail.className = "agent-trace-detail";
+        const lines = [];
+
+        if (Array.isArray(rm.rawNodes) && rm.rawNodes.length) {
+          lines.push("Nodes:");
+          rm.rawNodes.forEach((n, idx) => {
+            const label = n.name || n.id || `node_${idx + 1}`;
+            const status = n.status || n.state || "done";
+            lines.push(`  - ${label} [${status}]`);
+          });
+        }
+
+        if (Array.isArray(rm.rawTools) && rm.rawTools.length) {
+          lines.push("");
+          lines.push("Tools:");
+          rm.rawTools.forEach((t, idx) => {
+            const name = t.name || t.tool || `tool_${idx + 1}`;
+            const status = t.status || t.state || "ok";
+            lines.push(`  - ${name} [${status}]`);
+          });
+        }
+
+        if (rm.rawRag) {
+          lines.push("");
+          lines.push("RAG:");
+          lines.push(`  - hits ≈ ${ragHits}`);
+        }
+
+        if (!lines.length) {
+          lines.push("（Agent runtime 未返回详细 trace，仅有汇总信息。）");
+        }
+
+        detail.textContent = lines.join("\n");
+
+        summary.addEventListener("click", () => {
+          detail.classList.toggle("open");
+        });
+
+        el.chatMessages.appendChild(summary);
+        el.chatMessages.appendChild(detail);
+      }
+      // ===== PATCH END =====
     }
 
     function scrollToBottom() {
@@ -2221,7 +2847,7 @@
 
     // === 调用概览 / JSON ===
 
-    function resetCallOverview() {
+    /*function resetCallOverview() {
       el.ovDuration.textContent = "-";
       el.ovModel.textContent = "gpt-5-mini";
       el.ovPromptTokens.textContent = "-";
@@ -2233,9 +2859,25 @@
       pill.innerHTML = '<span class="call-status-dot"></span> 尚未调用';
       el.ovStatus.innerHTML = "";
       el.ovStatus.appendChild(pill);
+    }*/
+    function resetCallOverview() {
+      el.ovDuration.textContent = "-";
+      el.ovModel.textContent = "gpt-5-mini";
+      if (el.currentModelLabel) {
+        el.currentModelLabel.textContent = "gpt-5-mini";
+      }
+      el.ovPromptTokens.textContent = "-";
+      el.ovCompletionTokens.textContent = "-";
+      el.ovTotalTokens.textContent = "-";
+
+      const pill = document.createElement("span");
+      pill.className = "call-status-pill";
+      pill.innerHTML = '<span class="call-status-dot"></span> 尚未调用';
+      el.ovStatus.innerHTML = "";
+      el.ovStatus.appendChild(pill);
     }
 
-    function hydrateCurrentSessionInsights() {
+    /*function hydrateCurrentSessionInsights() {
       const session = sessions.find((s) => s.id === currentSessionId) || null;
       if (!session || !session.lastCallOverview || !session.lastRawJson) {
         resetCallOverview();
@@ -2260,9 +2902,41 @@
         );
       }
       updateRawJson(session.lastRawJson || "");
+    }*/
+    function hydrateCurrentSessionInsights() {
+      const session = sessions.find((s) => s.id === currentSessionId) || null;
+      if (!session || !session.lastCallOverview || !session.lastRawJson) {
+        resetCallOverview();
+        updateRawJson("");
+        applyModeUiState();
+        return;
+      }
+      const overview = session.lastCallOverview;
+      const modelName = overview.modelName || "gpt-5-mini";
+      const usage = overview.usage || null;
+
+      if (overview.mode) {
+        currentMode = overview.mode;
+      }
+      applyModeUiState();
+
+      if (overview.ok) {
+        updateCallOverviewSuccess(
+          typeof overview.durationMs === "number" ? overview.durationMs : 0,
+          modelName,
+          usage
+        );
+      } else {
+        updateCallOverviewError(
+          overview.status || "-",
+          typeof overview.durationMs === "number" ? overview.durationMs : null,
+          usage
+        );
+      }
+      updateRawJson(session.lastRawJson || "");
     }
 
-    function updateCallOverviewSuccess(durationMs, modelName, usage) {
+    /*function updateCallOverviewSuccess(durationMs, modelName, usage) {
       el.ovDuration.textContent = `${durationMs.toFixed(0)} ms`;
 
       const pill = document.createElement("span");
@@ -2279,6 +2953,31 @@
       el.ovPromptTokens.textContent = pt;
       el.ovCompletionTokens.textContent = ct;
       el.ovTotalTokens.textContent = tt;
+    }*/
+    function updateCallOverviewSuccess(durationMs, modelName, usage) {
+      el.ovDuration.textContent = `${durationMs.toFixed(0)} ms`;
+
+      const pill = document.createElement("span");
+      pill.className = "call-status-pill";
+      pill.innerHTML = '<span class="call-status-dot"></span> 成功';
+      el.ovStatus.innerHTML = "";
+      el.ovStatus.appendChild(pill);
+
+      const modelText = modelName || "gpt-5-mini";
+      el.ovModel.textContent = modelText;
+      if (el.currentModelLabel) {
+        el.currentModelLabel.textContent = modelText;
+      }
+
+      const pt = (usage && (usage.prompt_tokens || usage.promptTokens)) || "-";
+      const ct =
+        (usage && (usage.completion_tokens || usage.completionTokens)) || "-";
+      const tt = (usage && (usage.total_tokens || usage.totalTokens)) || "-";
+      el.ovPromptTokens.textContent = pt;
+      el.ovCompletionTokens.textContent = ct;
+      el.ovTotalTokens.textContent = tt;
+
+      applyModeUiState();
     }
 
     function updateCallOverviewError(status, durationMs, usage) {
@@ -2420,7 +3119,6 @@
   </script>
 </body>
 </html>
-
 
 
 
