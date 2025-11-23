@@ -1149,12 +1149,14 @@
             </div>
           </div>
         </div>
-       /* <div class="main-header-right">
+            <!--
+        <div class="main-header-right">
           <div class="env-pill">
             <span class="env-pill-dot"></span>
             <span>Worker: AI Agent</span>
           </div>
-        </div>*/
+        </div>
+        -->
                <div class="main-header-right">
           <div class="env-pill">
             <span class="env-pill-dot"></span>
@@ -1290,8 +1292,7 @@
   </div>
 
   <script>
-    // === Config ===
-    const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
+
       // === Config ===
     const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
 
@@ -2829,86 +2830,86 @@ function extractRuntimeMetaFromAgentResponse(data) {
     }
 
 
-    function appendMessageBubble(role, content, hideEmptyHint) {
-      if (hideEmptyHint && el.chatEmpty.parentNode === el.chatMessages) {
-        el.chatEmpty.style.display = "none";
-        el.chatMessages.innerHTML = "";
-      }
+function appendMessageBubble(role, content, hideEmptyHint, meta) {
+  if (hideEmptyHint && el.chatEmpty.parentNode === el.chatMessages) {
+    el.chatEmpty.style.display = "none";
+    el.chatMessages.innerHTML = "";
+  }
 
-      const bubble = document.createElement("div");
-      bubble.className = "chat-message " + role;
-      bubble.textContent = content;
+  const bubble = document.createElement("div");
+  bubble.className = "chat-message " + role;
+  bubble.textContent = content;
+  el.chatMessages.appendChild(bubble);
 
-      el.chatMessages.appendChild(bubble);
+  // ===== PATCH BEGIN: Agent Trace 可视化（仅 Agent 模式的 assistant 消息） =====
+  if (
+    role === "assistant" &&
+    meta &&
+    meta.mode === MODE_AGENT_DEVOPS &&
+    meta.runtimeMeta
+  ) {
+    const rm = meta.runtimeMeta;
 
-       // ===== PATCH BEGIN: Agent Trace 可视化（仅 Agent 模式的 assistant 消息） =====
-      if (
-        role === "assistant" &&
-        meta &&
-        meta.mode === MODE_AGENT_DEVOPS &&
-        meta.runtimeMeta
-      ) {
-        const rm = meta.runtimeMeta;
+    const nodeCount =
+      typeof rm.nodeCount === "number" ? rm.nodeCount : 0;
+    const toolCount =
+      typeof rm.toolCount === "number" ? rm.toolCount : 0;
+    const ragHits =
+      typeof rm.ragHits === "number" ? rm.ragHits : 0;
+    const task = rm.taskType || "-";
+    const traceId = rm.traceId || "-";
 
-        const nodeCount =
-          typeof rm.nodeCount === "number" ? rm.nodeCount : 0;
-        const toolCount =
-          typeof rm.toolCount === "number" ? rm.toolCount : 0;
-        const ragHits =
-          typeof rm.ragHits === "number" ? rm.ragHits : 0;
-        const task = rm.taskType || "-";
-        const traceId = rm.traceId || "-";
+    const summary = document.createElement("div");
+    summary.className = "agent-trace-summary";
+    summary.innerHTML =
+      `<strong>Agent trace</strong> · task=${task} · nodes=${nodeCount}` +
+      ` · tools=${toolCount} · RAG hits=${ragHits} · trace=${traceId}（点击展开详情）`;
 
-        const summary = document.createElement("div");
-        summary.className = "agent-trace-summary";
-        summary.innerHTML =
-          `<strong>Agent trace</strong> · task=${task} · nodes=${nodeCount}` +
-          ` · tools=${toolCount} · RAG hits=${ragHits} · trace=${traceId}（点击展开详情）`;
+    const detail = document.createElement("div");
+    detail.className = "agent-trace-detail";
+    const lines = [];
 
-        const detail = document.createElement("div");
-        detail.className = "agent-trace-detail";
-        const lines = [];
-
-        if (Array.isArray(rm.rawNodes) && rm.rawNodes.length) {
-          lines.push("Nodes:");
-          rm.rawNodes.forEach((n, idx) => {
-            const label = n.name || n.id || `node_${idx + 1}`;
-            const status = n.status || n.state || "done";
-            lines.push(`  - ${label} [${status}]`);
-          });
-        }
-
-        if (Array.isArray(rm.rawTools) && rm.rawTools.length) {
-          lines.push("");
-          lines.push("Tools:");
-          rm.rawTools.forEach((t, idx) => {
-            const name = t.name || t.tool || `tool_${idx + 1}`;
-            const status = t.status || t.state || "ok";
-            lines.push(`  - ${name} [${status}]`);
-          });
-        }
-
-        if (rm.rawRag) {
-          lines.push("");
-          lines.push("RAG:");
-          lines.push(`  - hits ≈ ${ragHits}`);
-        }
-
-        if (!lines.length) {
-          lines.push("（Agent runtime 未返回详细 trace，仅有汇总信息。）");
-        }
-
-        detail.textContent = lines.join("\n");
-
-        summary.addEventListener("click", () => {
-          detail.classList.toggle("open");
-        });
-
-        el.chatMessages.appendChild(summary);
-        el.chatMessages.appendChild(detail);
-      }
-      // ===== PATCH END =====
+    if (Array.isArray(rm.rawNodes) && rm.rawNodes.length) {
+      lines.push("Nodes:");
+      rm.rawNodes.forEach((n, idx) => {
+        const label = n.name || n.id || `node_${idx + 1}`;
+        const status = n.status || n.state || "done";
+        lines.push(`  - ${label} [${status}]`);
+      });
     }
+
+    if (Array.isArray(rm.rawTools) && rm.rawTools.length) {
+      lines.push("");
+      lines.push("Tools:");
+      rm.rawTools.forEach((t, idx) => {
+        const name = t.name || t.tool || `tool_${idx + 1}`;
+        const status = t.status || t.state || "ok";
+        lines.push(`  - ${name} [${status}]`);
+      });
+    }
+
+    if (rm.rawRag) {
+      lines.push("");
+      lines.push("RAG:");
+      lines.push(`  - hits ≈ ${ragHits}`);
+    }
+
+    if (!lines.length) {
+      lines.push("（Agent runtime 未返回详细 trace，仅有汇总信息。）");
+    }
+
+    detail.textContent = lines.join("\n");
+
+    summary.addEventListener("click", () => {
+      detail.classList.toggle("open");
+    });
+
+    el.chatMessages.appendChild(summary);
+    el.chatMessages.appendChild(detail);
+  }
+  // ===== PATCH END =====
+}
+
 
     function scrollToBottom() {
       requestAnimationFrame(() => {
@@ -3190,6 +3191,7 @@ function extractRuntimeMetaFromAgentResponse(data) {
   </script>
 </body>
 </html>
+
 
 
 
