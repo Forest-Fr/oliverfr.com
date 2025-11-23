@@ -389,6 +389,7 @@
       gap: 6px;
       font-size: 11px;
       color: var(--text-mute);
+       flex-wrap: wrap;            /* 关键：宽度不够就换行 */
     }
 
     .env-pill {
@@ -759,6 +760,98 @@
       display: none;
     }
 
+/* 环境 pill 保持紧凑，不被挤压 */
+  .main-header-right .env-pill {
+    flex-shrink: 0;
+  }
+
+  /* 下拉控件容器：一行排 label + select，本身可折行 */
+  .agent-env-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-mute);
+    flex-wrap: wrap;            /* label/select 自己也可以换行 */
+  }
+
+  .agent-env-controls label {
+    opacity: 0.8;
+    white-space: nowrap;        /* 避免 “Call:” 被打断 */
+  }
+
+  .agent-env-select {
+    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card-soft);
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-main);
+    outline: none;
+    flex-shrink: 0;             /* 不要被挤得太窄 */
+    max-width: 120px;           /* 防止撑爆右边空间 */
+  }
+
+  .agent-env-select:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .agent-env-select option {
+    font-size: 11px;
+  }
+
+  /* Trace 折叠块：占满一行，放在 header 下方，不影响主布局 */
+  .agent-trace-summary {
+    margin-top: 4px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.04);
+    border: 1px dashed rgba(129, 140, 248, 0.6);
+    font-size: 11px;
+    color: var(--text-sub);
+    cursor: pointer;
+  }
+
+  .agent-trace-summary strong {
+    color: var(--accent-strong);
+  }
+
+  .agent-trace-detail {
+    margin-top: 4px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.03);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    font-size: 11px;
+    color: var(--text-sub);
+    display: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .agent-trace-detail.open {
+    display: block;
+  }
+
+  /* 手机端：右上这一块占满一行，不挤压标题 */
+  @media (max-width: 900px) {
+    .main-header-right {
+      width: 100%;
+      justify-content: flex-start;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .agent-env-controls {
+      width: 100%;
+    }
+
+    .agent-env-select {
+      max-width: 100px;
+    }
+  }
+  
     @media (max-width: 1120px) {
       /* 中屏默认隐藏右侧面板（移动端另外覆盖） */
       .insight-panel {
@@ -3127,6 +3220,7 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
+
 
 
 
