@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>Agent Worker 测试面板</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
+<style>
   :root {
     --bg-page: #edf2ff;
     --bg-card: #ffffff;
@@ -484,8 +484,6 @@
     display: flex;
     flex-direction: column;
     box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-    /* PATCH: 保证中间卡片在桌面端也有可见高度，避免内容被推到底部看不到 */
-    min-height: 260px;
   }
 
   .chat-messages {
@@ -847,8 +845,6 @@
       overflow: hidden; /* 防止左右推时露出太大的空白 */
     }
 
-    /* 由主面板负责平移*/
-
     /* 主聊天面板：手机端左右平移 */
     .main-panel {
       padding-top: 46px;           /* 给顶部两横线留空间 */
@@ -867,7 +863,7 @@
       transform: translateX(-min(80%, 340px));
     }
 
-    /* 顶部左右“二横线”按钮条（主定义，带过渡） */
+    /* 顶部左右“二横线”按钮条 */
     .mobile-top-bar {
       position: fixed;
       top: 10px;
@@ -891,7 +887,7 @@
       transform: translateX(-min(80%, 340px));
     }
 
-    /* 再次定义 mobile-top-bar：保持与旧版本兼容（实际效果已由上方带 transition 的定义覆盖） */
+    /* 顶部左右“二横线”按钮条（重复块，保持原有痕迹） */
     .mobile-top-bar {
       position: fixed;
       top: 10px;
@@ -903,7 +899,6 @@
       align-items: center;
       z-index: 40;
       pointer-events: none;
-      /* 不再单独设置 transition，避免覆盖上方定义 */
     }
 
     .mobile-toggle-btn {
@@ -1014,7 +1009,6 @@
 
 <!-- =================
      无损补丁：追加覆盖（Option B） — 保留原始样式不变，仅通过覆盖规则确保 token 徽章不被裁切
-     说明：不要把下面的 CSS 插入到已经被压缩/优化过的位置外（推荐追加到样式表末尾）。
      ================= -->
 <style>
   /* ===== PATCH BEGIN: session-title / token badge safe spacing (无损覆盖) ===== */
@@ -1071,6 +1065,26 @@
 
   /* ===== PATCH END ===== */
 </style>
+
+<!-- ========= 追加补丁：修正桌面端主面板偏下问题（保持 step4.1 功能不变） ========= -->
+<style>
+  /* ===== PATCH BEGIN: desktop main-panel top spacing fix ===== */
+
+  /* 桌面宽度下（>900px）强制 main-panel 顶部紧贴卡片，不额外下沉 */
+  @media (min-width: 901px) {
+    .main-panel {
+      padding-top: 16px !important; /* 对齐原始设计 */
+    }
+
+    /* 清理可能来自浏览器默认样式或后续补丁的多余 margin-top */
+    .main-panel > *:first-child {
+      margin-top: 0 !important;
+    }
+  }
+
+  /* ===== PATCH END ===== */
+</style>
+
 
 
 </head>
@@ -3193,6 +3207,7 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
+
 
 
 
