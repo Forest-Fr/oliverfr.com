@@ -329,6 +329,9 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    /* PATCH 2025-11-23: 主区域从顶部开始排布，避免整块垂直居中 */
+    align-items: stretch;
+    justify-content: flex-start;
     padding: 16px 18px 14px;
     gap: 10px;
     position: relative;
@@ -340,6 +343,8 @@
     justify-content: space-between;
     align-items: center;
     gap: 8px;
+    /* 与 flex 顶部布局配合，保持自身高度由内容决定 */
+    flex: 0 0 auto;
   }
 
   .main-header-left {
@@ -506,13 +511,16 @@
   }
 
   .chat-surface {
-    flex: 1;
+    /* PATCH 2025-11-23: 让聊天区域占满 main-panel 剩余空间，自上而下排列 */
+    flex: 1 1 auto;
     border-radius: 18px;
     background: radial-gradient(circle at top left, #eef2ff 0, #f9fafb 55%);
     border: 1px solid var(--border-subtle);
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
     box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
   }
 
@@ -569,6 +577,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    flex: 0 0 auto; /* 输入区固定在底部，不被压缩 */
   }
 
   .chat-input-row {
@@ -1079,6 +1088,7 @@
 
   /* ===== PATCH END ===== */
 </style>
+
 
 
 </head>
@@ -3201,6 +3211,7 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
+
 
 
 
