@@ -1031,6 +1031,48 @@
   }
 </style>
 
+
+  <style>
+  /* ===== PATCH: 中间主区域固定在 TOP，聊天区填满剩余高度 ===== */
+
+  /* 1）主面板：占满中间区域高度，并强制从顶部开始排布 */
+  .main-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;  /* 标题永远贴着中间区域 top */
+    align-items: stretch !important;
+  }
+
+  /* 2）聊天卡片：紧跟标题，从上往下填满剩余空间 */
+  .chat-surface {
+    flex: 1 1 auto !important;               /* 占满 main-panel 余下高度 */
+    min-height: 0 !important;
+    margin-top: 8px !important;              /* 和标题留一点间距 */
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* 3）消息区域：在卡片内部撑开，确保下面输入区始终可见 */
+  .chat-messages {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+  }
+
+  /* 4）空状态：不再额外拉长整个中间区域，只在消息区域里居中 */
+  .chat-empty {
+    height: auto !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  /* ===== PATCH END ===== */
+</style>
+
+  
 <!-- =================
      无损补丁：追加覆盖（Option B） — 保留原始样式不变，仅通过覆盖规则确保 token 徽章不被裁切
      ================= -->
@@ -3207,6 +3249,7 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
+
 
 
 
