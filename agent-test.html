@@ -1059,6 +1059,32 @@
     }
   }
 </style>
+<style>
+  /* ===== PATCH · 中间聊天区域铺满整列，去掉右侧窄卡 ===== */
+
+  /* 中间列：子元素默认拉伸，不居中、不收窄 */
+  .main-panel {
+    align-items: stretch !important;
+  }
+
+  /* 除了顶部标题和 Trace 折叠块，其他直接子元素一律占满整列宽度 */
+  .main-panel > :not(.main-header):not(.agent-trace-summary):not(.agent-trace-detail) {
+    width: 100% !important;
+    max-width: 100% !important;
+    align-self: stretch !important;
+
+    /* 防止之前有 margin-left:auto / 居右之类的设置 */
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* 聊天卡片本身再兜底一层，彻底取消窄宽度 + 右浮动 */
+  .chat-surface {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 8px 0 0 0 !important; /* 保留和标题的一点间距 */
+  }
+</style>
 
 
 </head>
@@ -3181,6 +3207,7 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
+
 
 
 
