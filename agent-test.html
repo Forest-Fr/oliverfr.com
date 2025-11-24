@@ -32,14 +32,15 @@
 
   html,
   body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-      "Segoe UI", sans-serif;
-    background: radial-gradient(circle at top, #e0e7ff 0, #eef2ff 55%, #e5e7eb 100%);
-    color: var(--text-main);
+  margin: 0;
+ padding: 0;
+ width: 100%;
+  /* 不要锁死 height，改成最小高度 */
+  min-height: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #e0e7ff 0, #eef2ff 55%, #e5e7eb 100%);
+ color: var(--text-main);
   }
 
   body {
@@ -50,17 +51,18 @@
   }
 
   .app-shell {
-    display: flex;
+   display: flex;
     flex-direction: row;
-    width: min(1320px, 100%);
-    height: 100%;
-    max-height: 880px;
+   width: min(1320px, 100%);
+    /* 高度由内容自然撑开，不要锁死 */
+    /* height: 100%; */
+    /* max-height: 880px; */
     background: linear-gradient(145deg, #f9fafb, #eef2ff);
     border-radius: 26px;
     box-shadow: var(--shadow-soft);
-    overflow: hidden;
+    overflow: hidden; /* 这个可以保留，用来做内阴影和圆角裁切 */
     border: 1px solid rgba(148, 163, 184, 0.45);
-    position: relative;
+  position: relative;
   }
 
   /* 左侧：会话列表 */
@@ -3201,6 +3203,7 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
+
 
 
 
