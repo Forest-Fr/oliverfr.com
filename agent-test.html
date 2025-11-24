@@ -1369,6 +1369,34 @@
       { id: "prod", label: "Prod", disabled: true }, // 预留
     ];
     // ===== PATCH END =====
+    //只是在前端把结构“写死”出来，方便后面取值
+  // ===== [ADD · Step 4.2.1 · Agent Runtime response shape] =====
+/**
+ * @typedef {Object} AgentCost
+ * @property {number} tokens_prompt
+ * @property {number} tokens_completion
+ * @property {number} total_tokens
+ * @property {number} usd_estimate
+ *
+ * @typedef {Object} AgentStateSnapshot
+ * @property {string} task_type
+ * @property {string[]} guard_flags
+ * @property {string[]} degrade_flags
+ * @property {Object<string, any>} [extra]
+ *
+ * @typedef {Object} AgentResponse
+ * @property {string} reply
+ * @property {string} trace_id
+ * @property {string} agent
+ * @property {string} env
+ * @property {string[]} nodes_executed
+ * @property {any[]} tools_used
+ * @property {AgentCost} cost
+ * @property {AgentStateSnapshot} state_snapshot
+ * @property {Object<string, any>} [debug]
+ */
+
+    
     const DB_NAME = "agentWorkerDB";
     const DB_VERSION = 1;
     const SESSION_STORE = "sessions"; // 静态桶：会话 + 右侧 overview
@@ -2456,136 +2484,94 @@ function extractRuntimeMetaFromAgentResponse(data) {
     }
     // ===== PATCH END =====
     // ===== PATCH BEGIN: 统一调用后端（直连 Worker / Agent Runtime） =====
-    async function callBackendWithMode(userText) {
-      const start = performance.now();
-      let durationMs = 0;
-      let rawResponse = "";
-      let replyText = "";
-      let modelName = "gpt-5-mini";
-      let usage = null;
-      let runtimeMeta = null;
-      let status = 0;
-      let ok = false;
+// ===== [PATCH REPLACE · Step 4.2.2 · 统一后端调用（附带 agentRaw）] =====
+async function callBackendWithMode(userText) {
+  const start = performance.now();
+  let durationMs = 0;
+  let rawResponse = "";
+  let replyText = "";
+  let modelName = "gpt-5-mini";
+  let usage = null;
+  let runtimeMeta = null;
+  let agentRaw = null;   // ★ 新增：返回解析后的 Agent 原始对象
+  let status = 0;
+  let ok = false;
 
-      try {
-        if (currentMode === MODE_AGENT_DEVOPS) {
-          const payload = buildAgentPayload(userText);
-          const res = await fetch(AGENT_ENDPOINT, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          durationMs = performance.now() - start;
-          status = res.status;
-          const text = await res.text();
-          rawResponse = text;
+  try {
+    if (currentMode === MODE_AGENT_DEVOPS) {
+      const payload = buildAgentPayload(userText);
+      const res = await fetch(AGENT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      durationMs = performance.now() - start;
+      status = res.status;
+      const text = await res.text();
+      rawResponse = text;
 
-          if (!res.ok) {
-            return {
-              ok: false,
-              status,
-              durationMs,
-              rawResponse,
-              replyText,
-              modelName,
-              usage,
-              runtimeMeta,
-            };
-          }
-
-          let data = null;
-          try {
-            data = text ? JSON.parse(text) : null;
-          } catch (_) {
-            data = null;
-          }
-
-          if (data) {
-            replyText = data.reply || data.output || "";
-            modelName =
-              data.model ||
-              (data.runtime && data.runtime.model_profile) ||
-              modelName;
-            usage = data.usage || (data.cost && data.cost.usage) || null;
-            runtimeMeta = extractRuntimeMetaFromAgentResponse(data);
-          }
-
-          ok = true;
-          return {
-            ok,
-            status,
-            durationMs,
-            rawResponse,
-            replyText,
-            modelName,
-            usage,
-            runtimeMeta,
-          };
-        } else {
-          // 直连 Worker 原逻辑
-          const res = await fetch(WORKER_ENDPOINT, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ input: userText }),
-          });
-          durationMs = performance.now() - start;
-          status = res.status;
-          const text = await res.text();
-          rawResponse = text;
-
-          if (!res.ok) {
-            return {
-              ok: false,
-              status,
-              durationMs,
-              rawResponse,
-              replyText,
-              modelName,
-              usage,
-              runtimeMeta,
-            };
-          }
-
-          let data = null;
-          try {
-            data = text ? JSON.parse(text) : null;
-          } catch (_) {
-            data = null;
-          }
-
-          if (data) {
-            replyText = data.output || "";
-            modelName = data.model || modelName;
-            usage = data.usage || null;
-          }
-
-          ok = true;
-          return {
-            ok,
-            status,
-            durationMs,
-            rawResponse,
-            replyText,
-            modelName,
-            usage,
-            runtimeMeta,
-          };
-        }
-      } catch (err) {
-        durationMs = performance.now() - start;
-        rawResponse = String(err || "Unknown error");
-        return {
-          ok: false,
-          status: "network_error",
-          durationMs,
-          rawResponse,
-          replyText: "",
-          modelName,
-          usage: null,
-          runtimeMeta: null,
-        };
+      if (!res.ok) {
+        return { ok: false, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
       }
+
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+
+      if (data) {
+        agentRaw = data; // ★ 关键：把完整 JSON 保留，给右侧面板和消息 meta 用
+        replyText = data.reply || data.output || "";
+        modelName = data.model || (data.runtime && data.runtime.model_profile) || modelName;
+        usage = data.usage || (data.cost && data.cost.usage) || null;
+        runtimeMeta = extractRuntimeMetaFromAgentResponse(data);
+      }
+
+      ok = true;
+      return { ok, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
+    } else {
+      // 直连 Worker：保持原逻辑
+      const res = await fetch(WORKER_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: userText }),
+      });
+      durationMs = performance.now() - start;
+      status = res.status;
+      const text = await res.text();
+      rawResponse = text;
+
+      if (!res.ok) {
+        return { ok: false, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
+      }
+
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+
+      if (data) {
+        replyText = data.output || "";
+        modelName = data.model || modelName;
+        usage = data.usage || null;
+      }
+
+      ok = true;
+      return { ok, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
     }
+  } catch (err) {
+    durationMs = performance.now() - start;
+    rawResponse = String(err || "Unknown error");
+    return {
+      ok: false,
+      status: "network_error",
+      durationMs,
+      rawResponse,
+      replyText: "",
+      modelName,
+      usage: null,
+      runtimeMeta: null,
+      agentRaw: null,
+    };
+  }
+}
+
     // ===== PATCH END =====
   
     // === Worker 调用 ===
@@ -2768,6 +2754,7 @@ function extractRuntimeMetaFromAgentResponse(data) {
         modelName,
         usage,
         runtimeMeta,
+         agentRaw, // ★ 新增
       } = result;
 
       lastRawResponse = rawResponse || "";
@@ -2814,6 +2801,7 @@ function extractRuntimeMetaFromAgentResponse(data) {
         const assistantMeta = {
           mode: currentMode,
           runtimeMeta: runtimeMeta || null,
+          rawAgent: agentRaw || null, // ★ 新增
         };
         const assistantMsg = createMessage(
           currentSessionId,
@@ -3125,39 +3113,104 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
         el.ovTotalTokens.textContent = "-";
       }
     }
+// ===== [ADD · Step 4.2.3 · 右侧智能体信息渲染 · 复用 rawJson 面板容器] =====
+function ensureAgentInfoMount() {
+  // 复用你现有的右侧 JSON 容器
+  if (!el.rawJsonBody) return null;
+  let box = document.getElementById("agentInfoBox");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "agentInfoBox";
+    box.style.cssText = "margin-bottom:8px;border:1px solid #e5e7eb;border-radius:8px;padding:8px;background:#f9fafb;";
+    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild); // 放在最上面
+  }
+  return box;
+}
 
-     function updateRawJson(text) {
-      if (!text) {
-        // 没有内容时，同时清空复制用的 lastRawResponse
-        lastRawResponse = "";
-        el.rawJsonPlaceholder.style.display = "block";
-        el.rawJsonPre.style.display = "none";
-        el.rawJsonPre.textContent = "";
-        return;
-      }
+function clearAgentInfo() {
+  const box = document.getElementById("agentInfoBox");
+  if (box && box.parentNode) box.parentNode.removeChild(box);
+}
 
-      // 同步 lastRawResponse，保证“复制 JSON”按钮和右侧展示始终一致
-      if (typeof text === "string") {
-        lastRawResponse = text;
-      } else {
-        try {
-          lastRawResponse = JSON.stringify(text, null, 2);
-        } catch {
-          lastRawResponse = String(text);
-        }
-      }
+function renderAgentInfo(agentObj) {
+  // 判定是否像 Agent 响应：有 reply 且有 trace/agent/env 或 state_snapshot 等字段
+  const looksLikeAgent =
+    agentObj && typeof agentObj === "object" &&
+    (typeof agentObj.reply === "string" || agentObj.state_snapshot || agentObj.trace_id || agentObj.agent);
 
-      el.rawJsonPlaceholder.style.display = "none";
-      el.rawJsonPre.style.display = "block";
+  if (!looksLikeAgent) {
+    clearAgentInfo();
+    return;
+  }
+  const box = ensureAgentInfoMount();
+  if (!box) return;
 
-      try {
-        const parsed = typeof text === "string" ? JSON.parse(text) : text;
-        el.rawJsonPre.textContent = JSON.stringify(parsed, null, 2);
-      } catch {
-        // 解析失败时，直接展示 lastRawResponse 文本
-        el.rawJsonPre.textContent = lastRawResponse;
-      }
-    }
+  const traceId = agentObj.trace_id || "-";
+  const agent = agentObj.agent || "-";
+  const env = agentObj.env || "-";
+  const taskType = agentObj?.state_snapshot?.task_type || "-";
+
+  const nodes = Array.isArray(agentObj.nodes_executed) ? agentObj.nodes_executed : [];
+  const tools = Array.isArray(agentObj.tools_used) ? agentObj.tools_used : [];
+  const cost = agentObj.cost || {};
+
+  const costLine = [
+    "prompt=" + (cost.tokens_prompt ?? "-"),
+    "completion=" + (cost.tokens_completion ?? "-"),
+    "total=" + (cost.total_tokens ?? "-"),
+    "usd≈" + (typeof cost.usd_estimate === "number" ? cost.usd_estimate.toFixed(6) : "-")
+  ].join("，");
+
+  box.innerHTML = `
+    <div style="font-weight:600;margin-bottom:6px;">智能体执行摘要（Agent Mode）</div>
+    <div><strong>trace_id：</strong>${traceId}</div>
+    <div><strong>agent：</strong>${agent}</div>
+    <div><strong>env：</strong>${env}</div>
+    <div><strong>task_type：</strong>${taskType}</div>
+    <div style="margin-top:6px;"><strong>执行节点：</strong>${nodes.length ? nodes.join(" → ") : "-"}</div>
+    <div style="margin-top:2px;"><strong>工具调用：</strong>${tools.length ? tools.map(t => (t?.name || t?.type || "tool")).join("，") : "-"}</div>
+    <div style="margin-top:2px;"><strong>Token & 成本：</strong>${costLine}</div>
+  `;
+}
+
+// ===== [PATCH REPLACE · Step 4.2.3 · updateRawJson：联动智能体信息面板] =====
+function updateRawJson(text) {
+  if (!text) {
+    lastRawResponse = "";
+    el.rawJsonPlaceholder.style.display = "block";
+    el.rawJsonPre.style.display = "none";
+    el.rawJsonPre.textContent = "";
+    clearAgentInfo(); // ★ 同时清理上方智能体信息块
+    return;
+  }
+
+  // 同步 lastRawResponse，保证“复制 JSON”一致
+  if (typeof text === "string") {
+    lastRawResponse = text;
+  } else {
+    try { lastRawResponse = JSON.stringify(text, null, 2); }
+    catch { lastRawResponse = String(text); }
+  }
+
+  el.rawJsonPlaceholder.style.display = "none";
+  el.rawJsonPre.style.display = "block";
+
+  let parsed = null;
+  try {
+    parsed = typeof text === "string" ? JSON.parse(text) : text;
+    el.rawJsonPre.textContent = JSON.stringify(parsed, null, 2);
+  } catch {
+    el.rawJsonPre.textContent = lastRawResponse;
+  }
+
+  // ★ 尝试渲染智能体信息（仅当能解析为对象时）
+  if (parsed && typeof parsed === "object") {
+    renderAgentInfo(parsed);
+  } else {
+    clearAgentInfo();
+  }
+}
+
 
 
        // === Toast ===
@@ -3248,35 +3301,3 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
