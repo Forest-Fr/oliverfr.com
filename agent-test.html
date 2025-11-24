@@ -45,7 +45,7 @@
   body {
     display: flex;
     justify-content: center;
-    align-items: stretch; /* 保持整体壳子撑满高度，不再出现“中间一个窄柱子” */
+    align-items: stretch;
     padding: 20px;
   }
 
@@ -323,7 +323,9 @@
     color: #6b7280;
   }
 
-  /* 中间：聊天面板 */
+  /* ============================
+     中间：聊天面板（对齐到顶部 + 铺满中列宽度）
+     ============================ */
 
   .main-panel {
     flex: 1;
@@ -333,8 +335,9 @@
     gap: 10px;
     position: relative;
     z-index: 0;
-    align-items: stretch;        /* 关键：中间列所有子元素撑满宽度 */
-    justify-content: flex-start; /* 关键：从顶部开始排布，不再“居中悬空” */
+    align-items: stretch;        /* 子元素沿横向全部拉满 */
+    justify-content: flex-start; /* 标题从中间区域顶部开始排布 */
+    min-height: 0;               /* 允许内部 flex 子项正确伸缩 */
   }
 
   .main-header {
@@ -391,7 +394,7 @@
     gap: 6px;
     font-size: 11px;
     color: var(--text-mute);
-    flex-wrap: wrap; /* 宽度不够就换行 */
+    flex-wrap: wrap;
   }
 
   .env-pill {
@@ -415,24 +418,22 @@
 
   /* ===== PATCH INSERT · Agent / Env 选择器（Step 4.1） ===== */
 
-  /* 环境 pill 保持紧凑，不被挤压 */
   .main-header-right .env-pill {
     flex-shrink: 0;
   }
 
-  /* 下拉控件容器：一行排 label + select，本身可折行 */
   .agent-env-controls {
     display: flex;
     align-items: center;
     gap: 6px;
     font-size: 11px;
     color: var(--text-mute);
-    flex-wrap: wrap; /* label/select 自己也可以换行 */
+    flex-wrap: wrap;
   }
 
   .agent-env-controls label {
     opacity: 0.8;
-    white-space: nowrap; /* 避免 “Call:” 被打断 */
+    white-space: nowrap;
   }
 
   .agent-env-select {
@@ -443,8 +444,8 @@
     font-size: 11px;
     color: var(--text-main);
     outline: none;
-    flex-shrink: 0; /* 不要被挤得太窄 */
-    max-width: 120px; /* 防止撑爆右边空间 */
+    flex-shrink: 0;
+    max-width: 120px;
   }
 
   .agent-env-select:disabled {
@@ -456,7 +457,6 @@
     font-size: 11px;
   }
 
-  /* Trace 折叠块：占满一行，放在 header 下方，不影响主布局 */
   .agent-trace-summary {
     margin-top: 4px;
     padding: 6px 8px;
@@ -489,7 +489,6 @@
     display: block;
   }
 
-  /* 手机端：右上这一块占满一行，不挤压标题 */
   @media (max-width: 900px) {
     .main-header-right {
       width: 100%;
@@ -507,8 +506,10 @@
     }
   }
 
+  /* ===== 关键：聊天卡片铺满中间列宽度，内部上下结构 ===== */
+
   .chat-surface {
-    flex: 1;
+    flex: 1 1 auto;
     border-radius: 18px;
     background: radial-gradient(circle at top left, #eef2ff 0, #f9fafb 55%);
     border: 1px solid var(--border-subtle);
@@ -516,19 +517,23 @@
     display: flex;
     flex-direction: column;
     box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-    width: 100%;          /* 关键：填满中间列宽度 */
-    align-self: stretch;   /* 关键：不再缩成右侧一根“细条” */
+    width: 100%;
+    max-width: 100%;
+    align-self: stretch;
+    min-height: 0;
+    margin-top: 8px; /* 标题和卡片之间留一点间距 */
   }
 
   .chat-messages {
-    flex: 1;
+    flex: 1 1 auto;
     padding: 16px 18px 12px;
     overflow: auto;
     scroll-behavior: smooth;
+    min-height: 0;
   }
 
   .chat-empty {
-    height: 100%;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -573,7 +578,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    width: 100%;          /* 关键：输入区也铺满宽度 */
+    width: 100%;
     align-self: stretch;
   }
 
@@ -861,7 +866,6 @@
   }
 
   @media (max-width: 1120px) {
-    /* 中屏默认隐藏右侧面板（移动端另外覆盖） */
     .insight-panel {
       display: none;
     }
@@ -878,28 +882,24 @@
       box-shadow: none;
       max-height: none;
       height: 100%;
-      overflow: hidden; /* 防止左右推时露出太大的空白 */
+      overflow: hidden;
     }
 
-    /* 主聊天面板：手机端左右平移 */
     .main-panel {
-      padding-top: 46px; /* 给顶部两横线留空间 */
+      padding-top: 46px;
       transition: transform 0.2s ease-out;
     }
 
-    /* 左边抽屉打开时，主面板向右推 */
     .main-panel.move-right,
     .app-shell.push-right .main-panel {
       transform: translateX(min(80%, 320px));
     }
 
-    /* 右边抽屉打开时，主面板向左推 */
     .main-panel.move-left,
     .app-shell.push-left .main-panel {
       transform: translateX(-min(80%, 340px));
     }
 
-    /* 顶部左右“二横线”按钮条 */
     .mobile-top-bar {
       position: fixed;
       top: 10px;
@@ -914,7 +914,6 @@
       transition: transform 0.2s ease-out;
     }
 
-    /* 顶部两横线跟随整体移动 */
     .app-shell.push-right .mobile-top-bar {
       transform: translateX(min(80%, 320px));
     }
@@ -949,7 +948,6 @@
       background: #111827;
     }
 
-    /* 左侧图标：两条线偏左 */
     .mobile-toggle-btn-left .mobile-toggle-icon span:nth-child(1) {
       top: 2px;
       left: 0;
@@ -962,7 +960,6 @@
       right: 3px;
     }
 
-    /* 右侧图标：两条线偏右（镜像） */
     .mobile-toggle-btn-right .mobile-toggle-icon span:nth-child(1) {
       top: 2px;
       left: 8px;
@@ -975,7 +972,6 @@
       right: 0;
     }
 
-    /* 遮罩层：在主界面和抽屉之间 */
     .mobile-overlay {
       display: block;
       position: fixed;
@@ -992,7 +988,6 @@
       pointer-events: auto;
     }
 
-    /* 左侧 sidebar 抽屉（固定在视口左边，不随主界面一起移动） */
     .sidebar {
       position: fixed;
       top: 0;
@@ -1010,7 +1005,6 @@
       box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
     }
 
-    /* 右侧 insight 抽屉（固定在视口右边） */
     .insight-panel {
       display: flex;
       position: fixed;
@@ -1029,76 +1023,25 @@
       box-shadow: 0 24px 60px rgba(15, 23, 42, 0.88);
     }
   }
-</style>
 
+  /* ============================
+     PATCH: 左侧会话标题 / token 徽章宽度修复（Option B）
+     ============================ */
 
-  <style>
-  /* ===== PATCH: 中间主区域固定在 TOP，聊天区填满剩余高度 ===== */
-
-  /* 1）主面板：占满中间区域高度，并强制从顶部开始排布 */
-  .main-panel {
-    height: 100% !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-start !important;  /* 标题永远贴着中间区域 top */
-    align-items: stretch !important;
-  }
-
-  /* 2）聊天卡片：紧跟标题，从上往下填满剩余空间 */
-  .chat-surface {
-    flex: 1 1 auto !important;               /* 占满 main-panel 余下高度 */
-    min-height: 0 !important;
-    margin-top: 8px !important;              /* 和标题留一点间距 */
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  /* 3）消息区域：在卡片内部撑开，确保下面输入区始终可见 */
-  .chat-messages {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    overflow: auto !important;
-  }
-
-  /* 4）空状态：不再额外拉长整个中间区域，只在消息区域里居中 */
-  .chat-empty {
-    height: auto !important;
-    flex: 1 1 auto !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-  /* ===== PATCH END ===== */
-</style>
-
-  
-<!-- =================
-     无损补丁：追加覆盖（Option B） — 保留原始样式不变，仅通过覆盖规则确保 token 徽章不被裁切
-     ================= -->
-<style>
-  /* ===== PATCH BEGIN: session-title / token badge safe spacing (无损覆盖) ===== */
-
-  /* 1) session-item：保留原始 padding（8px 9px），但在补丁中用更精确的 padding & overflow 覆盖以避免徽章溢出 */
   .session-item {
-    /* 原始（仅作记录，未删除）： padding: 8px 9px; */
     padding: 8px 8px 8px 9px !important;
-    overflow: hidden !important; /* 防止子元素（徽章）在视觉上溢出容器边界 */
+    overflow: hidden !important;
     box-sizing: border-box !important;
   }
 
-  /* 2) session-title：不改 DOM，动态限制标题宽度，给时间/徽章留出空间 */
   .session-title {
-    /* 原始（仅作记录，未删除）： max-width: 160px; */
     max-width: calc(var(--sidebar-width) - 120px) !important;
     white-space: nowrap !important;
     text-overflow: ellipsis !important;
     overflow: hidden !important;
   }
 
-  /* 3) session-meta：保证徽章区域右对齐且不被压缩 */
   .session-meta {
-    /* 原始（仅作记录，未删除）： display:flex; justify-content: space-between; ... */
     min-width: 0 !important;
     display: flex !important;
     gap: 6px !important;
@@ -1106,26 +1049,15 @@
     justify-content: flex-end !important;
   }
 
-  /* 4) session-list：微小右侧缓冲，避免紧贴侧栏边缘导致裁切 */
   .session-list {
-    /* 原始（仅作记录，未删除）： padding-top: 4px; */
     padding-right: 6px !important;
   }
 
-  /* 5) 手机端抽屉兼容：在手机抽屉场景下提供合适的 max-width */
   @media (max-width: 900px) {
     .session-title {
       max-width: calc(min(80vw, 320px) - 120px) !important;
     }
   }
-
-  /*
-  .app-shell {
-    overflow: visible !important; 仅用于调试：请谨慎启用
-  }
-  */
-
-  /* ===== PATCH END ===== */
 </style>
 
 
@@ -3249,6 +3181,7 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
+
 
 
 
