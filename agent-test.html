@@ -51,18 +51,17 @@
   }
 
   .app-shell {
-   display: flex;
+    display: flex;
     flex-direction: row;
    width: min(1320px, 100%);
-    /* 高度由内容自然撑开，不要锁死 */
-    /* height: 100%; */
-    /* max-height: 880px; */
+   height: 100%;
+   max-height: 880px;
     background: linear-gradient(145deg, #f9fafb, #eef2ff);
     border-radius: 26px;
     box-shadow: var(--shadow-soft);
-    overflow: hidden; /* 这个可以保留，用来做内阴影和圆角裁切 */
+    overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.45);
-  position: relative;
+   position: relative;
   }
 
   /* 左侧：会话列表 */
@@ -3203,6 +3202,7 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
   </script>
 </body>
 </html>
+
 
 
 
