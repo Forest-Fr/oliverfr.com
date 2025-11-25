@@ -1366,19 +1366,20 @@
     // 与 CF Route: oliverfr.com/agent.mefans.workers.dev/* 对齐
 //const WORKER_ENDPOINT = "/agent.mefans.workers.dev/"; // ← 错
 //const AGENT_ENDPOINT  = "/agent.mefans.workers.dev/api/agent"; // ← 错
-//const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
-const WORKER_ENDPOINT = "/agent/";              // 直连 Worker 绑定到 oliverfr.com/agent/*
+const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";// Worker 子域
+//const WORKER_ENDPOINT = "/agent/";              // 直连 Worker 绑定到 oliverfr.com/agent/*
 //11.25新增在“端点常量”下面新增一个端点守护函数
+    const AGENT_ENDPOINT  = "/api/agent";    
     // ===== PATCH BEGIN: Agent 模式后端端点常量 / Step 4.1 =====
  //  const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
-const AGENT_ENDPOINT  = "/agent/api/agent";     // Agent Runtime 路由 默认同源相对路径
+//const AGENT_ENDPOINT  = "/agent/api/agent";     // Agent Runtime 路由 默认同源相对路径
 // ✅ 同源路由（与你的 CF Route: oliverfr.com/agent/* 对齐）
 //const WORKER_ENDPOINT = "https://oliverfr.com/agent/";
 //const AGENT_ENDPOINT  = WORKER_ENDPOINT + "api/agent";
 // 或者在 agent-test.html 里用：const AGENT_ENDPOINT = "/agent/api/agent";
 
     // 若以后有人误填 Cloud Run 域名，统一拦截到 Worker 代理
-const BLOCKLIST_HOST_RE = /\.run\.app$/i;
+//const BLOCKLIST_HOST_RE = /\.run\.app$/i;
     // ===== PATCH ADD · 端点守护（避免误连 Cloud Run）=====
 // 端点解析：始终返回一个“可安全直连”的绝对 URL。
 // 规则：
@@ -1387,7 +1388,7 @@ const BLOCKLIST_HOST_RE = /\.run\.app$/i;
 // 3) 任何解析异常一律回退 Worker 代理。
 // 依赖：已定义的 WORKER_ENDPOINT 与 AGENT_ENDPOINT。
 // 解析并“强制同源”的端点解析器
-function resolveAgentEndpoint() {
+/*function resolveAgentEndpoint() {
   try {
     // 统一把相对路径转换为绝对 URL（基于当前页面）
     const currentOrigin = window.location.origin;
@@ -1414,8 +1415,18 @@ function resolveAgentEndpoint() {
     const workerBase = new URL(WORKER_ENDPOINT, window.location.origin);
     return new URL("api/agent", workerBase).toString();
   }
-}
+}*/
 
+    // ===== 端点守护：一律经由 Worker 代理 =====
+function resolveAgentEndpoint() {
+  try {
+    // 永远把请求发到本站的 /api/agent，由路由转给 Worker
+    return new URL(AGENT_ENDPOINT, window.location.origin).toString();
+  } catch {
+    // 兜底：显式拼出 Worker 代理地址
+    return new URL("/api/agent", WORKER_ENDPOINT).toString();
+  }
+}
 // （可选）在页面初始化时给出一次温和提示，便于你排查 CSP
 function warnIfLikelyCspBlock() {
   try {
@@ -3378,6 +3389,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
