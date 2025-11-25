@@ -1352,9 +1352,42 @@
 
       // === Config ===
     const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
-
+//11.25新增在“端点常量”下面新增一个端点守护函数
     // ===== PATCH BEGIN: Agent 模式后端端点常量 / Step 4.1 =====
     const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
+
+    // ===== PATCH ADD · 端点守护（避免误连 Cloud Run）=====
+function resolveAgentEndpoint() {
+  try {
+    const u = new URL(AGENT_ENDPOINT);
+    const host = u.hostname;
+
+    // 若不小心把端点改成了 *.run.app，强制回退到 Worker 代理
+    if (host.endsWith('.run.app')) {
+      console.warn('[Agent] AGENT_ENDPOINT 指向 Cloud Run，被改为走 Worker 代理。');
+      return new URL('/api/agent', WORKER_ENDPOINT).toString();
+    }
+    return u.toString();
+  } catch {
+    // 兜底：任何解析异常都走 Worker 代理
+    return new URL('/api/agent', WORKER_ENDPOINT).toString();
+  }
+}
+
+// （可选）在页面初始化时给出一次温和提示，便于你排查 CSP
+function warnIfLikelyCspBlock() {
+  try {
+    const agentOrigin = new URL(resolveAgentEndpoint()).origin;
+    if (agentOrigin !== window.location.origin) {
+      console.info(
+        "[CSP 提示] 当前页面可能是 connect-src 'self'，跨域连接会被拦截。" +
+        "如遇到报错，请在站点 CSP 的 connect-src 中加入：", agentOrigin
+      );
+    }
+  } catch {}
+}
+document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
+
 
     const MODE_DIRECT = "direct";
     const MODE_AGENT_DEVOPS = "agent-devops";
@@ -2500,7 +2533,9 @@ async function callBackendWithMode(userText) {
   try {
     if (currentMode === MODE_AGENT_DEVOPS) {
       const payload = buildAgentPayload(userText);
-      const res = await fetch(AGENT_ENDPOINT, {
+     // const res = await fetch(AGENT_ENDPOINT, {
+      //11.25统一后端调用里替换一行 fetch 目标
+      const res = await fetch(resolveAgentEndpoint(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -3301,3 +3336,4 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
