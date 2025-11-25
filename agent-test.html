@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  connect-src 'self';
+  connect-src 'self' https://*.run.app https://agent.mefans.workers.dev;
+
   img-src 'self' data:;
   style-src 'self' 'unsafe-inline';
   script-src 'self' https://static.cloudflareinsights.com 'unsafe-inline';
@@ -1366,13 +1367,13 @@
     // 与 CF Route: oliverfr.com/agent.mefans.workers.dev/* 对齐
 //const WORKER_ENDPOINT = "/agent.mefans.workers.dev/"; // ← 错
 //const AGENT_ENDPOINT  = "/agent.mefans.workers.dev/api/agent"; // ← 错
-const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";// Worker 子域
-//const WORKER_ENDPOINT = "/agent/";              // 直连 Worker 绑定到 oliverfr.com/agent/*
+//const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";// Worker 子域
+const WORKER_ENDPOINT = "/agent/";              // 直连 Worker 绑定到 oliverfr.com/agent/*
 //11.25新增在“端点常量”下面新增一个端点守护函数
-    const AGENT_ENDPOINT  = "/api/agent";    
+    //const AGENT_ENDPOINT  = "/api/agent";    
     // ===== PATCH BEGIN: Agent 模式后端端点常量 / Step 4.1 =====
  //  const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
-//const AGENT_ENDPOINT  = "/agent/api/agent";     // Agent Runtime 路由 默认同源相对路径
+const AGENT_ENDPOINT  = "/agent/api/agent";     // Agent Runtime 路由 默认同源相对路径
 // ✅ 同源路由（与你的 CF Route: oliverfr.com/agent/* 对齐）
 //const WORKER_ENDPOINT = "https://oliverfr.com/agent/";
 //const AGENT_ENDPOINT  = WORKER_ENDPOINT + "api/agent";
@@ -1399,7 +1400,7 @@ const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";// Worker 子域
       console.warn("[Agent] AGENT_ENDPOINT 指向 Cloud Run，已切回同源 Worker 代理。");
       const workerBase = new URL(WORKER_ENDPOINT, currentOrigin);
       return new URL("api/agent", workerBase).toString();
-    }
+    }  
 
     // 2) 非同源（任何跨域） -> 也强制走 Worker 代理，避免 CSP/CORS
     if (parsedAgent.origin !== currentOrigin) {
@@ -1420,13 +1421,18 @@ const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";// Worker 子域
     // ===== 端点守护：一律经由 Worker 代理 =====
 function resolveAgentEndpoint() {
   try {
-    // 永远把请求发到本站的 /api/agent，由路由转给 Worker
-    return new URL(AGENT_ENDPOINT, window.location.origin).toString();
+    const u = new URL(AGENT_ENDPOINT, window.location.origin);
+    const host = u.hostname;
+    if (host.endsWith('.run.app')) {
+      console.warn('[Agent] AGENT_ENDPOINT 指向 Cloud Run，强制改为走 Worker 代理。');
+      return new URL('/agent/api/agent', window.location.origin).toString();
+    }
+    return u.toString();
   } catch {
-    // 兜底：显式拼出 Worker 代理地址
-    return new URL("/api/agent", WORKER_ENDPOINT).toString();
+    return new URL('/agent/api/agent', window.location.origin).toString();
   }
 }
+
 // （可选）在页面初始化时给出一次温和提示，便于你排查 CSP
 function warnIfLikelyCspBlock() {
   try {
