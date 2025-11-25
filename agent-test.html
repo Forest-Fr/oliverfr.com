@@ -1420,11 +1420,13 @@ const AGENT_ENDPOINT  = "/agent/api/agent";     // Agent Runtime 路由 默认�
 
     // ===== 端点守护：一律经由 Worker 代理 =====
 function resolveAgentEndpoint() {
+  // 永远返回同源的 /agent/api/agent，避免误连 Cloud Run、避开 CSP/CORS
   try {
     const u = new URL(AGENT_ENDPOINT, window.location.origin);
     const host = u.hostname;
+    // 防呆：哪怕有人误把 AGENT_ENDPOINT 改成了完整 run.app，也强制回退到同源代理
     if (host.endsWith('.run.app')) {
-      console.warn('[Agent] AGENT_ENDPOINT 指向 Cloud Run，强制改为走 Worker 代理。');
+      console.warn('[Agent] 发现指向 Cloud Run，已改为同源 Worker 代理。');
       return new URL('/agent/api/agent', window.location.origin).toString();
     }
     return u.toString();
@@ -3395,6 +3397,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
