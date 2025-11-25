@@ -4,13 +4,18 @@
   <meta charset="UTF-8" />
   <title>Agent Worker 测试面板</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self';
-               connect-src 'self';
-               img-src 'self' data:;
-               style-src 'self' 'unsafe-inline';
-               script-src 'self' 'unsafe-inline';
-               font-src 'self' data:;">
+<meta http-equiv="Content-Security-Policy"
+  content="
+    default-src 'self';
+    connect-src 'self'
+      https://agent.mefans.workers.dev
+      https://*.run.app;
+    img-src 'self' data:;
+    style-src 'self' 'unsafe-inline';
+    script-src 'self' https://static.cloudflareinsights.com;
+    font-src 'self' data:;
+  ">
+
 <style>
   :root {
     --bg-page: #edf2ff;
@@ -1361,11 +1366,11 @@
     // 与 CF Route: oliverfr.com/agent.mefans.workers.dev/* 对齐
 //const WORKER_ENDPOINT = "/agent.mefans.workers.dev/"; // ← 错
 //const AGENT_ENDPOINT  = "/agent.mefans.workers.dev/api/agent"; // ← 错
-   // const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
+ const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
   const WORKER_ENDPOINT = "/agent/";              // 直连 Worker
 //11.25新增在“端点常量”下面新增一个端点守护函数
     // ===== PATCH BEGIN: Agent 模式后端端点常量 / Step 4.1 =====
-    //const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
+   const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
 const AGENT_ENDPOINT  = "/agent/api/agent";     // Agent Runtime 路由
 
     // ===== PATCH ADD · 端点守护（避免误连 Cloud Run）=====
@@ -3348,6 +3353,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
