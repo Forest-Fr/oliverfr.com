@@ -1351,10 +1351,12 @@
   <script>
 
       // === Config ===
-    const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
+   // const WORKER_ENDPOINT = "https://agent.mefans.workers.dev/";
+    const WORKER_ENDPOINT = "/agent/";
 //11.25新增在“端点常量”下面新增一个端点守护函数
     // ===== PATCH BEGIN: Agent 模式后端端点常量 / Step 4.1 =====
-    const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
+    //const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
+    const AGENT_ENDPOINT  = "/agent/api/agent";
 
     // ===== PATCH ADD · 端点守护（避免误连 Cloud Run）=====
 function resolveAgentEndpoint() {
@@ -3336,4 +3338,5 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
