@@ -4,19 +4,16 @@
   <meta charset="UTF-8" />
   <title>Agent Worker 测试面板</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-<meta http-equiv="Content-Security-Policy"
-      content="
-        default-src 'self';
-        connect-src 'self' https://oliverfr.com https://agent.mefans.workers.dev;
-        img-src 'self' data:;
-        style-src 'self' 'unsafe-inline';
-        script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com;
-        font-src 'self' data:;
-        base-uri 'self';
-        form-action 'self';
-      ">
-
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  connect-src 'self' https://agent.mefans.workers.dev https://*.run.app;
+  img-src 'self' data:;
+  style-src 'self' 'unsafe-inline';
+  script-src 'self' 'unsafe-inline';
+  font-src 'self' data:;
+  base-uri 'self';
+  form-action 'self';
+">
 
   
 <style>
@@ -1381,22 +1378,61 @@ const AGENT_ENDPOINT  = "/agent/api/agent";     // Agent Runtime 路由
 // 或者在 agent-test.html 里用：const AGENT_ENDPOINT = "/agent/api/agent";
 
     // ===== PATCH ADD · 端点守护（避免误连 Cloud Run）=====
+// 端点解析：始终返回一个“可安全直连”的绝对 URL。
+// 规则：
+// 1) 若 AGENT_ENDPOINT 指向 *.run.app，则强制走 Worker 代理 /api/agent（规避 CSP/connect-src: 'self' 限制）。
+// 2) 支持三种写法：绝对地址(https://...)、站内绝对路径(/api/agent)、相对路径(agent/api/agent)。
+// 3) 任何解析异常一律回退 Worker 代理。
+// 依赖：已定义的 WORKER_ENDPOINT 与 AGENT_ENDPOINT。
 function resolveAgentEndpoint() {
   try {
-    const u = new URL(AGENT_ENDPOINT);
-    const host = u.hostname;
+    // 规范化 Worker 基址（支持 'https://agent.mefans.workers.dev/' 或 '/agent/'）
+    const workerBase = new URL(
+      WORKER_ENDPOINT,
+      // 若 WORKER_ENDPOINT 是相对路径，使用当前站点作为基准
+      window.location.origin
+    );
+    const workerApi = new URL('/api/agent', workerBase).toString();
 
-    // 若不小心把端点改成了 *.run.app，强制回退到 Worker 代理
-    if (host.endsWith('.run.app')) {
-      console.warn('[Agent] AGENT_ENDPOINT 指向 Cloud Run，被改为走 Worker 代理。');
-      return new URL('/api/agent', WORKER_ENDPOINT).toString();
+    // 若未配置 AGENT_ENDPOINT，直接走 Worker 代理
+    if (!AGENT_ENDPOINT) return workerApi;
+
+    // 规范化目标端点：支持绝对/相对/站内绝对路径
+    let target;
+    if (/^https?:\/\//i.test(AGENT_ENDPOINT)) {
+      target = new URL(AGENT_ENDPOINT);
+    } else if (AGENT_ENDPOINT.startsWith('/')) {
+      target = new URL(AGENT_ENDPOINT, window.location.origin);
+    } else {
+      // 相对路径（如 'agent/api/agent'）默认相对当前站点
+      target = new URL(AGENT_ENDPOINT, window.location.origin);
     }
-    return u.toString();
-  } catch {
-    // 兜底：任何解析异常都走 Worker 代理
-    return new URL('/api/agent', WORKER_ENDPOINT).toString();
+
+    const host = (target.hostname || '').toLowerCase();
+
+    // 若指向 Cloud Run，则改走 Worker 代理（前端仅允许同源，避免 CSP: connect-src 'self'）
+    if (host.endsWith('.run.app')) {
+      console.warn('[Agent] AGENT_ENDPOINT 指向 Cloud Run，被改为走 Worker 代理。', {
+        host,
+        fallback: workerApi
+      });
+      return workerApi;
+    }
+
+    // 返回规范化后的绝对 URL
+    return target.toString();
+  } catch (e) {
+    // 任何解析异常，回退 Worker 代理，并在控制台给出提示
+    console.warn('[Agent] 端点解析异常，回退 Worker 代理。', e);
+    try {
+      return new URL('/api/agent', new URL(WORKER_ENDPOINT, window.location.origin)).toString();
+    } catch {
+      // 最终兜底（当 WORKER_ENDPOINT 也无法被 URL 解析时）
+      return '/agent/api/agent';
+    }
   }
 }
+
 
 // （可选）在页面初始化时给出一次温和提示，便于你排查 CSP
 function warnIfLikelyCspBlock() {
@@ -3360,6 +3396,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
