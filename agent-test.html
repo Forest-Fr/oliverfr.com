@@ -1142,6 +1142,14 @@
     color: var(--text-main);       /* 文本颜色跟右侧卡片保持一致 */
   }
 
+  /* ===== PATCH 11.26-b: 统一“智能体执行摘要 / 运行健康”卡片背景 ===== */
+  .raw-json-panel div[style*="background:#f8fafc"],
+  .raw-json-panel div[style*="background: #f8fafc"] {
+    background-color: transparent !important; /* 覆盖 inline 白底 */
+  }
+
+
+    
 /* ===== [ANCHOR ADD · 手机端主面板兜底位移（JS 拿不到宽度时）] ===== */
 @media (max-width: 900px){
   .main-panel.move-left  { transform: translateX(-320px); transition: transform .25s ease; }
@@ -3542,6 +3550,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
