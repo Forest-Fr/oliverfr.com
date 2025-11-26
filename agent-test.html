@@ -3351,7 +3351,7 @@ function renderAgentInfo(agentObj) {
   `;
 }
 // ===== [PATCH ADD · 健康面板挂载] =====
-function ensureHealthPanelMount() {
+/*function ensureHealthPanelMount() {
   if (!el.rawJsonBody) return null;
 
   let box = document.getElementById("healthInfoBox");
@@ -3366,6 +3366,39 @@ function ensureHealthPanelMount() {
       "background-color:transparent;"; // 关键：改成透明，跟外层同色
     el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild);
   }
+  return box;
+}*/
+function ensureHealthPanelMount() {
+  if (!el.rawJsonBody) return null;
+
+  let box = document.getElementById("healthInfoBox");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "healthInfoBox";
+    // 背景去掉白色，用透明让它继承「原始返回」卡片的深色背景
+    box.style.cssText =
+      "margin-bottom:8px;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;background:transparent;";
+    // 放在最上面（在 AgentInfo 之上）
+    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild);
+  } else {
+    // 复用旧节点时兜底：如果之前被写成白底/浅灰，再强制改回透明
+    const bg = box.style.background || box.style.backgroundColor || "";
+    if (!bg || bg === "#fff" || bg === "#ffffff" || bg === "#f8fafc") {
+      box.style.background = "transparent";
+    }
+  }
+
+  // 新增：把内部块（包含「智能体执行摘要 (Agent Mode)」和「运行健康」）的白底一并清掉
+  const inner = box.children;
+  for (let i = 0; i < inner.length; i++) {
+    const node = inner[i];
+    if (!node || !node.style) continue;
+    const bg = node.style.background || node.style.backgroundColor || "";
+    if (!bg || bg === "#fff" || bg === "#ffffff" || bg === "#f8fafc") {
+      node.style.background = "transparent";
+    }
+  }
+
   return box;
 }
 
@@ -3550,6 +3583,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
