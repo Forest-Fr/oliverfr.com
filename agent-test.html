@@ -3527,36 +3527,6 @@ function updateRawJson(text) {
   }
 }
 
-    // ===== PATCH BEGIN: Step8 自动健康检查（放在 updateRawJson 之后，</script> 前） =====
-  document.addEventListener('DOMContentLoaded', () => {
-    (async () => {
-      // 统一用你已有的 Worker 基地址，避免跨域相对路径失效
-      const base = (typeof WORKER_ENDPOINT === 'string' && WORKER_ENDPOINT)
-        ? WORKER_ENDPOINT
-        : '/';
-      const url = base.endsWith('/') ? (base + 'health') : (base + '/health');
-
-      try {
-        const resp = await fetch(url, { method: 'GET' });
-        const data = await resp.json();
-
-        // 复用你已有的 JSON 渲染函数（Step 4.2.3）
-        // 要求：页面里已有 #rawJsonPre / #rawJsonPlaceholder / #btnToggleJson
-        updateRawJson(JSON.stringify(data, null, 2));
-
-        // 若当前按钮文案是“展开 JSON”，则自动展开一次，方便首屏可见
-        const tgl = document.getElementById('btnToggleJson');
-        if (tgl && tgl.textContent.includes('展开')) tgl.click();
-
-      } catch (err) {
-        console.warn('Health check failed:', err);
-        // 非阻断：失败就静默，不影响其它功能
-      }
-    })();
-  });
-  // ===== PATCH END =====
-
-
        // === Toast ===
 
     let toastTimer = null;
@@ -3645,6 +3615,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
