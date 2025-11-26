@@ -1134,6 +1134,14 @@
 }
 .agent-trace-detail.open{ display:block; }
 
+
+      /* ===== PATCH 11.26: 统一原始 JSON 区背景（避免白色块） ===== */
+  .raw-json-panel textarea,
+  #rawJson {
+    background-color: transparent; /* 不再是白底 */
+    color: var(--text-main);       /* 文本颜色跟右侧卡片保持一致 */
+  }
+
 /* ===== [ANCHOR ADD · 手机端主面板兜底位移（JS 拿不到宽度时）] ===== */
 @media (max-width: 900px){
   .main-panel.move-left  { transform: translateX(-320px); transition: transform .25s ease; }
@@ -3335,18 +3343,24 @@ function renderAgentInfo(agentObj) {
   `;
 }
 // ===== [PATCH ADD · 健康面板挂载] =====
-function ensureHealthPanelMount() { 
+function ensureHealthPanelMount() {
   if (!el.rawJsonBody) return null;
+
   let box = document.getElementById("healthInfoBox");
   if (!box) {
     box = document.createElement("div");
     box.id = "healthInfoBox";
     box.style.cssText =
-      "margin-bottom:8px;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;background-color:transparent;";
-    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild); // 放在最上面（在 AgentInfo 之上）
+      "margin-bottom:8px;" +
+      "border:1px dashed #cbd5e1;" +
+      "border-radius:8px;" +
+      "padding:8px;" +
+      "background-color:transparent;"; // 关键：改成透明，跟外层同色
+    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild);
   }
   return box;
 }
+
 
 
 
@@ -3528,6 +3542,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
