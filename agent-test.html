@@ -4,6 +4,19 @@
   <meta charset="UTF-8" />
   <title>Agent Worker 测试面板</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- 锚点：紧跟在现有的 <meta name="viewport" ...> 之后、</head> 之前 -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  connect-src 'self';
+  img-src 'self' data:;
+  style-src 'self' 'unsafe-inline';
+  script-src 'self' https://static.cloudflareinsights.com 'unsafe-inline';
+  font-src 'self' data:;
+  base-uri 'self';
+  form-action 'self';
+">
+  <!-- 如需临时允许 Cloud Run 做健康检查，把上面 connect-src 改为这行（去掉注释）：
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
   connect-src 'self' https://*.run.app https://agent.mefans.workers.dev;
@@ -15,7 +28,7 @@
   base-uri 'self';
   form-action 'self';
 ">
-
+-->
   
 <style>
   :root {
@@ -1083,6 +1096,45 @@
     justify-content: center !important;
   }
   /* ===== PATCH END ===== */
+
+    /* === PATCH: 让原始 JSON 区域背景与右侧卡片一致 === */
+.insight-card .raw-json-body,
+.insight-card .raw-json-pre,
+.insight-card .raw-json-placeholder {
+  background: inherit;
+  color: inherit;
+}
+
+/* 细节优化：去掉白底、保留 padding/圆角/滚动 */
+.insight-card .raw-json-pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  overflow: auto;
+  white-space: pre;         /* 如果希望自动换行可改为 pre-wrap */
+  line-height: 1.6;
+  /* 可选：给 JSON 增加一层轻微边界感（跟你的卡片风格相近即可） */
+  /* border: 1px solid var(--border-subtle); */
+}
+
+    
+    /* ===== [ANCHOR ADD · Agent trace 展示样式] ===== */
+.agent-trace-summary{
+  margin:8px 0 4px; padding:8px; border:1px solid #e5e7eb; border-radius:8px;
+  background:#f9fafb; font-size:12px; color:#4b5563; cursor:pointer;
+}
+.agent-trace-detail{
+  display:none; white-space:pre-wrap; font:12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background:#fff; border:1px dashed #e5e7eb; border-radius:8px; padding:8px; color:#374151;
+}
+.agent-trace-detail.open{ display:block; }
+
+/* ===== [ANCHOR ADD · 手机端主面板兜底位移（JS 拿不到宽度时）] ===== */
+@media (max-width: 900px){
+  .main-panel.move-left  { transform: translateX(-320px); transition: transform .25s ease; }
+  .main-panel.move-right { transform: translateX( 280px); transition: transform .25s ease; }
+}
+
 </style>
 
   
@@ -3468,6 +3520,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
