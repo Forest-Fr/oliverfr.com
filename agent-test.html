@@ -3331,8 +3331,28 @@ function renderAgentInfo(agentObj) {
     clearAgentInfo();
     return;
   }
+
   const box = ensureAgentInfoMount();
   if (!box) return;
+
+  // ===== PATCH: 将“智能体执行摘要”背景改成与“运行健康”一致 =====
+  try {
+    const healthBox = document.getElementById("healthInfoBox");
+    if (healthBox) {
+      const cs = window.getComputedStyle(healthBox);
+      if (cs) {
+        // 只同步外观相关，避免破坏挂载位置
+        box.style.background = cs.background || cs.backgroundColor || "";
+        box.style.backgroundColor = cs.backgroundColor || "";
+        box.style.border = cs.border || box.style.border;
+        box.style.borderRadius = cs.borderRadius || box.style.borderRadius;
+        box.style.padding = cs.padding || box.style.padding;
+      }
+    }
+  } catch (e) {
+    console.warn("sync AgentInfo box style failed:", e);
+  }
+  // ===== PATCH END =====
 
   const traceId = agentObj.trace_id || "-";
   const gatewayTrace = agentObj._gateway_trace_id || "-";           // ★ 新增
@@ -3364,6 +3384,7 @@ function renderAgentInfo(agentObj) {
   `;
 }
 // ===== [PATCH ADD · 健康面板挂载] =====
+
 /*function ensureHealthPanelMount() {
   if (!el.rawJsonBody) return null;
 
@@ -3596,6 +3617,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
