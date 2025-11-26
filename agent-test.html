@@ -52,6 +52,10 @@
     --sidebar-width: 280px;
     --insight-width: 320px;
   }
+   /* ===== PATCH: 修复原始 JSON 区域背景 ===== */
+    #rawJsonBody {
+      background-color: transparent; /* 让它直接透出右侧卡片的底色 */
+    }
 
   * {
     box-sizing: border-box;
@@ -3337,18 +3341,13 @@ function ensureHealthPanelMount() {
   if (!box) {
     box = document.createElement("div");
     box.id = "healthInfoBox";
-    // 背景从 #f8fafc 改为 transparent，其他保持不变
     box.style.cssText =
-      "margin-bottom:8px;" +
-      "border:1px dashed #cbd5e1;" +
-      "border-radius:8px;" +
-      "padding:8px;" +
-      "background:transparent;";
-    // 放在最上面（在 AgentInfo 之上）
-    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild);
+      "margin-bottom:8px;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;background-color:transparent;";
+    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild); // 放在最上面（在 AgentInfo 之上）
   }
   return box;
 }
+
 
 
 // ===== [PATCH ADD · 健康面板渲染] =====
@@ -3529,6 +3528,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
