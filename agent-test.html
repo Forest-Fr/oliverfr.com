@@ -1148,6 +1148,19 @@
     background-color: transparent !important; /* 覆盖 inline 白底 */
   }
 
+/* ===== PATCH: 原始返回 / 智能体摘要 / 运行健康 背景统一 ===== */
+/* 1）原始 JSON 内容区域（包括「智能体执行摘要 (Agent Mode)」） */
+[data-insight-raw-body],
+[data-insight-raw-body] * {
+  /* 强制去掉所有子节点自己的白色 / 浅灰背景，统一透到底层深色卡片 */
+  background-color: transparent !important;
+}
+
+/* 2）健康信息盒子（运行健康 + 可能的其他小块） */
+#healthInfoBox,
+#healthInfoBox * {
+  background-color: transparent !important;
+}
 
     
 /* ===== [ANCHOR ADD · 手机端主面板兜底位移（JS 拿不到宽度时）] ===== */
@@ -3583,6 +3596,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
