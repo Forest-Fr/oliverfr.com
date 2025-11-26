@@ -1539,6 +1539,9 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
           // ===== PATCH BEGIN: 初始化 Agent 模式 UI 状态 / Step 4.1 =====
         currentUserId = getOrInitUserId();
         applyModeUiState();
+        // [INSERT after applyModeUiState();]
+await refreshHealthPanel();
+
         // ===== PATCH END =====
       } catch (err) {
         showFatalError(err);
@@ -2456,6 +2459,9 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
           currentMode === MODE_AGENT_DEVOPS
             ? "就绪：调用 Agent Runtime 智能体。"
             : "就绪：调用 Cloudflare Worker 智能体。";
+        // [APPEND at end of applyModeUiState()]
+refreshHealthPanel().catch(() => {});
+
       }
     }
     // ===== PATCH END =====
@@ -3228,6 +3234,7 @@ function clearAgentInfo() {
   if (box && box.parentNode) box.parentNode.removeChild(box);
 }
 
+// ===== [PATCH REPLACE · renderAgentInfo：加入 gateway_trace_id、健壮化] =====
 function renderAgentInfo(agentObj) {
   // 判定是否像 Agent 响应：有 reply 且有 trace/agent/env 或 state_snapshot 等字段
   const looksLikeAgent =
@@ -3242,13 +3249,14 @@ function renderAgentInfo(agentObj) {
   if (!box) return;
 
   const traceId = agentObj.trace_id || "-";
+  const gatewayTrace = agentObj._gateway_trace_id || "-";           // ★ 新增
   const agent = agentObj.agent || "-";
   const env = agentObj.env || "-";
   const taskType = agentObj?.state_snapshot?.task_type || "-";
 
   const nodes = Array.isArray(agentObj.nodes_executed) ? agentObj.nodes_executed : [];
   const tools = Array.isArray(agentObj.tools_used) ? agentObj.tools_used : [];
-  const cost = agentObj.cost || {};
+  const cost  = agentObj.cost || {};
 
   const costLine = [
     "prompt=" + (cost.tokens_prompt ?? "-"),
@@ -3260,6 +3268,7 @@ function renderAgentInfo(agentObj) {
   box.innerHTML = `
     <div style="font-weight:600;margin-bottom:6px;">智能体执行摘要（Agent Mode）</div>
     <div><strong>trace_id：</strong>${traceId}</div>
+    <div><strong>gateway_trace_id：</strong>${gatewayTrace}</div>   <!-- ★ 新增 -->
     <div><strong>agent：</strong>${agent}</div>
     <div><strong>env：</strong>${env}</div>
     <div><strong>task_type：</strong>${taskType}</div>
@@ -3268,6 +3277,68 @@ function renderAgentInfo(agentObj) {
     <div style="margin-top:2px;"><strong>Token & 成本：</strong>${costLine}</div>
   `;
 }
+// ===== [PATCH ADD · 健康面板挂载] =====
+function ensureHealthPanelMount() {
+  if (!el.rawJsonBody) return null;
+  let box = document.getElementById("healthInfoBox");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "healthInfoBox";
+    box.style.cssText = "margin-bottom:8px;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;background:#f8fafc;";
+    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild); // 放在最上面（在 AgentInfo 之上）
+  }
+  return box;
+}
+
+// ===== [PATCH ADD · 健康面板渲染] =====
+function renderHealthPanel(workerHealth, debugHealth) {
+  const box = ensureHealthPanelMount();
+  if (!box) return;
+
+  // 解析 Worker /health
+  const wh = workerHealth || {};
+  const wStatus   = wh.status || wh.worker?.status || "-";
+  const wEnv      = wh.env || wh.worker?.env || "-";
+  const tokenParam = wh.token_param || (debugHealth && debugHealth.token_param) || "-";
+  const allowOrigins = Array.isArray(wh.allow_origins) ? wh.allow_origins.join(", ") : "-";
+
+  // 解析 /debug-health 中转到 Cloud Run 的结果
+  const dh = debugHealth || {};
+  const rt = dh.runtime || {};
+  const rtStatus = rt.status ?? "-";
+  const rtUrl    = rt.url || "-";
+  const body     = rt.body || {};
+  const graphOk  = (body && (body.graph_init_ok === true)) ? "true" : "false";
+
+  box.innerHTML = `
+    <div style="font-weight:600;margin-bottom:6px;">运行健康（Worker & Cloud Run）</div>
+    <div><strong>worker.status：</strong>${wStatus}</div>
+    <div><strong>worker.env：</strong>${wEnv}</div>
+    <div><strong>token_param：</strong>${tokenParam}</div>
+    <div><strong>allow_origins：</strong>${allowOrigins}</div>
+    <div style="margin-top:6px;"><strong>cloudrun.health：</strong>${rtStatus}（${rtUrl}）</div>
+    <div><strong>graph_init_ok：</strong>${graphOk}</div>
+  `;
+}
+
+// ===== [PATCH ADD · 拉取 /health & /debug-health 并渲染] =====
+async function refreshHealthPanel() {
+  try {
+    const base = new URL(WORKER_ENDPOINT, window.location.origin);   // 如 /agent/
+    const u1 = new URL("health", base).toString();
+    const u2 = new URL("debug-health", base).toString();
+
+    const [h1, h2] = await Promise.all([
+      fetch(u1, { credentials: "omit" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(u2, { credentials: "omit" }).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+
+    renderHealthPanel(h1, h2);
+  } catch {
+    // 静默：不影响主流程
+  }
+}
+
 
 // ===== [PATCH REPLACE · Step 4.2.3 · updateRawJson：联动智能体信息面板] =====
 function updateRawJson(text) {
@@ -3397,6 +3468,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
