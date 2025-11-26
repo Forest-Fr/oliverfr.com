@@ -3330,17 +3330,25 @@ function renderAgentInfo(agentObj) {
   `;
 }
 // ===== [PATCH ADD · 健康面板挂载] =====
-function ensureHealthPanelMount() {
+function ensureHealthPanelMount() { 
   if (!el.rawJsonBody) return null;
   let box = document.getElementById("healthInfoBox");
   if (!box) {
     box = document.createElement("div");
     box.id = "healthInfoBox";
-    box.style.cssText = "margin-bottom:8px;border:1px dashed #cbd5e1;border-radius:8px;padding:8px;background:#f8fafc;";
-    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild); // 放在最上面（在 AgentInfo 之上）
+    // 背景从 #f8fafc 改为 transparent，其他保持不变
+    box.style.cssText =
+      "margin-bottom:8px;" +
+      "border:1px dashed #cbd5e1;" +
+      "border-radius:8px;" +
+      "padding:8px;" +
+      "background:transparent;";
+    // 放在最上面（在 AgentInfo 之上）
+    el.rawJsonBody.insertBefore(box, el.rawJsonBody.firstChild);
   }
   return box;
 }
+
 
 // ===== [PATCH ADD · 健康面板渲染] =====
 function renderHealthPanel(workerHealth, debugHealth) {
@@ -3520,6 +3528,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
