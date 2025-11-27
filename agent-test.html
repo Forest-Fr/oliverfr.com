@@ -2568,106 +2568,116 @@ refreshHealthPanel().catch(() => {});
       };
     }
 
+// ===== PATCH REPLACE · extractRuntimeMetaFromAgentResponse：补充 debug.timings_ms =====
 function extractRuntimeMetaFromAgentResponse(data) {
-      if (!data || typeof data !== "object") return null;
+  if (!data || typeof data !== "object") return null;
 
-      // 1）runtime 主体：优先 runtime / agent_runtime
-      const rt =
-        (data.runtime && typeof data.runtime === "object" && data.runtime) ||
-        (data.agent_runtime && typeof data.agent_runtime === "object" && data.agent_runtime) ||
-        null;
+  // 1）runtime 主体：优先 runtime / agent_runtime
+  const rt =
+    (data.runtime && typeof data.runtime === "object" && data.runtime) ||
+    (data.agent_runtime && typeof data.agent_runtime === "object" && data.agent_runtime) ||
+    null;
 
-      // 如果连 runtime 容器都没有，尽量从顶层抽一点基础信息，避免返回 null
-      if (!rt) {
-        return {
-          graphVersion: data.graph_version || data.graphVersion || null,
-          taskType: data.task_type || data.taskType || null,
-          traceId: data.trace_id || data.traceId || data._gateway_trace_id || null,
-          nodeCount: 0,
-          toolCount: 0,
-          ragHits: 0,
-          rawNodes: [],
-          rawTools: [],
-          rawRag: null,
-        };
-      }
+  // 可选：调试信息容器
+  const debug =
+    data.debug && typeof data.debug === "object" ? data.debug : null;
 
-      // 2）节点/步骤：nodes / nodes_executed / steps / flow
-      const nodesRaw =
-        rt.nodes_executed ||
-        rt.nodes ||
-        rt.steps ||
-        rt.flow ||
-        null;
-      const nodes = Array.isArray(nodesRaw) ? nodesRaw : [];
+  // 2）节点/步骤：nodes / nodes_executed / steps / flow
+  const nodesRaw =
+    rt && (
+      rt.nodes_executed ||
+      rt.nodes ||
+      rt.steps ||
+      rt.flow
+    );
+  const nodes = Array.isArray(nodesRaw) ? nodesRaw : [];
 
-      // 3）工具调用：tools / tools_used / tool_calls
-      const toolsRaw =
-        rt.tools ||
-        rt.tools_used ||
-        rt.tool_calls ||
-        null;
-      const tools = Array.isArray(toolsRaw) ? toolsRaw : [];
+  // 3）工具调用：tools / tools_used / tool_calls
+  const toolsRaw =
+    rt && (
+      rt.tools ||
+      rt.tools_used ||
+      rt.tool_calls
+    );
+  const tools = Array.isArray(toolsRaw) ? toolsRaw : [];
 
-      // 4）RAG 统计：rag / rag_stats / rag_status
-      const rag =
-        (rt.rag && typeof rt.rag === "object" && rt.rag) ||
-        (rt.rag_stats && typeof rt.rag_stats === "object" && rt.rag_stats) ||
-        (rt.rag_status && typeof rt.rag_status === "object" && rt.rag_status) ||
-        null;
+  // 4）RAG 统计：rag / rag_stats / rag_status
+  const rag =
+    rt &&
+    (
+      (rt.rag && typeof rt.rag === "object" && rt.rag) ||
+      (rt.rag_stats && typeof rt.rag_stats === "object" && rt.rag_stats) ||
+      (rt.rag_status && typeof rt.rag_status === "object" && rt.rag_status)
+    ) ||
+    null;
 
-      let ragHits = 0;
-      if (rag) {
-        // 常见几种命名：hits_count / hits / top_k / docs[]
-        if (typeof rag.hits_count === "number") {
-          ragHits = rag.hits_count;
-        } else if (typeof rag.hits === "number") {
-          ragHits = rag.hits;
-        } else if (typeof rag.top_k === "number") {
-          ragHits = rag.top_k;
-        } else if (Array.isArray(rag.docs)) {
-          ragHits = rag.docs.length;
-        }
-      }
-
-      // 5）graphVersion：runtime.graph_version / runtime.graphVersion / 顶层同名
-      const graphVersion =
-        rt.graph_version ||
-        rt.graphVersion ||
-        data.graph_version ||
-        data.graphVersion ||
-        null;
-
-      // 6）taskType：runtime.task_type / runtime.taskType / 顶层同名
-      const taskType =
-        rt.task_type ||
-        rt.taskType ||
-        data.task_type ||
-        data.taskType ||
-        null;
-
-      // 7）traceId：runtime.trace_id / runtime.traceId / 顶层 trace_id / _gateway_trace_id
-      const traceId =
-        rt.trace_id ||
-        rt.traceId ||
-        data.trace_id ||
-        data.traceId ||
-        data._gateway_trace_id ||
-        null;
-
-      // 返回结构保持与原函数完全一致，调用方无需改动
-      return {
-        graphVersion,
-        taskType,
-        traceId,
-        nodeCount: Array.isArray(nodes) ? nodes.length : 0,
-        toolCount: Array.isArray(tools) ? tools.length : 0,
-        ragHits,
-        rawNodes: nodes,
-        rawTools: tools,
-        rawRag: rag,
-      };
+  let ragHits = 0;
+  if (rag) {
+    if (typeof rag.hits_count === "number") {
+      ragHits = rag.hits_count;
+    } else if (typeof rag.hits === "number") {
+      ragHits = rag.hits;
+    } else if (typeof rag.top_k === "number") {
+      ragHits = rag.top_k;
+    } else if (Array.isArray(rag.docs)) {
+      ragHits = rag.docs.length;
     }
+  }
+
+  // 5）graphVersion：runtime.graph_version / runtime.graphVersion / 顶层同名
+  const graphVersion =
+    (rt && (rt.graph_version || rt.graphVersion)) ||
+    data.graph_version ||
+    data.graphVersion ||
+    null;
+
+  // 6）taskType：runtime.task_type / runtime.taskType / 顶层同名
+  const taskType =
+    (rt && (rt.task_type || rt.taskType)) ||
+    data.task_type ||
+    data.taskType ||
+    null;
+
+  // 7）traceId：runtime.trace_id / runtime.traceId / 顶层 trace_id / _gateway_trace_id
+  const traceId =
+    (rt && (rt.trace_id || rt.traceId)) ||
+    data.trace_id ||
+    data.traceId ||
+    data._gateway_trace_id ||
+    null;
+
+  // 8）服务端耗时：debug.timings_ms.total（如果有）
+  let serverTotalMs = null;
+  let serverTimings = null;
+  if (debug) {
+    const t =
+      (debug.timings_ms && typeof debug.timings_ms === "object" && debug.timings_ms) ||
+      (debug.timingsMs && typeof debug.timingsMs === "object" && debug.timingsMs) ||
+      null;
+    if (t) {
+      if (typeof t.total === "number") {
+        serverTotalMs = t.total;
+      }
+      serverTimings = t;
+    }
+  }
+
+  // 返回结构在原有基础上，只是多了 serverTotalMs / serverTimings 两个字段
+  return {
+    graphVersion,
+    taskType,
+    traceId,
+    nodeCount: Array.isArray(nodes) ? nodes.length : 0,
+    toolCount: Array.isArray(tools) ? tools.length : 0,
+    ragHits,
+    rawNodes: nodes,
+    rawTools: tools,
+    rawRag: rag,
+    serverTotalMs,
+    serverTimings,
+  };
+}
+
     // ===== PATCH END =====
     // ===== PATCH BEGIN: 统一调用后端（直连 Worker / Agent Runtime） =====
 // ===== [PATCH REPLACE · Step 4.2.2 · 统一后端调用（附带 agentRaw）] =====
@@ -2956,13 +2966,14 @@ async function callBackendWithMode(userText) {
         runtimeMeta: runtimeMeta || null,
       };
 
-      if (ok) {
-        updateCallOverviewSuccess(
-          typeof durationMs === "number" ? durationMs : 0,
-          modelName,
-          usage || null
-        );
-      } else {
+    if (overview.ok) {
+  updateCallOverviewSuccess(
+    typeof overview.durationMs === "number" ? overview.durationMs : 0,
+    modelName,
+    usage,
+    overview.runtimeMeta || null        // ★ 新增：会话里保存过的 runtimeMeta
+  );
+} else {
         updateCallOverviewError(
           status || "-",
           typeof durationMs === "number" ? durationMs : null,
@@ -3259,31 +3270,52 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
       el.ovCompletionTokens.textContent = ct;
       el.ovTotalTokens.textContent = tt;
     }*/
-    function updateCallOverviewSuccess(durationMs, modelName, usage) {
-      el.ovDuration.textContent = `${durationMs.toFixed(0)} ms`;
+  // ===== PATCH REPLACE · updateCallOverviewSuccess：加入 serverTotalMs =====
+function updateCallOverviewSuccess(durationMs, modelName, usage, runtimeMeta) {
+  // 前端测得的总耗时
+  const clientMs =
+    typeof durationMs === "number" && Number.isFinite(durationMs)
+      ? durationMs
+      : 0;
 
-      const pill = document.createElement("span");
-      pill.className = "call-status-pill";
-      pill.innerHTML = '<span class="call-status-dot"></span> 成功';
-      el.ovStatus.innerHTML = "";
-      el.ovStatus.appendChild(pill);
+  // 若有服务端 graph 总耗时，则一起显示
+  let durationLabel = `${clientMs.toFixed(0)} ms`;
+  if (
+    runtimeMeta &&
+    typeof runtimeMeta.serverTotalMs === "number" &&
+    Number.isFinite(runtimeMeta.serverTotalMs)
+  ) {
+    durationLabel = `${clientMs.toFixed(0)} ms / srv≈${runtimeMeta.serverTotalMs.toFixed(
+      0
+    )} ms`;
+  }
 
-      const modelText = modelName || "gpt-5-mini";
-      el.ovModel.textContent = modelText;
-      if (el.currentModelLabel) {
-        el.currentModelLabel.textContent = modelText;
-      }
+  el.ovDuration.textContent = durationLabel;
 
-      const pt = (usage && (usage.prompt_tokens || usage.promptTokens)) || "-";
-      const ct =
-        (usage && (usage.completion_tokens || usage.completionTokens)) || "-";
-      const tt = (usage && (usage.total_tokens || usage.totalTokens)) || "-";
-      el.ovPromptTokens.textContent = pt;
-      el.ovCompletionTokens.textContent = ct;
-      el.ovTotalTokens.textContent = tt;
+  const pill = document.createElement("span");
+  pill.className = "call-status-pill";
+  pill.innerHTML = '<span class="call-status-dot"></span> 成功';
+  el.ovStatus.innerHTML = "";
+  el.ovStatus.appendChild(pill);
 
-      applyModeUiState();
-    }
+  const modelText = modelName || "gpt-5-mini";
+  el.ovModel.textContent = modelText;
+  if (el.currentModelLabel) {
+    el.currentModelLabel.textContent = modelText;
+  }
+
+  const pt = (usage && (usage.prompt_tokens || usage.promptTokens)) || "-";
+  const ct =
+    (usage && (usage.completion_tokens || usage.completionTokens)) || "-";
+  const tt = (usage && (usage.total_tokens || usage.totalTokens)) || "-";
+  el.ovPromptTokens.textContent = pt;
+  el.ovCompletionTokens.textContent = ct;
+  el.ovTotalTokens.textContent = tt;
+
+  // 保持原有 UI 同步逻辑
+  applyModeUiState();
+}
+
 
     function updateCallOverviewError(status, durationMs, usage) {
       el.ovDuration.textContent =
@@ -3321,11 +3353,16 @@ function clearAgentInfo() {
 }
 
 // ===== [PATCH REPLACE · renderAgentInfo：加入 gateway_trace_id、健壮化] =====
+// ===== [PATCH REPLACE · renderAgentInfo：加入 gateway_trace_id + graph 耗时] =====
 function renderAgentInfo(agentObj) {
   // 判定是否像 Agent 响应：有 reply 且有 trace/agent/env 或 state_snapshot 等字段
   const looksLikeAgent =
-    agentObj && typeof agentObj === "object" &&
-    (typeof agentObj.reply === "string" || agentObj.state_snapshot || agentObj.trace_id || agentObj.agent);
+    agentObj &&
+    typeof agentObj === "object" &&
+    (typeof agentObj.reply === "string" ||
+      agentObj.state_snapshot ||
+      agentObj.trace_id ||
+      agentObj.agent);
 
   if (!looksLikeAgent) {
     clearAgentInfo();
@@ -3335,13 +3372,12 @@ function renderAgentInfo(agentObj) {
   const box = ensureAgentInfoMount();
   if (!box) return;
 
-  // ===== PATCH: 将“智能体执行摘要”背景改成与“运行健康”一致 =====
+  // === 1）统一外观：背景与「运行健康」一致 ===
   try {
     const healthBox = document.getElementById("healthInfoBox");
     if (healthBox) {
       const cs = window.getComputedStyle(healthBox);
       if (cs) {
-        // 只同步外观相关，避免破坏挂载位置
         box.style.background = cs.background || cs.backgroundColor || "";
         box.style.backgroundColor = cs.backgroundColor || "";
         box.style.border = cs.border || box.style.border;
@@ -3352,37 +3388,65 @@ function renderAgentInfo(agentObj) {
   } catch (e) {
     console.warn("sync AgentInfo box style failed:", e);
   }
-  // ===== PATCH END =====
 
+  // === 2）基础字段 ===
   const traceId = agentObj.trace_id || "-";
-  const gatewayTrace = agentObj._gateway_trace_id || "-";           // ★ 新增
+  const gatewayTrace = agentObj._gateway_trace_id || "-";
   const agent = agentObj.agent || "-";
   const env = agentObj.env || "-";
   const taskType = agentObj?.state_snapshot?.task_type || "-";
 
   const nodes = Array.isArray(agentObj.nodes_executed) ? agentObj.nodes_executed : [];
   const tools = Array.isArray(agentObj.tools_used) ? agentObj.tools_used : [];
-  const cost  = agentObj.cost || {};
+  const cost = agentObj.cost || {};
 
   const costLine = [
     "prompt=" + (cost.tokens_prompt ?? "-"),
     "completion=" + (cost.tokens_completion ?? "-"),
     "total=" + (cost.total_tokens ?? "-"),
-    "usd≈" + (typeof cost.usd_estimate === "number" ? cost.usd_estimate.toFixed(6) : "-")
+    "usd≈" +
+      (typeof cost.usd_estimate === "number"
+        ? cost.usd_estimate.toFixed(6)
+        : "-"),
   ].join("，");
 
+  // === 3）Graph 耗时：来自 debug.timings_ms.total（若存在） ===
+  const debug =
+    agentObj && typeof agentObj.debug === "object" ? agentObj.debug : null;
+  let serverTotal = null;
+  if (debug) {
+    const t =
+      (debug.timings_ms && typeof debug.timings_ms === "object" && debug.timings_ms) ||
+      (debug.timingsMs && typeof debug.timingsMs === "object" && debug.timingsMs) ||
+      null;
+    if (t && typeof t.total === "number" && Number.isFinite(t.total)) {
+      serverTotal = t.total;
+    }
+  }
+  const serverTotalLabel =
+    typeof serverTotal === "number" ? `${serverTotal.toFixed(0)} ms` : "-";
+
+  // === 4）渲染到右侧卡片 ===
   box.innerHTML = `
     <div style="font-weight:600;margin-bottom:6px;">智能体执行摘要（Agent Mode）</div>
     <div><strong>trace_id：</strong>${traceId}</div>
-    <div><strong>gateway_trace_id：</strong>${gatewayTrace}</div>   <!-- ★ 新增 -->
+    <div><strong>gateway_trace_id：</strong>${gatewayTrace}</div>
     <div><strong>agent：</strong>${agent}</div>
     <div><strong>env：</strong>${env}</div>
     <div><strong>task_type：</strong>${taskType}</div>
-    <div style="margin-top:6px;"><strong>执行节点：</strong>${nodes.length ? nodes.join(" → ") : "-"}</div>
-    <div style="margin-top:2px;"><strong>工具调用：</strong>${tools.length ? tools.map(t => (t?.name || t?.type || "tool")).join("，") : "-"}</div>
+    <div style="margin-top:6px;"><strong>执行节点：</strong>${
+      nodes.length ? nodes.join(" → ") : "-"
+    }</div>
+    <div style="margin-top:2px;"><strong>工具调用：</strong>${
+      tools.length
+        ? tools.map((t) => (t?.name || t?.type || "tool")).join("，")
+        : "-"
+    }</div>
     <div style="margin-top:2px;"><strong>Token & 成本：</strong>${costLine}</div>
+    <div style="margin-top:2px;"><strong>Graph 耗时：</strong>${serverTotalLabel}</div>
   `;
 }
+
 // ===== [PATCH ADD · 健康面板挂载] =====
 
 /*function ensureHealthPanelMount() {
@@ -3615,6 +3679,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
