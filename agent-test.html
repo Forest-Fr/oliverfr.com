@@ -2955,7 +2955,7 @@ async function callBackendWithMode(userText) {
          agentRaw, // ★ 新增
       } = result;
 
-      lastRawResponse = rawResponse || "";
+         lastRawResponse = rawResponse || "";
       lastOverview = {
         ok,
         status,
@@ -2966,21 +2966,26 @@ async function callBackendWithMode(userText) {
         runtimeMeta: runtimeMeta || null,
       };
 
-    if (overview.ok) {
-  updateCallOverviewSuccess(
-    typeof overview.durationMs === "number" ? overview.durationMs : 0,
-    modelName,
-    usage,
-    overview.runtimeMeta || null        // ★ 新增：会话里保存过的 runtimeMeta
-  );
-} else {
+      // ★ 用 lastOverview，而不是不存在的 overview，顺便把 runtimeMeta 传给概览
+      if (lastOverview.ok) {
+        updateCallOverviewSuccess(
+          typeof lastOverview.durationMs === "number"
+            ? lastOverview.durationMs
+            : 0,
+          modelName,
+          usage,
+          lastOverview.runtimeMeta || null
+        );
+      } else {
         updateCallOverviewError(
           status || "-",
           typeof durationMs === "number" ? durationMs : null,
           usage || null
         );
       }
+
       updateRawJson(rawResponse || "");
+
 
       if (!ok) {
         if (status === "network_error") {
@@ -3679,6 +3684,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
