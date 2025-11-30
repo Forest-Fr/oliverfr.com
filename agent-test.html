@@ -2689,26 +2689,30 @@ async function callBackendWithMode(userText) {
   let modelName = "gpt-5-mini";
   let usage = null;
   let runtimeMeta = null;
-  let agentRaw = null;   // ★ 新增：返回解析后的 Agent 原始对象
+  let agentRaw = null;
   let status = 0;
   let ok = false;
 
   try {
     if (currentMode === MODE_AGENT_DEVOPS) {
       const payload = buildAgentPayload(userText);
-     // const res = await fetch(AGENT_ENDPOINT, {
-      //11.25统一后端调用里替换一行 fetch 目标
       const res = await fetch(resolveAgentEndpoint(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       durationMs = performance.now() - start;
       status = res.status;
       const text = await res.text();
       rawResponse = text;
 
       if (!res.ok) {
+        // ⭐ 关键：把 agent 端的错误体打给你看
+        console.error(
+          "[Agent /api/agent] HTTP", status,
+          "body:", text.slice(0, 1000)  // 避免太长
+        );
         return { ok: false, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
       }
 
@@ -2716,7 +2720,7 @@ async function callBackendWithMode(userText) {
       try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
 
       if (data) {
-        agentRaw = data; // ★ 关键：把完整 JSON 保留，给右侧面板和消息 meta 用
+        agentRaw = data;
         replyText = data.reply || data.output || "";
         modelName = data.model || (data.runtime && data.runtime.model_profile) || modelName;
         usage = data.usage || (data.cost && data.cost.usage) || null;
@@ -2726,18 +2730,24 @@ async function callBackendWithMode(userText) {
       ok = true;
       return { ok, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
     } else {
-      // 直连 Worker：保持原逻辑
+      // ⭐ 直连 Worker
       const res = await fetch(WORKER_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input: userText }),
       });
+
       durationMs = performance.now() - start;
       status = res.status;
       const text = await res.text();
       rawResponse = text;
 
       if (!res.ok) {
+        // ⭐ 关键：把 Worker 的错误体打给你看
+        console.error(
+          "[Worker /agent/] HTTP", status,
+          "body:", text.slice(0, 1000)
+        );
         return { ok: false, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
       }
 
@@ -2756,6 +2766,7 @@ async function callBackendWithMode(userText) {
   } catch (err) {
     durationMs = performance.now() - start;
     rawResponse = String(err || "Unknown error");
+    console.error("[Backend] 网络异常:", err);
     return {
       ok: false,
       status: "network_error",
@@ -2769,6 +2780,7 @@ async function callBackendWithMode(userText) {
     };
   }
 }
+
 
     // ===== PATCH END =====
   
@@ -3322,22 +3334,30 @@ function updateCallOverviewSuccess(durationMs, modelName, usage, runtimeMeta) {
 }
 
 
-    function updateCallOverviewError(status, durationMs, usage) {
-      el.ovDuration.textContent =
-        typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
+  function updateCallOverviewError(status, durationMs, usage) {
+  el.ovDuration.textContent =
+    typeof durationMs === "number" ? `${durationMs.toFixed(0)} ms` : "-";
 
-      const pill = document.createElement("span");
-      pill.className = "call-status-pill error";
-      pill.innerHTML = `<span class="call-status-dot"></span> 失败（${status}）`;
-      el.ovStatus.innerHTML = "";
-      el.ovStatus.appendChild(pill);
+  let hint = "";
+  if (status === 502 || status === "502") {
+    hint = "（通常是 Worker 崩溃 / 未捕获异常）";
+  } else if (status === 500 || status === "500") {
+    hint = "（后端服务返回 500，检查 Cloud Run / OpenAI）";
+  } else if (status === "network_error") {
+    hint = "（浏览器到站点网络异常）";
+  }
 
-      if (!usage) {
-        el.ovPromptTokens.textContent = "-";
-        el.ovCompletionTokens.textContent = "-";
-        el.ovTotalTokens.textContent = "-";
-      }
-    }
+  const pill = document.createElement("span");
+  pill.className = "call-status-pill error";
+  pill.innerHTML = `<span class="call-status-dot"></span> 失败（${status}）${hint}`;
+  el.ovStatus.innerHTML = "";
+  el.ovStatus.appendChild(pill);
+
+  el.ovPromptTokens.textContent = "-";
+  el.ovCompletionTokens.textContent = "-";
+  el.ovTotalTokens.textContent = "-";
+}
+
 // ===== [ADD · Step 4.2.3 · 右侧智能体信息渲染 · 复用 rawJson 面板容器] =====
 function ensureAgentInfoMount() {
   // 复用你现有的右侧 JSON 容器
@@ -3684,6 +3704,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
