@@ -2540,16 +2540,19 @@ await refreshHealthPanel();
       }
 
       // 仅在非发送中时更新提示文案
-      if (el.requestMetaHint && !isSending) {
+       if (el.requestMetaHint && !isSending) {
         el.requestMetaHint.textContent =
           currentMode === MODE_AGENT_DEVOPS
             ? "就绪：调用 Agent Runtime 智能体。"
             : "就绪：调用 Cloudflare Worker 智能体。";
-        // [APPEND at end of applyModeUiState()]
-refreshHealthPanel().catch(() => {});
-
       }
     }
+
+    // ★ 保持原有行为：每次模式/环境切换时，顺带刷新一次运行健康
+    if (typeof refreshHealthPanel === "function") {
+      refreshHealthPanel().catch(() => {});
+    }
+
     // ===== PATCH END =====
     // ===== PATCH BEGIN: Agent payload 组装 & runtime 摘要提取 =====
     function buildAgentPayload(inputText) {
@@ -3560,22 +3563,28 @@ function renderHealthPanel(workerHealth, debugHealth) {
 }
 
 // ===== [PATCH ADD · 拉取 /health & /debug-health 并渲染] =====
+// ===== [PATCH REPLACE · 拉取 /health & /debug-health 并渲染 —— 强制锁到 /agent/* ] =====
 async function refreshHealthPanel() {
   try {
-    const base = new URL(WORKER_ENDPOINT, window.location.origin);   // 如 /agent/
-    const u1 = new URL("health", base).toString();
-    const u2 = new URL("debug-health", base).toString();
+    // 这里不再完全信任 WORKER_ENDPOINT，以防有人误改成其它域名
+    const origin = window.location.origin;
+    const base = new URL("/agent/", origin); // ★ 强制定位到站点下的 /agent/
+
+    const u1 = new URL("health", base).toString();        // => https://oliverfr.com/agent/health
+    const u2 = new URL("debug-health", base).toString();  // => https://oliverfr.com/agent/debug-health
 
     const [h1, h2] = await Promise.all([
-      fetch(u1, { credentials: "omit" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(u2, { credentials: "omit" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(u1, { credentials: "omit" }).then(r => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(u2, { credentials: "omit" }).then(r => (r.ok ? r.json() : null)).catch(() => null),
     ]);
 
     renderHealthPanel(h1, h2);
-  } catch {
+  } catch (e) {
+    console.warn("[health-panel] 刷新运行健康失败：", e);
     // 静默：不影响主流程
   }
 }
+
 
 
 // ===== [PATCH REPLACE · Step 4.2.3 · updateRawJson：联动智能体信息面板] =====
@@ -3704,6 +3713,7 @@ function updateRawJson(text) {
   </script>
 </body>
 </html>
+
 
 
 
