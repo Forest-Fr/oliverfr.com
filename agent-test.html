@@ -1162,6 +1162,14 @@
   background-color: transparent !important;
 }
 
+    /* ===== PATCH: 智能体执行摘要背景统一（去掉白底） ===== */
+#agentInfoBox,
+#agentInfoBox * {
+  background-color: transparent !important;  /* 透出 insight-card 的深色渐变 */
+  color: #e5e7eb !important;                /* 字体颜色跟右侧面板保持一致 */
+  border-color: rgba(148, 163, 184, 0.7) !important; /* 边框稍微深一点，避免看不见 */
+}
+
     
 /* ===== [ANCHOR ADD · 手机端主面板兜底位移（JS 拿不到宽度时）] ===== */
 @media (max-width: 900px){
@@ -1225,6 +1233,58 @@
   */
 
   /* ===== PATCH END ===== */
+/* ===== PATCH: Agent 控制台左侧面板 · 会话列表固定高度 + 内部滚动 ===== */
+
+/* 整个应用的左右布局 */
+.agent-app-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;              /* 左右两侧都铺满视口高度 */
+}
+
+/* 左侧控制面板容器（请对应你现在的左栏容器类名） */
+.agent-sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 280px;                /* 固定宽度，按你现在的侧栏宽度调 */
+  max-width: 320px;
+  min-height: 100vh;              /* 保持整块高度固定，不被内部内容挤压 */
+}
+
+/* 顶部标题 + 新建会话等区域：高度自适应但不参与滚动 */
+.agent-sidebar-header,
+.agent-sidebar-footer {
+  flex: 0 0 auto;
+}
+
+/* 中间聊天记录列表的「容器」：负责占满剩余空间 */
+.agent-sidebar-body {
+  flex: 1 1 auto;
+  min-height: 0;                  /* ★ 关键：允许内部 overflow，不把父元素撑高 */
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 真正放一条条会话的列表元素 */
+.agent-session-list {
+  flex: 1 1 auto;
+  min-height: 0;                  /* ★ 同样为了滚动正常工作 */
+  overflow-y: auto;               /* 只在这里滚动 */
+  padding-right: 4px;             /* 给滚动条留一点空隙 */
+}
+
+/* 单条会话的高度与间距微调一下，避免看起来太「挤」 */
+.agent-session-item {
+  flex: 0 0 auto;
+  margin-bottom: 4px;
+  max-width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+  
 </style>
 
 </head>
@@ -2729,6 +2789,38 @@ async function callBackendWithMode(userText) {
         usage = data.usage || (data.cost && data.cost.usage) || null;
         runtimeMeta = extractRuntimeMetaFromAgentResponse(data);
       }
+      // ===== PATCH ADD: 兼容 AgentResponse.cost 字段（tokens + 费用） =====
+      if (!usage && data.cost && typeof data.cost === "object") {
+        const c = data.cost;
+        usage = {
+          // 支持多种命名：tokens_prompt / prompt_tokens / input_tokens
+          prompt_tokens:
+            (typeof c.tokens_prompt === "number" ? c.tokens_prompt : null) ??
+            (typeof c.prompt_tokens === "number" ? c.prompt_tokens : null) ??
+            (typeof c.input_tokens === "number" ? c.input_tokens : null),
+
+          // 支持：tokens_completion / completion_tokens / output_tokens
+          completion_tokens:
+            (typeof c.tokens_completion === "number" ? c.tokens_completion : null) ??
+            (typeof c.completion_tokens === "number" ? c.completion_tokens : null) ??
+            (typeof c.output_tokens === "number" ? c.output_tokens : null),
+
+          // total_tokens 如果缺失，就用 prompt + completion 兜底
+          total_tokens:
+            (typeof c.total_tokens === "number"
+              ? c.total_tokens
+              : (typeof c.tokens_prompt === "number" &&
+                 typeof c.tokens_completion === "number")
+                ? c.tokens_prompt + c.tokens_completion
+                : null),
+
+          // 费用估算：usd_estimate / usd / estimated_cost_usd
+          usd_estimate:
+            (typeof c.usd_estimate === "number" ? c.usd_estimate : null) ??
+            (typeof c.usd === "number" ? c.usd : null) ??
+            (typeof c.estimated_cost_usd === "number" ? c.estimated_cost_usd : null),
+        };
+      }
 
       ok = true;
       return { ok, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
@@ -3710,9 +3802,150 @@ function updateRawJson(text) {
         syncOverlay();
       });
     })();
+
+    /* ===== PATCH REPLACE · 调用概览渲染（兼容 usage + cost，显示 tokens & cost） ===== */
+
+// 把各种可能的 usage / cost 结构统一成一个简单的 metrics
+function extractUsageMetrics(usage) {
+  const u = usage && typeof usage === "object" ? usage : {};
+
+  function toNum(v) {
+    if (typeof v === "number" && !Number.isNaN(v)) return v;
+    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
+      return Number(v);
+    }
+    return null;
+  }
+
+  const promptTokens =
+    toNum(u.tokens_prompt) ??
+    toNum(u.prompt_tokens) ??
+    toNum(u.input_tokens);
+
+  const completionTokens =
+    toNum(u.tokens_completion) ??
+    toNum(u.completion_tokens) ??
+    toNum(u.output_tokens);
+
+  let totalTokens =
+    toNum(u.total_tokens) ??
+    toNum(u.totalTokens);
+
+  if (totalTokens == null && promptTokens != null && completionTokens != null) {
+    totalTokens = promptTokens + completionTokens;
+  }
+
+  const usdEstimate =
+    toNum(u.usd_estimate) ??
+    toNum(u.usd) ??
+    toNum(u.estimated_cost_usd);
+
+  return { promptTokens, completionTokens, totalTokens, usdEstimate };
+}
+
+function formatDurationMs(ms) {
+  if (typeof ms !== "number" || !Number.isFinite(ms) || ms < 0) return "-";
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const sec = ms / 1000;
+  if (sec < 60) return `${sec.toFixed(2)} s`;
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}m ${s}s`;
+}
+
+function updateCallOverviewSuccess(durationMs, modelName, usage, runtimeMeta) {
+  const metrics = extractUsageMetrics(usage || {});
+  const { promptTokens, completionTokens, totalTokens, usdEstimate } = metrics;
+
+  if (el.ovDuration) {
+    el.ovDuration.textContent = formatDurationMs(durationMs);
+  }
+  if (el.ovModel) {
+    el.ovModel.textContent = modelName || "gpt-5-mini";
+  }
+
+  // 状态 pill：成功 + 可选 task_type 文案
+  if (el.ovStatus) {
+    const taskLabel =
+      runtimeMeta && runtimeMeta.taskType
+        ? `成功 · ${runtimeMeta.taskType}`
+        : "调用成功";
+
+    el.ovStatus.innerHTML = `
+      <span class="call-status-pill">
+        <span class="call-status-dot"></span>
+        ${taskLabel}
+      </span>
+    `;
+  }
+
+  if (el.ovPromptTokens) {
+    el.ovPromptTokens.textContent =
+      promptTokens != null ? String(promptTokens) : "-";
+  }
+  if (el.ovCompletionTokens) {
+    el.ovCompletionTokens.textContent =
+      completionTokens != null ? String(completionTokens) : "-";
+  }
+  if (el.ovTotalTokens) {
+    if (totalTokens != null && usdEstimate != null && usdEstimate > 0) {
+      // 同时展示 tokens 与约算费用
+      el.ovTotalTokens.textContent =
+        `${totalTokens}（≈ $${usdEstimate.toFixed(6)}）`;
+    } else if (totalTokens != null) {
+      el.ovTotalTokens.textContent = String(totalTokens);
+    } else if (usdEstimate != null && usdEstimate > 0) {
+      el.ovTotalTokens.textContent = `≈ $${usdEstimate.toFixed(6)}`;
+    } else {
+      el.ovTotalTokens.textContent = "-";
+    }
+  }
+}
+
+function updateCallOverviewError(status, durationMs, usage) {
+  const metrics = extractUsageMetrics(usage || {});
+  const { promptTokens, completionTokens, totalTokens, usdEstimate } = metrics;
+
+  if (el.ovDuration) {
+    el.ovDuration.textContent = formatDurationMs(durationMs);
+  }
+
+  if (el.ovStatus) {
+    const label = status || "错误";
+    el.ovStatus.innerHTML = `
+      <span class="call-status-pill error">
+        <span class="call-status-dot"></span>
+        失败 · ${label}
+      </span>
+    `;
+  }
+
+  if (el.ovPromptTokens) {
+    el.ovPromptTokens.textContent =
+      promptTokens != null ? String(promptTokens) : "-";
+  }
+  if (el.ovCompletionTokens) {
+    el.ovCompletionTokens.textContent =
+      completionTokens != null ? String(completionTokens) : "-";
+  }
+  if (el.ovTotalTokens) {
+    if (totalTokens != null && usdEstimate != null && usdEstimate > 0) {
+      el.ovTotalTokens.textContent =
+        `${totalTokens}（≈ $${usdEstimate.toFixed(6)}）`;
+    } else if (totalTokens != null) {
+      el.ovTotalTokens.textContent = String(totalTokens);
+    } else if (usdEstimate != null && usdEstimate > 0) {
+      el.ovTotalTokens.textContent = `≈ $${usdEstimate.toFixed(6)}`;
+    } else {
+      el.ovTotalTokens.textContent = "-";
+    }
+  }
+}
+
   </script>
 </body>
 </html>
+
 
 
 
