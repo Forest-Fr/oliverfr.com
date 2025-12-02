@@ -2897,7 +2897,8 @@ async function callBackendWithMode(userText) {
       }
 
       // ===== PATCH ADD: 兼容 AgentResponse.cost 字段（tokens + 费用） =====
-      if (!usage && data.cost && typeof data.cost === "object") {
+      // ===== PATCH ADD: 兼容 AgentResponse.cost 字段（tokens + 费用） =====
+      if (!usage && data && data.cost && typeof data.cost === "object") {
         const c = data.cost;
         usage = {
           // 支持多种命名：tokens_prompt / prompt_tokens / input_tokens
@@ -2928,6 +2929,7 @@ async function callBackendWithMode(userText) {
             (typeof c.estimated_cost_usd === "number" ? c.estimated_cost_usd : null),
         };
       }
+
 
       ok = true;
       return { ok, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
@@ -4123,17 +4125,36 @@ function formatDurationMs(ms) {
 }
 
 function updateCallOverviewSuccess(durationMs, modelName, usage, runtimeMeta) {
+  // 1) 统一 usage / cost，算 tokens + 费用
   const metrics = extractUsageMetrics(usage || {});
   const { promptTokens, completionTokens, totalTokens, usdEstimate } = metrics;
 
-  if (el.ovDuration) {
-    el.ovDuration.textContent = formatDurationMs(durationMs);
-  }
-  if (el.ovModel) {
-    el.ovModel.textContent = modelName || "gpt-5-mini";
+  // 2) 前端测得的总耗时 + 可选的服务端 graph 总耗时
+  const clientLabel = formatDurationMs(durationMs);
+  let durationLabel = clientLabel;
+
+  if (
+    runtimeMeta &&
+    typeof runtimeMeta.serverTotalMs === "number" &&
+    Number.isFinite(runtimeMeta.serverTotalMs)
+  ) {
+    durationLabel = `${clientLabel} / srv≈${runtimeMeta.serverTotalMs.toFixed(0)} ms`;
   }
 
-  // 状态 pill：成功 + 可选 task_type 文案
+  if (el.ovDuration) {
+    el.ovDuration.textContent = durationLabel;
+  }
+
+  // 3) 模型名同步到右侧概览 + 顶部「模型」pill
+  const modelText = modelName || "gpt-5-mini";
+  if (el.ovModel) {
+    el.ovModel.textContent = modelText;
+  }
+  if (el.currentModelLabel) {
+    el.currentModelLabel.textContent = modelText;
+  }
+
+  // 4) 状态 pill：成功 + 可选 task_type
   if (el.ovStatus) {
     const taskLabel =
       runtimeMeta && runtimeMeta.taskType
@@ -4148,6 +4169,7 @@ function updateCallOverviewSuccess(durationMs, modelName, usage, runtimeMeta) {
     `;
   }
 
+  // 5) tokens & cost 展示
   if (el.ovPromptTokens) {
     el.ovPromptTokens.textContent =
       promptTokens != null ? String(promptTokens) : "-";
@@ -4158,7 +4180,6 @@ function updateCallOverviewSuccess(durationMs, modelName, usage, runtimeMeta) {
   }
   if (el.ovTotalTokens) {
     if (totalTokens != null && usdEstimate != null && usdEstimate > 0) {
-      // 同时展示 tokens 与约算费用
       el.ovTotalTokens.textContent =
         `${totalTokens}（≈ $${usdEstimate.toFixed(6)}）`;
     } else if (totalTokens != null) {
@@ -4169,7 +4190,67 @@ function updateCallOverviewSuccess(durationMs, modelName, usage, runtimeMeta) {
       el.ovTotalTokens.textContent = "-";
     }
   }
+
+  // 6) 顺手把右上模式 UI 也同步一下（和你上面一版逻辑保持一致）
+  applyModeUiState();
 }
+
+function updateCallOverviewError(status, durationMs, usage) {
+  // 1) 统一 usage / cost，算 tokens + 费用（有时错误前也会返回 usage）
+  const metrics = extractUsageMetrics(usage || {});
+  const { promptTokens, completionTokens, totalTokens, usdEstimate } = metrics;
+
+  if (el.ovDuration) {
+    el.ovDuration.textContent = formatDurationMs(durationMs);
+  }
+
+  // 2) 错误状态 + 「智能提示」
+  let hint = "";
+  if (status === 502 || status === "502") {
+    hint = "（通常是 Worker 崩溃 / 未捕获异常）";
+  } else if (status === 500 || status === "500") {
+    hint = "（后端服务返回 500，检查 Cloud Run / OpenAI）";
+  } else if (status === "network_error") {
+    hint = "（浏览器到站点网络异常）";
+  }
+
+  const label = status || "错误";
+
+  if (el.ovStatus) {
+    el.ovStatus.innerHTML = `
+      <span class="call-status-pill error">
+        <span class="call-status-dot"></span>
+        失败 · ${label}${hint}
+      </span>
+    `;
+  }
+
+  // 3) tokens & cost（如果后端在 error body 里仍带了 usage/cost，这里也展示出来）
+  if (el.ovPromptTokens) {
+    el.ovPromptTokens.textContent =
+      promptTokens != null ? String(promptTokens) : "-";
+  }
+  if (el.ovCompletionTokens) {
+    el.ovCompletionTokens.textContent =
+      completionTokens != null ? String(completionTokens) : "-";
+  }
+  if (el.ovTotalTokens) {
+    if (totalTokens != null && usdEstimate != null && usdEstimate > 0) {
+      el.ovTotalTokens.textContent =
+        `${totalTokens}（≈ $${usdEstimate.toFixed(6)}）`;
+    } else if (totalTokens != null) {
+      el.ovTotalTokens.textContent = String(totalTokens);
+    } else if (usdEstimate != null && usdEstimate > 0) {
+      el.ovTotalTokens.textContent = `≈ $${usdEstimate.toFixed(6)}`;
+    } else {
+      el.ovTotalTokens.textContent = "-";
+    }
+  }
+
+  // 4) 同样调用一次，保证右上模式 UI 不乱
+  applyModeUiState();
+}
+
 
 function updateCallOverviewError(status, durationMs, usage) {
   const metrics = extractUsageMetrics(usage || {});
@@ -4214,6 +4295,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
