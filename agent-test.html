@@ -1284,6 +1284,29 @@
   overflow: hidden;
 }
 
+  /* ===== [PATCH] 左侧控制面板：会话列表高度 & 滚动修复 ===== */
+
+/* 左侧整个深色面板：竖向排列，内部可以正确分配高度 */
+.agent-left-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0; /* 防止子元素撑爆，便于 scroll 容器正确计算 */
+}
+
+/* 包裹会话列表的那个区域：占满剩余空间，多了就内部滚动 */
+.agent-left-panel .agent-session-list {
+  flex: 1 1 auto;   /* 占用左栏剩余高度 */
+  min-height: 0;    /* 搭配 flex 修复高度塌陷 */
+  margin-top: 16px; /* 和上面的“新建会话 / 环境”略微留白 */
+  overflow-y: auto; /* 会话多的时候滚动，而不是压缩外框 */
+}
+
+/* 单条会话卡片：按内容高度渲染，不参与拉伸压缩父容器 */
+.agent-left-panel .agent-session-item {
+  flex: 0 0 auto;
+}
+
   
 </style>
 
@@ -3945,6 +3968,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
