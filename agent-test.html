@@ -1307,6 +1307,38 @@
   flex: 0 0 auto;
 }
 
+  /* ===== [PATCH] 会话列表固定高度 + 内部滚动，防止被挤压 ===== */
+
+/* 按你之前的结构，这个容器一般是 #sessionList，如果你是别的 id，就对应替换一下 */
+#sessionList {
+  /* 保持原有布局属性的前提下，补上下面几个关键属性 */
+  max-height: calc(100vh - 220px); /* 这里的 220 你可以微调，保证底部留出输入区空间 */
+  overflow-y: auto;                /* 会话变多时滚动，而不是压扁 item */
+}
+
+/* 会话条目本身禁止被 flex 挤压，始终用自身高度 */
+#sessionList > * {
+  flex: 0 0 auto;
+}
+
+  /* ===== PATCH · 侧栏会话列表防压缩（统一放大到列表滚动） ===== */
+.sidebar {
+  /* 保证左侧整块高度固定，由内部 scroll，而不是被子元素向下撑破 */
+  min-height: 0;
+}
+
+.session-list {
+  /* 会话区域占满 sidebar 剩余高度，多出来的内容内部滚动 */
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+}
+
+/* 每条会话卡片按照自身高度渲染，禁止被 flex 折叠压扁 */
+.session-list > .session-item {
+  flex: 0 0 auto !important;
+}
+
   
 </style>
 
@@ -1709,7 +1741,7 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
         currentUserId = getOrInitUserId();
         applyModeUiState();
         // [INSERT after applyModeUiState();]
-await refreshHealthPanel();
+//await refreshHealthPanel();
 
         // ===== PATCH END =====
       } catch (err) {
@@ -2595,6 +2627,7 @@ await refreshHealthPanel();
     }
     // ===== PATCH END =====
     // ===== PATCH BEGIN: Agent 模式 UI 状态同步 =====
+    // ===== PATCH BEGIN: Agent 模式 UI 状态同步 =====
     function applyModeUiState() {
       if (el.modeSelect) {
         el.modeSelect.value = currentMode;
@@ -2623,18 +2656,28 @@ await refreshHealthPanel();
       }
 
       // 仅在非发送中时更新提示文案
-       if (el.requestMetaHint && !isSending) {
+      if (el.requestMetaHint && !isSending) {
         el.requestMetaHint.textContent =
           currentMode === MODE_AGENT_DEVOPS
             ? "就绪：调用 Agent Runtime 智能体。"
             : "就绪：调用 Cloudflare Worker 智能体。";
       }
-    }
 
-    // ★ 保持原有行为：每次模式/环境切换时，顺带刷新一次运行健康
-    if (typeof refreshHealthPanel === "function") {
-      refreshHealthPanel().catch(() => {});
+      // ★ 真的做到：每次模式 / 环境切换时都刷新一次运行健康（后端没实现就静默失败）
+      if (typeof refreshHealthPanel === "function") {
+        try {
+          const r = refreshHealthPanel();
+          if (r && typeof r.then === "function") {
+            r.catch(() => {});
+          }
+        } catch (e) {
+          // 静默，不影响前端其它逻辑
+          console.debug("[AgentUI] refreshHealthPanel 调用失败（已忽略）", e);
+        }
+      }
     }
+    // ===== PATCH END =====
+
 
     // ===== PATCH END =====
     // ===== PATCH BEGIN: Agent payload 组装 & runtime 摘要提取 =====
@@ -2811,6 +2854,11 @@ async function callBackendWithMode(userText) {
         modelName = data.model || (data.runtime && data.runtime.model_profile) || modelName;
         usage = data.usage || (data.cost && data.cost.usage) || null;
         runtimeMeta = extractRuntimeMetaFromAgentResponse(data);
+          // ===== [PATCH ADD] 把 runtimeMeta 附着回原始对象，方便右侧摘要使用 =====
+        if (runtimeMeta && typeof runtimeMeta === "object") {
+          data._runtime_meta = runtimeMeta;
+        }
+        // ===== [PATCH ADD END] =====
       }
       // ===== PATCH ADD: 兼容 AgentResponse.cost 字段（tokens + 费用） =====
       if (!usage && data.cost && typeof data.cost === "object") {
@@ -3495,100 +3543,262 @@ function clearAgentInfo() {
   if (box && box.parentNode) box.parentNode.removeChild(box);
 }
 
-// ===== [PATCH REPLACE · renderAgentInfo：加入 gateway_trace_id、健壮化] =====
-// ===== [PATCH REPLACE · renderAgentInfo：加入 gateway_trace_id + graph 耗时] =====
+// ===== [PATCH REPLACE · renderAgentInfo：补充 tokens & cost 展示] =====
+// ===== [PATCH REPLACE · renderAgentInfo：吃掉 runtimeMeta / nodes / tokens，替换掉写死文案] =====
 function renderAgentInfo(agentObj) {
-  // 判定是否像 Agent 响应：有 reply 且有 trace/agent/env 或 state_snapshot 等字段
+  // 判定是否像 Agent 响应：有 reply / state_snapshot / trace_id / agent / runtime 等字段
   const looksLikeAgent =
     agentObj &&
     typeof agentObj === "object" &&
-    (typeof agentObj.reply === "string" ||
+    (
+      typeof agentObj.reply === "string" ||
       agentObj.state_snapshot ||
       agentObj.trace_id ||
-      agentObj.agent);
+      agentObj.agent ||
+      agentObj.runtime
+    );
 
   if (!looksLikeAgent) {
-    clearAgentInfo();
+    if (typeof clearAgentInfo === "function") clearAgentInfo();
     return;
   }
 
-  const box = ensureAgentInfoMount();
+  const box = typeof ensureAgentInfoMount === "function"
+    ? ensureAgentInfoMount()
+    : null;
   if (!box) return;
 
-  // === 1）统一外观：背景与「运行健康」一致 ===
-  try {
-    const healthBox = document.getElementById("healthInfoBox");
-    if (healthBox) {
-      const cs = window.getComputedStyle(healthBox);
-      if (cs) {
-        box.style.background = cs.background || cs.backgroundColor || "";
-        box.style.backgroundColor = cs.backgroundColor || "";
-        box.style.border = cs.border || box.style.border;
-        box.style.borderRadius = cs.borderRadius || box.style.borderRadius;
-        box.style.padding = cs.padding || box.style.padding;
+  // 1）优先使用前面挂在 _runtime_meta 上的结构，其次现场再解析一遍
+  let meta = null;
+  if (agentObj._runtime_meta && typeof agentObj._runtime_meta === "object") {
+    meta = agentObj._runtime_meta;
+  } else if (typeof extractRuntimeMetaFromAgentResponse === "function") {
+    meta = extractRuntimeMetaFromAgentResponse(agentObj);
+  }
+
+  // 2）基础字段
+  const rt    = agentObj.runtime && typeof agentObj.runtime === "object" ? agentObj.runtime : null;
+  const agent = agentObj.agent || (rt && rt.agent) || "-";
+  const env   = agentObj.env   || (rt && rt.env)   || "-";
+
+  const graphVersion =
+    (meta && meta.graphVersion) ||
+    (rt && (rt.graph_version || rt.graphVersion)) ||
+    agentObj.graph_version ||
+    agentObj.graphVersion ||
+    "-";
+
+  const taskType =
+    (meta && meta.taskType) ||
+    (agentObj.state_snapshot && agentObj.state_snapshot.task_type) ||
+    (rt && (rt.task_type || rt.taskType)) ||
+    agentObj.task_type ||
+    agentObj.taskType ||
+    "-";
+
+  const traceId =
+    (meta && meta.traceId) ||
+    agentObj.trace_id ||
+    agentObj.traceId ||
+    (rt && (rt.trace_id || rt.traceId)) ||
+    agentObj._gateway_trace_id ||
+    "-";
+
+  // 3）节点 / 工具 / RAG 命中
+  const nodeCount = meta && typeof meta.nodeCount === "number"
+    ? meta.nodeCount
+    : Array.isArray(agentObj.nodes_executed)
+      ? agentObj.nodes_executed.length
+      : Array.isArray(rt && rt.nodes_executed)
+        ? rt.nodes_executed.length
+        : 0;
+
+  const toolCount = meta && typeof meta.toolCount === "number"
+    ? meta.toolCount
+    : Array.isArray(agentObj.tools_used)
+      ? agentObj.tools_used.length
+      : Array.isArray(rt && rt.tools_used)
+        ? rt.tools_used.length
+        : 0;
+
+  const ragHits = meta && typeof meta.ragHits === "number"
+    ? meta.ragHits
+    : 0;
+
+  // 4）tokens / 费用：兼容 cost / usage 多种命名
+  let promptTokens = null;
+  let completionTokens = null;
+  let totalTokens = null;
+  let usdEstimate = null;
+
+  const cost =
+    (agentObj.cost && typeof agentObj.cost === "object" && agentObj.cost) ||
+    (rt && rt.cost && typeof rt.cost === "object" && rt.cost) ||
+    null;
+
+  const usage =
+    (agentObj.usage && typeof agentObj.usage === "object" && agentObj.usage) ||
+    (rt && rt.usage && typeof rt.usage === "object" && rt.usage) ||
+    null;
+
+  if (usage) {
+    if (typeof usage.prompt_tokens === "number") promptTokens = usage.prompt_tokens;
+    if (typeof usage.completion_tokens === "number") completionTokens = usage.completion_tokens;
+    if (typeof usage.total_tokens === "number") totalTokens = usage.total_tokens;
+  }
+
+  if (cost) {
+    if (promptTokens == null) {
+      if (typeof cost.tokens_prompt === "number") promptTokens = cost.tokens_prompt;
+      else if (typeof cost.prompt_tokens === "number") promptTokens = cost.prompt_tokens;
+      else if (typeof cost.input_tokens === "number") promptTokens = cost.input_tokens;
+    }
+    if (completionTokens == null) {
+      if (typeof cost.tokens_completion === "number") completionTokens = cost.tokens_completion;
+      else if (typeof cost.completion_tokens === "number") completionTokens = cost.completion_tokens;
+      else if (typeof cost.output_tokens === "number") completionTokens = cost.output_tokens;
+    }
+    if (totalTokens == null) {
+      if (typeof cost.total_tokens === "number") {
+        totalTokens = cost.total_tokens;
+      } else if (
+        typeof promptTokens === "number" &&
+        typeof completionTokens === "number"
+      ) {
+        totalTokens = promptTokens + completionTokens;
       }
     }
-  } catch (e) {
-    console.warn("sync AgentInfo box style failed:", e);
-  }
-
-  // === 2）基础字段 ===
-  const traceId = agentObj.trace_id || "-";
-  const gatewayTrace = agentObj._gateway_trace_id || "-";
-  const agent = agentObj.agent || "-";
-  const env = agentObj.env || "-";
-  const taskType = agentObj?.state_snapshot?.task_type || "-";
-
-  const nodes = Array.isArray(agentObj.nodes_executed) ? agentObj.nodes_executed : [];
-  const tools = Array.isArray(agentObj.tools_used) ? agentObj.tools_used : [];
-  const cost = agentObj.cost || {};
-
-  const costLine = [
-    "prompt=" + (cost.tokens_prompt ?? "-"),
-    "completion=" + (cost.tokens_completion ?? "-"),
-    "total=" + (cost.total_tokens ?? "-"),
-    "usd≈" +
-      (typeof cost.usd_estimate === "number"
-        ? cost.usd_estimate.toFixed(6)
-        : "-"),
-  ].join("，");
-
-  // === 3）Graph 耗时：来自 debug.timings_ms.total（若存在） ===
-  const debug =
-    agentObj && typeof agentObj.debug === "object" ? agentObj.debug : null;
-  let serverTotal = null;
-  if (debug) {
-    const t =
-      (debug.timings_ms && typeof debug.timings_ms === "object" && debug.timings_ms) ||
-      (debug.timingsMs && typeof debug.timingsMs === "object" && debug.timingsMs) ||
-      null;
-    if (t && typeof t.total === "number" && Number.isFinite(t.total)) {
-      serverTotal = t.total;
+    if (typeof cost.usd_estimate === "number") {
+      usdEstimate = cost.usd_estimate;
+    } else if (typeof cost.usd === "number") {
+      usdEstimate = cost.usd;
+    } else if (typeof cost.estimated_cost_usd === "number") {
+      usdEstimate = cost.estimated_cost_usd;
     }
   }
-  const serverTotalLabel =
-    typeof serverTotal === "number" ? `${serverTotal.toFixed(0)} ms` : "-";
 
-  // === 4）渲染到右侧卡片 ===
-  box.innerHTML = `
-    <div style="font-weight:600;margin-bottom:6px;">智能体执行摘要（Agent Mode）</div>
-    <div><strong>trace_id：</strong>${traceId}</div>
-    <div><strong>gateway_trace_id：</strong>${gatewayTrace}</div>
-    <div><strong>agent：</strong>${agent}</div>
-    <div><strong>env：</strong>${env}</div>
-    <div><strong>task_type：</strong>${taskType}</div>
-    <div style="margin-top:6px;"><strong>执行节点：</strong>${
-      nodes.length ? nodes.join(" → ") : "-"
-    }</div>
-    <div style="margin-top:2px;"><strong>工具调用：</strong>${
-      tools.length
-        ? tools.map((t) => (t?.name || t?.type || "tool")).join("，")
-        : "-"
-    }</div>
-    <div style="margin-top:2px;"><strong>Token & 成本：</strong>${costLine}</div>
-    <div style="margin-top:2px;"><strong>Graph 耗时：</strong>${serverTotalLabel}</div>
-  `;
+  // 5）服务端 timings
+  const serverTotalMs =
+    meta && typeof meta.serverTotalMs === "number"
+      ? meta.serverTotalMs
+      : null;
+
+  const nodesPreview =
+    meta && Array.isArray(meta.rawNodes) && meta.rawNodes.length
+      ? meta.rawNodes.slice(0, 6)
+      : null;
+
+  // 6）真正渲染：替换掉之前写死的「未返回详细 trace」文案
+  const parts = [];
+
+  parts.push(
+    '<div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">' +
+      '<strong style="color:#e5e7eb;">智能体执行摘要 (Agent Mode)</strong>' +
+    "</div>"
+  );
+
+  parts.push('<div style="font-size:11px;line-height:1.6;color:#d1d5db;">');
+
+  parts.push(
+    `  <div>Agent：<span style="color:#e5e7eb;">${agent}</span>` +
+    ` · Env：<span style="color:#e5e7eb;">${env}</span></div>`
+  );
+
+  if (graphVersion && graphVersion !== "-") {
+    parts.push(
+      `  <div>Graph：<span style="color:#e5e7eb;">${String(graphVersion)}</span></div>`
+    );
+  }
+
+  parts.push(
+    `  <div>任务类型：<span style="color:#e5e7eb;">${String(taskType || "-")}</span></div>`
+  );
+
+  if (nodeCount || toolCount || ragHits) {
+    parts.push(
+      `  <div>节点：<span style="color:#e5e7eb;">${nodeCount || 0}</span>` +
+      ` · 工具：<span style="color:#e5e7eb;">${toolCount || 0}</span>` +
+      ` · RAG 命中：<span style="color:#e5e7eb;">${ragHits || 0}</span></div>`
+    );
+  }
+
+  if (promptTokens != null || completionTokens != null || totalTokens != null) {
+    parts.push(
+      `  <div>Tokens：prompt <span style="color:#e5e7eb;">${promptTokens ?? "-"}</span>` +
+      ` · completion <span style="color:#e5e7eb;">${completionTokens ?? "-"}</span>` +
+      ` · total <span style="color:#e5e7eb;">${totalTokens ?? "-"}</span></div>`
+    );
+  }
+
+  if (usdEstimate != null) {
+    parts.push(
+      `  <div>估算费用：<span style="color:#e5e7eb;">$${usdEstimate.toFixed(5)}</span></div>`
+    );
+  }
+
+  if (serverTotalMs != null) {
+    parts.push(
+      `  <div>服务端耗时：<span style="color:#e5e7eb;">${serverTotalMs.toFixed(1)} ms</span></div>`
+    );
+  }
+
+  parts.push(
+    `  <div style="margin-top:4px;">Trace ID：` +
+    `<span style="color:#e5e7eb;">${String(traceId || "-")}</span></div>`
+  );
+
+  parts.push("</div>");
+
+  if (nodesPreview && nodesPreview.length) {
+    const previewLines = nodesPreview.map((n, idx) => {
+      if (typeof n === "string") return `#${idx + 1} ${n}`;
+      try {
+        return `#${idx + 1} ${JSON.stringify(n)}`;
+      } catch {
+        return `#${idx + 1} [object]`;
+      }
+    });
+
+    parts.push(
+      '<pre style="margin-top:6px;font-size:11px;' +
+        'white-space:pre-wrap;color:#9ca3af;' +
+        'border-top:1px dashed rgba(148,163,184,0.5);padding-top:4px;">' +
+        previewLines.join("\n") +
+      "</pre>"
+    );
+  }
+
+  box.innerHTML = parts.join("");
 }
+// ===== [PATCH REPLACE END] =====
+
+    
+// ===== [NEW] Agent trace 详情格式化（优先用 debug / state_snapshot / trace） =====
+function formatAgentTraceDetail(agentObj) {
+  if (!agentObj || typeof agentObj !== "object") {
+    return "(暂无可展示的 trace 数据)";
+  }
+
+  // 根据当前 AgentResponse 里常见的字段，按优先级挑一份最有用的结构出来
+  const snapshot = agentObj.state_snapshot || null;
+  const debug = agentObj.debug || null;
+  const trace =
+    agentObj.trace_detail || agentObj.trace_log || agentObj.trace || null;
+
+  // 优先级：debug > state_snapshot > trace > 整个 agentObj
+  const payload = debug || snapshot || trace || agentObj;
+
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch (err) {
+    try {
+      return String(payload);
+    } catch {
+      return "(暂无可展示的 trace 数据)";
+    }
+  }
+}
+
 
 // ===== [PATCH ADD · 健康面板挂载] =====
 
@@ -3968,6 +4178,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
