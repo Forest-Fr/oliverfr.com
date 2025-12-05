@@ -6,6 +6,7 @@ Disallow: /https://oliverfr.com/admin-your-medical-center.html
 Disallow: /https://oliverfr.com/script-gpt-panel.html
 Disallow: /https://oliverfr.com/admin-copilot.html
 Disallow: /https://oliverfr.com/admin-voice-hub.html
+Disallow: /https://oliverfr.com/go-agent.html
 
 
 
@@ -13,3 +14,4 @@ Allow: /
 
 Sitemap: https://oliverfr.com/sitemap.xml
 # Updated: 2025-05-13
+
