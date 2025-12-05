@@ -1339,6 +1339,171 @@
   flex: 0 0 auto !important;
 }
 
+
+
+<!-- ===== PATCH ADD · 授权登录弹窗 & 输入区下拉箭头样式 ===== -->
+<style>
+  /* 授权登录遮罩层 */
+  .auth-modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;                 /* 默认不展示，JS 控制为 flex */
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 90;                   /* 高于主界面和 mobile overlay */
+  }
+
+  .auth-modal {
+    width: min(420px, 90vw);
+    max-width: 480px;
+    background: #f9fafb;
+    border-radius: 18px;
+    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.45);
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    padding: 18px 18px 16px;
+  }
+
+  .auth-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .auth-modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .auth-modal-close {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 999px;
+  }
+  .auth-modal-close:hover {
+    background: rgba(15, 23, 42, 0.06);
+    color: #111827;
+  }
+
+  .auth-modal-body {
+    font-size: 13px;
+    color: #4b5563;
+    margin-top: 4px;
+  }
+
+  .auth-modal-desc {
+    margin: 0 0 10px;
+    line-height: 1.5;
+  }
+
+  .auth-modal-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: #374151;
+    margin-bottom: 8px;
+  }
+
+  .auth-modal-input {
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    padding: 8px 10px;
+    font-size: 14px;
+    outline: none;
+    background: #ffffff;
+  }
+  .auth-modal-input:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.25);
+  }
+
+  .auth-modal-error {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #b91c1c;
+  }
+
+  .auth-modal-submit {
+    margin-top: 10px;
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: #f9fafb;
+    box-shadow: 0 10px 24px rgba(79, 70, 229, 0.45);
+  }
+  .auth-modal-submit:hover {
+    box-shadow: 0 14px 30px rgba(79, 70, 229, 0.55);
+    transform: translateY(-1px);
+  }
+  .auth-modal-submit:active {
+    transform: translateY(0);
+    box-shadow: 0 6px 16px rgba(31, 41, 55, 0.55);
+  }
+
+  @media (max-width: 600px) {
+    .auth-modal {
+      border-radius: 16px;
+      padding: 16px 14px 14px;
+    }
+    .auth-modal-title {
+      font-size: 15px;
+    }
+  }
+
+  /* 输入区下拉箭头按钮：默认隐藏，仅在需要时展示 */
+  .chat-input-row {
+    position: relative; /* 为绝对定位的下拉箭头提供锚点 */
+  }
+
+  .input-scroll-down {
+    position: absolute;
+    right: 78px;              /* 贴近发送按钮左侧，可根据实际视觉微调 */
+    bottom: 10px;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    border: none;
+    display: none;            /* JS 控制显示 */
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    background: #e5e7eb;      /* 浅灰底 */
+    color: #111827;           /* 黑色箭头 */
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(148, 163, 184, 0.7);
+  }
+
+  .input-scroll-down:hover {
+    background: #d1d5db;
+  }
+
+  .input-scroll-down:active {
+    box-shadow: 0 2px 6px rgba(107, 114, 128, 0.7);
+    transform: translateY(1px);
+  }
+
+  @media (max-width: 900px) {
+    .input-scroll-down {
+      right: 70px;
+      bottom: 8px;
+    }
+  }
+</style>
+<!-- ===== PATCH END ===== -->
+
   
 </style>
 
@@ -1472,6 +1637,18 @@
               class="chat-input"
               placeholder="在这里输入：比如『帮我总结一下今天要做的三件事』，然后按 Ctrl+Enter 或点击发送。"
             ></textarea>
+
+             <!-- ===== PATCH ADD · 输入区下拉箭头按钮 ===== -->
+            <button
+              id="inputScrollDown"
+              class="input-scroll-down"
+              type="button"
+              aria-label="滚动到输入末尾"
+            >
+              ⌄
+            </button>
+            <!-- ===== PATCH END ===== -->
+            
             <button id="btnSend" class="send-button">
               <span class="send-button-icon">↗</span>
               <span id="btnSendLabel">发送</span>
@@ -1558,6 +1735,53 @@
       </div>
     </aside>
 
+        <!-- ===== PATCH ADD · 授权登录弹窗 ===== -->
+    <div class="auth-modal-overlay" id="authModalOverlay">
+      <div class="auth-modal" id="authModal">
+        <div class="auth-modal-header">
+          <div class="auth-modal-title">Agent 授权登录</div>
+          <button
+            class="auth-modal-close"
+            id="authModalClose"
+            type="button"
+            aria-label="关闭授权登录窗口"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="auth-modal-body">
+          <p class="auth-modal-desc">
+            为避免误用，请先输入一次测试口令完成授权，本机通过后下次将自动记住，无需重复输入。
+          </p>
+          <label class="auth-modal-label">
+            测试口令
+            <input
+              id="authCodeInput"
+              class="auth-modal-input"
+              type="password"
+              placeholder="请输入测试口令"
+              autocomplete="off"
+            />
+          </label>
+          <div class="auth-modal-error" id="authCodeError" style="display:none;">
+            测试口令不能为空，请重新输入。
+          </div>
+          <button
+            id="authCodeSubmit"
+            type="button"
+            class="auth-modal-submit"
+          >
+            确认并进入面板
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- ===== PATCH END ===== -->
+
+    <!-- 移动端遮罩 -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    
     <!-- 移动端遮罩 -->
     <div class="mobile-overlay" id="mobileOverlay"></div>
   </div>
@@ -1665,6 +1889,12 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
     ];
     // ===== PATCH END =====
     //只是在前端把结构“写死”出来，方便后面取值
+
+      // ===== PATCH ADD · 授权登录状态常量 =====
+    const AUTH_TOKEN_KEY = "agentWorker:authToken";
+    let isAuthorized = false;
+    // ===== PATCH END =====
+  
   // ===== [ADD · Step 4.2.1 · Agent Runtime response shape] =====
 /**
  * @typedef {Object} AgentCost
@@ -1737,6 +1967,15 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
       try {
         await initIndexedDB();
         await initSessions();
+
+         // ===== PATCH ADD · 初始化授权状态 & 统一输入框占位符 =====
+        initAuthStateFromStorage();
+        if (el.chatInput) {
+          // 统一将输入区 placeholder 改为“请输入测试口令”
+          el.chatInput.placeholder = "请输入测试口令";
+        }
+        // ===== PATCH END =====
+        
           // ===== PATCH BEGIN: 初始化 Agent 模式 UI 状态 / Step 4.1 =====
         currentUserId = getOrInitUserId();
         applyModeUiState();
@@ -1761,6 +2000,19 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
       el.btnSend = document.getElementById("btnSend");
       el.btnSendLabel = document.getElementById("btnSendLabel");
       el.requestMetaHint = document.getElementById("requestMetaHint");
+
+            // ===== PATCH ADD · 输入区下拉箭头 & 授权弹窗 DOM 引用 =====
+      el.inputScrollDown = document.getElementById("inputScrollDown");
+
+      el.authOverlay = document.getElementById("authModalOverlay");
+      el.authModal = document.getElementById("authModal");
+      el.authInput = document.getElementById("authCodeInput");
+      el.authError = document.getElementById("authCodeError");
+      el.authSubmit = document.getElementById("authCodeSubmit");
+      el.authClose = document.getElementById("authModalClose");
+      // ===== PATCH END =====
+
+      
 //11.23新增step4.1
             el.currentAgentLabel = document.getElementById("currentAgentLabel");
       el.currentModelLabel = document.getElementById("currentModelLabel");
@@ -1938,6 +2190,63 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
         selectSession(id);
       });
 
+            // ===== PATCH ADD · 授权弹窗 & 输入区下拉箭头事件 =====
+      if (el.chatInput) {
+        // 点击 / 聚焦输入区时，如未授权则弹出授权窗口（但不强制立即填写，可关闭）
+        el.chatInput.addEventListener("focus", () => {
+          if (!isAuthorized) {
+            openAuthModal();
+          }
+        });
+        el.chatInput.addEventListener("click", () => {
+          if (!isAuthorized) {
+            openAuthModal();
+          }
+        });
+
+        // 输入内容或在 textarea 内滚动时，更新下拉箭头显示状态
+        el.chatInput.addEventListener("input", () => {
+          updateInputScrollArrow();
+        });
+        el.chatInput.addEventListener("scroll", () => {
+          updateInputScrollArrow();
+        });
+      }
+
+      if (el.inputScrollDown) {
+        el.inputScrollDown.addEventListener("click", () => {
+          if (!el.chatInput) return;
+          el.chatInput.scrollTop = el.chatInput.scrollHeight;
+          updateInputScrollArrow();
+        });
+      }
+
+      if (el.authSubmit) {
+        el.authSubmit.addEventListener("click", handleAuthSubmit);
+      }
+      if (el.authInput) {
+        el.authInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            handleAuthSubmit();
+          }
+        });
+      }
+      if (el.authClose) {
+        el.authClose.addEventListener("click", () => {
+          closeAuthModal();
+        });
+      }
+      if (el.authOverlay) {
+        el.authOverlay.addEventListener("click", (event) => {
+          // 点击遮罩空白区域关闭弹窗（点击对话框本身不关闭）
+          if (event.target === el.authOverlay) {
+            closeAuthModal();
+          }
+        });
+      }
+      // ===== PATCH END =====
+      
       el.btnSend.addEventListener("click", () => {
         triggerSend();
       });
@@ -2008,6 +2317,69 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
       return window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
     }
 
+        // ===== PATCH ADD · 授权弹窗 / 输入区下拉箭头逻辑 =====
+    function openAuthModal() {
+      if (!el.authOverlay || !el.authModal) return;
+      el.authOverlay.style.display = "flex";
+      if (el.authError) {
+        el.authError.style.display = "none";
+      }
+      if (el.authInput) {
+        el.authInput.value = "";
+        // 小延迟以确保元素可见后再聚焦
+        setTimeout(() => {
+          if (el.authInput) el.authInput.focus();
+        }, 10);
+      }
+    }
+
+    function closeAuthModal() {
+      if (!el.authOverlay) return;
+      el.authOverlay.style.display = "none";
+    }
+
+    function handleAuthSubmit() {
+      if (!el.authInput) return;
+      const code = (el.authInput.value || "").trim();
+
+      if (!code) {
+        if (el.authError) {
+          el.authError.textContent = "测试口令不能为空，请重新输入。";
+          el.authError.style.display = "block";
+        }
+        return;
+      }
+
+      // 当前版本：任意非空测试口令均视为通过；
+      // 如需严格校验，可在此处接入 Worker / Supabase 校验逻辑。
+      isAuthorized = true;
+      persistAuthToken(code);
+
+      if (el.authError) {
+        el.authError.style.display = "none";
+      }
+      closeAuthModal();
+      showToast("授权验证通过，已为本机记住测试口令。");
+    }
+
+    function updateInputScrollArrow() {
+      if (!el.chatInput || !el.inputScrollDown) return;
+
+      const hasOverflow =
+        el.chatInput.scrollHeight > el.chatInput.clientHeight + 2;
+      const atBottom =
+        el.chatInput.scrollTop + el.chatInput.clientHeight >=
+        el.chatInput.scrollHeight - 4;
+
+      // 只有当输入内容超出可视区域且当前视口不在最底部时才展示下拉箭头
+      if (hasOverflow && !atBottom) {
+        el.inputScrollDown.style.display = "flex";
+      } else {
+        el.inputScrollDown.style.display = "none";
+      }
+    }
+    // ===== PATCH END =====
+    
      function toggleMobilePanel(target) {
       if (!isMobileViewport()) return;
       const sidebar = document.querySelector(".sidebar");
@@ -2625,6 +2997,31 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
         return "anonymous";
       }
     }
+
+        // ===== PATCH ADD · 授权登录：初始化 / 存储工具 =====
+    function initAuthStateFromStorage() {
+      try {
+        const saved = localStorage.getItem(AUTH_TOKEN_KEY);
+        // 当前版本：任意非空测试口令视为已授权；如需更严格可在此处接后端校验
+        if (saved && saved.trim()) {
+          isAuthorized = true;
+        } else {
+          isAuthorized = false;
+        }
+      } catch (e) {
+        isAuthorized = false;
+      }
+    }
+
+    function persistAuthToken(token) {
+      try {
+        localStorage.setItem(AUTH_TOKEN_KEY, token || "");
+      } catch (e) {
+        // 忽略本地存储异常，不影响主流程
+      }
+    }
+    // ===== PATCH END =====
+
     // ===== PATCH END =====
     // ===== PATCH BEGIN: Agent 模式 UI 状态同步 =====
     // ===== PATCH BEGIN: Agent 模式 UI 状态同步 =====
@@ -3125,6 +3522,14 @@ async function callBackendWithMode(userText) {
     // === Worker 调用 ===
 
     async function triggerSend() {
+      // ===== PATCH ADD · 授权登录保护 =====
+      if (!isAuthorized) {
+        openAuthModal();
+        showToast("请先输入测试口令完成授权后再发送。");
+        return;
+      }
+      // ===== PATCH END =====
+      
       if (isSending) return;
       const raw = el.chatInput.value.trim();
       if (!raw) {
@@ -3156,7 +3561,8 @@ async function callBackendWithMode(userText) {
 
       appendMessageBubble("user", raw, true, userMeta);
       el.chatInput.value = "";
-
+updateInputScrollArrow(); // ===== PATCH ADD：发送后重置下拉箭头状态 =====
+      
       // ===== PATCH BEGIN: 按模式调用后端（直连 / Agent） =====
       const result = await callBackendWithMode(raw);
       const {
@@ -3295,7 +3701,7 @@ async function callBackendWithMode(userText) {
     }
 
 
-function appendMessageBubble(role, content, hideEmptyHint, meta) {
+/*function appendMessageBubble(role, content, hideEmptyHint, meta) {
   if (hideEmptyHint && el.chatEmpty.parentNode === el.chatMessages) {
     el.chatEmpty.style.display = "none";
     el.chatMessages.innerHTML = "";
@@ -3373,7 +3779,32 @@ function appendMessageBubble(role, content, hideEmptyHint, meta) {
     el.chatMessages.appendChild(detail);
   }
   // ===== PATCH END =====
-}
+}*/
+
+        // ===== PATCH REPLACE · 消息气泡渲染（统一新消息始终在底部） =====
+    function appendMessageBubble(role, content, scrollIntoView, meta) {
+      if (!el.chatMessages) return;
+
+      // 若还在显示空状态，占位先移除
+      if (el.chatEmpty && el.chatEmpty.parentNode === el.chatMessages) {
+        el.chatMessages.removeChild(el.chatEmpty);
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "chat-message " + (role === "user" ? "user" : "assistant");
+      bubble.textContent = content || "";
+
+      // 如后续需要，可以利用 meta 渲染额外信息，这里保持兼容占位
+      // if (meta && typeof meta === "object") { ... }
+
+      // ★ 核心：统一追加到列表末尾，让最新消息永远贴近输入区
+      el.chatMessages.appendChild(bubble);
+
+      if (scrollIntoView) {
+        scrollToBottom();
+      }
+    }
+    // ===== PATCH END =====
 
 
     function scrollToBottom() {
@@ -4295,6 +4726,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
