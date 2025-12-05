@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Go Agent 管理后台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg-page: #0b1120;
+      --bg-card: #020617;
+      --bg-card-soft: #020617;
+      --border-subtle: rgba(148, 163, 184, 0.3);
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.12);
+      --accent-strong: #0ea5e9;
+      --danger: #ef4444;
+      --text-main: #e5e7eb;
+      --text-soft: #9ca3af;
+      --text-faded: #6b7280;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+      --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.75);
+      --shadow-soft-small: 0 12px 30px rgba(15, 23, 42, 0.7);
+      --gap-page: 18px;
+      --transition-fast: 0.18s ease-out;
+      --transition-med: 0.24s ease-out;
+      --navbar-height: 64px;
+      --card-padding: 18px;
+      --page-max-width: 1160px;
+      --input-bg: #020617;
+      --input-border: rgba(148, 163, 184, 0.3);
+      --input-border-focus: rgba(56, 189, 248, 0.8);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .page-shell {
+      width: 100%;
+      max-width: var(--page-max-width);
+      margin: auto;
+      background: radial-gradient(circle at top left, #0f172a 0, #020617 55%);
+      border-radius: 28px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== 顶部导航 ===== */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      background: linear-gradient(
+        135deg,
+        rgba(15, 23, 42, 0.94),
+        rgba(15, 23, 42, 0.88),
+        rgba(15, 23, 42, 0.94)
+      );
+      backdrop-filter: blur(16px);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, #38bdf8 0, #0f172a 40%);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.5),
+                  0 10px 25px rgba(15, 23, 42, 0.9);
+      position: relative;
+    }
+
+    .logo-dot::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border-radius: inherit;
+      background: radial-gradient(circle at 25% 25%, #e5f4ff 0, #0284c7 55%);
+      opacity: 0.8;
+    }
+
+    .topbar-title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .topbar-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .topbar-title span.sub {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+    }
+
+    .topbar-meta {
+      font-size: 11px;
+      color: var(--text-faded);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-soft);
+    }
+
+    .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.25);
+    }
+
+    .pill-env-dev {
+      border-color: rgba(249, 115, 22, 0.7);
+      color: #fed7aa;
+    }
+
+    .pill-env-dev .pill-dot {
+      background: #fb923c;
+      box-shadow: 0 0 0 4px rgba(248, 171, 96, 0.35);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .topbar-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 20%, #38bdf8 0, #0f172a 60%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #e0f2fe;
+      font-weight: 600;
+    }
+
+    .btn {
+      border: none;
+      outline: none;
+      background: linear-gradient(135deg, #0ea5e9, #22c55e);
+      color: #0b1120;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 25px rgba(8, 47, 73, 0.7);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+                  background var(--transition-fast), opacity var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 30px rgba(8, 47, 73, 0.8);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 20px rgba(8, 47, 73, 0.75);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: var(--text-soft);
+      box-shadow: none;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(15, 23, 42, 0.9);
+      box-shadow: none;
+      transform: none;
+    }
+
+    .btn-danger {
+      background: rgba(248, 113, 113, 0.08);
+      color: #fecaca;
+      box-shadow: none;
+      border-radius: 999px;
+      border: 1px solid rgba(248, 113, 113, 0.7);
+      padding-inline: 10px;
+    }
+
+    .btn-danger:hover {
+      background: rgba(248, 113, 113, 0.18);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ===== 主体内容 ===== */
+    .page-main {
+      padding: 18px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .intro-card {
+      padding: 16px 18px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      background: radial-gradient(circle at top left, #0ea5e9 0, #0f172a 35%, #020617 80%);
+      box-shadow: var(--shadow-soft-small);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .intro-title {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .intro-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: #e5e7eb;
+    }
+
+    .intro-text {
+      font-size: 12px;
+      color: #e5e7eb;
+      line-height: 1.5;
+      max-width: 70ch;
+    }
+
+    .intro-text span {
+      color: #f9fafb;
+      font-weight: 500;
+    }
+
+    .login-hint {
+      font-size: 12px;
+      color: #cbd5f5;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .login-hint small {
+      opacity: 0.85;
+    }
+
+    .login-section {
+      padding: 16px 18px 20px;
+      border-radius: var(--radius-xl);
+      background: radial-gradient(circle at top right, #0b1120 0, #020617 70%);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: var(--shadow-soft-small);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .login-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .login-desc {
+      font-size: 13px;
+      color: var(--text-soft);
+      max-width: 420px;
+      line-height: 1.6;
+    }
+
+    .login-desc strong {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+
+    .login-meta {
+      font-size: 11px;
+      color: var(--text-faded);
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(
+        to right,
+        rgba(15, 23, 42, 0),
+        rgba(148, 163, 184, 0.5),
+        rgba(15, 23, 42, 0)
+      );
+      margin: 4px 0 2px;
+    }
+
+    .admin-section {
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .toolbar {
+      padding: 12px 18px;
+      border-radius: var(--radius-xl);
+      background: radial-gradient(circle at top left, #020617 0, #020617 70%);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      justify-content: space-between;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .field-inline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .field-inline label {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .input,
+    select,
+    textarea {
+      background: var(--input-bg);
+      border-radius: 999px;
+      border: 1px solid var(--input-border);
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color var(--transition-fast),
+                  box-shadow var(--transition-fast),
+                  background var(--transition-fast);
+    }
+
+    .input::placeholder {
+      color: var(--text-faded);
+    }
+
+    .input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--input-border-focus);
+      box-shadow: 0 0 0 1px var(--input-border-focus);
+      background: #020617;
+    }
+
+    textarea.input-textarea {
+      border-radius: 14px;
+      min-height: 90px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .input-sm {
+      padding-block: 5px;
+      font-size: 11px;
+    }
+
+    .badge-count {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--text-soft);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+    }
+
+    .status-dot.offline {
+      background: #f97316;
+      box-shadow: 0 0 0 3px rgba(248, 171, 96, 0.25);
+    }
+
+    .status-dot.error {
+      background: var(--danger);
+      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.3);
+    }
+
+    /* ===== 表单区域 ===== */
+    .form-card {
+      margin: 0 18px;
+      margin-top: 4px;
+      padding: 14px 16px 16px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: radial-gradient(circle at top left, #020617 0, #020617 70%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .form-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 2px;
+    }
+
+    .form-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-title small {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-soft);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-field label {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .form-field small {
+      font-size: 10px;
+      color: var(--text-faded);
+    }
+
+    .form-row-wide {
+      grid-column: 1 / -1;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    /* ===== 列表区域 ===== */
+    .list-wrapper {
+      margin: 0 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .list-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--text-faded);
+    }
+
+    .list-header-row strong {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .agent-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .agent-card {
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: linear-gradient(
+        145deg,
+        rgba(15, 23, 42, 0.95),
+        rgba(15, 23, 42, 0.9)
+      );
+      padding: var(--card-padding);
+      box-shadow: var(--shadow-soft-small);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .agent-card::before {
+      content: "";
+      position: absolute;
+      inset: -20px;
+      background: radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.12), transparent 55%);
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
+    .agent-card-main {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .agent-title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .agent-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .agent-key {
+      font-size: 11px;
+      color: #93c5fd;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(59, 130, 246, 0.65);
+    }
+
+    .agent-desc {
+      font-size: 12px;
+      color: var(--text-soft);
+      line-height: 1.6;
+      max-height: 60px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tag-line {
+      font-size: 11px;
+      color: var(--text-faded);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .tag-pill {
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      font-size: 10px;
+      color: var(--text-soft);
+    }
+
+    .agent-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-faded);
+      flex-wrap: wrap;
+    }
+
+    .agent-meta-dates {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .agent-meta-dates span {
+      white-space: nowrap;
+    }
+
+    .agent-meta-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .agent-json {
+      margin-top: 6px;
+      padding: 6px 8px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      max-height: 80px;
+      overflow: auto;
+      color: #e5e7eb;
+    }
+
+    /* ===== 分页 ===== */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .pagination span {
+      white-space: nowrap;
+    }
+
+    .toast {
+      margin: 0 18px 16px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95));
+      color: var(--text-soft);
+    }
+
+    .toast strong {
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .toast.error {
+      border-color: rgba(248, 113, 113, 0.8);
+      color: #fecaca;
+    }
+
+    .toast.success {
+      border-color: rgba(34, 197, 94, 0.8);
+      color: #bbf7d0;
+    }
+
+    .toast span.meta {
+      font-size: 10px;
+      color: var(--text-faded);
+    }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 900px) {
+      .page-shell {
+        border-radius: 18px;
+      }
+
+      .topbar {
+        padding-inline: 14px;
+      }
+
+      .page-main {
+        padding-inline: 12px;
+      }
+
+      .form-card,
+      .list-wrapper,
+      .toast {
+        margin-inline: 12px;
+      }
+
+      .agent-list {
+        grid-template-columns: 1fr;
+      }
+
+      .form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 8px;
+      }
+
+      .page-shell {
+        border-radius: 14px;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .topbar-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .page-main {
+        padding-inline: 10px;
+      }
+
+      .login-section {
+        padding-inline: 12px;
+      }
+
+      .login-row {
+        align-items: flex-start;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-card,
+      .list-wrapper,
+      .toast {
+        margin-inline: 10px;
+      }
+
+      .toolbar {
+        padding-inline: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <!-- 顶部导航 -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="logo-dot"></div>
+        <div class="topbar-title-block">
+          <div class="topbar-title">
+            Go Agent 管理后台
+            <span class="sub">OLIVERFR · AGENT RUNTIME</span>
+          </div>
+          <div class="topbar-meta">
+            <span class="pill pill-env-dev">
+              <span class="pill-dot"></span> ENV: DEV
+            </span>
+            <span class="pill">
+              <span class="pill-dot"></span>
+              Supabase · Cloudflare Worker
+            </span>
+            <span>时区：Asia/Shanghai（北京时间）</span>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div id="topbar-user" class="topbar-user hidden">
+          <div id="avatar" class="avatar">?</div>
+          <div>
+            <div id="user-email" style="font-size:12px;">-</div>
+            <div style="font-size:10px; color:var(--text-faded);">GitHub 登录 · Supabase Auth</div>
+          </div>
+        </div>
+        <button id="btn-login" class="btn" type="button">
+          <span>使用 GitHub 登录</span>
+        </button>
+        <button id="btn-logout" class="btn btn-ghost hidden" type="button">
+          退出
+        </button>
+      </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="page-main">
+      <section class="intro-card">
+        <div class="intro-title">
+          Go Agent 配置中心
+          <span class="intro-badge">仅管理员可见</span>
+        </div>
+        <p class="intro-text">
+          这里用于集中管理 <span>Go Agent / Runtime</span> 的配置：包括 agent key、模型规格、
+          超时时间、开关状态以及扩展 JSON 配置。所有写入均通过 Cloudflare Worker 中转，并最终落入 Supabase 数据库。
+        </p>
+        <div class="login-hint">
+          <span class="status-dot offline"></span>
+          <small>请先使用 GitHub 登录，系统会校验管理员邮箱（如 <code>oliveroogle@gmail.com</code>）。</small>
+        </div>
+      </section>
+
+      <!-- 登录区 -->
+      <section id="login-section" class="login-section">
+        <div class="login-row">
+          <div>
+            <div class="login-desc">
+              <strong>登录后才能查看和修改 Go Agent 配置。</strong><br />
+              系统使用 Supabase Auth + GitHub 进行鉴权，前端仅保存 <span>短期 session</span>，
+              实际写库权限由 Cloudflare Worker 侧的 <code>SUPABASE_SERVICE_ROLE_KEY</code> 控制。
+            </div>
+            <div class="login-meta">
+              提示：建议在同一浏览器中已登录 GitHub，可减少授权跳转次数。
+            </div>
+          </div>
+          <div>
+            <button id="btn-login-2" class="btn" type="button">
+              使用 GitHub 登录
+            </button>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="login-meta">
+          登录成功后，将自动加载当前所有 Go Agent 配置，你可以在下方进行搜索、分页、编辑和删除操作。
+        </div>
+      </section>
+
+      <!-- 管理区 -->
+      <section id="admin-section" class="admin-section hidden">
+        <!-- 工具栏 -->
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <div class="field-inline">
+              <label for="search-input">搜索：</label>
+              <input
+                id="search-input"
+                class="input input-sm"
+                type="text"
+                placeholder="按 agent key / 名称 / 描述模糊搜索"
+              />
+            </div>
+            <button id="btn-search" class="btn btn-ghost" type="button">
+              搜索
+            </button>
+          </div>
+          <div class="toolbar-right">
+            <div class="field-inline">
+              <span class="status-dot"></span>
+              <span id="status-text">已连接 · 等待操作</span>
+            </div>
+            <span id="total-count" class="badge-count">共 0 条记录</span>
+          </div>
+        </div>
+
+        <!-- 表单：新增 / 编辑 -->
+        <section class="form-card">
+          <div class="form-title-row">
+            <div class="form-title">
+              配置编辑
+              <small id="form-mode-label">新建 Go Agent 配置</small>
+            </div>
+            <button id="btn-reset-form" class="btn-ghost btn" type="button">
+              清空表单
+            </button>
+          </div>
+
+          <form id="agent-form">
+            <input type="hidden" id="agent-id" />
+            <div class="form-grid">
+              <div class="form-field">
+                <label for="agent-key">Agent Key（唯一）</label>
+                <input
+                  id="agent-key"
+                  class="input"
+                  type="text"
+                  placeholder="如：devops / go-runtime / infra-router"
+                  required
+                />
+                <small>仅字母、数字、短横线，下游调用时用这个 key 进行路由。</small>
+              </div>
+
+              <div class="form-field">
+                <label for="agent-name">显示名称</label>
+                <input
+                  id="agent-name"
+                  class="input"
+                  type="text"
+                  placeholder="如：Go Runtime DevOps Agent"
+                />
+                <small>用于管理后台展示和前端简介。</small>
+              </div>
+
+              <div class="form-field">
+                <label for="agent-model">模型规格</label>
+                <input
+                  id="agent-model"
+                  class="input"
+                  type="text"
+                  placeholder="如：gpt-5-mini / gpt-4.1-mini"
+                />
+                <small>可选字段，方便标记当前 Agent 默认使用的 LLM。</small>
+              </div>
+
+              <div class="form-field">
+                <label for="agent-status">启用状态</label>
+                <select id="agent-status" class="input">
+                  <option value="active">active（启用）</option>
+                  <option value="paused">paused（暂停）</option>
+                  <option value="archived">archived（归档）</option>
+                </select>
+                <small>可用于灰度、暂停实验等场景。</small>
+              </div>
+
+              <div class="form-field">
+                <label for="agent-timeout">超时时间（秒，可选）</label>
+                <input
+                  id="agent-timeout"
+                  class="input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="如：30 / 60"
+                />
+                <small>用于下游 Worker / LangGraph 的默认超时控制。</small>
+              </div>
+
+              <div class="form-field">
+                <label for="agent-tags">标签（逗号分隔，可选）</label>
+                <input
+                  id="agent-tags"
+                  class="input"
+                  type="text"
+                  placeholder="如：devops,go,prod"
+                />
+                <small>纯展示用标签，便于筛选。</small>
+              </div>
+
+              <div class="form-field form-row-wide">
+                <label for="agent-desc">简要描述</label>
+                <textarea
+                  id="agent-desc"
+                  class="input input-textarea"
+                  placeholder="用于说明该 Go Agent 的职责边界、输入输出预期、适用场景等。"
+                ></textarea>
+              </div>
+
+              <div class="form-field form-row-wide">
+                <label for="agent-config-json">扩展配置 JSON（可选）</label>
+                <textarea
+                  id="agent-config-json"
+                  class="input input-textarea"
+                  placeholder='可选：一个 JSON 对象，例如 {"max_retries":2,"tool_policies":["logs","ci","metrics"]}。'
+                ></textarea>
+                <small>如填写，必须是合法 JSON。后端 Supabase 建议使用 text 字段存储原始 JSON 字符串。</small>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn-ghost btn" type="button" id="btn-cancel-edit">
+                取消编辑
+              </button>
+              <button class="btn" type="submit" id="btn-save">
+                保存配置
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- 列表 -->
+        <section class="list-wrapper">
+          <div class="list-header-row">
+            <div>
+              <strong>Go Agent 列表</strong>
+              <span style="margin-left:6px;">（最近更新在前）</span>
+            </div>
+            <div class="pagination">
+              <button id="btn-prev" class="btn-ghost btn" type="button">上一页</button>
+              <span id="page-info">第 1 / 1 页</span>
+              <button id="btn-next" class="btn-ghost btn" type="button">下一页</button>
+            </div>
+          </div>
+          <div id="agent-list" class="agent-list">
+            <!-- 动态卡片 -->
+          </div>
+        </section>
+      </section>
+
+      <!-- 提示条 -->
+      <div id="toast" class="toast hidden">
+        <div>
+          <strong id="toast-title">提示</strong>
+          <span id="toast-message" style="margin-left:6px;">-</span>
+        </div>
+        <span id="toast-meta" class="meta"></span>
+      </div>
+    </main>
+  </div>
+
+  <!-- Supabase UMD（非 module，避免 type="module" 问题） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.0/dist/umd/supabase.js"></script>
+  <script>
+    // ========= 请根据实际情况替换为你的配置 =========
+    const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co"; // TODO: 替换
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg";      // TODO: 替换
+    const ADMIN_EMAIL = "oliveroogle@gmail.com";             // 可按需调整
+    const API_BASE = "https://agent.mefans.workers.dev"; // TODO: 替换
+
+    // =================================================
+    const { createClient } = window.supabase;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentSession = null;
+    let currentAccessToken = null;
+    let currentPage = 1;
+    let pageSize = 10;
+    let totalPages = 1;
+    let totalItems = 0;
+    let currentSearchKeyword = "";
+
+    // DOM refs
+    const loginSection = document.getElementById("login-section");
+    const adminSection = document.getElementById("admin-section");
+    const btnLogin = document.getElementById("btn-login");
+    const btnLogin2 = document.getElementById("btn-login-2");
+    const btnLogout = document.getElementById("btn-logout");
+    const topbarUser = document.getElementById("topbar-user");
+    const avatarEl = document.getElementById("avatar");
+    const userEmailEl = document.getElementById("user-email");
+    const statusTextEl = document.getElementById("status-text");
+    const totalCountEl = document.getElementById("total-count");
+    const toastEl = document.getElementById("toast");
+    const toastTitleEl = document.getElementById("toast-title");
+    const toastMessageEl = document.getElementById("toast-message");
+    const toastMetaEl = document.getElementById("toast-meta");
+    const pageInfoEl = document.getElementById("page-info");
+    const agentListEl = document.getElementById("agent-list");
+
+    const formEl = document.getElementById("agent-form");
+    const formModeLabelEl = document.getElementById("form-mode-label");
+    const agentIdEl = document.getElementById("agent-id");
+    const agentKeyEl = document.getElementById("agent-key");
+    const agentNameEl = document.getElementById("agent-name");
+    const agentModelEl = document.getElementById("agent-model");
+    const agentStatusEl = document.getElementById("agent-status");
+    const agentTimeoutEl = document.getElementById("agent-timeout");
+    const agentTagsEl = document.getElementById("agent-tags");
+    const agentDescEl = document.getElementById("agent-desc");
+    const agentConfigJsonEl = document.getElementById("agent-config-json");
+    const btnResetForm = document.getElementById("btn-reset-form");
+    const btnCancelEdit = document.getElementById("btn-cancel-edit");
+    const btnSave = document.getElementById("btn-save");
+
+    const searchInputEl = document.getElementById("search-input");
+    const btnSearch = document.getElementById("btn-search");
+    const btnPrev = document.getElementById("btn-prev");
+    const btnNext = document.getElementById("btn-next");
+
+    function showToast(type, title, msg, meta) {
+      toastEl.classList.remove("hidden", "error", "success");
+      if (type === "error") toastEl.classList.add("error");
+      if (type === "success") toastEl.classList.add("success");
+      toastTitleEl.textContent = title || "提示";
+      toastMessageEl.textContent = msg || "";
+      toastMetaEl.textContent = meta || "";
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => {
+        toastEl.classList.add("hidden");
+      }, 4000);
+    }
+
+    function formatToBeijing(isoString) {
+      if (!isoString) return "-";
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleString("zh-CN", {
+          timeZone: "Asia/Shanghai",
+          hour12: false,
+        });
+      } catch (e) {
+        return isoString;
+      }
+    }
+
+    function initialsFromEmail(email) {
+      if (!email) return "?";
+      const name = email.split("@")[0] || "";
+      if (!name) return "?";
+      if (name.length >= 2) return name.slice(0, 2).toUpperCase();
+      return name.charAt(0).toUpperCase();
+    }
+
+    function authHeaders() {
+      const headers = { "Content-Type": "application/json" };
+      if (currentAccessToken) {
+        headers["Authorization"] = "Bearer " + currentAccessToken;
+      }
+      return headers;
+    }
+
+    function ensureAdminUser(session) {
+      if (!session || !session.user) return false;
+      const email = session.user.email || "";
+      return email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    }
+
+    function applyLoginUI(session) {
+      if (session && ensureAdminUser(session)) {
+        currentSession = session;
+        currentAccessToken = session.access_token || (session.session && session.session.access_token) || null;
+        loginSection.classList.add("hidden");
+        adminSection.classList.remove("hidden");
+        topbarUser.classList.remove("hidden");
+        btnLogout.classList.remove("hidden");
+        btnLogin.classList.add("hidden");
+        btnLogin2.classList.add("hidden");
+
+        const email = session.user.email || "";
+        userEmailEl.textContent = email;
+        avatarEl.textContent = initialsFromEmail(email);
+        statusTextEl.textContent = "已登录 · 准备拉取数据…";
+        fetchAgents(1);
+      } else {
+        // 未登录或无权限
+        currentSession = null;
+        currentAccessToken = null;
+        loginSection.classList.remove("hidden");
+        adminSection.classList.add("hidden");
+        topbarUser.classList.add("hidden");
+        btnLogout.classList.add("hidden");
+        btnLogin.classList.remove("hidden");
+        btnLogin2.classList.remove("hidden");
+        statusTextEl.textContent = "未登录或无权限";
+      }
+    }
+
+    async function handleGithubLogin() {
+      try {
+        const redirectTo = window.location.href;
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "github",
+          options: { redirectTo },
+        });
+        if (error) {
+          console.error(error);
+          showToast("error", "GitHub 登录失败", error.message || String(error));
+        }
+      } catch (err) {
+        console.error(err);
+        showToast("error", "GitHub 登录异常", String(err));
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        await supabase.auth.signOut();
+        applyLoginUI(null);
+        showToast("success", "已退出登录", "你现在处于未登录状态。");
+      } catch (err) {
+        console.error(err);
+        showToast("error", "退出登录失败", String(err));
+      }
+    }
+
+    async function fetchAgents(page) {
+      if (!page || page < 1) page = 1;
+      currentPage = page;
+      statusTextEl.textContent = "加载中…";
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(currentPage));
+        params.set("page_size", String(pageSize));
+        if (currentSearchKeyword && currentSearchKeyword.trim()) {
+          params.set("q", currentSearchKeyword.trim());
+        }
+        const url = API_BASE.replace(/\/+$/, "") + "/agents?" + params.toString();
+        const resp = await fetch(url, { headers: authHeaders() });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error("HTTP " + resp.status + ": " + txt.slice(0, 200));
+        }
+        const data = await resp.json();
+        const items = data.items || data.agents || [];
+        totalItems = data.total || data.total_count || items.length || 0;
+        totalPages = data.total_pages || data.totalPages || 1;
+        renderAgentList(items);
+        pageInfoEl.textContent = "第 " + currentPage + " / " + totalPages + " 页";
+        totalCountEl.textContent = "共 " + totalItems + " 条记录";
+        statusTextEl.textContent = "加载完成";
+      } catch (err) {
+        console.error(err);
+        showToast("error", "拉取数据失败", String(err));
+        statusTextEl.textContent = "拉取数据失败";
+      }
+    }
+
+    function renderAgentList(items) {
+      agentListEl.innerHTML = "";
+      if (!items || !items.length) {
+        const empty = document.createElement("div");
+        empty.style.fontSize = "12px";
+        empty.style.color = "var(--text-faded)";
+        empty.style.padding = "16px 4px";
+        empty.textContent = "暂无数据。可以上方新建一个 Go Agent 配置。";
+        agentListEl.appendChild(empty);
+        return;
+      }
+
+      items.forEach(function (item) {
+        const card = document.createElement("article");
+        card.className = "agent-card";
+
+        const main = document.createElement("div");
+        main.className = "agent-card-main";
+
+        const titleRow = document.createElement("div");
+        titleRow.className = "agent-title-row";
+
+        const nameEl = document.createElement("div");
+        nameEl.className = "agent-name";
+        const nameText = (item.name || item.display_name || item.agent_name || "").trim() || "未命名 Agent";
+        nameEl.textContent = nameText;
+
+        const keySpan = document.createElement("span");
+        keySpan.className = "agent-key";
+        keySpan.textContent = item.key || item.agent_key || item.slug || "(无 key)";
+        nameEl.appendChild(keySpan);
+
+        titleRow.appendChild(nameEl);
+
+        const statusChip = document.createElement("span");
+        statusChip.className = "tag-pill";
+        const statusValue = (item.status || item.state || "active").toLowerCase();
+        statusChip.textContent = "状态：" + statusValue;
+        if (statusValue === "active") {
+          statusChip.style.borderColor = "rgba(34,197,94,0.7)";
+          statusChip.style.color = "#bbf7d0";
+        } else if (statusValue === "paused") {
+          statusChip.style.borderColor = "rgba(248,171,96,0.7)";
+          statusChip.style.color = "#fed7aa";
+        } else {
+          statusChip.style.borderColor = "rgba(148,163,184,0.6)";
+        }
+        titleRow.appendChild(statusChip);
+
+        main.appendChild(titleRow);
+
+        const descEl = document.createElement("p");
+        descEl.className = "agent-desc";
+        descEl.textContent =
+          (item.description || item.desc || item.summary || "").trim() ||
+          "（暂无描述）";
+        main.appendChild(descEl);
+
+        const tagLine = document.createElement("div");
+        tagLine.className = "tag-line";
+        const model = (item.model || item.default_model || "").trim();
+        const timeout = item.timeout_seconds || item.timeout || null;
+        const tags = (item.tags || "").toString();
+
+        if (model) {
+          const tag = document.createElement("span");
+          tag.className = "tag-pill";
+          tag.textContent = "model: " + model;
+          tagLine.appendChild(tag);
+        }
+
+        if (timeout) {
+          const tag = document.createElement("span");
+          tag.className = "tag-pill";
+          tag.textContent = "timeout: " + timeout + "s";
+          tagLine.appendChild(tag);
+        }
+
+        if (tags) {
+          const tag = document.createElement("span");
+          tag.className = "tag-pill";
+          tag.textContent = "tags: " + tags;
+          tagLine.appendChild(tag);
+        }
+
+        main.appendChild(tagLine);
+
+        const metaRow = document.createElement("div");
+        metaRow.className = "agent-meta-row";
+
+        const metaDates = document.createElement("div");
+        metaDates.className = "agent-meta-dates";
+        const createdAt = document.createElement("span");
+        createdAt.textContent = "创建：" + formatToBeijing(item.created_at);
+        const updatedAt = document.createElement("span");
+        updatedAt.textContent = "更新：" + formatToBeijing(item.updated_at || item.modified_at);
+        metaDates.appendChild(createdAt);
+        metaDates.appendChild(updatedAt);
+
+        const metaActions = document.createElement("div");
+        metaActions.className = "agent-meta-actions";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "btn btn-ghost";
+        editBtn.textContent = "编辑";
+        editBtn.onclick = function () {
+          fillFormForEdit(item);
+        };
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "btn btn-danger";
+        delBtn.textContent = "删除";
+        delBtn.onclick = function () {
+          deleteAgent(item);
+        };
+
+        metaActions.appendChild(editBtn);
+        metaActions.appendChild(delBtn);
+
+        metaRow.appendChild(metaDates);
+        metaRow.appendChild(metaActions);
+
+        main.appendChild(metaRow);
+
+        // JSON 预览（截断）
+        if (item.config_json || item.config || item.raw_config) {
+          const cfg = item.config_json || item.config || item.raw_config;
+          let short = "";
+          try {
+            const parsed = typeof cfg === "string" ? JSON.parse(cfg) : cfg;
+            short = JSON.stringify(parsed, null, 2);
+          } catch (e) {
+            short = typeof cfg === "string" ? cfg : JSON.stringify(cfg);
+          }
+          if (short.length > 260) {
+            short = short.slice(0, 260) + "…";
+          }
+          const jsonEl = document.createElement("pre");
+          jsonEl.className = "agent-json";
+          jsonEl.textContent = short;
+          main.appendChild(jsonEl);
+        }
+
+        card.appendChild(main);
+        agentListEl.appendChild(card);
+      });
+    }
+
+    function resetForm() {
+      agentIdEl.value = "";
+      agentKeyEl.value = "";
+      agentNameEl.value = "";
+      agentModelEl.value = "";
+      agentStatusEl.value = "active";
+      agentTimeoutEl.value = "";
+      agentTagsEl.value = "";
+      agentDescEl.value = "";
+      agentConfigJsonEl.value = "";
+      formModeLabelEl.textContent = "新建 Go Agent 配置";
+      btnSave.textContent = "保存配置";
+    }
+
+    function fillFormForEdit(item) {
+      const id = item.id || item.uuid || "";
+      agentIdEl.value = id;
+      agentKeyEl.value = item.key || item.agent_key || item.slug || "";
+      agentNameEl.value = item.name || item.display_name || item.agent_name || "";
+      agentModelEl.value = item.model || item.default_model || "";
+      agentStatusEl.value = (item.status || item.state || "active").toLowerCase();
+      agentTimeoutEl.value = item.timeout_seconds || item.timeout || "";
+      agentTagsEl.value = item.tags || "";
+
+      agentDescEl.value =
+        (item.description || item.desc || item.summary || "").trim() || "";
+
+      const cfg = item.config_json || item.config || item.raw_config;
+      if (cfg) {
+        try {
+          const parsed = typeof cfg === "string" ? JSON.parse(cfg) : cfg;
+          agentConfigJsonEl.value = JSON.stringify(parsed, null, 2);
+        } catch (e) {
+          agentConfigJsonEl.value = typeof cfg === "string" ? cfg : JSON.stringify(cfg, null, 2);
+        }
+      } else {
+        agentConfigJsonEl.value = "";
+      }
+
+      formModeLabelEl.textContent = "编辑配置 · " + (item.key || item.agent_key || "");
+      btnSave.textContent = "保存修改";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function deleteAgent(item) {
+      const id = item.id || item.uuid;
+      if (!id) {
+        showToast("error", "缺少 ID，无法删除", "");
+        return;
+      }
+      const key = item.key || item.agent_key || "";
+      const ok = window.confirm("确定要删除该 Go Agent 配置吗？\nID: " + id + "\nKey: " + key);
+      if (!ok) return;
+
+      try {
+        const url = API_BASE.replace(/\/+$/, "") + "/agents/" + encodeURIComponent(id);
+        const resp = await fetch(url, {
+          method: "DELETE",
+          headers: authHeaders(),
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error("HTTP " + resp.status + ": " + txt.slice(0, 200));
+        }
+        showToast("success", "删除成功", key ? "已删除：" + key : "");
+        fetchAgents(currentPage);
+      } catch (err) {
+        console.error(err);
+        showToast("error", "删除失败", String(err));
+      }
+    }
+
+    async function saveAgent(e) {
+      e.preventDefault();
+      const id = agentIdEl.value.trim();
+
+      const body = {
+        key: agentKeyEl.value.trim(),
+        name: agentNameEl.value.trim(),
+        model: agentModelEl.value.trim(),
+        status: agentStatusEl.value.trim() || "active",
+        timeout_seconds: agentTimeoutEl.value ? Number(agentTimeoutEl.value) : null,
+        tags: agentTagsEl.value.trim(),
+        description: agentDescEl.value.trim(),
+      };
+
+      const cfgText = agentConfigJsonEl.value.trim();
+      if (cfgText) {
+        try {
+          const parsed = JSON.parse(cfgText);
+          body.config_json = JSON.stringify(parsed);
+        } catch (e) {
+          showToast("error", "配置 JSON 非法", "请检查 JSON 语法：" + e);
+          return;
+        }
+      }
+
+      const method = id ? "PUT" : "POST";
+      const url =
+        API_BASE.replace(/\/+$/, "") +
+        (id ? "/agents/" + encodeURIComponent(id) : "/agents");
+
+      try {
+        btnSave.disabled = true;
+        btnSave.textContent = "保存中…";
+        const resp = await fetch(url, {
+          method,
+          headers: authHeaders(),
+          body: JSON.stringify(body),
+        });
+
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error("HTTP " + resp.status + ": " + txt.slice(0, 200));
+        }
+
+        const data = await resp.json().catch(function () {
+          return {};
+        });
+
+        showToast(
+          "success",
+          id ? "修改成功" : "创建成功",
+          body.key ? "Key: " + body.key : "",
+          ""
+        );
+        resetForm();
+        fetchAgents(id ? currentPage : 1);
+      } catch (err) {
+        console.error(err);
+        showToast("error", "保存失败", String(err));
+      } finally {
+        btnSave.disabled = false;
+        btnSave.textContent = id ? "保存修改" : "保存配置";
+      }
+    }
+
+    // ===== 事件绑定 =====
+    btnLogin.addEventListener("click", handleGithubLogin);
+    btnLogin2.addEventListener("click", handleGithubLogin);
+    btnLogout.addEventListener("click", handleLogout);
+    btnSearch.addEventListener("click", function () {
+      currentSearchKeyword = searchInputEl.value || "";
+      fetchAgents(1);
+    });
+    searchInputEl.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        currentSearchKeyword = searchInputEl.value || "";
+        fetchAgents(1);
+      }
+    });
+
+    btnPrev.addEventListener("click", function () {
+      if (currentPage > 1) fetchAgents(currentPage - 1);
+    });
+    btnNext.addEventListener("click", function () {
+      if (currentPage < totalPages) fetchAgents(currentPage + 1);
+    });
+
+    formEl.addEventListener("submit", saveAgent);
+    btnResetForm.addEventListener("click", resetForm);
+    btnCancelEdit.addEventListener("click", resetForm);
+
+    // ===== 初始化：尝试恢复会话 =====
+    (async function init() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error(error);
+        }
+        const session = data && (data.session || data);
+        if (session && session.session) {
+          applyLoginUI(session.session);
+        } else if (session && session.user) {
+          applyLoginUI(session);
+        } else {
+          applyLoginUI(null);
+        }
+
+        supabase.auth.onAuthStateChange(function (_event, s) {
+          if (_event === "SIGNED_OUT") {
+            applyLoginUI(null);
+          } else if (s) {
+            applyLoginUI(s);
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        applyLoginUI(null);
+      }
+    })();
+  </script>
+</body>
+</html>
