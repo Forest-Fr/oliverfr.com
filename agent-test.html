@@ -1535,7 +1535,7 @@
             Agent Worker 控制台
           </div>
         </div>
-        <div class="sidebar-subtitle">本地对接 · Cloudflare &AI 智能体</div>
+        <div class="sidebar-subtitle">本地对接 · Cloud &AI 智能体</div>
         <div class="sidebar-tags">
           <div class="tag-chip"><strong>Agent</strong> worker-agent</div>
           <div class="tag-chip"><strong>Model</strong> gpt-5-mini</div>
@@ -1571,7 +1571,7 @@
           <div class="breadcrumbs">
             <span>Agent Worker 测试面板</span>
             <span>·</span>
-            <span>前端 → Cloudflare  → OpenAI Chat Completions</span>
+            <span>前端 → Cloud  → OpenAI Chat Completions</span>
           </div>
           <div class="agent-title-row">
             <div class="agent-name">Agent Worker 测试面板</div>
@@ -1656,7 +1656,7 @@
           </div>
           <div class="input-hint-row">
             <span>支持多行输入。<strong>Ctrl+Enter</strong> 发送。</span>
-            <span id="requestMetaHint">就绪：调用 Cloudflare   &AI智能体。</span>
+            <span id="requestMetaHint">就绪：调用 Cloud   &AI智能体。</span>
           </div>
         </div>
       </section>
@@ -1727,7 +1727,7 @@
           <span class="insight-tag">worker-agent · Dev</span>
         </h3>
         <ul class="agent-desc-list">
-          <li>· <span>职责：</span>验证 Cloudflare  → OpenAI gpt-5-mini 聊天链路。</li>
+          <li>· <span>职责：</span>验证 Cloud  → OpenAI gpt-5-mini 聊天链路。</li>
           <li>· <span>能力：</span>回答自然语言问题，展示模型与 tokens 信息。</li>
           <li>· <span>限制：</span>不访问业务数据库、不执行写操作工具调用。</li>
           <li>· <span>适用场景：</span>本地联调、链路健康检查、最小可用智能体测试。</li>
@@ -2338,29 +2338,63 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
       el.authOverlay.style.display = "none";
     }
 
-    function handleAuthSubmit() {
-      if (!el.authInput) return;
-      const code = (el.authInput.value || "").trim();
+// ===== PATCH REPLACE · 授权提交：接入 Worker 后端校验 =====
+async function handleAuthSubmit() {
+  if (!el.authInput) return;
+  const code = (el.authInput.value || "").trim();
 
-      if (!code) {
-        if (el.authError) {
-          el.authError.textContent = "测试口令不能为空，请重新输入。";
-          el.authError.style.display = "block";
-        }
-        return;
-      }
-
-      // 当前版本：任意非空测试口令均视为通过；
-      // 如需严格校验，可在此处接入 Worker / Supabase 校验逻辑。
-      isAuthorized = true;
-      persistAuthToken(code);
-
-      if (el.authError) {
-        el.authError.style.display = "none";
-      }
-      closeAuthModal();
-      showToast("授权验证通过，已为本机记住测试口令。");
+  if (!code) {
+    if (el.authError) {
+      el.authError.textContent = "测试口令不能为空，请重新输入。";
+      el.authError.style.display = "block";
     }
+    return;
+  }
+
+  let ok = false;
+  try {
+    const res = await fetch(AUTH_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+
+    if (res.ok) {
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {
+        data = null;
+      }
+      ok = !!(data && data.ok);
+    } else {
+      ok = false;
+    }
+  } catch (err) {
+    console.error("[Auth] 验证请求失败:", err);
+    ok = false;
+  }
+
+  if (!ok) {
+    if (el.authError) {
+      el.authError.textContent = "测试口令不正确，请确认后再试。";
+      el.authError.style.display = "block";
+    }
+    return;
+  }
+
+  // 后端确认通过后，才在本地标记为已授权 + 记住口令
+  isAuthorized = true;
+  persistAuthToken(code);
+
+  if (el.authError) {
+    el.authError.style.display = "none";
+  }
+  closeAuthModal();
+  showToast("授权验证通过，已为本机记住测试口令。");
+}
+// ===== PATCH END =====
+
 
     function updateInputScrollArrow() {
       if (!el.chatInput || !el.inputScrollDown) return;
@@ -3021,9 +3055,15 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
       }
     }
     // ===== PATCH END =====
+function getAuthToken() {
+  try {
+    const saved = localStorage.getItem(AUTH_TOKEN_KEY);
+    return saved && saved.trim() ? saved.trim() : "";
+  } catch (e) {
+    return "";
+  }
+}
 
-    // ===== PATCH END =====
-    // ===== PATCH BEGIN: Agent 模式 UI 状态同步 =====
     // ===== PATCH BEGIN: Agent 模式 UI 状态同步 =====
     function applyModeUiState() {
       if (el.modeSelect) {
@@ -3057,7 +3097,7 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
         el.requestMetaHint.textContent =
           currentMode === MODE_AGENT_DEVOPS
             ? "就绪：调用 Agent Runtime 智能体。"
-            : "就绪：调用 Cloudflare Worker 智能体。";
+            : "就绪：调用 Cloud& Worker 智能体。";
       }
 
       // ★ 真的做到：每次模式 / 环境切换时都刷新一次运行健康（后端没实现就静默失败）
@@ -3244,13 +3284,22 @@ async function callBackendWithMode(userText) {
   let ok = false;
 
   try {
-    if (currentMode === MODE_AGENT_DEVOPS) {
-      const payload = buildAgentPayload(userText);
-      const res = await fetch(resolveAgentEndpoint(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+if (currentMode === MODE_AGENT_DEVOPS) {
+  const payload = buildAgentPayload(userText);
+
+  const headers = { "Content-Type": "application/json" };
+  const authToken = typeof getAuthToken === "function" ? getAuthToken() : "";
+  if (authToken) {
+    headers["X-Agent-Auth"] = authToken;
+  }
+
+  const res = await fetch(resolveAgentEndpoint(), {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  // ...
+
 
       durationMs = performance.now() - start;
       status = res.status;
@@ -3330,13 +3379,21 @@ async function callBackendWithMode(userText) {
 
       ok = true;
       return { ok, status, durationMs, rawResponse, replyText, modelName, usage, runtimeMeta, agentRaw };
-    } else {
-      // ⭐ 直连 Worker
-      const res = await fetch(WORKER_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: userText }),
-      });
+} else {
+  // ⭐ 直连 Worker
+  const headers = { "Content-Type": "application/json" };
+  const authToken = typeof getAuthToken === "function" ? getAuthToken() : "";
+  if (authToken) {
+    headers["X-Agent-Auth"] = authToken;
+  }
+
+  const res = await fetch(WORKER_ENDPOINT, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ input: userText }),
+  });
+  // ...
+
 
       durationMs = performance.now() - start;
       status = res.status;
@@ -3678,8 +3735,8 @@ updateInputScrollArrow(); // ===== PATCH ADD：发送后重置下拉箭头状态
       el.btnSend.disabled = sending;
       el.btnSendLabel.textContent = sending ? "调用中…" : "发送";
       el.requestMetaHint.textContent = sending
-        ? "正在调用 Cloudflare  &AI智能体…"
-        : "就绪：调用 Cloudflare Worker 智能体。";
+        ? "正在调用 Cloud  &AI智能体…"
+        : "就绪：调用 Cloud &Worker 智能体。";
     }*/
         function setSendingState(sending) {
       el.btnSend.disabled = sending;
@@ -3691,12 +3748,12 @@ updateInputScrollArrow(); // ===== PATCH ADD：发送后重置下拉箭头状态
         el.requestMetaHint.textContent =
           currentMode === MODE_AGENT_DEVOPS
             ? "正在调用 Agent Runtime 智能体…"
-            : "正在调用 Cloudflare Worker 智能体…";
+            : "正在调用 Cloud& Worker 智能体…";
       } else {
         el.requestMetaHint.textContent =
           currentMode === MODE_AGENT_DEVOPS
             ? "就绪：调用 Agent Runtime 智能体。"
-            : "就绪：调用 Cloudflare Worker 智能体。";
+            : "就绪：调用 Cloud&Worker 智能体。";
       }
     }
 
@@ -4726,42 +4783,3 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
