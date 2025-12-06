@@ -3671,8 +3671,15 @@ updateInputScrollArrow(); // ===== PATCH ADD：发送后重置下拉箭头状态
       updateRawJson(rawResponse || "");
 
 
+      // ===== PATCH REPLACE · 调用失败时的授权联动处理 =====
       if (!ok) {
-        if (status === "network_error") {
+        // 401 视为“授权失效 / 未通过”，强制退出登录并弹出授权框
+        if (status === 401 || status === "401") {
+          isAuthorized = false;
+          persistAuthToken(""); // 清空本地保存的测试口令
+          openAuthModal();
+          showToast("测试口令未通过验证或已失效，请重新输入后再发送。");
+        } else if (status === "network_error") {
           showToast("网络异常，无法访问后端。");
         } else if (currentMode === MODE_AGENT_DEVOPS) {
           showToast(`Agent 调用失败（${status}），请检查 Agent Worker 日志。`);
@@ -3681,6 +3688,7 @@ updateInputScrollArrow(); // ===== PATCH ADD：发送后重置下拉箭头状态
         }
       }
       // ===== PATCH END =====
+
 
       const sessionForMeta = sessions.find((s) => s.id === currentSessionId);
 
@@ -4788,4 +4796,5 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
