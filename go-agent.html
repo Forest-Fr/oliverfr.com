@@ -1188,6 +1188,65 @@
       const email = session.user.email || "";
       return email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
     }
+    function ensureAdminUser(session) {
+      if (!session || !session.user) return false;
+      const email = session.user.email || "";
+      return email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    }
+
+    // ===== 新增：调用 /agent/auth，给 Worker 下发 agent_admin_code Cookie =====
+    let backendAdminAuthed = false;
+
+    async function ensureBackendAdminAuth() {
+      // 本次页面生命周期里已经通过，就不再重复弹窗
+      if (backendAdminAuthed) return true;
+
+      // 浏览器本地记住一次（避免每次刷新都输）
+      try {
+        if (window.localStorage && localStorage.getItem("agent_admin_authed") === "1") {
+          backendAdminAuthed = true;
+          return true;
+        }
+      } catch (_) {}
+
+      const code = window.prompt("请输入后台管理口令（不会上传，只用于本机授权）：");
+      if (!code || !code.trim()) {
+        showToast("error", "未输入口令", "需要正确的后台口令才能拉取 Supabase 数据。");
+        return false;
+      }
+
+      try {
+        const url = API_BASE.replace(/\/+$/, "") + "/auth";
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: code.trim() }),
+          // 非跨域，但显式带上 credentials，确保 Set-Cookie 生效
+          credentials: "include",
+        });
+
+        const data = await resp.json().catch(() => ({}));
+
+        if (!resp.ok || !data.ok) {
+          showToast("error", "后台口令错误", "请确认 AGENT_ADMIN_CODES / AGENT_ADMIN_CODE 与输入一致。");
+          return false;
+        }
+
+        backendAdminAuthed = true;
+        try {
+          if (window.localStorage) {
+            localStorage.setItem("agent_admin_authed", "1");
+          }
+        } catch (_) {}
+
+        showToast("success", "后台授权成功", "已获取 agentpage 管理接口访问权限。");
+        return true;
+      } catch (err) {
+        console.error(err);
+        showToast("error", "后台授权失败", String(err));
+        return false;
+      }
+    }
 
     function applyLoginUI(session) {
       if (session && ensureAdminUser(session)) {
@@ -1200,11 +1259,26 @@
         btnLogin.classList.add("hidden");
         btnLogin2.classList.add("hidden");
 
-        const email = session.user.email || "";
+        /*const email = session.user.email || "";
         userEmailEl.textContent = email;
         avatarEl.textContent = initialsFromEmail(email);
         statusTextEl.textContent = "已登录 · 准备拉取数据…";
-        fetchAgents(1);
+        fetchAgents(1);*/
+              const email = session.user.email || "";
+        userEmailEl.textContent = email;
+        avatarEl.textContent = initialsFromEmail(email);
+
+        // 先做一次后台口令校验，通过后再拉 Supabase 数据
+        statusTextEl.textContent = "已登录 · 正在校验后台口令…";
+        ensureBackendAdminAuth().then((ok) => {
+          if (ok) {
+            statusTextEl.textContent = "已登录 · 正在拉取数据…";
+            fetchAgents(1);
+          } else {
+            statusTextEl.textContent = "已登录 · 后台口令未通过，暂不拉取数据";
+          }
+        });
+
       } else {
         // 未登录或无权限
         currentSession = null;
@@ -1259,7 +1333,13 @@
           params.set("q", currentSearchKeyword.trim());
         }
         const url = API_BASE.replace(/\/+$/, "") + "/agents?" + params.toString();
-        const resp = await fetch(url, { headers: authHeaders() });
+        //const resp = await fetch(url, { headers: authHeaders() });
+
+                const resp = await fetch(url, {
+          headers: authHeaders(),
+          credentials: "include", // 带上 agent_admin_code Cookie
+        });
+
         if (!resp.ok) {
           const txt = await resp.text();
           throw new Error("HTTP " + resp.status + ": " + txt.slice(0, 200));
@@ -1488,6 +1568,9 @@
         const resp = await fetch(url, {
           method: "DELETE",
           headers: authHeaders(),
+
+            credentials: "include",
+          
         });
         if (!resp.ok) {
           const txt = await resp.text();
@@ -1538,6 +1621,9 @@
           method,
           headers: authHeaders(),
           body: JSON.stringify(body),
+
+          credentials: "include",
+          
         });
 
         if (!resp.ok) {
@@ -1624,5 +1710,6 @@
   </script>
 </body>
 </html>
+
 
 
