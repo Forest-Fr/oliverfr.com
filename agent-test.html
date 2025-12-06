@@ -2425,10 +2425,26 @@ async function initApp() {
     function isMobileViewport() {
       return window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
     }
+    // 新增：每次需要弹出授权窗口前，先尝试从 localStorage 同步一次本机授权状态
+    function syncAuthFromStorageOnce() {
+      if (isAuthorized) return; // 内存里已经是 true 的就不重复读了
+      try {
+        const saved = localStorage.getItem(AUTH_TOKEN_KEY);
+        if (saved && saved.trim()) {
+          isAuthorized = true;
+          applyAuthGuardUi();   // 顺便把输入框 / 按钮 UI 解锁
+        }
+      } catch (e) {
+        console.warn("[Auth] syncAuthFromStorageOnce 失败：", e);
+      }
+    }
 
         // ===== PATCH ADD · 授权弹窗 / 输入区下拉箭头逻辑 =====
     function openAuthModal() {
-      // 已经授权的情况下，绝对不再弹窗（双保险）
+      // 先尝试从 localStorage 恢复一次授权状态（双保险）
+      syncAuthFromStorageOnce();
+
+      // 如果本机之前已经验证通过，直接返回，不再弹窗
       if (isAuthorized) return;
 
       if (!el.authOverlay || !el.authModal) return;
@@ -2444,6 +2460,7 @@ async function initApp() {
         }, 10);
       }
     }
+
 
 
     function closeAuthModal() {
@@ -3147,7 +3164,7 @@ applyAuthGuardUi();   // ★ 新增：立即解锁输入区与发送按钮
     }
 
         // ===== PATCH ADD · 授权登录：初始化 / 存储工具 =====
-    function initAuthStateFromStorage() {
+    /*function initAuthStateFromStorage() {
       try {
         const saved = localStorage.getItem(AUTH_TOKEN_KEY);
         // 当前版本：任意非空测试口令视为已授权；如需更严格可在此处接后端校验
@@ -3159,7 +3176,7 @@ applyAuthGuardUi();   // ★ 新增：立即解锁输入区与发送按钮
       } catch (e) {
         isAuthorized = false;
       }
-    }
+    }*/
 
     function persistAuthToken(token) {
       try {
@@ -3693,6 +3710,8 @@ if (currentMode === MODE_AGENT_DEVOPS) {
     // === Worker 调用 ===
 
     async function triggerSend() {
+          // 先尝试从 localStorage 恢复一次授权状态（防止刷新后 isAuthorized 还是 false）
+      syncAuthFromStorageOnce();
   // ===== PATCH ADD · 发送前强制授权校验 =====
       if (!isAuthorized) {
         // 未通过授权：弹出授权窗口 + toast 提示，严禁调用智能体
@@ -4906,6 +4925,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
