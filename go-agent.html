@@ -1103,6 +1103,24 @@
     let totalItems = 0;
     let currentSearchKeyword = "";
 
+    // ===== [PATCH ADD · 后台授权码本地缓存] =====
+    const LOGIN_CODE_STORAGE_KEY = "agent_login_code";
+    let agentLoginCode =
+      (window.localStorage && localStorage.getItem(LOGIN_CODE_STORAGE_KEY)) ||
+      "";
+
+    // 预留一个 setter，方便你以后在授权弹窗里调用
+    function setAgentLoginCode(code) {
+      agentLoginCode = (code || "").trim();
+      if (!window.localStorage) return;
+      if (agentLoginCode) {
+        localStorage.setItem(LOGIN_CODE_STORAGE_KEY, agentLoginCode);
+      } else {
+        localStorage.removeItem(LOGIN_CODE_STORAGE_KEY);
+      }
+    }
+    // ===== [PATCH END] =====
+
     // DOM refs
     const loginSection = document.getElementById("login-section");
     const adminSection = document.getElementById("admin-section");
@@ -1180,8 +1198,15 @@
       if (currentAccessToken) {
         headers["Authorization"] = "Bearer " + currentAccessToken;
       }
+      // ===== [PATCH ADD · 携带后台授权码到 Worker] =====
+      if (agentLoginCode) {
+        // Worker 会用这个 header 做 login_code 校验
+        headers["X-Login-Code"] = agentLoginCode;
+      }
+      // ===== [PATCH END] =====
       return headers;
     }
+
 
     function ensureAdminUser(session) {
       if (!session || !session.user) return false;
