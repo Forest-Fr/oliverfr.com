@@ -1504,6 +1504,33 @@
 </style>
 <!-- ===== PATCH END ===== -->
 
+  /* ===== PATCH FIX · 授权弹窗覆盖全屏并居中 ===== */
+
+/* 覆盖容器：固定在视口，flex 居中，盖过其它元素 */
+#authModalOverlay {
+  position: fixed;
+  inset: 0;                 /* top/right/bottom/left 全 0 */
+  width: 100vw;
+  height: 100vh;
+  display: none;            /* JS 打开时改成 flex */
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 999;             /* 高于 .app-shell / .mobile-overlay / .toast */
+  pointer-events: auto;
+}
+
+/* 避免受 body:flex 布局影响 */
+body > #authModalOverlay {
+  flex: 0 0 auto;
+}
+
+/* 弹窗本体：不再被 margin 推到右侧，始终在 overlay 中心 */
+#authModal {
+  position: relative;
+  margin: 0;
+}
+
   
 </style>
 
@@ -1736,52 +1763,55 @@
     </aside>
 
         <!-- ===== PATCH ADD · 授权登录弹窗 ===== -->
-    <div class="auth-modal-overlay" id="authModalOverlay">
-      <div class="auth-modal" id="authModal">
-        <div class="auth-modal-header">
-          <div class="auth-modal-title">Agent 授权登录</div>
-          <button
-            class="auth-modal-close"
-            id="authModalClose"
-            type="button"
-            aria-label="关闭授权登录窗口"
-          >
-            ✕
-          </button>
-        </div>
-        <div class="auth-modal-body">
-          <p class="auth-modal-desc">
-            为避免误用，请先输入一次测试口令完成授权，本机通过后下次将自动记住，无需重复输入。
-          </p>
-          <label class="auth-modal-label">
-            测试口令
-            <input
-              id="authCodeInput"
-              class="auth-modal-input"
-              type="password"
-              placeholder="请输入测试口令"
-              autocomplete="off"
-            />
-          </label>
-          <div class="auth-modal-error" id="authCodeError" style="display:none;">
-            测试口令不能为空，请重新输入。
-          </div>
-          <button
-            id="authCodeSubmit"
-            type="button"
-            class="auth-modal-submit"
-          >
-            确认并进入面板
-          </button>
-        </div>
-      </div>
-    </div>
-    <!-- ===== PATCH END ===== -->
-
-    
     <!-- 移动端遮罩 -->
     <div class="mobile-overlay" id="mobileOverlay"></div>
+  </div> <!-- .app-shell 结束 -->
+
+  <!-- ===== PATCH FIX · 授权登录弹窗移到页面根级 ===== -->
+  <div class="auth-modal-overlay" id="authModalOverlay">
+    <div class="auth-modal" id="authModal">
+      <div class="auth-modal-header">
+        <div class="auth-modal-title">Agent 授权登录</div>
+        <button
+          class="auth-modal-close"
+          id="authModalClose"
+          type="button"
+          aria-label="关闭授权登录窗口"
+        >
+          ✕
+        </button>
+      </div>
+      <div class="auth-modal-body">
+        <p class="auth-modal-desc">
+          为避免误用，请先输入一次测试口令完成授权，本机通过后下次将自动记住，无需重复输入。
+        </p>
+        <label class="auth-modal-label">
+          测试口令
+          <input
+            id="authCodeInput"
+            class="auth-modal-input"
+            type="password"
+            placeholder="请输入测试口令"
+            autocomplete="off"
+          />
+        </label>
+        <div class="auth-modal-error" id="authCodeError" style="display:none;">
+          测试口令不能为空，请重新输入。
+        </div>
+        <button
+          id="authCodeSubmit"
+          type="button"
+          class="auth-modal-submit"
+        >
+          确认并进入面板
+        </button>
+      </div>
+    </div>
   </div>
+  <!-- ===== PATCH FIX END ===== -->
+</body>
+</html>
+
 
   <script>
 
@@ -4950,6 +4980,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
