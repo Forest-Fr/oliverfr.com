@@ -1905,6 +1905,19 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
     const AUTH_TOKEN_KEY = "agentWorker:authToken";
     let isAuthorized = false;
     // ===== PATCH END =====
+    // ===== PATCH ADD · 启动阶段同步恢复授权标记（避免刷新后仍视为未授权） =====
+    (function bootstrapAuthFlagFromStorage() {
+      try {
+        const stored = localStorage.getItem(AUTH_TOKEN_KEY);
+        if (stored && stored.trim()) {
+          // 只要本机之前有成功通过过一次验证，就直接视为已授权
+          isAuthorized = true;
+        }
+      } catch (e) {
+        console.warn("[Auth] 启动阶段读取本地授权状态失败，将在 initAuthStateFromStorage 中重试。", e);
+      }
+    })();
+    // ===== PATCH END =====
 
     // ===== PATCH ADD · 授权状态持久化 & 恢复（localStorage） =====
     function persistAuthToken(token) {
@@ -2415,6 +2428,9 @@ async function initApp() {
 
         // ===== PATCH ADD · 授权弹窗 / 输入区下拉箭头逻辑 =====
     function openAuthModal() {
+      // 已经授权的情况下，绝对不再弹窗（双保险）
+      if (isAuthorized) return;
+
       if (!el.authOverlay || !el.authModal) return;
       el.authOverlay.style.display = "flex";
       if (el.authError) {
@@ -2428,6 +2444,7 @@ async function initApp() {
         }, 10);
       }
     }
+
 
     function closeAuthModal() {
       if (!el.authOverlay) return;
@@ -4889,6 +4906,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
