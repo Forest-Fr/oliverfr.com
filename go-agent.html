@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>Go Agent 管理后台</title>
+  <title>Agent 管理后台</title>
+    <link rel="icon" href="AI-Agent.png" type="image/x-icon"/>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -837,7 +838,7 @@
         <div class="logo-dot"></div>
         <div class="topbar-title-block">
           <div class="topbar-title">
-            Go Agent 管理后台
+            Agent 管理后台
             <span class="sub">OLIVERFR · AGENT RUNTIME</span>
           </div>
           <div class="topbar-meta">
@@ -846,7 +847,7 @@
             </span>
             <span class="pill">
               <span class="pill-dot"></span>
-              Supabase · Cloudflare Worker
+              Supa·Worker
             </span>
             <span>时区：Asia/Shanghai（北京时间）</span>
           </div>
@@ -857,7 +858,7 @@
           <div id="avatar" class="avatar">?</div>
           <div>
             <div id="user-email" style="font-size:12px;">-</div>
-            <div style="font-size:10px; color:var(--text-faded);">GitHub 登录 · Supabase Auth</div>
+            <div style="font-size:10px; color:var(--text-faded);">GitHub 登录 · Supaauth</div>
           </div>
         </div>
         <button id="btn-login" class="btn" type="button">
@@ -873,16 +874,16 @@
     <main class="page-main">
       <section class="intro-card">
         <div class="intro-title">
-          Go Agent 配置中心
+          Agent 配置中心
           <span class="intro-badge">仅管理员可见</span>
         </div>
         <p class="intro-text">
-          这里用于集中管理 <span>Go Agent / Runtime</span> 的配置：包括 agent key、模型规格、
-          超时时间、开关状态以及扩展 JSON 配置。所有写入均通过 Cloudflare Worker 中转，并最终落入 Supabase 数据库。
+          这里用于集中管理 <span>Agent / Runtime</span> 的配置：包括 agent key、模型规格、
+          超时时间、开关状态以及扩展 JSON 配置。所有写入均通过Worker 中转，并最终落入数据库。
         </p>
         <div class="login-hint">
           <span class="status-dot offline"></span>
-          <small>请先使用 GitHub 登录，系统会校验管理员邮箱（如 <code>oliveroogle@gmail.com</code>）。</small>
+          <small>请先使用 GitHub 登录，系统会校验管理员邮箱（如 <code>*****@gmail.com</code>）。</small>
         </div>
       </section>
 
@@ -891,9 +892,9 @@
         <div class="login-row">
           <div>
             <div class="login-desc">
-              <strong>登录后才能查看和修改 Go Agent 配置。</strong><br />
-              系统使用 Supabase Auth + GitHub 进行鉴权，前端仅保存 <span>短期 session</span>，
-              实际写库权限由 Cloudflare Worker 侧的 <code>SUPABASE_SERVICE_ROLE_KEY</code> 控制。
+              <strong>登录后才能查看和修改Agent 配置。</strong><br />
+              系统使用 Supaauth + GitHub 进行鉴权，前端仅保存 <span>短期 session</span>，
+              实际写库权限由Worker 侧的 <code>*****_KEY</code> 控制。
             </div>
             <div class="login-meta">
               提示：建议在同一浏览器中已登录 GitHub，可减少授权跳转次数。
@@ -907,7 +908,7 @@
         </div>
         <div class="divider"></div>
         <div class="login-meta">
-          登录成功后，将自动加载当前所有 Go Agent 配置，你可以在下方进行搜索、分页、编辑和删除操作。
+          登录成功后，将自动加载当前所有 Agent 配置，你可以在下方进行搜索、分页、编辑和删除操作。
         </div>
       </section>
 
@@ -943,7 +944,7 @@
           <div class="form-title-row">
             <div class="form-title">
               配置编辑
-              <small id="form-mode-label">新建 Go Agent 配置</small>
+              <small id="form-mode-label">新建 Agent 配置</small>
             </div>
             <button id="btn-reset-form" class="btn-ghost btn" type="button">
               清空表单
@@ -1026,7 +1027,7 @@
                 <textarea
                   id="agent-desc"
                   class="input input-textarea"
-                  placeholder="用于说明该 Go Agent 的职责边界、输入输出预期、适用场景等。"
+                  placeholder="用于说明该 Agent 的职责边界、输入输出预期、适用场景等。"
                 ></textarea>
               </div>
 
@@ -1056,7 +1057,7 @@
         <section class="list-wrapper">
           <div class="list-header-row">
             <div>
-              <strong>Go Agent 列表</strong>
+              <strong>Agent 列表</strong>
               <span style="margin-left:6px;">（最近更新在前）</span>
             </div>
             <div class="pagination">
@@ -1089,7 +1090,7 @@
     const SUPABASE_URL = "https://wrgfrjwwtxyonbqxxnvp.supabase.co"; // TODO: 替换
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg";      // TODO: 替换
     const ADMIN_EMAIL = "oliveroogle@gmail.com";             // 可按需调整
-    const API_BASE = "https://agent.mefans.workers.dev"; // TODO: 替换
+    const API_BASE = "/agent"; // 新：最终请求 /agent/agents?...，同域无 CORS 问题
     // =================================================
     const { createClient } = window.supabase;
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1285,7 +1286,7 @@
         empty.style.fontSize = "12px";
         empty.style.color = "var(--text-faded)";
         empty.style.padding = "16px 4px";
-        empty.textContent = "暂无数据。可以上方新建一个 Go Agent 配置。";
+        empty.textContent = "暂无数据。可以上方新建一个 Agent 配置。";
         agentListEl.appendChild(empty);
         return;
       }
@@ -1438,7 +1439,7 @@
       agentTagsEl.value = "";
       agentDescEl.value = "";
       agentConfigJsonEl.value = "";
-      formModeLabelEl.textContent = "新建 Go Agent 配置";
+      formModeLabelEl.textContent = "新建 Agent 配置";
       btnSave.textContent = "保存配置";
     }
 
@@ -1479,7 +1480,7 @@
         return;
       }
       const key = item.key || item.agent_key || "";
-      const ok = window.confirm("确定要删除该 Go Agent 配置吗？\nID: " + id + "\nKey: " + key);
+      const ok = window.confirm("确定要删除该 Agent 配置吗？\nID: " + id + "\nKey: " + key);
       if (!ok) return;
 
       try {
@@ -1623,3 +1624,4 @@
   </script>
 </body>
 </html>
+
