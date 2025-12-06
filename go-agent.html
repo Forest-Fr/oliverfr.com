@@ -1090,7 +1090,6 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZ2Zyand3dHh5b25icXh4bnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2Nzk3ODYsImV4cCI6MjA1OTI1NTc4Nn0.ffm6g20BG36c8ROghk95rtl3dBO-vXM7-_xVMrQdfPg";      // TODO: 替换
     const ADMIN_EMAIL = "oliveroogle@gmail.com";             // 可按需调整
     const API_BASE = "https://agent.mefans.workers.dev"; // TODO: 替换
-
     // =================================================
     const { createClient } = window.supabase;
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1102,24 +1101,6 @@
     let totalPages = 1;
     let totalItems = 0;
     let currentSearchKeyword = "";
-
-    // ===== [PATCH ADD · 后台授权码本地缓存] =====
-    const LOGIN_CODE_STORAGE_KEY = "agent_login_code";
-    let agentLoginCode =
-      (window.localStorage && localStorage.getItem(LOGIN_CODE_STORAGE_KEY)) ||
-      "";
-
-    // 预留一个 setter，方便你以后在授权弹窗里调用
-    function setAgentLoginCode(code) {
-      agentLoginCode = (code || "").trim();
-      if (!window.localStorage) return;
-      if (agentLoginCode) {
-        localStorage.setItem(LOGIN_CODE_STORAGE_KEY, agentLoginCode);
-      } else {
-        localStorage.removeItem(LOGIN_CODE_STORAGE_KEY);
-      }
-    }
-    // ===== [PATCH END] =====
 
     // DOM refs
     const loginSection = document.getElementById("login-section");
@@ -1198,15 +1179,8 @@
       if (currentAccessToken) {
         headers["Authorization"] = "Bearer " + currentAccessToken;
       }
-      // ===== [PATCH ADD · 携带后台授权码到 Worker] =====
-      if (agentLoginCode) {
-        // Worker 会用这个 header 做 login_code 校验
-        headers["X-Login-Code"] = agentLoginCode;
-      }
-      // ===== [PATCH END] =====
       return headers;
     }
-
 
     function ensureAdminUser(session) {
       if (!session || !session.user) return false;
