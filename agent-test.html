@@ -1896,11 +1896,116 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
     //只是在前端把结构“写死”出来，方便后面取值
 
       // ===== PATCH ADD · 授权登录状态常量 =====
-    const AUTH_TOKEN_KEY = "agentWorker:authToken";
-    let isAuthorized = false;
+    //const AUTH_TOKEN_KEY = "agentWorker:authToken";
+    //let isAuthorized = false;
     // ===== PATCH END =====
   
   // ===== [ADD · Step 4.2.1 · Agent Runtime response shape] =====
+        // ===== PATCH ADD · 授权登录状态常量 =====
+    const AUTH_TOKEN_KEY = "agentWorker:authToken";
+    let isAuthorized = false;
+    // ===== PATCH END =====
+
+    // ===== PATCH ADD · 授权状态持久化 & 恢复（localStorage） =====
+    function persistAuthToken(token) {
+      try {
+        if (token && token.trim()) {
+          localStorage.setItem(AUTH_TOKEN_KEY, token.trim());
+        } else {
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        }
+      } catch (e) {
+        console.warn("[Auth] 无法持久化授权状态：", e);
+      }
+    }
+
+    function applyAuthGuardUi() {
+      // el 在后面统一初始化，这里只在已初始化后使用
+      if (!window.el || !el.chatInput || !el.btnSend) return;
+
+      if (isAuthorized) {
+        // ✅ 已授权：恢复正常输入和发送
+        el.chatInput.readOnly = false;
+        el.btnSend.disabled = isSending;
+        // 使用原始占位提示文案
+        el.chatInput.placeholder =
+          "在这里输入：比如『帮我总结一下今天要做的三件事』，然后按 Ctrl+Enter 或点击发送。";
+      } else {
+        // 🚫 未授权：禁止发送，提示需要先授权
+        // 允许点击 / 聚焦（用于弹出授权窗口），不强制 readOnly
+        el.chatInput.readOnly = false;
+        el.btnSend.disabled = true;
+        el.chatInput.placeholder = "请先输入测试口令完成授权，然后再使用智能体。";
+      }
+    }
+
+    async function initAuthStateFromStorage() {
+      let stored = null;
+      try {
+        stored = localStorage.getItem(AUTH_TOKEN_KEY);
+      } catch (e) {
+        console.warn("[Auth] 读取本地授权状态失败，将视为未授权。", e);
+        isAuthorized = false;
+        applyAuthGuardUi();
+        return;
+      }
+
+      if (!stored) {
+        // 本地没有记住任何口令 → 未授权
+        isAuthorized = false;
+        applyAuthGuardUi();
+        return;
+      }
+
+      const code = stored.trim();
+      if (!code) {
+        // 空字符串当作无效，顺便清理
+        isAuthorized = false;
+        try {
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        } catch (_) {}
+        applyAuthGuardUi();
+        return;
+      }
+
+      // ✅ 用已保存口令做一次「静默校验」：
+      //    - 通过则直接视为已授权（刷新 / 重开页面免输）
+      //    - 不通过则清理失效口令，下次重新输入
+      try {
+        const res = await fetch(AUTH_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, silent: true }),
+        });
+
+        if (res.ok) {
+          let data = null;
+          try {
+            data = await res.json();
+          } catch (_) {
+            data = null;
+          }
+          if (data && data.ok) {
+            isAuthorized = true;
+            applyAuthGuardUi();
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("[Auth] 静默校验失败，将要求重新输入测试口令：", err);
+      }
+
+      // 任一环节失败：视为未授权，并清理失效记录
+      isAuthorized = false;
+      try {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+      } catch (_) {}
+      applyAuthGuardUi();
+    }
+    // ===== PATCH END =====
+
+  // ===== [ADD · Step 4.2.1 · Agent Runtime response shape] =====
+
 /**
  * @typedef {Object} AgentCost
  * @property {number} tokens_prompt
@@ -1975,10 +2080,10 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
 
          // ===== PATCH ADD · 初始化授权状态 & 统一输入框占位符 =====
         initAuthStateFromStorage();
-        if (el.chatInput) {
+       // if (el.chatInput) {
           // 统一将输入区 placeholder 改为“请输入测试口令”
-          el.chatInput.placeholder = "请输入测试口令";
-        }
+         // el.chatInput.placeholder = "请输入测试口令";
+       // }
         // ===== PATCH END =====
         
           // ===== PATCH BEGIN: 初始化 Agent 模式 UI 状态 / Step 4.1 =====
@@ -2391,7 +2496,8 @@ async function handleAuthSubmit() {
   // 后端确认通过后，才在本地标记为已授权 + 记住口令
   isAuthorized = true;
   persistAuthToken(code);
-
+applyAuthGuardUi();   // ★ 新增：立即解锁输入区与发送按钮
+  
   if (el.authError) {
     el.authError.style.display = "none";
   }
@@ -3584,10 +3690,11 @@ if (currentMode === MODE_AGENT_DEVOPS) {
     // === Worker 调用 ===
 
     async function triggerSend() {
-      // ===== PATCH ADD · 授权登录保护 =====
+  // ===== PATCH ADD · 发送前强制授权校验 =====
       if (!isAuthorized) {
+        // 未通过授权：弹出授权窗口 + toast 提示，严禁调用智能体
         openAuthModal();
-        showToast("请先输入测试口令完成授权后再发送。");
+        showToast("请先输入测试口令完成授权，再使用智能体。");
         return;
       }
       // ===== PATCH END =====
@@ -4796,5 +4903,6 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
