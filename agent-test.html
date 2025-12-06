@@ -1799,6 +1799,11 @@ const WORKER_ENDPOINT = "/agent/";              // 直连 Worker 绑定到 olive
     // ===== PATCH BEGIN: Agent 模式后端端点常量 / Step 4.1 =====
  //  const AGENT_ENDPOINT = "https://agent.mefans.workers.dev/api/agent";
 const AGENT_ENDPOINT  = "/agent/api/agent";     // Agent Runtime 路由 默认同源相对路径
+// ===== PATCH ADD · 授权码验证端点（与 /agent/* 路由对齐） =====
+const AUTH_ENDPOINT = WORKER_ENDPOINT + "auth";
+// => 实际为 "/agent/auth"，由 Cloudflare 路由到 agent.mefans.workers.dev
+// ===== PATCH END =====
+
 // ✅ 同源路由（与你的 CF Route: oliverfr.com/agent/* 对齐）
 //const WORKER_ENDPOINT = "https://oliverfr.com/agent/";
 //const AGENT_ENDPOINT  = WORKER_ENDPOINT + "api/agent";
@@ -4783,3 +4788,4 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
