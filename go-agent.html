@@ -1486,7 +1486,7 @@
         main.appendChild(metaRow);
 
         // JSON 预览（截断）
-        if (item.config_json || item.config || item.raw_config) {
+        /*if (item.config_json || item.config || item.raw_config) {
           const cfg = item.config_json || item.config || item.raw_config;
           let short = "";
           try {
@@ -1502,8 +1502,90 @@
           jsonEl.className = "agent-json";
           jsonEl.textContent = short;
           main.appendChild(jsonEl);
+        }*/
+        // ===== 新增：优先展示调用日志（问题 / 回复 / tokens / cost） =====
+        let preview = "";
+
+        if (item.input_text || item.worker_reply || item.agent_reply) {
+          const maxLen = 260;
+
+          function cut(s) {
+            if (!s) return "-";
+            const str = String(s);
+            return str.length > maxLen ? str.slice(0, maxLen) + "…" : str;
+          }
+
+          const q = (item.input_text || "").trim();
+          const worker = (item.worker_reply || "").trim();
+          const agent = (item.agent_reply || "").trim();
+
+          const tp =
+            item.tokens_prompt != null
+              ? Number(item.tokens_prompt)
+              : null;
+          const tc =
+            item.tokens_completion != null
+              ? Number(item.tokens_completion)
+              : null;
+          const tt =
+            item.total_tokens != null
+              ? Number(item.total_tokens)
+              : tp != null && tc != null
+              ? tp + tc
+              : null;
+
+          const cost =
+            item.cost_total_usd != null
+              ? Number(item.cost_total_usd)
+              : item.cost_usd != null
+              ? Number(item.cost_usd)
+              : null;
+
+          preview =
+            "Q: " +
+            cut(q) +
+            "\n\nWorker: " +
+            cut(worker) +
+            "\n\nAgent: " +
+            cut(agent);
+
+          if (tp != null || tc != null || tt != null) {
+            preview +=
+              "\n\nTokens: prompt=" +
+              (tp != null ? tp : "-") +
+              " · completion=" +
+              (tc != null ? tc : "-") +
+              " · total=" +
+              (tt != null ? tt : "-");
+          }
+
+          if (!Number.isNaN(cost) && cost != null) {
+            preview += "\nCost: $" + cost.toFixed(6);
+          }
         }
 
+        // ===== JSON / 日志预览区域（保持原样，只是多了 preview 优先级） =====
+        if (preview || item.config_json || item.config || item.raw_config) {
+          let short = preview;
+          if (!short) {
+            const cfg = item.config_json || item.config || item.raw_config;
+            try {
+              const parsed = typeof cfg === "string" ? JSON.parse(cfg) : cfg;
+              short = JSON.stringify(parsed, null, 2);
+            } catch (e) {
+              short = typeof cfg === "string" ? cfg : JSON.stringify(cfg);
+            }
+          }
+          if (short.length > 260) {
+            short = short.slice(0, 260) + "…";
+          }
+          const jsonEl = document.createElement("pre");
+          jsonEl.className = "agent-json";
+          jsonEl.textContent = short;
+          main.appendChild(jsonEl);
+        }
+
+        
         card.appendChild(main);
         agentListEl.appendChild(card);
       });
@@ -1710,6 +1792,7 @@
   </script>
 </body>
 </html>
+
 
 
 
