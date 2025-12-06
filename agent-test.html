@@ -1932,6 +1932,7 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
       }
     }
 
+
     function applyAuthGuardUi() {
       // el 在后面统一初始化，这里只在已初始化后使用
       if (!window.el || !el.chatInput || !el.btnSend) return;
@@ -1951,6 +1952,18 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
         el.chatInput.placeholder = "请先输入测试口令完成授权，然后再使用智能体。";
       }
     }
+
+    // ===== PATCH ADD · 授权状态 helper：以 localStorage 为最终来源 =====
+    function hasLocalAuthToken() {
+      try {
+        const v = localStorage.getItem(AUTH_TOKEN_KEY);
+        return !!(v && v.trim());
+      } catch (e) {
+        console.warn("[Auth] 读取本地授权标记失败：", e);
+        return false;
+      }
+    }
+    // ===== PATCH END =====
 
 // ===== PATCH REPLACE · initAuthStateFromStorage：刷新后直接信任本地已通过的口令 =====
 async function initAuthStateFromStorage() {
@@ -2301,14 +2314,25 @@ async function initApp() {
 
             // ===== PATCH ADD · 授权弹窗 & 输入区下拉箭头事件 =====
       if (el.chatInput) {
-        // 点击 / 聚焦输入区时，如未授权则弹出授权窗口（但不强制立即填写，可关闭）
+        // 小 helper：每次点击/聚焦前，优先用 localStorage 恢复授权状态
+        const needAuthModal = () => {
+          // 如果本地已经有口令，把内存状态补齐并直接解锁 UI
+          if (!isAuthorized && hasLocalAuthToken()) {
+            isAuthorized = true;
+            applyAuthGuardUi();
+            return false;
+          }
+          return !isAuthorized;
+        };
+
+        // 点击 / 聚焦输入区时，如确实未授权才弹出授权窗口
         el.chatInput.addEventListener("focus", () => {
-          if (!isAuthorized) {
+          if (needAuthModal()) {
             openAuthModal();
           }
         });
         el.chatInput.addEventListener("click", () => {
-          if (!isAuthorized) {
+          if (needAuthModal()) {
             openAuthModal();
           }
         });
@@ -2321,6 +2345,7 @@ async function initApp() {
           updateInputScrollArrow();
         });
       }
+
 
       if (el.inputScrollDown) {
         el.inputScrollDown.addEventListener("click", () => {
@@ -2426,40 +2451,43 @@ async function initApp() {
       return window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
     }
     // 新增：每次需要弹出授权窗口前，先尝试从 localStorage 同步一次本机授权状态
+    // ===== PATCH REPLACE · syncAuthFromStorageOnce：统一走 hasLocalAuthToken =====
     function syncAuthFromStorageOnce() {
-      if (isAuthorized) return; // 内存里已经是 true 的就不重复读了
-      try {
-        const saved = localStorage.getItem(AUTH_TOKEN_KEY);
-        if (saved && saved.trim()) {
-          isAuthorized = true;
-          applyAuthGuardUi();   // 顺便把输入框 / 按钮 UI 解锁
-        }
-      } catch (e) {
-        console.warn("[Auth] syncAuthFromStorageOnce 失败：", e);
+      if (isAuthorized) return;
+      if (hasLocalAuthToken()) {
+        isAuthorized = true;
+        applyAuthGuardUi();
       }
     }
+    // ===== PATCH END =====
+
 
         // ===== PATCH ADD · 授权弹窗 / 输入区下拉箭头逻辑 =====
+    // ===== PATCH REPLACE · openAuthModal：再次防止已授权用户误弹窗 =====
     function openAuthModal() {
-      // 先尝试从 localStorage 恢复一次授权状态（双保险）
-      syncAuthFromStorageOnce();
+      // 再做一层兜底：如果 localStorage 里已经有口令，就直接视为已授权，不再弹窗
+      if (!isAuthorized && hasLocalAuthToken()) {
+        isAuthorized = true;
+        applyAuthGuardUi();
+        return;
+      }
 
-      // 如果本机之前已经验证通过，直接返回，不再弹窗
       if (isAuthorized) return;
-
       if (!el.authOverlay || !el.authModal) return;
+
       el.authOverlay.style.display = "flex";
       if (el.authError) {
         el.authError.style.display = "none";
       }
       if (el.authInput) {
         el.authInput.value = "";
-        // 小延迟以确保元素可见后再聚焦
         setTimeout(() => {
           if (el.authInput) el.authInput.focus();
         }, 10);
       }
     }
+    // ===== PATCH END =====
+
 
 
 
@@ -4925,6 +4953,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
