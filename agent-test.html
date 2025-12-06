@@ -1939,70 +1939,62 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
       }
     }
 
-    async function initAuthStateFromStorage() {
-      let stored = null;
-      try {
-        stored = localStorage.getItem(AUTH_TOKEN_KEY);
-      } catch (e) {
-        console.warn("[Auth] 读取本地授权状态失败，将视为未授权。", e);
-        isAuthorized = false;
-        applyAuthGuardUi();
-        return;
-      }
+// ===== PATCH REPLACE · initAuthStateFromStorage：刷新后直接信任本地已通过的口令 =====
+async function initAuthStateFromStorage() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch (e) {
+    console.warn("[Auth] 读取本地授权状态失败，将视为未授权。", e);
+    isAuthorized = false;
+    applyAuthGuardUi();
+    return;
+  }
 
-      if (!stored) {
-        // 本地没有记住任何口令 → 未授权
-        isAuthorized = false;
-        applyAuthGuardUi();
-        return;
-      }
+  if (!stored) {
+    // 本地没有记住任何口令 → 未授权
+    isAuthorized = false;
+    applyAuthGuardUi();
+    return;
+  }
 
-      const code = stored.trim();
-      if (!code) {
-        // 空字符串当作无效，顺便清理
-        isAuthorized = false;
-        try {
-          localStorage.removeItem(AUTH_TOKEN_KEY);
-        } catch (_) {}
-        applyAuthGuardUi();
-        return;
-      }
+  const code = stored.trim();
+  if (!code) {
+    // 空字符串当作无效，顺便清理
+    isAuthorized = false;
+    try {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    } catch (_) {}
+    applyAuthGuardUi();
+    return;
+  }
 
-      // ✅ 用已保存口令做一次「静默校验」：
-      //    - 通过则直接视为已授权（刷新 / 重开页面免输）
-      //    - 不通过则清理失效口令，下次重新输入
-      try {
-        const res = await fetch(AUTH_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, silent: true }),
-        });
+  // ✅ 关键改动：
+  // 只要本地保存过非空口令，就视为“已经在本机通过过一次验证”，
+  // 刷新 / 重开页面都直接恢复为已授权，不再每次去 /agent/auth 重新校验。
+  isAuthorized = true;
+  applyAuthGuardUi();
 
-        if (res.ok) {
-          let data = null;
-          try {
-            data = await res.json();
-          } catch (_) {
-            data = null;
-          }
-          if (data && data.ok) {
-            isAuthorized = true;
-            applyAuthGuardUi();
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn("[Auth] 静默校验失败，将要求重新输入测试口令：", err);
-      }
-
-      // 任一环节失败：视为未授权，并清理失效记录
-      isAuthorized = false;
-      try {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-      } catch (_) {}
-      applyAuthGuardUi();
+  // 如未来想支持“远端吊销口令”，可以在这里做一个不影响当前 UI 的后台静默检测，
+  // 注意：无论后台成功与否，都不要在这里把 isAuthorized 改回 false。
+  /*
+  try {
+    const res = await fetch(AUTH_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, silent: true }),
+    });
+    if (!res.ok) {
+      console.warn("[Auth] 服务器静默校验失败，但本次会话仍沿用本地已授权状态。");
+      // 如果你以后真的需要强制下线，可以在这里提示用户清理本地授权。
     }
-    // ===== PATCH END =====
+  } catch (err) {
+    console.warn("[Auth] 静默校验异常，已忽略：", err);
+  }
+  */
+}
+// ===== PATCH END =====
+
 
   // ===== [ADD · Step 4.2.1 · Agent Runtime response shape] =====
 
@@ -2073,30 +2065,24 @@ document.addEventListener('DOMContentLoaded', warnIfLikelyCspBlock);
       initApp();
     });
 
-    async function initApp() {
-      try {
-        await initIndexedDB();
-        await initSessions();
+async function initApp() {
+  try {
+    await initIndexedDB();
+    await initSessions();
 
-         // ===== PATCH ADD · 初始化授权状态 & 统一输入框占位符 =====
-        initAuthStateFromStorage();
-       // if (el.chatInput) {
-          // 统一将输入区 placeholder 改为“请输入测试口令”
-         // el.chatInput.placeholder = "请输入测试口令";
-       // }
-        // ===== PATCH END =====
-        
-          // ===== PATCH BEGIN: 初始化 Agent 模式 UI 状态 / Step 4.1 =====
-        currentUserId = getOrInitUserId();
-        applyModeUiState();
-        // [INSERT after applyModeUiState();]
-//await refreshHealthPanel();
+    // ===== PATCH REPLACE · 等待授权状态初始化（确保刷新后优先恢复 isAuthorized） =====
+    await initAuthStateFromStorage();
+    // ===== PATCH END =====
 
-        // ===== PATCH END =====
-      } catch (err) {
-        showFatalError(err);
-      }
-    }
+    // ===== PATCH BEGIN: 初始化 Agent 模式 UI 状态 / Step 4.1 =====
+    currentUserId = getOrInitUserId();
+    applyModeUiState();
+    // ...
+  } catch (err) {
+    showFatalError(err);
+  }
+}
+
 
     function cacheDom() {
       el.appShell = document.querySelector(".app-shell");
@@ -4903,6 +4889,7 @@ function updateCallOverviewError(status, durationMs, usage) {
   </script>
 </body>
 </html>
+
 
 
 
