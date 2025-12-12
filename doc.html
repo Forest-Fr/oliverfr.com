@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Document Platform Console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg-page: #0b1120;
+      --bg-card: #020617;
+      --bg-soft: #020617;
+      --border-subtle: rgba(148, 163, 184, 0.3);
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.12);
+      --accent-strong: #0ea5e9;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --text-main: #e5e7eb;
+      --text-sub: #9ca3af;
+      --radius-lg: 16px;
+      --radius-md: 10px;
+      --shadow-card: 0 18px 45px rgba(15, 23, 42, 0.65);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
+      color: var(--text-main);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 顶部栏 */
+    .topbar {
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(16px);
+      background: linear-gradient(to bottom, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.75));
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 20%, #e0f2fe, #38bdf8 40%, #0f172a 80%);
+      box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.6),
+                  0 0 25px rgba(56, 189, 248, 0.9);
+    }
+
+    .title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0.02em;
+    }
+
+    .title-block span {
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 4px 10px;
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.85);
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #6b7280;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9);
+    }
+
+    .status-dot.ok {
+      background: var(--success);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.9);
+    }
+
+    .status-dot.bad {
+      background: var(--danger);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(15, 23, 42, 0.9);
+      padding: 6px 14px;
+      color: var(--text-main);
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease-out;
+    }
+
+    .btn-primary {
+      background: linear-gradient(to right, var(--accent), var(--accent-strong));
+      border-color: transparent;
+      color: #0f172a;
+      font-weight: 600;
+      box-shadow: 0 8px 20px rgba(56, 189, 248, 0.45);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.45);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 12px 28px rgba(56, 189, 248, 0.6);
+    }
+
+    .btn-icon {
+      font-size: 14px;
+    }
+
+    /* 主布局 */
+    .layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 14px;
+      padding: 14px 18px 18px;
+    }
+
+    /* 左侧列表 */
+    .sidebar {
+      background: radial-gradient(circle at top left, #020617 0, #020617 60%, #020617 100%);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-card);
+      padding: 14px 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #9ca3af;
+    }
+
+    .tag-pill {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--text-sub);
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 7px 10px 7px 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .search-box input::placeholder {
+      color: #6b7280;
+    }
+
+    .search-box-icon {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .doc-list {
+      margin: 0;
+      padding: 4px 0 0;
+      list-style: none;
+      flex: 1;
+      overflow: auto;
+    }
+
+    .doc-item {
+      padding: 8px 8px;
+      border-radius: 10px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.12s ease-out, transform 0.12s ease-out;
+    }
+
+    .doc-item:hover {
+      background: rgba(15, 23, 42, 0.9);
+      transform: translateY(-1px);
+    }
+
+    .doc-item.active {
+      background: linear-gradient(to right, rgba(56, 189, 248, 0.2), rgba(15, 23, 42, 0.95));
+      border: 1px solid rgba(56, 189, 248, 0.7);
+    }
+
+    .doc-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(30, 64, 175, 0.6);
+      color: #e5e7eb;
+    }
+
+    .doc-meta {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .doc-name {
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .doc-sub {
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .doc-status-pill {
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      color: #9ca3af;
+      white-space: nowrap;
+    }
+
+    .doc-status-pill.ready {
+      border-color: rgba(34, 197, 94, 0.85);
+      color: var(--success);
+    }
+
+    .doc-status-pill.processing {
+      border-color: rgba(234, 179, 8, 0.9);
+      color: #facc15;
+    }
+
+    /* 右侧主体 */
+    .main {
+      background: radial-gradient(circle at top right, #020617 0, #020617 60%, #020617 100%);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-card);
+      padding: 14px 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .main-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .main-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .main-subtitle {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 2px;
+    }
+
+    .main-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .tab-bar {
+      display: inline-flex;
+      padding: 3px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+    }
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-sub);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+
+    .main-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .card {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      padding: 10px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .card-subtitle {
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .upload-zone {
+      border-radius: 10px;
+      border: 1px dashed rgba(75, 85, 99, 1);
+      padding: 14px 10px;
+      text-align: center;
+      cursor: pointer;
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.95));
+      transition: border-color 0.15s ease-out, background 0.15s ease-out;
+    }
+
+    .upload-zone.dragover {
+      border-color: var(--accent);
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.8), rgba(8, 47, 73, 0.95));
+    }
+
+    .upload-main {
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .upload-sub {
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .upload-zone input[type="file"] {
+      display: none;
+    }
+
+    .upload-btn-row {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .upload-list {
+      margin: 6px 0 0;
+      padding: 0;
+      list-style: none;
+      max-height: 140px;
+      overflow: auto;
+      font-size: 11px;
+    }
+
+    .upload-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 4px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.8);
+      margin-bottom: 3px;
+    }
+
+    .upload-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .upload-status {
+      color: var(--text-sub);
+      white-space: nowrap;
+    }
+
+    .upload-status.ok {
+      color: var(--success);
+    }
+
+    .upload-status.error {
+      color: var(--danger);
+    }
+
+    .preview-frame {
+      flex: 1;
+      border-radius: 8px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: radial-gradient(circle at top, #020617, #020617);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      font-size: 12px;
+    }
+
+    .preview-frame iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
+    }
+
+    .meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .meta-table tr + tr {
+      border-top: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    .meta-table th,
+    .meta-table td {
+      padding: 5px 4px;
+      text-align: left;
+    }
+
+    .meta-table th {
+      width: 90px;
+      color: var(--text-sub);
+      font-weight: 400;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      color: var(--text-main);
+      font-size: 12px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 50;
+      box-shadow: 0 15px 40px rgba(15, 23, 42, 0.8);
+    }
+
+    .toast.show {
+      display: flex;
+    }
+
+    .toast.ok {
+      border-color: rgba(34, 197, 94, 0.9);
+    }
+
+    .toast.error {
+      border-color: rgba(239, 68, 68, 0.9);
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+        padding: 10px;
+      }
+
+      .sidebar {
+        order: 2;
+        height: 220px;
+      }
+
+      .main {
+        order: 1;
+      }
+
+      .main-body {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo-dot"></div>
+      <div class="title-block">
+        <h1>Document Platform Console</h1>
+        <span>统一文档上传 / 预览 / 导出 · Cloud Run + Cloudflare Worker</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="pill">
+        <span class="status-dot" id="healthDot"></span>
+        <span id="healthText">Checking...</span>
+      </div>
+      <div class="pill">
+        <span>环境</span>
+        <strong id="envLabel">prod</strong>
+      </div>
+      <button class="btn" id="btnToggleMock">
+        <span class="btn-icon">🧪</span>
+        <span>Mock 数据</span>
+      </button>
+      <button class="btn-primary btn" id="btnNewUpload">
+        <span class="btn-icon">＋</span>
+        <span>上传文档</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 左侧：文档列表 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Documents</div>
+        <div class="tag-pill" id="docCountTag">0 items</div>
+      </div>
+
+      <div class="search-box">
+        <span class="search-box-icon">🔍</span>
+        <input type="search" id="searchInput" placeholder="搜索文件名 / 类型..." />
+      </div>
+
+      <ul class="doc-list" id="docList"></ul>
+    </aside>
+
+    <!-- 右侧：上传 + 预览 + 详情 -->
+    <section class="main">
+      <div class="main-header">
+        <div>
+          <div class="main-title">文档工作台</div>
+          <div class="main-subtitle" id="mainSubtitle">
+            右侧上传文件，左侧查看列表；后端通过 Worker 写入 r1doc GCS 桶。
+          </div>
+        </div>
+        <div class="main-header-right">
+          <div class="tab-bar">
+            <button class="tab-btn active" data-tab="upload">上传</button>
+            <button class="tab-btn" data-tab="preview">预览</button>
+            <button class="tab-btn" data-tab="meta">详情</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-body">
+        <!-- 左：上传区 / 详情（随 tab 切换） -->
+        <div class="card" id="cardLeft">
+          <div class="card-header">
+            <div>
+              <div class="card-title" id="cardLeftTitle">上传文档</div>
+              <div class="card-subtitle" id="cardLeftSubtitle">
+                支持 Excel / Word / PDF 等常见办公文件，单文件最大建议 &lt; 20MB。
+              </div>
+            </div>
+          </div>
+
+          <!-- Upload 内容 -->
+          <div id="uploadSection">
+            <div class="upload-zone" id="uploadZone">
+              <div class="upload-main">拖拽文件到此处，或点击选择文件</div>
+              <div class="upload-sub">自动归档到后端的 r1doc GCS 桶 · 多文件上传可批量处理</div>
+              <div class="upload-btn-row">
+                <label class="btn">
+                  <span class="btn-icon">📁</span>
+                  <span>选择文件</span>
+                  <input id="fileInput" type="file" multiple />
+                </label>
+              </div>
+            </div>
+
+            <ul class="upload-list" id="uploadList"></ul>
+          </div>
+
+          <!-- Meta 内容（tab 切换显示） -->
+          <div id="metaSection" style="display:none;">
+            <table class="meta-table">
+              <tbody id="metaBody">
+                <tr><th>文件名</th><td id="metaName">-</td></tr>
+                <tr><th>类型</th><td id="metaKind">-</td></tr>
+                <tr><th>大小</th><td id="metaSize">-</td></tr>
+                <tr><th>状态</th><td id="metaStatus">-</td></tr>
+                <tr><th>创建时间</th><td id="metaCreated">-</td></tr>
+                <tr><th>下载地址</th><td id="metaDownload">-</td></tr>
+                <tr><th>预览地址</th><td id="metaPreview">-</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 右：预览 -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">文档预览</div>
+              <div class="card-subtitle" id="previewSubtitle">
+                选择左侧列表中的文档后，在此处进行 PDF / Office 在线预览（由后端 Worker 提供）。
+              </div>
+            </div>
+            <button class="btn" id="btnOpenRaw" disabled>
+              在新窗口打开
+            </button>
+          </div>
+          <div class="preview-frame" id="previewFrame">
+            <span id="previewPlaceholder">尚未选择任何文档。</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast">
+    <span id="toastIcon">ℹ️</span>
+    <span id="toastText">Message</span>
+  </div>
+
+  <script>
+    // ============ 基础配置 ============
+
+// 1) 改成你的 Cloudflare Worker 地址（你现在的目标联动后端）
+const API_BASE = 'https://doc.mefans.workers.dev';
+
+// 可选：如果 Worker 开了 API_KEY 校验（env.API_KEY），这里填同一把 key（不填则保持空字符串）
+const API_KEY = '';
+
+    // 2) 是否使用前端 Mock 数据（默认 true，便于本地自测）
+    let USE_MOCK = true;
+
+    const state = {
+      docs: [],
+      filteredDocs: [],
+      selectedDocId: null
+    };
+
+    // ============ 工具函数 ============
+
+    function showToast(message, type = 'info', timeout = 2600) {
+      const toast = document.getElementById('toast');
+      const textEl = document.getElementById('toastText');
+      const iconEl = document.getElementById('toastIcon');
+
+      textEl.textContent = message;
+      toast.classList.remove('ok', 'error');
+      if (type === 'ok') {
+        toast.classList.add('ok');
+        iconEl.textContent = '✅';
+      } else if (type === 'error') {
+        toast.classList.add('error');
+        iconEl.textContent = '⚠️';
+      } else {
+        iconEl.textContent = 'ℹ️';
+      }
+
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), timeout);
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes && bytes !== 0) return '-';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let b = Number(bytes);
+      let u = 0;
+      while (b >= 1024 && u < units.length - 1) {
+        b /= 1024;
+        u++;
+      }
+      return b.toFixed(1) + ' ' + units[u];
+    }
+
+    function formatTime(ts) {
+      if (!ts) return '-';
+      try {
+        const d = new Date(ts);
+        return d.toLocaleString('zh-CN', { hour12: false });
+      } catch {
+        return ts;
+      }
+    }
+
+    // 简单 fetch 封装
+    async function apiFetch(path, options = {}) {
+      const url = API_BASE.replace(/\/$/, '') + path;
+      const resp = await fetch(url, {
+        ...options,
+headers: {
+  'Accept': 'application/json',
+  ...(API_KEY ? { 'x-api-key': API_KEY } : {}),
+  ...(options.headers || {})
+}
+
+      });
+      const ct = resp.headers.get('content-type') || '';
+      let body = null;
+      if (ct.includes('application/json')) {
+        body = await resp.json();
+      } else {
+        body = await resp.text();
+      }
+
+      if (!resp.ok) {
+        const err = new Error('HTTP ' + resp.status);
+        err.status = resp.status;
+        err.body = body;
+        throw err;
+      }
+      return body;
+    }
+
+    // ============ Health 检查 ============
+
+    async function refreshHealth() {
+      const dot = document.getElementById('healthDot');
+      const text = document.getElementById('healthText');
+
+      dot.classList.remove('ok', 'bad');
+      text.textContent = 'Checking...';
+
+      try {
+        let data;
+        if (USE_MOCK) {
+          data = { status: 'ok', env: 'dev', ts: new Date().toISOString() };
+          await new Promise(r => setTimeout(r, 300));
+        } else {
+          data = await apiFetch('/health');
+        }
+        dot.classList.add('ok');
+        text.textContent = 'Healthy · ' + (data.env || 'unknown');
+        const envLabel = document.getElementById('envLabel');
+        envLabel.textContent = data.env || 'prod';
+      } catch (e) {
+        dot.classList.add('bad');
+        text.textContent = 'Unhealthy';
+        showToast('Health 检查失败：' + (e.message || e), 'error');
+      }
+    }
+
+    // ============ Mock 数据 ============
+
+    function buildMockDocs() {
+      const now = new Date();
+      const iso = (offsetMin) => new Date(now.getTime() - offsetMin * 60000).toISOString();
+
+      return [
+        {
+          id: 'doc_mock_001',
+          name: '示例报表-季度收入.xlsx',
+          kind: 'excel',
+          size_bytes: 234567,
+          created_at: iso(10),
+          status: 'ready',
+          preview_url: 'https://example.com/preview/mock1',
+          download_url: 'https://example.com/download/mock1'
+        },
+        {
+          id: 'doc_mock_002',
+          name: 'SLA-服务协议-v1.2.docx',
+          kind: 'word',
+          size_bytes: 145678,
+          created_at: iso(60),
+          status: 'processing',
+          preview_url: null,
+          download_url: 'https://example.com/download/mock2'
+        },
+        {
+          id: 'doc_mock_003',
+          name: '平台总体架构图.pdf',
+          kind: 'pdf',
+          size_bytes: 756231,
+          created_at: iso(180),
+          status: 'ready',
+          preview_url: 'https://example.com/preview/mock3',
+          download_url: 'https://example.com/download/mock3'
+        }
+      ];
+    }
+
+    async function loadDocs() {
+      let docs;
+      if (USE_MOCK) {
+        docs = buildMockDocs();
+      } else {
+        docs = await apiFetch('/v1/docs');
+      }
+      state.docs = docs;
+      applyFilter();
+    }
+
+    function applyFilter() {
+      const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      let list = state.docs;
+      if (q) {
+        list = list.filter(d => (d.name || '').toLowerCase().includes(q));
+      }
+      state.filteredDocs = list;
+      renderDocList();
+    }
+
+    function renderDocList() {
+      const ul = document.getElementById('docList');
+      ul.innerHTML = '';
+      const countTag = document.getElementById('docCountTag');
+      countTag.textContent = state.filteredDocs.length + ' items';
+
+      state.filteredDocs.forEach(doc => {
+        const li = document.createElement('li');
+        li.className = 'doc-item' + (doc.id === state.selectedDocId ? ' active' : '');
+        li.dataset.id = doc.id;
+
+        const icon = document.createElement('div');
+        icon.className = 'doc-icon';
+        const k = (doc.kind || '?').substring(0, 1).toUpperCase();
+        icon.textContent = k;
+
+        const meta = document.createElement('div');
+        meta.className = 'doc-meta';
+
+        const name = document.createElement('div');
+        name.className = 'doc-name';
+        name.textContent = doc.name || '(无名称)';
+
+        const sub = document.createElement('div');
+        sub.className = 'doc-sub';
+        sub.textContent = (doc.kind || '-') + ' · ' + formatBytes(doc.size_bytes) + ' · ' + formatTime(doc.created_at);
+
+        meta.appendChild(name);
+        meta.appendChild(sub);
+
+        const status = document.createElement('div');
+        status.className = 'doc-status-pill ' + (doc.status || '');
+        status.textContent = doc.status || '-';
+
+        li.appendChild(icon);
+        li.appendChild(meta);
+        li.appendChild(status);
+        ul.appendChild(li);
+      });
+    }
+
+    function getSelectedDoc() {
+      return state.docs.find(d => d.id === state.selectedDocId) || null;
+    }
+
+    function selectDoc(docId) {
+      state.selectedDocId = docId;
+      renderDocList();
+      updateMetaPanel();
+      updatePreviewPanel();
+    }
+
+    function updateMetaPanel() {
+      const doc = getSelectedDoc();
+      document.getElementById('metaName').textContent = doc ? doc.name : '-';
+      document.getElementById('metaKind').textContent = doc ? doc.kind : '-';
+      document.getElementById('metaSize').textContent = doc ? formatBytes(doc.size_bytes) : '-';
+      document.getElementById('metaStatus').textContent = doc ? doc.status : '-';
+      document.getElementById('metaCreated').textContent = doc ? formatTime(doc.created_at) : '-';
+
+      const downloadEl = document.getElementById('metaDownload');
+      const previewEl = document.getElementById('metaPreview');
+      downloadEl.textContent = doc && doc.download_url ? doc.download_url : '-';
+      previewEl.textContent = doc && doc.preview_url ? doc.preview_url : '-';
+    }
+
+    function updatePreviewPanel() {
+      const frame = document.getElementById('previewFrame');
+      frame.innerHTML = '';
+      const btnOpen = document.getElementById('btnOpenRaw');
+
+      const doc = getSelectedDoc();
+      if (!doc) {
+        const span = document.createElement('span');
+        span.id = 'previewPlaceholder';
+        span.textContent = '尚未选择任何文档。';
+        frame.appendChild(span);
+        btnOpen.disabled = true;
+        return;
+      }
+
+      if (doc.preview_url && (doc.preview_url.endsWith('.pdf') || doc.kind === 'pdf')) {
+        const iframe = document.createElement('iframe');
+        iframe.src = doc.preview_url;
+        frame.appendChild(iframe);
+      } else if (doc.preview_url) {
+        const span = document.createElement('span');
+        span.textContent = '预览由后端 Worker 适配（当前链接：' + doc.preview_url + '）。';
+        frame.appendChild(span);
+      } else {
+        const span = document.createElement('span');
+        span.textContent = '该文档尚未生成预览，请稍后刷新。';
+        frame.appendChild(span);
+      }
+
+      btnOpen.disabled = !(doc.preview_url || doc.download_url);
+    }
+
+    // ============ 上传逻辑（前端占位，后端实现后直接打通） ============
+
+    function bindUploadZone() {
+      const zone = document.getElementById('uploadZone');
+      const fileInput = document.getElementById('fileInput');
+
+      function openFileDialog() {
+        fileInput.click();
+      }
+
+      zone.addEventListener('click', openFileDialog);
+
+      ;['dragenter', 'dragover'].forEach(ev => {
+        zone.addEventListener(ev, e => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.add('dragover');
+        });
+      });
+
+      ;['dragleave', 'drop'].forEach(ev => {
+        zone.addEventListener(ev, e => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.remove('dragover');
+        });
+      });
+
+      zone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files && files.length) {
+          handleFiles(files);
+        }
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files && fileInput.files.length) {
+          handleFiles(fileInput.files);
+          fileInput.value = '';
+        }
+      });
+    }
+
+    async function handleFiles(fileList) {
+      const uploadList = document.getElementById('uploadList');
+      for (const file of fileList) {
+        const li = document.createElement('li');
+        li.className = 'upload-item';
+
+        const name = document.createElement('div');
+        name.className = 'upload-name';
+        name.textContent = file.name;
+
+        const status = document.createElement('div');
+        status.className = 'upload-status';
+        status.textContent = '准备上传...';
+
+        li.appendChild(name);
+        li.appendChild(status);
+        uploadList.appendChild(li);
+
+        try {
+          if (USE_MOCK) {
+            status.textContent = '上传成功（mock）';
+            status.classList.add('ok');
+
+            // 模拟将文档插入列表
+            const mockDoc = {
+              id: 'doc_mock_' + Math.random().toString(16).slice(2, 8),
+              name: file.name,
+              kind: guessKindFromName(file.name),
+              size_bytes: file.size,
+              created_at: new Date().toISOString(),
+              status: 'processing',
+              preview_url: null,
+              download_url: null
+            };
+            state.docs.unshift(mockDoc);
+            applyFilter();
+          } else {
+            status.textContent = '上传中...';
+
+            const form = new FormData();
+            form.append('file', file);
+            const resp = await apiFetch('/v1/docs', {
+              method: 'POST',
+              body: form
+            });
+
+            status.textContent = '上传成功';
+            status.classList.add('ok');
+
+            // 刷新列表（后端真正返回时可以更细节更新）
+            await loadDocs();
+          }
+        } catch (e) {
+          console.error(e);
+          status.textContent = '失败：' + (e.message || e);
+          status.classList.add('error');
+          showToast('上传失败：' + file.name, 'error');
+        }
+      }
+    }
+
+    function guessKindFromName(name) {
+      const lower = (name || '').toLowerCase();
+      if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) return 'excel';
+      if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'word';
+      if (lower.endsWith('.pdf')) return 'pdf';
+      return 'other';
+    }
+
+    // ============ Tab 切换 ============
+
+    function bindTabs() {
+      const tabs = document.querySelectorAll('.tab-btn');
+      const uploadSection = document.getElementById('uploadSection');
+      const metaSection = document.getElementById('metaSection');
+      const leftTitle = document.getElementById('cardLeftTitle');
+      const leftSubtitle = document.getElementById('cardLeftSubtitle');
+
+      tabs.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabs.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const tab = btn.dataset.tab;
+
+          if (tab === 'upload') {
+            uploadSection.style.display = '';
+            metaSection.style.display = 'none';
+            leftTitle.textContent = '上传文档';
+            leftSubtitle.textContent = '支持 Excel / Word / PDF，多文件拖拽上传。';
+          } else if (tab === 'meta') {
+            uploadSection.style.display = 'none';
+            metaSection.style.display = '';
+            leftTitle.textContent = '文档详情';
+            leftSubtitle.textContent = '展示当前选中文档的元信息和链接。';
+          } else {
+            // preview tab 主要影响右侧说明，不改变左卡内容
+            uploadSection.style.display = '';
+            metaSection.style.display = 'none';
+            leftTitle.textContent = '上传文档';
+            leftSubtitle.textContent = '支持 Excel / Word / PDF，多文件拖拽上传。';
+          }
+        });
+      });
+    }
+
+    // ============ 初始化 ============
+
+    function bindGlobalEvents() {
+      document.getElementById('docList').addEventListener('click', e => {
+        const item = e.target.closest('.doc-item');
+        if (!item) return;
+        selectDoc(item.dataset.id);
+      });
+
+      document.getElementById('searchInput').addEventListener('input', () => {
+        applyFilter();
+      });
+
+      document.getElementById('btnNewUpload').addEventListener('click', () => {
+        document.getElementById('fileInput').click();
+      });
+
+      document.getElementById('btnToggleMock').addEventListener('click', async () => {
+        USE_MOCK = !USE_MOCK;
+        const btn = document.getElementById('btnToggleMock');
+        btn.style.opacity = USE_MOCK ? '1' : '0.6';
+        showToast('Mock 模式：' + (USE_MOCK ? '开启' : '关闭（将直连 API_BASE）'));
+        await refreshHealth();
+        await loadDocs();
+      });
+
+      document.getElementById('btnOpenRaw').addEventListener('click', () => {
+        const doc = getSelectedDoc();
+        if (!doc) return;
+        const url = doc.preview_url || doc.download_url;
+        if (url) window.open(url, '_blank');
+      });
+    }
+
+    async function bootstrap() {
+      bindUploadZone();
+      bindTabs();
+      bindGlobalEvents();
+
+      await refreshHealth();
+      await loadDocs();
+    }
+
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  </script>
+</body>
+</html>
