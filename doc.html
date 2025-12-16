@@ -813,6 +813,31 @@ let USE_MOCK = _forceMock ? true : (_forceLive ? false : _isLocal);
       selectedDocId: null,
       pendingUploads: []
     };
+// ===== [PATCH INSERT BEGIN] persist pending/docs selection (non-breaking) =====
+const LS_PENDING_KEY = 'doc_platform_pending_uploads_v1';
+const LS_SELECTED_KEY = 'doc_platform_selected_doc_id_v1';
+
+function _safeJsonParse(s, fallback) {
+  try { return JSON.parse(s); } catch { return fallback; }
+}
+
+function loadLocalState() {
+  // pending uploads（用于“上传成功但后端列表延迟/失败”时刷新不丢）
+  const pending = _safeJsonParse(localStorage.getItem(LS_PENDING_KEY) || '[]', []);
+  if (Array.isArray(pending)) state.pendingUploads = pending;
+
+  // 恢复上次选中
+  const sid = (localStorage.getItem(LS_SELECTED_KEY) || '').trim();
+  if (sid) state.selectedDocId = sid;
+}
+
+function saveLocalState() {
+  try {
+    localStorage.setItem(LS_PENDING_KEY, JSON.stringify(state.pendingUploads || []));
+    if (state.selectedDocId) localStorage.setItem(LS_SELECTED_KEY, String(state.selectedDocId));
+  } catch {}
+}
+// ===== [PATCH INSERT END] persist pending/docs selection (non-breaking) =====
 
     // ============ 工具函数 ============
 
@@ -1165,6 +1190,10 @@ async function loadDocs() {
     docs = buildMockDocs();
     state.docs = docs;
     applyFilter();
+    // ===== [PATCH INSERT] persist pending after list refresh (non-breaking) =====
+saveLocalState();
+// ===== [PATCH END] =====
+
     return;
   }
 
@@ -1241,6 +1270,10 @@ applyFilter();
       renderDocList();
       updateMetaPanel();
       updatePreviewPanel();
+      // ===== [PATCH INSERT] persist selected id (non-breaking) =====
+saveLocalState();
+// ===== [PATCH END] =====
+
         // ===== [PATCH INSERT BEGIN] auto scroll selected item into view (non-breaking) =====
   requestAnimationFrame(() => {
     const li = document.querySelector(`.doc-item[data-id="${CSS && CSS.escape ? CSS.escape(docId) : docId}"]`);
@@ -1524,6 +1557,9 @@ state.pendingUploads.unshift({
 // ===== [PATCH END] =====
 
           applyFilter();
+// ===== [PATCH INSERT] persist pending immediately (non-breaking) =====
+saveLocalState();
+// ===== [PATCH END] =====
 
           // ===== [PATCH INSERT BEGIN] ensure doc appears + auto focus (non-breaking) =====
           // 先把“本地占位条目”选中，让用户立刻可见
@@ -1708,6 +1744,14 @@ document.getElementById('btnRefreshSelected').addEventListener('click', async ()
       bindUploadZone();
       bindTabs();
       bindGlobalEvents();
+// ===== [PATCH INSERT BEGIN] restore local state before first load (non-breaking) =====
+loadLocalState();
+// 先把本地 pending 合并渲染出来（即便后端暂时不可用，也不空）
+if (Array.isArray(state.pendingUploads) && state.pendingUploads.length) {
+  state.docs = _mergePendingIntoDocs([]);
+  applyFilter();
+}
+// ===== [PATCH INSERT END] restore local state before first load (non-breaking) =====
 
       await refreshHealth();
       await loadDocs();
@@ -1717,6 +1761,7 @@ document.getElementById('btnRefreshSelected').addEventListener('click', async ()
   </script>
 </body>
 </html>
+
 
 
 
