@@ -177,6 +177,10 @@
       flex-direction: column;
       gap: 10px;
       min-height: 0;
+      /* ===== [PATCH INSERT] enable absolute children in sidebar (non-breaking) ===== */
+position: relative;
+/* ===== [PATCH END] ===== */
+
     }
 
     .sidebar-header {
@@ -569,6 +573,51 @@
       border-color: rgba(239, 68, 68, 0.9);
     }
 
+/* ===== [PATCH INSERT] sidebar scroll arrows (non-breaking) ===== */
+.scroll-arrows {
+  position: absolute;
+  right: 10px;
+  top: 92px;               /* 避开标题与搜索框 */
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;    /* 容器不吃点击，只让按钮吃 */
+  z-index: 5;
+}
+
+.scroll-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.85);
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(0);
+  transition: opacity .15s ease-out, transform .15s ease-out;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.45);
+}
+
+.scroll-btn.show {
+  opacity: 1;
+}
+
+.scroll-btn:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 900px) {
+  .scroll-arrows { top: 86px; }
+}
+/* ===== [PATCH END] ===== */
+
+    
     /* 移动端适配 */
     @media (max-width: 900px) {
       .layout {
@@ -635,6 +684,14 @@
       </div>
 
       <ul class="doc-list" id="docList"></ul>
+
+    <!-- ===== [PATCH INSERT] sidebar scroll arrows (non-breaking) ===== -->
+<div class="scroll-arrows" aria-hidden="true">
+  <button class="scroll-btn" id="btnScrollUp" title="向上">▲</button>
+  <button class="scroll-btn" id="btnScrollDown" title="向下">▼</button>
+</div>
+<!-- ===== [PATCH END] ===== -->
+  
     </aside>
 
     <!-- 右侧：上传 + 预览 + 详情 -->
@@ -709,6 +766,11 @@
                 选择左侧列表中的文档后，在此处进行 PDF / Office 在线预览（由后端 Worker 提供）。
               </div>
             </div>
+            <!-- ===== [PATCH INSERT] unified preview actions (non-breaking) ===== -->
+<button class="btn" id="btnDownloadRaw" disabled>下载</button>
+<button class="btn" id="btnRefreshSelected" disabled>刷新</button>
+<!-- ===== [PATCH END] ===== -->
+
             <button class="btn" id="btnOpenRaw" disabled>
               在新窗口打开
             </button>
@@ -748,7 +810,8 @@ let USE_MOCK = _forceMock ? true : (_forceLive ? false : _isLocal);
     const state = {
       docs: [],
       filteredDocs: [],
-      selectedDocId: null
+      selectedDocId: null,
+      pendingUploads: []
     };
 
     // ============ 工具函数 ============
@@ -969,6 +1032,39 @@ function _normalizeDocsResponse(data) {
   return arr.map(_normalizeDoc).filter(d => d.id);
 }
 // ===== [PATCH END] =====
+// ===== [PATCH INSERT] pending uploads merge (non-breaking) =====
+function _sameName(a, b) {
+  const x = String(a || '').trim().toLowerCase();
+  const y = String(b || '').trim().toLowerCase();
+  return x && y && x === y;
+}
+
+function _mergePendingIntoDocs(serverDocs) {
+  const arr = Array.isArray(serverDocs) ? serverDocs.slice() : [];
+  const byId = new Map(arr.map(d => [d.id, d]));
+
+  // 只把“仍未在服务端出现”的 pending 合并回去
+  const remain = [];
+  for (const p of (state.pendingUploads || [])) {
+    const hitById = p && p.id && byId.has(p.id);
+    const hitByName = arr.some(s => _sameName(s?.name, p?.name));
+    if (hitById || hitByName) {
+      // 服务端已出现：不再保留 pending
+      continue;
+    }
+    remain.push(p);
+    if (p && p.id && !byId.has(p.id)) {
+      arr.unshift(p); // pending 放最前，让用户立刻看到
+      byId.set(p.id, p);
+    } else if (p && !p.id) {
+      arr.unshift(p);
+    }
+  }
+
+  state.pendingUploads = remain;
+  return arr;
+}
+// ===== [PATCH END] =====
 
 
     // ============ Health 检查 ============
@@ -1054,8 +1150,10 @@ async function loadDocs() {
     { method: 'GET' }
   );
 
-  state.docs = _normalizeDocsResponse(data);
-  applyFilter();
+const serverDocs = _normalizeDocsResponse(data);
+state.docs = _mergePendingIntoDocs(serverDocs);
+applyFilter();
+
 }
 
 
@@ -1154,6 +1252,8 @@ previewEl.innerHTML = (doc && doc.preview_url)
       const frame = document.getElementById('previewFrame');
       frame.innerHTML = '';
       const btnOpen = document.getElementById('btnOpenRaw');
+const btnDownload = document.getElementById('btnDownloadRaw');
+const btnRefresh = document.getElementById('btnRefreshSelected');
 
       const doc = getSelectedDoc();
       if (!doc) {
@@ -1162,6 +1262,9 @@ previewEl.innerHTML = (doc && doc.preview_url)
         span.textContent = '尚未选择任何文档。';
         frame.appendChild(span);
         btnOpen.disabled = true;
+        btnDownload.disabled = true;
+btnRefresh.disabled = true;
+
         return;
       }
 
@@ -1181,11 +1284,23 @@ previewEl.innerHTML = (doc && doc.preview_url)
       const urlForPreview = doc.preview_url || null;
       const urlForDownload = doc.download_url || null;
 
-      if (urlForPreview) {
-        // 关键修复：只要后端给了 preview_url，无论 PDF / Office / 其它，都优先 iframe 直接渲染
-        const iframe = document.createElement('iframe');
-        iframe.src = urlForPreview;
-        frame.appendChild(iframe);
+if (urlForPreview) {
+  const iframe = document.createElement('iframe');
+
+  const isPdf = (doc.kind === 'pdf') || _isPdfUrl(urlForPreview);
+  const isOffice = (doc.kind === 'word' || doc.kind === 'excel');
+
+  // 如果 preview_url 本身就是 pdf 或已是 office viewer，则直接用
+  if (isPdf || String(urlForPreview).includes('officeapps.live.com')) {
+    iframe.src = urlForPreview;
+  } else if (isOffice) {
+    // preview_url 指向 docx/xlsx 等时，走 Office Viewer 以获得更稳定预览
+    iframe.src = _buildOfficeEmbedUrl(urlForPreview);
+  } else {
+    iframe.src = urlForPreview;
+  }
+
+  frame.appendChild(iframe);
       } else if (urlForDownload) {
         // 后端没给 preview_url，则根据类型用 download_url 尝试生成可用预览
         const iframe = document.createElement('iframe');
@@ -1209,7 +1324,11 @@ previewEl.innerHTML = (doc && doc.preview_url)
       // ===== [PATCH INSERT END] preview iframe for pdf + office (non-breaking) =====
 
 
-      btnOpen.disabled = !(doc.preview_url || doc.download_url);
+   const hasLink = !!(doc.preview_url || doc.download_url);
+btnOpen.disabled = !hasLink;
+btnDownload.disabled = !hasLink;
+btnRefresh.disabled = !doc; // 选中文档即可刷新
+
     }
 
     // ============ 上传逻辑（前端占位，后端实现后直接打通） ============
@@ -1349,6 +1468,19 @@ async function handleFiles(fileList) {
             preview_url: (resp && resp.preview_url) || null,
             download_url: (resp && resp.download_url) || null
           });
+          // ===== [PATCH INSERT] keep local pending to avoid disappearing (non-breaking) =====
+state.pendingUploads.unshift({
+  id: newId,
+  name: file.name,
+  kind: guessKindFromName(file.name),
+  size_bytes: file.size,
+  created_at: new Date().toISOString(),
+  status: (resp && resp.status) || 'processing',
+  preview_url: (resp && resp.preview_url) || null,
+  download_url: (resp && resp.download_url) || null
+});
+// ===== [PATCH END] =====
+
           applyFilter();
 
           // ===== [PATCH INSERT BEGIN] ensure doc appears + auto focus (non-breaking) =====
@@ -1475,6 +1607,57 @@ async function handleFiles(fileList) {
       });
     }
 
+    // ===== [PATCH INSERT] unified preview actions handlers (non-breaking) =====
+document.getElementById('btnDownloadRaw').addEventListener('click', () => {
+  const doc = getSelectedDoc();
+  if (!doc) return;
+  const url = doc.download_url || doc.preview_url;
+  if (url) window.open(url, '_blank');
+});
+
+document.getElementById('btnRefreshSelected').addEventListener('click', async () => {
+  const cur = getSelectedDoc();
+  await loadDocs();
+  // 尽量保留当前选中
+  if (cur && cur.id) selectDoc(cur.id);
+});
+// ===== [PATCH END] =====
+
+// ===== [PATCH INSERT] sidebar scroll arrows logic (non-breaking) =====
+(function initSidebarScrollArrows() {
+  const list = document.getElementById('docList');
+  const up = document.getElementById('btnScrollUp');
+  const down = document.getElementById('btnScrollDown');
+  if (!list || !up || !down) return;
+
+  function refresh() {
+    const max = list.scrollHeight - list.clientHeight;
+    const y = list.scrollTop;
+
+    // 有可滚动内容才显示
+    const canScroll = max > 4;
+    const showUp = canScroll && y > 6;
+    const showDown = canScroll && y < max - 6;
+
+    up.classList.toggle('show', !!showUp);
+    down.classList.toggle('show', !!showDown);
+  }
+
+  up.addEventListener('click', () => {
+    list.scrollBy({ top: -Math.max(120, list.clientHeight * 0.65), behavior: 'smooth' });
+  });
+  down.addEventListener('click', () => {
+    list.scrollBy({ top: Math.max(120, list.clientHeight * 0.65), behavior: 'smooth' });
+  });
+
+  list.addEventListener('scroll', refresh, { passive: true });
+  window.addEventListener('resize', refresh);
+
+  // 首次刷新
+  requestAnimationFrame(refresh);
+})();
+// ===== [PATCH END] =====
+
     async function bootstrap() {
       bindUploadZone();
       bindTabs();
@@ -1488,6 +1671,7 @@ async function handleFiles(fileList) {
   </script>
 </body>
 </html>
+
 
 
 
