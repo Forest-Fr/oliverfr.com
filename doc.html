@@ -951,10 +951,26 @@ function _inferKindFromAny(x) {
   return 'other';
 }
 
-function _buildWorkerDownloadUrl(storagePath) {
+// ===== [PATCH REPLACE BEGIN] _buildWorkerDownloadUrl: force inline + optional filename (non-breaking) =====
+function _buildWorkerDownloadUrl(storagePath, opts = {}) {
   if (!storagePath) return null;
-  return _joinUrl(API_BASE, '/download') + '?key=' + encodeURIComponent(storagePath);
+
+  const base = _joinUrl(API_BASE, '/download');
+  const params = new URLSearchParams();
+  params.set('key', storagePath);
+
+  // 强制 inline=1：对 office viewer 更友好（你后端已支持）
+  params.set('inline', '1');
+
+  // 可选：把 filename 带上（即便后端暂时忽略也无副作用；后端支持后立刻生效）
+  if (opts && opts.filename) {
+    params.set('filename', String(opts.filename));
+  }
+
+  return base + '?' + params.toString();
 }
+// ===== [PATCH REPLACE END] =====
+
 
 function _normalizeDoc(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
@@ -1034,7 +1050,9 @@ const outputFile =
     outputFile?.preview_url ||
     outputFile?.signed_url ||
     outputFile?.url ||
-    (outputFile?.storage_path ? _buildWorkerDownloadUrl(outputFile.storage_path) : null);
+   // (outputFile?.storage_path ? _buildWorkerDownloadUrl(outputFile.storage_path) : null);
+    (outputFile?.storage_path ? _buildWorkerDownloadUrl(outputFile.storage_path, { filename: name }) : null);
+
 
   const downloadUrl =
     r.download_url ||
@@ -1042,7 +1060,9 @@ const outputFile =
     outputFile?.download_url ||
     outputFile?.signed_url ||
     outputFile?.url ||
-    (outputFile?.storage_path ? _buildWorkerDownloadUrl(outputFile.storage_path) : null);
+   // (outputFile?.storage_path ? _buildWorkerDownloadUrl(outputFile.storage_path) : null);
+    (inputFile?.storage_path ? _buildWorkerDownloadUrl(inputFile.storage_path, { filename: name }) : null);
+
 // ===== [PATCH INSERT BEGIN] source_url fallback from input (non-breaking) =====
 const sourceUrl =
   r.source_url ||
@@ -1337,14 +1357,35 @@ btnRefresh.disabled = true;
         // Office 在线预览必须用可公网访问的文件 URL；这里用 MS Office Viewer embed
         return 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(rawUrl);
       }
+// ===== [PATCH INSERT BEGIN] office preview helpers (non-breaking) =====
+function _isOfficeEmbed(u) {
+  return String(u || '').includes('view.officeapps.live.com');
+}
 
-      const urlForPreview = doc.preview_url || null;
-      const urlForDownload = doc.download_url || null;
+function _ensureInlineWorkerDownload(u) {
+  try {
+    const s = String(u || '');
+    if (!s) return s;
+    // 只对你的 Worker 下载链接补 inline=1（不重复添加）
+    if (s.startsWith(API_BASE) && (s.includes('/download?') || s.includes('/file?'))) {
+      const url = new URL(s);
+      if (!url.searchParams.get('inline')) url.searchParams.set('inline', '1');
+      return url.toString();
+    }
+    return s;
+  } catch {
+    return u;
+  }
+}
+// ===== [PATCH INSERT END] office preview helpers (non-breaking) =====
 
-      // ===== [PATCH INSERT BEGIN] allow source_url as preview base (non-breaking) =====
+const urlForPreview = doc.preview_url || null;
+const urlForDownload = doc.download_url || null;
 const urlForSource = doc.source_url || null;
-// ===== [PATCH INSERT END] allow source_url as preview base (non-breaking) =====
 
+// 关键：Office 预览一定要用“原始 docx/xlsx 的 raw URL”，而不是 pdf/其它产物
+let officeRaw = urlForDownload || urlForSource || urlForPreview || null;
+officeRaw = _ensureInlineWorkerDownload(officeRaw);
 
 if (urlForPreview) {
   const iframe = document.createElement('iframe');
@@ -1352,47 +1393,49 @@ if (urlForPreview) {
   const isPdf = (doc.kind === 'pdf') || _isPdfUrl(urlForPreview);
   const isOffice = (doc.kind === 'word' || doc.kind === 'excel');
 
-  // 如果 preview_url 本身就是 pdf 或已是 office viewer，则直接用
-  if (isPdf || String(urlForPreview).includes('officeapps.live.com')) {
+  // 已是 office embed 或 pdf：直接用
+  if (isPdf || _isOfficeEmbed(urlForPreview)) {
     iframe.src = urlForPreview;
   } else if (isOffice) {
-    // preview_url 指向 docx/xlsx 等时，走 Office Viewer 以获得更稳定预览
-    iframe.src = _buildOfficeEmbedUrl(urlForPreview);
+    // Office：强制用 raw（优先 download/source），避免 preview_url 指向 pdf/html 导致失败
+    iframe.src = _buildOfficeEmbedUrl(officeRaw || urlForPreview);
   } else {
     iframe.src = urlForPreview;
   }
 
   frame.appendChild(iframe);
-      } else if (urlForDownload) {
-        // 后端没给 preview_url，则根据类型用 download_url 尝试生成可用预览
-        const iframe = document.createElement('iframe');
 
-        if (doc.kind === 'pdf' || _isPdfUrl(urlForDownload)) {
-          iframe.src = urlForDownload;
-          frame.appendChild(iframe);
-        } else if (doc.kind === 'word' || doc.kind === 'excel') {
-          iframe.src = _buildOfficeEmbedUrl(urlForDownload);
-          frame.appendChild(iframe);
-        } else {
-          const span = document.createElement('span');
-          span.textContent = '该文件类型暂不支持内嵌预览，可点击右上角在新窗口打开。';
-          frame.appendChild(span);
-        }
+} else if (urlForDownload) {
+  const iframe = document.createElement('iframe');
+
+  if (doc.kind === 'pdf' || _isPdfUrl(urlForDownload)) {
+    iframe.src = _ensureInlineWorkerDownload(urlForDownload);
+    frame.appendChild(iframe);
+  } else if (doc.kind === 'word' || doc.kind === 'excel') {
+    iframe.src = _buildOfficeEmbedUrl(_ensureInlineWorkerDownload(urlForDownload));
+    frame.appendChild(iframe);
+  } else {
+    const span = document.createElement('span');
+    span.textContent = '该文件类型暂不支持内嵌预览，可点击右上角在新窗口打开。';
+    frame.appendChild(span);
+  }
+
 } else if (urlForSource && (doc.kind === 'word' || doc.kind === 'excel')) {
-  // Excel/Word：即使没产物，也可以直接用原文件给 Office Viewer 预览（前提：url 可公网访问）
   const iframe = document.createElement('iframe');
-  iframe.src = _buildOfficeEmbedUrl(urlForSource);
+  iframe.src = _buildOfficeEmbedUrl(_ensureInlineWorkerDownload(urlForSource));
   frame.appendChild(iframe);
+
 } else if (urlForSource && (doc.kind === 'pdf')) {
-  // pdf：可直接内嵌原文件
   const iframe = document.createElement('iframe');
-  iframe.src = urlForSource;
+  iframe.src = _ensureInlineWorkerDownload(urlForSource);
   frame.appendChild(iframe);
+
 } else {
   const span = document.createElement('span');
   span.textContent = '该文档尚未生成预览，请稍后刷新。';
   frame.appendChild(span);
 }
+
 
       // ===== [PATCH INSERT END] preview iframe for pdf + office (non-breaking) =====
 
@@ -1761,6 +1804,7 @@ if (Array.isArray(state.pendingUploads) && state.pendingUploads.length) {
   </script>
 </body>
 </html>
+
 
 
 
