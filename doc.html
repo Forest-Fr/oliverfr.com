@@ -866,13 +866,26 @@ function _normalizeDoc(raw) {
 
   const id = r.id || r.job_id || r.doc_id || (r.job && r.job.id) || null;
 
+  // ===== [PATCH INSERT BEGIN] prefer original filename for display (non-breaking) =====
+  function _basenameLike(s) {
+    const v = String(s || '');
+    const noQuery = v.split('?')[0];
+    const last = noQuery.split('/').pop();
+    return (last || v || '').trim();
+  }
+
+  // 优先展示“用户原始文件名”，避免后端 name=storage_path / uuid 导致列表看不懂
   const name =
-    r.name ||
-    r.original_name ||
-    r.filename ||
-    inputFile?.original_name ||
-    inputFile?.name ||
-    '(无名称)';
+    _basenameLike(
+      r.original_name ||
+      r.filename ||
+      inputFile?.original_name ||
+      inputFile?.name ||
+      r.name ||
+      '(无名称)'
+    );
+  // ===== [PATCH INSERT END] prefer original filename for display (non-breaking) =====
+
 
   const kind =
     r.kind ||
@@ -1106,8 +1119,16 @@ async function loadDocs() {
 
       const downloadEl = document.getElementById('metaDownload');
       const previewEl = document.getElementById('metaPreview');
-      downloadEl.textContent = doc && doc.download_url ? doc.download_url : '-';
-      previewEl.textContent = doc && doc.preview_url ? doc.preview_url : '-';
+      //downloadEl.textContent = doc && doc.download_url ? doc.download_url : '-';
+      //previewEl.textContent = doc && doc.preview_url ? doc.preview_url : '-';
+      downloadEl.innerHTML = (doc && doc.download_url)
+  ? `<a href="${doc.download_url}" target="_blank" rel="noopener noreferrer">${doc.download_url}</a>`
+  : '-';
+
+previewEl.innerHTML = (doc && doc.preview_url)
+  ? `<a href="${doc.preview_url}" target="_blank" rel="noopener noreferrer">${doc.preview_url}</a>`
+  : '-';
+
     }
 
     function updatePreviewPanel() {
@@ -1125,19 +1146,49 @@ async function loadDocs() {
         return;
       }
 
-      if (doc.preview_url && (doc.preview_url.endsWith('.pdf') || doc.kind === 'pdf')) {
+      // ===== [PATCH INSERT BEGIN] preview iframe for pdf + office (non-breaking) =====
+      function _isPdfUrl(u) {
+        try {
+          const clean = String(u || '').split('?')[0].toLowerCase();
+          return clean.endsWith('.pdf');
+        } catch { return false; }
+      }
+
+      function _buildOfficeEmbedUrl(rawUrl) {
+        // Office 在线预览必须用可公网访问的文件 URL；这里用 MS Office Viewer embed
+        return 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(rawUrl);
+      }
+
+      const urlForPreview = doc.preview_url || null;
+      const urlForDownload = doc.download_url || null;
+
+      if (urlForPreview) {
+        // 关键修复：只要后端给了 preview_url，无论 PDF / Office / 其它，都优先 iframe 直接渲染
         const iframe = document.createElement('iframe');
-        iframe.src = doc.preview_url;
+        iframe.src = urlForPreview;
         frame.appendChild(iframe);
-      } else if (doc.preview_url) {
-        const span = document.createElement('span');
-        span.textContent = '预览由后端 Worker 适配（当前链接：' + doc.preview_url + '）。';
-        frame.appendChild(span);
+      } else if (urlForDownload) {
+        // 后端没给 preview_url，则根据类型用 download_url 尝试生成可用预览
+        const iframe = document.createElement('iframe');
+
+        if (doc.kind === 'pdf' || _isPdfUrl(urlForDownload)) {
+          iframe.src = urlForDownload;
+          frame.appendChild(iframe);
+        } else if (doc.kind === 'word' || doc.kind === 'excel') {
+          iframe.src = _buildOfficeEmbedUrl(urlForDownload);
+          frame.appendChild(iframe);
+        } else {
+          const span = document.createElement('span');
+          span.textContent = '该文件类型暂不支持内嵌预览，可点击右上角在新窗口打开。';
+          frame.appendChild(span);
+        }
       } else {
         const span = document.createElement('span');
         span.textContent = '该文档尚未生成预览，请稍后刷新。';
         frame.appendChild(span);
       }
+      // ===== [PATCH INSERT END] preview iframe for pdf + office (non-breaking) =====
+
 
       btnOpen.disabled = !(doc.preview_url || doc.download_url);
     }
@@ -1374,6 +1425,7 @@ async function handleFiles(fileList) {
   </script>
 </body>
 </html>
+
 
 
 
