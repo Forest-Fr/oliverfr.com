@@ -1473,9 +1473,11 @@ const rawFromStorage =
 
 // 退化顺序：raw > source > download > preview
 //let officeRaw = rawFromStorage || urlForSource || urlForDownload || urlForPreview || null;
-let officeRaw = urlForSource || urlForDownload || urlForPreview || null; // Office Viewer 优先用 signed/source
-officeRaw = _ensureInlineWorkerDownload(officeRaw);
+//let officeRaw = urlForSource || urlForDownload || urlForPreview || null; // Office Viewer 优先用 signed/source
+//officeRaw = _ensureInlineWorkerDownload(officeRaw);
 // ===== [PATCH REPLACE END] =====
+let officeRaw = rawFromStorage || urlForSource || urlForDownload || urlForPreview || null;
+officeRaw = _ensureInlineWorkerDownload(officeRaw);
 
 if (urlForPreview) {
   const iframe = document.createElement('iframe');
@@ -1934,6 +1936,7 @@ if (Array.isArray(state.pendingUploads) && state.pendingUploads.length) {
   </script>
 </body>
 </html>
+
 
 
 
