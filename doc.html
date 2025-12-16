@@ -723,8 +723,15 @@ const API_BASE ='https://doc.mefans.workers.dev';
 // 可选：如果 Worker 开了 API_KEY 校验（env.API_KEY），这里填同一把 key（不填则保持空字符串）
 const API_KEY = '';
 
-    // 2) 是否使用前端 Mock 数据（默认 true，便于本地自测）
-    let USE_MOCK = true;
+// 2) 是否使用前端 Mock 数据
+// 规则：本地（localhost / file）默认 Mock；线上默认直连后端；可用 ?mock=1 强制 Mock
+const _qs = new URLSearchParams(location.search);
+const _forceMock = _qs.get('mock') === '1';
+const _forceLive = _qs.get('live') === '1';
+const _isLocal = (location.protocol === 'file:') || /localhost|127\.0\.0\.1/i.test(location.hostname);
+
+let USE_MOCK = _forceMock ? true : (_forceLive ? false : _isLocal);
+
 
     const state = {
       docs: [],
@@ -806,33 +813,166 @@ headers: {
       return body;
     }
 
+    // ===== [PATCH BEGIN] robust helpers for live chain (non-breaking) =====
+function _joinUrl(base, path) {
+  const b = (base || '').replace(/\/+$/, '');
+  const p = (path || '').startsWith('/') ? path : '/' + path;
+  return b + p;
+}
+
+async function apiTry(paths, options = {}) {
+  let lastErr = null;
+  for (const p of paths) {
+    try {
+      return await apiFetch(p, options);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('All endpoints failed');
+}
+
+function _uuidv4() {
+  // 优先用 crypto.randomUUID；不支持则 fallback
+  if (crypto && crypto.randomUUID) return crypto.randomUUID();
+  const buf = new Uint8Array(16);
+  crypto.getRandomValues(buf);
+  buf[6] = (buf[6] & 0x0f) | 0x40;
+  buf[8] = (buf[8] & 0x3f) | 0x80;
+  const hex = [...buf].map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function _inferKindFromAny(x) {
+  const k = (x || '').toString().toLowerCase();
+  if (k.includes('pdf')) return 'pdf';
+  if (k.includes('word') || k.includes('doc')) return 'word';
+  if (k.includes('excel') || k.includes('xls') || k.includes('sheet') || k.includes('csv')) return 'excel';
+  return 'other';
+}
+
+function _buildWorkerDownloadUrl(storagePath) {
+  if (!storagePath) return null;
+  return _joinUrl(API_BASE, '/download') + '?key=' + encodeURIComponent(storagePath);
+}
+
+function _normalizeDoc(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const files = Array.isArray(r.files) ? r.files : [];
+
+  // 优先用 input/output 文件辅助补齐字段
+  const inputFile = files.find(f => String(f?.file_role || '').toLowerCase() === 'input') || null;
+  const outputFile = files.find(f => String(f?.file_role || '').toLowerCase() === 'output') || null;
+
+  const id = r.id || r.job_id || r.doc_id || (r.job && r.job.id) || null;
+
+  const name =
+    r.name ||
+    r.original_name ||
+    r.filename ||
+    inputFile?.original_name ||
+    inputFile?.name ||
+    '(无名称)';
+
+  const kind =
+    r.kind ||
+    r.file_type ||
+    inputFile?.file_type ||
+    _inferKindFromAny(name);
+
+  const sizeBytes =
+    r.size_bytes ||
+    r.size ||
+    inputFile?.size_bytes ||
+    inputFile?.size ||
+    null;
+
+  const createdAt =
+    r.created_at ||
+    r.inserted_at ||
+    (r.job && r.job.created_at) ||
+    inputFile?.created_at ||
+    null;
+
+  const status =
+    r.status ||
+    r.job_status ||
+    (r.job && r.job.status) ||
+    'unknown';
+
+  // preview/download 优先用后端直接给的 url；否则用 storage_path 拼 Worker /download
+  const previewUrl =
+    r.preview_url ||
+    r.previewUrl ||
+    outputFile?.preview_url ||
+    outputFile?.signed_url ||
+    outputFile?.url ||
+    (outputFile?.storage_path ? _buildWorkerDownloadUrl(outputFile.storage_path) : null);
+
+  const downloadUrl =
+    r.download_url ||
+    r.downloadUrl ||
+    outputFile?.download_url ||
+    outputFile?.signed_url ||
+    outputFile?.url ||
+    (outputFile?.storage_path ? _buildWorkerDownloadUrl(outputFile.storage_path) : null);
+
+  return {
+    id,
+    name,
+    kind,
+    size_bytes: sizeBytes,
+    created_at: createdAt,
+    status,
+    preview_url: previewUrl,
+    download_url: downloadUrl,
+    _raw: r
+  };
+}
+
+function _normalizeDocsResponse(data) {
+  // 兼容：Array / {docs:[]} / {items:[]} / {data:[]} / {jobs:[]} 等
+  let arr = [];
+  if (Array.isArray(data)) arr = data;
+  else if (data && typeof data === 'object') {
+    if (Array.isArray(data.docs)) arr = data.docs;
+    else if (Array.isArray(data.items)) arr = data.items;
+    else if (Array.isArray(data.data)) arr = data.data;
+    else if (Array.isArray(data.jobs)) arr = data.jobs;
+    else if (Array.isArray(data.documents)) arr = data.documents;
+  }
+  return arr.map(_normalizeDoc).filter(d => d.id);
+}
+// ===== [PATCH END] =====
+
+
     // ============ Health 检查 ============
 
-    async function refreshHealth() {
-      const dot = document.getElementById('healthDot');
-      const text = document.getElementById('healthText');
+async function refreshHealth() {
+  const dot = document.getElementById('healthDot');
+  const text = document.getElementById('healthText');
 
-      dot.classList.remove('ok', 'bad');
-      text.textContent = 'Checking...';
+  dot.classList.remove('ok', 'bad');
+  text.textContent = 'Checking...';
 
-      try {
-        let data;
-        if (USE_MOCK) {
-          data = { status: 'ok', env: 'dev', ts: new Date().toISOString() };
-          await new Promise(r => setTimeout(r, 300));
-        } else {
-          data = await apiFetch('/health');
-        }
-        dot.classList.add('ok');
-        text.textContent = 'Healthy · ' + (data.env || 'unknown');
-        const envLabel = document.getElementById('envLabel');
-        envLabel.textContent = data.env || 'prod';
-      } catch (e) {
-        dot.classList.add('bad');
-        text.textContent = 'Unhealthy';
-        showToast('Health 检查失败：' + (e.message || e), 'error');
-      }
+  try {
+    let data;
+    if (USE_MOCK) {
+      data = { status: 'ok', env: 'dev', ts: new Date().toISOString() };
+      await new Promise(r => setTimeout(r, 300));
+    } else {
+      data = await apiTry(['/health', '/healthz', '/'], { method: 'GET' });
     }
+    dot.classList.add('ok');
+    text.textContent = 'Healthy · ' + (data.env || 'unknown');
+    document.getElementById('envLabel').textContent = data.env || 'prod';
+  } catch (e) {
+    dot.classList.add('bad');
+    text.textContent = 'Unhealthy';
+    showToast('Health 检查失败：' + (e.message || e), 'error');
+  }
+}
+
 
     // ============ Mock 数据 ============
 
@@ -874,16 +1014,25 @@ headers: {
       ];
     }
 
-    async function loadDocs() {
-      let docs;
-      if (USE_MOCK) {
-        docs = buildMockDocs();
-      } else {
-        docs = await apiFetch('/v1/docs');
-      }
-      state.docs = docs;
-      applyFilter();
-    }
+async function loadDocs() {
+  let docs;
+  if (USE_MOCK) {
+    docs = buildMockDocs();
+    state.docs = docs;
+    applyFilter();
+    return;
+  }
+
+  // Live：尝试多个可能的 Worker 列表端点（避免后端路径变动导致前端不可用）
+  const data = await apiTry(
+    ['/v1/docs', '/docs', '/v1/doc-jobs', '/api/doc-jobs', '/v1/doc-files', '/api/doc-files'],
+    { method: 'GET' }
+  );
+
+  state.docs = _normalizeDocsResponse(data);
+  applyFilter();
+}
+
 
     function applyFilter() {
       const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
@@ -1036,66 +1185,103 @@ headers: {
       });
     }
 
-    async function handleFiles(fileList) {
-      const uploadList = document.getElementById('uploadList');
-      for (const file of fileList) {
-        const li = document.createElement('li');
-        li.className = 'upload-item';
+async function handleFiles(fileList) {
+  const uploadList = document.getElementById('uploadList');
 
-        const name = document.createElement('div');
-        name.className = 'upload-name';
-        name.textContent = file.name;
+  // FileList 在现代浏览器可迭代；这里转数组更稳
+  const files = Array.from(fileList || []);
 
-        const status = document.createElement('div');
-        status.className = 'upload-status';
-        status.textContent = '准备上传...';
+  for (const file of files) {
+    const li = document.createElement('li');
+    li.className = 'upload-item';
 
-        li.appendChild(name);
-        li.appendChild(status);
-        uploadList.appendChild(li);
+    const name = document.createElement('div');
+    name.className = 'upload-name';
+    name.textContent = file.name;
 
+    const status = document.createElement('div');
+    status.className = 'upload-status';
+    status.textContent = '准备上传...';
+
+    li.appendChild(name);
+    li.appendChild(status);
+    uploadList.appendChild(li);
+
+    try {
+      if (USE_MOCK) {
+        status.textContent = '上传成功（mock）';
+        status.classList.add('ok');
+
+        const mockDoc = {
+          id: 'doc_mock_' + Math.random().toString(16).slice(2, 8),
+          name: file.name,
+          kind: guessKindFromName(file.name),
+          size_bytes: file.size,
+          created_at: new Date().toISOString(),
+          status: 'processing',
+          preview_url: null,
+          download_url: null
+        };
+        state.docs.unshift(mockDoc);
+        applyFilter();
+      } else {
+        status.textContent = '上传中...';
+
+        // 生成 job_id（若后端不需要可忽略；若需要则链路能直接跑通）
+        const jobId = _uuidv4();
+
+        // 先尝试 Worker /upload（与 cloudrun_doc_job.py 的 upload/download 路由一致）
         try {
-          if (USE_MOCK) {
-            status.textContent = '上传成功（mock）';
-            status.classList.add('ok');
+          const form = new FormData();
+          form.append('file', file);
 
-            // 模拟将文档插入列表
-            const mockDoc = {
-              id: 'doc_mock_' + Math.random().toString(16).slice(2, 8),
-              name: file.name,
-              kind: guessKindFromName(file.name),
-              size_bytes: file.size,
-              created_at: new Date().toISOString(),
-              status: 'processing',
-              preview_url: null,
-              download_url: null
-            };
-            state.docs.unshift(mockDoc);
-            applyFilter();
-          } else {
-            status.textContent = '上传中...';
+          // 与后端约定字段（无则后端可忽略；有则链路直接闭环）
+          form.append('job_id', jobId);
+          form.append('file_role', 'input');
+          form.append('file_type', guessKindFromName(file.name));
+          form.append('original_name', file.name);
 
-            const form = new FormData();
-            form.append('file', file);
-            const resp = await apiFetch('/v1/docs', {
-              method: 'POST',
-              body: form
-            });
+          const resp = await apiFetch('/upload', { method: 'POST', body: form });
 
-            status.textContent = '上传成功';
-            status.classList.add('ok');
+          status.textContent = '上传成功';
+          status.classList.add('ok');
 
-            // 刷新列表（后端真正返回时可以更细节更新）
-            await loadDocs();
-          }
-        } catch (e) {
-          console.error(e);
-          status.textContent = '失败：' + (e.message || e);
-          status.classList.add('error');
-          showToast('上传失败：' + file.name, 'error');
+          // 立即插入一条“processing”，保持现有体验；随后刷新列表拿后端真实数据
+          state.docs.unshift({
+            id: (resp && (resp.job_id || resp.id)) || jobId,
+            name: file.name,
+            kind: guessKindFromName(file.name),
+            size_bytes: file.size,
+            created_at: new Date().toISOString(),
+            status: (resp && resp.status) || 'processing',
+            preview_url: (resp && resp.preview_url) || null,
+            download_url: (resp && resp.download_url) || null
+          });
+          applyFilter();
+
+          await loadDocs();
+        } catch (e1) {
+          // 降级：兼容旧实现（如果后端仍然提供 /v1/docs）
+          const form2 = new FormData();
+          form2.append('file', file);
+
+          await apiFetch('/v1/docs', { method: 'POST', body: form2 });
+
+          status.textContent = '上传成功';
+          status.classList.add('ok');
+
+          await loadDocs();
         }
       }
+    } catch (e) {
+      console.error(e);
+      status.textContent = '失败：' + ((e && e.message) || e);
+      status.classList.add('error');
+      showToast('上传失败：' + file.name, 'error');
     }
+  }
+}
+
 
     function guessKindFromName(name) {
       const lower = (name || '').toLowerCase();
@@ -1188,5 +1374,6 @@ headers: {
   </script>
 </body>
 </html>
+
 
 
