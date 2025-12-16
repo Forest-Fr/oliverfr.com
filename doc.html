@@ -950,6 +950,38 @@ function _inferKindFromAny(x) {
   if (k.includes('excel') || k.includes('xls') || k.includes('sheet') || k.includes('csv')) return 'excel';
   return 'other';
 }
+// ===== [PATCH INSERT BEGIN] canonical kind + raw url helpers (non-breaking) =====
+function _canonKind(v) {
+  const s = String(v || '').trim().toLowerCase();
+  if (!s) return 'other';
+  if (s === 'pdf' || s === 'word' || s === 'excel' || s === 'other') return s;
+
+  // extensions / common labels
+  if (s === 'doc' || s === 'docx') return 'word';
+  if (s === 'xls' || s === 'xlsx' || s === 'csv' || s === 'tsv' || s === 'sheet' || s === 'spreadsheet') return 'excel';
+
+  // mime-ish
+  if (s.includes('pdf')) return 'pdf';
+  if (s.includes('word') || s.includes('officedocument.wordprocessingml') || s.includes('msword')) return 'word';
+  if (s.includes('excel') || s.includes('spreadsheet') || s.includes('officedocument.spreadsheetml') || s.includes('vnd.ms-excel')) return 'excel';
+
+  // fallback to your heuristic
+  return _inferKindFromAny(s);
+}
+
+function _encodePathPreserveSlash(p) {
+  return String(p || '')
+    .split('/')
+    .map(seg => encodeURIComponent(seg))
+    .join('/');
+}
+
+function _buildWorkerRawUrl(storagePath) {
+  if (!storagePath) return null;
+  const base = (API_BASE || '').replace(/\/+$/, '');
+  return base + '/raw/' + _encodePathPreserveSlash(storagePath);
+}
+// ===== [PATCH INSERT END] canonical kind + raw url helpers (non-breaking) =====
 
 // ===== [PATCH REPLACE BEGIN] _buildWorkerDownloadUrl: force inline + optional filename (non-breaking) =====
 function _buildWorkerDownloadUrl(storagePath, opts = {}) {
@@ -992,7 +1024,19 @@ const outputFile =
   null;
 // ===== [PATCH INSERT END] accept more output roles (non-breaking) =====
 
-  
+  // ===== [PATCH INSERT BEGIN] expose storage_path for stable office preview (non-breaking) =====
+const inputStoragePath = inputFile?.storage_path || null;
+const outputStoragePath = outputFile?.storage_path || null;
+
+// 预览类型辅助判断（避免 preview_url 没有 .pdf 扩展名时误判）
+const previewKind = _canonKind(
+  outputFile?.file_type ||
+  outputFile?.kind ||
+  r.preview_kind ||
+  ''
+);
+// ===== [PATCH INSERT END] =====
+
 
   const id = r.id || r.job_id || r.doc_id || (r.job && r.job.id) || null;
 
@@ -1017,11 +1061,15 @@ const outputFile =
   // ===== [PATCH INSERT END] prefer original filename for display (non-breaking) =====
 
 
-  const kind =
-    r.kind ||
-    r.file_type ||
-    inputFile?.file_type ||
-    _inferKindFromAny(name);
+  // ===== [PATCH REPLACE BEGIN] canonicalize kind (non-breaking) =====
+const kind = _canonKind(
+  r.kind ||
+  r.file_type ||
+  inputFile?.file_type ||
+  _inferKindFromAny(name)
+);
+// ===== [PATCH REPLACE END] =====
+
 
   const sizeBytes =
     r.size_bytes ||
@@ -1082,6 +1130,11 @@ const sourceUrl =
     preview_url: previewUrl,
     download_url: downloadUrl,
     source_url: sourceUrl,
+  // ===== [PATCH INSERT] stable preview helpers (non-breaking) =====
+  input_storage_path: inputStoragePath,
+  output_storage_path: outputStoragePath,
+  preview_kind: previewKind,
+  // ===== [PATCH END] =====
 
     _raw: r
   };
@@ -1383,14 +1436,26 @@ const urlForPreview = doc.preview_url || null;
 const urlForDownload = doc.download_url || null;
 const urlForSource = doc.source_url || null;
 
-// 关键：Office 预览一定要用“原始 docx/xlsx 的 raw URL”，而不是 pdf/其它产物
-let officeRaw = urlForDownload || urlForSource || urlForPreview || null;
+// ===== [PATCH REPLACE BEGIN] prefer /raw/<storage_path> for Office viewer (non-breaking) =====
+// Office Viewer 最稳：用 /raw/<storage_path>（避免 /download 的 content-disposition 干扰）
+const rawFromStorage =
+  _buildWorkerRawUrl(doc.input_storage_path) ||
+  _buildWorkerRawUrl(doc.output_storage_path) ||
+  null;
+
+// 退化顺序：raw > source > download > preview
+let officeRaw = rawFromStorage || urlForSource || urlForDownload || urlForPreview || null;
 officeRaw = _ensureInlineWorkerDownload(officeRaw);
+// ===== [PATCH REPLACE END] =====
 
 if (urlForPreview) {
   const iframe = document.createElement('iframe');
 
-  const isPdf = (doc.kind === 'pdf') || _isPdfUrl(urlForPreview);
+  //const isPdf = (doc.kind === 'pdf') || _isPdfUrl(urlForPreview);
+  // ===== [PATCH REPLACE] stronger pdf detect using preview_kind (non-breaking) =====
+const isPdf = (doc.kind === 'pdf') || (doc.preview_kind === 'pdf') || _isPdfUrl(urlForPreview);
+// ===== [PATCH END] =====
+
   const isOffice = (doc.kind === 'word' || doc.kind === 'excel');
 
   // 已是 office embed 或 pdf：直接用
@@ -1652,7 +1717,8 @@ saveLocalState();
 
     function guessKindFromName(name) {
       const lower = (name || '').toLowerCase();
-      if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) return 'excel';
+     //if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) return 'excel';
+       if (lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv') || lower.endsWith('.tsv')) return 'excel';
       if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'word';
       if (lower.endsWith('.pdf')) return 'pdf';
       return 'other';
@@ -1804,6 +1870,7 @@ if (Array.isArray(state.pendingUploads) && state.pendingUploads.length) {
   </script>
 </body>
 </html>
+
 
 
 
