@@ -237,7 +237,19 @@
       list-style: none;
       flex: 1;
       overflow: auto;
+            /* ===== [PATCH INSERT] make scrollbar visible (non-breaking) ===== */
+      scrollbar-width: thin;                 /* Firefox */
+      scrollbar-color: rgba(148,163,184,.55) transparent;
+
     }
+    /* ===== [PATCH INSERT] webkit scrollbar (non-breaking) ===== */
+    .doc-list::-webkit-scrollbar { width: 10px; }
+    .doc-list::-webkit-scrollbar-thumb {
+      background: rgba(148,163,184,.45);
+      border-radius: 999px;
+      border: 2px solid rgba(2,6,23,.8);
+    }
+    .doc-list::-webkit-scrollbar-track { background: transparent; }
 
     .doc-item {
       padding: 8px 8px;
@@ -1107,6 +1119,13 @@ async function loadDocs() {
       renderDocList();
       updateMetaPanel();
       updatePreviewPanel();
+        // ===== [PATCH INSERT BEGIN] auto scroll selected item into view (non-breaking) =====
+  requestAnimationFrame(() => {
+    const li = document.querySelector(`.doc-item[data-id="${CSS && CSS.escape ? CSS.escape(docId) : docId}"]`);
+    if (li && li.scrollIntoView) li.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+  // ===== [PATCH INSERT END] auto scroll selected item into view (non-breaking) =====
+
     }
 
     function updateMetaPanel() {
@@ -1203,7 +1222,27 @@ previewEl.innerHTML = (doc && doc.preview_url)
         fileInput.click();
       }
 
-      zone.addEventListener('click', openFileDialog);
+   // ===== [PATCH INSERT BEGIN] prevent double-trigger file dialog (non-breaking) =====
+zone.addEventListener('click', (e) => {
+  // 点击内部 label / input / button 时，不再让 zone 再次触发 fileInput.click()
+  if (e.target && e.target.closest && (
+    e.target.closest('label') ||
+    e.target.closest('input[type="file"]') ||
+    e.target.closest('button') ||
+    e.target.closest('a')
+  )) {
+    return;
+  }
+  openFileDialog();
+});
+
+// 额外兜底：label 自身点击时阻止冒泡，彻底避免“点一次触发两次”
+try {
+  const _label = zone.querySelector('label');
+  if (_label) _label.addEventListener('click', (ev) => ev.stopPropagation());
+} catch {}
+// ===== [PATCH INSERT END] prevent double-trigger file dialog (non-breaking) =====
+
 
       ;['dragenter', 'dragover'].forEach(ev => {
         zone.addEventListener(ev, e => {
@@ -1298,8 +1337,10 @@ async function handleFiles(fileList) {
           status.classList.add('ok');
 
           // 立即插入一条“processing”，保持现有体验；随后刷新列表拿后端真实数据
+          const newId = (resp && (resp.job_id || resp.id)) || jobId;
+
           state.docs.unshift({
-            id: (resp && (resp.job_id || resp.id)) || jobId,
+            id: newId,
             name: file.name,
             kind: guessKindFromName(file.name),
             size_bytes: file.size,
@@ -1310,7 +1351,29 @@ async function handleFiles(fileList) {
           });
           applyFilter();
 
-          await loadDocs();
+          // ===== [PATCH INSERT BEGIN] ensure doc appears + auto focus (non-breaking) =====
+          // 先把“本地占位条目”选中，让用户立刻可见
+          selectDoc(newId);
+
+          // 再轮询刷新几次，等待后端入库/列表一致性完成（避免“上传成功但列表里没有”）
+          async function _pollRefreshUntilVisible(targetId, targetName) {
+            const waits = [400, 800, 1200]; // 总计最多 ~2.4s，足够覆盖常见写入延迟
+            for (const ms of waits) {
+              await new Promise(r => setTimeout(r, ms));
+              try { await loadDocs(); } catch {}
+              const hit = state.docs.find(d => d.id === targetId) ||
+                          state.docs.find(d => (d.name || '').toLowerCase() === (targetName || '').toLowerCase());
+              if (hit) {
+                selectDoc(hit.id);
+                return true;
+              }
+            }
+            return false;
+          }
+
+          await _pollRefreshUntilVisible(newId, file.name);
+          // ===== [PATCH INSERT END] ensure doc appears + auto focus (non-breaking) =====
+
         } catch (e1) {
           // 降级：兼容旧实现（如果后端仍然提供 /v1/docs）
           const form2 = new FormData();
@@ -1425,6 +1488,7 @@ async function handleFiles(fileList) {
   </script>
 </body>
 </html>
+
 
 
 
