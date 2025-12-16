@@ -1009,20 +1009,42 @@ function _normalizeDoc(raw) {
   const files = Array.isArray(r.files) ? r.files : [];
 
   // 优先用 input/output 文件辅助补齐字段
-  const inputFile = files.find(f => String(f?.file_role || '').toLowerCase() === 'input') || null;
+  //const inputFile = files.find(f => String(f?.file_role || '').toLowerCase() === 'input') || null;
   //const outputFile = files.find(f => String(f?.file_role || '').toLowerCase() === 'output') || null;
+// ===== [PATCH REPLACE] robust file role/type inference (non-breaking) =====
+const _role = (f) => String(f?.file_role ?? f?.role ?? f?.fileRole ?? '').toLowerCase();
+const _ft   = (f) => String(f?.file_type ?? f?.fileType ?? f?.kind ?? '').toLowerCase();
+const _fname = (f) => String(f?.original_name ?? f?.name ?? '').toLowerCase();
+const _spath = (f) => String(f?.storage_path ?? f?.storagePath ?? '').toLowerCase();
 
-  // ===== [PATCH INSERT BEGIN] accept more output roles (non-breaking) =====
-const _role = (f) => String(f?.file_role || '').toLowerCase();
-const _ft = (f) => String(f?.file_type || f?.kind || '').toLowerCase();
+const _kindGuess =
+  (r.kind || r.file_type || _inferKindFromAny(
+    r.original_name || r.filename || r.name || _fname(files[0] || {})
+  ));
 
-// 优先找“明确的产物角色”，再降级找“非 input 的第一个文件”，最后找“pdf 类型文件”
+const _wantExt = (k) =>
+  k === 'excel' ? ['.xlsx', '.xls', '.csv'] :
+  k === 'word'  ? ['.docx', '.doc'] :
+  k === 'pdf'   ? ['.pdf'] : [];
+
+const inputFile =
+  files.find(f => ['input', 'source', 'original', 'origin'].includes(_role(f))) ||
+  files.find(f => _wantExt(_kindGuess).some(ext => _fname(f).endsWith(ext) || _spath(f).endsWith(ext))) ||
+  files.find(f => _ft(f).includes(_kindGuess)) ||
+  (files[0] || null);
+// ===== [PATCH END] =====
+
+
+  
+// ===== [PATCH REPLACE BEGIN] accept more output roles (non-breaking) =====
+// 使用上面已定义的 _role / _ft（避免重复 const 声明）
 const outputFile =
   files.find(f => ['output', 'preview', 'render', 'rendered', 'converted', 'result'].includes(_role(f))) ||
   files.find(f => _role(f) && _role(f) !== 'input') ||
   files.find(f => _ft(f).includes('pdf')) ||
   null;
-// ===== [PATCH INSERT END] accept more output roles (non-breaking) =====
+// ===== [PATCH REPLACE END] =====
+
 
   // ===== [PATCH INSERT BEGIN] expose storage_path for stable office preview (non-breaking) =====
 const inputStoragePath = inputFile?.storage_path || null;
@@ -1117,7 +1139,9 @@ const sourceUrl =
   r.sourceUrl ||
   inputFile?.signed_url ||
   inputFile?.url ||
-  (inputFile?.storage_path ? _buildWorkerDownloadUrl(inputFile.storage_path) : null);
+  //(inputFile?.storage_path ? _buildWorkerDownloadUrl(inputFile.storage_path) : null);
+  (inputFile?.storage_path ? _buildWorkerDownloadUrl(inputFile.storage_path, { filename: name }) : null);
+
 // ===== [PATCH INSERT END] source_url fallback from input (non-breaking) =====
 
   return {
@@ -1279,6 +1303,10 @@ saveLocalState();
 const serverDocs = _normalizeDocsResponse(data);
 state.docs = _mergePendingIntoDocs(serverDocs);
 applyFilter();
+  // ===== [PATCH INSERT] persist after live list refresh (non-breaking) =====
+saveLocalState();
+// ===== [PATCH END] =====
+
 
 }
 
@@ -1444,7 +1472,8 @@ const rawFromStorage =
   null;
 
 // 退化顺序：raw > source > download > preview
-let officeRaw = rawFromStorage || urlForSource || urlForDownload || urlForPreview || null;
+//let officeRaw = rawFromStorage || urlForSource || urlForDownload || urlForPreview || null;
+let officeRaw = urlForSource || urlForDownload || urlForPreview || null; // Office Viewer 优先用 signed/source
 officeRaw = _ensureInlineWorkerDownload(officeRaw);
 // ===== [PATCH REPLACE END] =====
 
@@ -1692,7 +1721,34 @@ saveLocalState();
           await _pollRefreshUntilVisible(newId, file.name);
           // ===== [PATCH INSERT END] ensure doc appears + auto focus (non-breaking) =====
 
+
+          
         } catch (e1) {
+
+          // ===== [PATCH INSERT BEGIN] treat /upload 500 as soft-failure (non-breaking) =====
+if (e1 && e1.status === 500) {
+  status.textContent = '已上传（但后端返回 500：可能是入库/触发转换失败，可点“刷新”或稍后重试）';
+  status.classList.add('error');
+
+  // 仍然留一个占位，避免用户误以为没上传
+  state.pendingUploads.unshift({
+    id: jobId,
+    name: file.name,
+    kind: guessKindFromName(file.name),
+    size_bytes: file.size,
+    created_at: new Date().toISOString(),
+    status: 'processing',
+    preview_url: null,
+    download_url: null
+  });
+  saveLocalState();
+
+  // 尽力刷新列表：若后端其实已写入，这里会用真实记录替换 pending
+  try { await loadDocs(); } catch {}
+  continue;
+}
+// ===== [PATCH INSERT END] =====
+
           // 降级：兼容旧实现（如果后端仍然提供 /v1/docs）
           const form2 = new FormData();
           form2.append('file', file);
@@ -1790,7 +1846,11 @@ saveLocalState();
         const doc = getSelectedDoc();
         if (!doc) return;
         //const url = doc.preview_url || doc.download_url;
-        const url = doc.preview_url || doc.download_url || doc.source_url;
+       // const url = doc.preview_url || doc.download_url || doc.source_url;
+const isOffice = (doc.kind === 'word' || doc.kind === 'excel');
+const url = isOffice
+  ? (doc.source_url || doc.download_url || doc.preview_url)
+  : (doc.preview_url || doc.download_url || doc.source_url);
 
         if (url) window.open(url, '_blank');
       });
@@ -1801,7 +1861,11 @@ document.getElementById('btnDownloadRaw').addEventListener('click', () => {
   const doc = getSelectedDoc();
   if (!doc) return;
   //const url = doc.download_url || doc.preview_url;
-  const url = doc.download_url || doc.preview_url || doc.source_url;
+  //const url = doc.download_url || doc.preview_url || doc.source_url;
+const isOffice = (doc.kind === 'word' || doc.kind === 'excel');
+const url = isOffice
+  ? (doc.source_url || doc.download_url || doc.preview_url)
+  : (doc.download_url || doc.preview_url || doc.source_url);
 
   if (url) window.open(url, '_blank');
 });
@@ -1870,6 +1934,7 @@ if (Array.isArray(state.pendingUploads) && state.pendingUploads.length) {
   </script>
 </body>
 </html>
+
 
 
 
