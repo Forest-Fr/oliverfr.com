@@ -937,7 +937,21 @@ function _normalizeDoc(raw) {
 
   // 优先用 input/output 文件辅助补齐字段
   const inputFile = files.find(f => String(f?.file_role || '').toLowerCase() === 'input') || null;
-  const outputFile = files.find(f => String(f?.file_role || '').toLowerCase() === 'output') || null;
+  //const outputFile = files.find(f => String(f?.file_role || '').toLowerCase() === 'output') || null;
+
+  // ===== [PATCH INSERT BEGIN] accept more output roles (non-breaking) =====
+const _role = (f) => String(f?.file_role || '').toLowerCase();
+const _ft = (f) => String(f?.file_type || f?.kind || '').toLowerCase();
+
+// 优先找“明确的产物角色”，再降级找“非 input 的第一个文件”，最后找“pdf 类型文件”
+const outputFile =
+  files.find(f => ['output', 'preview', 'render', 'rendered', 'converted', 'result'].includes(_role(f))) ||
+  files.find(f => _role(f) && _role(f) !== 'input') ||
+  files.find(f => _ft(f).includes('pdf')) ||
+  null;
+// ===== [PATCH INSERT END] accept more output roles (non-breaking) =====
+
+  
 
   const id = r.id || r.job_id || r.doc_id || (r.job && r.job.id) || null;
 
@@ -1004,6 +1018,14 @@ function _normalizeDoc(raw) {
     outputFile?.signed_url ||
     outputFile?.url ||
     (outputFile?.storage_path ? _buildWorkerDownloadUrl(outputFile.storage_path) : null);
+// ===== [PATCH INSERT BEGIN] source_url fallback from input (non-breaking) =====
+const sourceUrl =
+  r.source_url ||
+  r.sourceUrl ||
+  inputFile?.signed_url ||
+  inputFile?.url ||
+  (inputFile?.storage_path ? _buildWorkerDownloadUrl(inputFile.storage_path) : null);
+// ===== [PATCH INSERT END] source_url fallback from input (non-breaking) =====
 
   return {
     id,
@@ -1014,6 +1036,8 @@ function _normalizeDoc(raw) {
     status,
     preview_url: previewUrl,
     download_url: downloadUrl,
+    source_url: sourceUrl,
+
     _raw: r
   };
 }
@@ -1284,6 +1308,11 @@ btnRefresh.disabled = true;
       const urlForPreview = doc.preview_url || null;
       const urlForDownload = doc.download_url || null;
 
+      // ===== [PATCH INSERT BEGIN] allow source_url as preview base (non-breaking) =====
+const urlForSource = doc.source_url || null;
+// ===== [PATCH INSERT END] allow source_url as preview base (non-breaking) =====
+
+
 if (urlForPreview) {
   const iframe = document.createElement('iframe');
 
@@ -1316,15 +1345,28 @@ if (urlForPreview) {
           span.textContent = '该文件类型暂不支持内嵌预览，可点击右上角在新窗口打开。';
           frame.appendChild(span);
         }
-      } else {
-        const span = document.createElement('span');
-        span.textContent = '该文档尚未生成预览，请稍后刷新。';
-        frame.appendChild(span);
-      }
+} else if (urlForSource && (doc.kind === 'word' || doc.kind === 'excel')) {
+  // Excel/Word：即使没产物，也可以直接用原文件给 Office Viewer 预览（前提：url 可公网访问）
+  const iframe = document.createElement('iframe');
+  iframe.src = _buildOfficeEmbedUrl(urlForSource);
+  frame.appendChild(iframe);
+} else if (urlForSource && (doc.kind === 'pdf')) {
+  // pdf：可直接内嵌原文件
+  const iframe = document.createElement('iframe');
+  iframe.src = urlForSource;
+  frame.appendChild(iframe);
+} else {
+  const span = document.createElement('span');
+  span.textContent = '该文档尚未生成预览，请稍后刷新。';
+  frame.appendChild(span);
+}
+
       // ===== [PATCH INSERT END] preview iframe for pdf + office (non-breaking) =====
 
 
-   const hasLink = !!(doc.preview_url || doc.download_url);
+   //const hasLink = !!(doc.preview_url || doc.download_url);
+      const hasLink = !!(doc.preview_url || doc.download_url || doc.source_url);
+
 btnOpen.disabled = !hasLink;
 btnDownload.disabled = !hasLink;
 btnRefresh.disabled = !doc; // 选中文档即可刷新
@@ -1602,7 +1644,9 @@ state.pendingUploads.unshift({
       document.getElementById('btnOpenRaw').addEventListener('click', () => {
         const doc = getSelectedDoc();
         if (!doc) return;
-        const url = doc.preview_url || doc.download_url;
+        //const url = doc.preview_url || doc.download_url;
+        const url = doc.preview_url || doc.download_url || doc.source_url;
+
         if (url) window.open(url, '_blank');
       });
     }
@@ -1611,7 +1655,9 @@ state.pendingUploads.unshift({
 document.getElementById('btnDownloadRaw').addEventListener('click', () => {
   const doc = getSelectedDoc();
   if (!doc) return;
-  const url = doc.download_url || doc.preview_url;
+  //const url = doc.download_url || doc.preview_url;
+  const url = doc.download_url || doc.preview_url || doc.source_url;
+
   if (url) window.open(url, '_blank');
 });
 
@@ -1671,6 +1717,7 @@ document.getElementById('btnRefreshSelected').addEventListener('click', async ()
   </script>
 </body>
 </html>
+
 
 
 
