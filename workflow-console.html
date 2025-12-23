@@ -368,16 +368,19 @@
     return u.replace(/\/+$/, "");
   }
 
-  // ===== [PATCH INSERT BEGIN] normalize relative path input (non-breaking) =====
+// ===== [PATCH REPLACE BEGIN] normalize relative path input (preserve query; non-breaking) =====
 function normalizePathInput(input, fallback){
   const v = String(input || "").trim();
   if (!v) return fallback || "";
 
-  // If user mistakenly pasted a full URL, extract pathname only
+  // If user pasted a full URL, extract pathname + search (keep query)
   if (/^https?:\/\//i.test(v)){
     try{
       const u = new URL(v);
-      return u.pathname || (fallback || "/");
+      const p = u.pathname || (fallback || "/");
+      const s = u.search || "";
+      const path = p.startsWith("/") ? p : ("/" + p);
+      return path + s;
     }catch(e){
       return fallback || "/";
     }
@@ -386,22 +389,12 @@ function normalizePathInput(input, fallback){
   // Ensure it is a relative path
   return v.startsWith("/") ? v : "/" + v;
 }
-// ===== [PATCH INSERT END] =====
+// ===== [PATCH REPLACE END] =====
 
 
-// ===== [PATCH REPLACE BEGIN] browser -> worker proxy base resolver (non-breaking) =====
+
+// ===== [PATCH REPLACE BEGIN] browser -> worker proxy base resolver (non-breaking, correct default) =====
 function resolveGatewayBaseForBrowser(inputBase){
-  // 1) 用户手填优先：允许直接填 Cloud Run 或 wf.oliverfr.com
-  const raw = String(inputBase || "").trim();
-  if (raw) {
-    // 允许用户只填域名（无协议）时自动补 https://
-    const withScheme = /^https?:\/\//i.test(raw) ? raw : ("https://" + raw);
-    return normalizeBaseUrl(withScheme);
-  }
-
-  // 2) 没填才走“同域 Worker 代理”逻辑（用于解决跨域/CORS）
-  // 用法示例：
-  //   https://your-site/workflow-console.html?proxy_origin=https://wf.oliverfr.com&proxy_prefix=/wf
   const sp = new URLSearchParams(location.search);
 
   const qpOrigin = (sp.get("proxy_origin") || sp.get("proxy") || "").trim();
@@ -410,7 +403,24 @@ function resolveGatewayBaseForBrowser(inputBase){
   const lsOrigin = (localStorage.getItem("wf_console_proxy_origin") || "").trim();
   const lsPrefix = (localStorage.getItem("wf_console_proxy_prefix") || "").trim();
 
-  const origin = normalizeBaseUrl(qpOrigin || lsOrigin || location.origin);
+  // 若你已经在输入框里填了一个 Worker /wf 作为 base，则直接使用它（不改变原有功能语义）
+  const typed = normalizeBaseUrl(inputBase);
+  if (typed) {
+    try {
+      const tu = new URL(typed);
+      const isWorkers = tu.hostname.endsWith("workers.dev") || tu.hostname.endsWith("mefans.workers.dev");
+      const endsWf = tu.pathname.replace(/\/+$/, "").endsWith("/wf");
+      if (isWorkers && endsWf) return typed;
+    } catch (_) {}
+  }
+
+  // 默认 Worker 域名：如果页面本身就在 workers.dev，则用 location.origin；否则用你部署的 doc Worker
+  const defaultOrigin =
+    (location.hostname.endsWith("workers.dev") || location.hostname.endsWith("mefans.workers.dev"))
+      ? location.origin
+      : "https://doc.mefans.workers.dev";
+
+  const origin = normalizeBaseUrl(qpOrigin || lsOrigin || defaultOrigin);
   let prefix = (qpPrefix || lsPrefix || "/wf").trim();
 
   if (qpOrigin) localStorage.setItem("wf_console_proxy_origin", origin);
@@ -425,12 +435,46 @@ function resolveGatewayBaseForBrowser(inputBase){
 
 
 
+
   function joinUrl(base, path){
     base = normalizeBaseUrl(base);
     path = (path || "").trim();
     if (!path.startsWith("/")) path = "/" + path;
     return base + path;
   }
+
+  // ===== [PATCH INSERT BEGIN] effective fetch url builder (proxy with upstream; non-breaking) =====
+function shouldUseWorkerProxy(directBase){
+  // 同源或已经是 worker /wf base：不需要代理
+  try{
+    const u = new URL(directBase);
+    const isWorkers = u.hostname.endsWith("workers.dev") || u.hostname.endsWith("mefans.workers.dev");
+    const endsWf = u.pathname.replace(/\/+$/, "").endsWith("/wf");
+    if (u.origin === location.origin) return false;
+    if (isWorkers && endsWf) return false;
+  }catch(e){
+    return false;
+  }
+  return true; // 跨域直打 Cloud Run 大概率 CORS，默认走 Worker 代理
+}
+
+function buildFetchUrl(pathStr){
+  const directBase = normalizeBaseUrl(els.gatewayBase.value);
+  if (!directBase) return "";
+
+  const rel = normalizePathInput(pathStr, "/");
+  if (!shouldUseWorkerProxy(directBase)){
+    return joinUrl(directBase, rel);
+  }
+
+  const proxyBase = resolveGatewayBaseForBrowser(directBase);
+  const u = new URL(joinUrl(proxyBase, rel));
+  // 把真实上游带给 Worker（不加自定义 header，避免 GET/ready/health 触发 preflight）
+  u.searchParams.set("__upstream", directBase);
+  return u.toString();
+}
+// ===== [PATCH INSERT END] =====
+
 
   function hex(bytes){
     return Array.from(bytes).map(b => b.toString(16).padStart(2,"0")).join("");
@@ -533,21 +577,18 @@ function resolveGatewayBaseForBrowser(inputBase){
 
   async function check(){
    // const base = normalizeBaseUrl(els.gatewayBase.value);
-    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
+const directBase = normalizeBaseUrl(els.gatewayBase.value);
+if (!directBase){
+  setStatus("bad", "Missing Gateway URL");
+  return;
+}
 
-    if (!base){
-      setStatus("bad", "Missing Gateway URL");
-      return;
-    }
-    setStatus("warn", "Checking...");
-    logLine(`Check started: base=${base}`);
+setStatus("warn", "Checking...");
+logLine(`Check started: direct_base=${directBase}${shouldUseWorkerProxy(directBase) ? " via proxy=" + resolveGatewayBaseForBrowser(directBase) : ""}`);
 
-    // use minimal headers (no custom headers) to reduce preflight surface
-     // const readyUrl = joinUrl(base, els.readyPath.value || "/readyz");
-     // const healthUrl = joinUrl(base, els.healthPath.value || "/health");
+const readyUrl  = buildFetchUrl(els.readyPath.value || "/readyz");
+const healthUrl = buildFetchUrl(els.healthPath.value || "/health");
 
-    const readyUrl  = joinUrl(base, normalizePathInput(els.readyPath.value, "/readyz"));
-const healthUrl = joinUrl(base, normalizePathInput(els.healthPath.value, "/health"));
 
 
     const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{}, bodyText:null });
@@ -588,18 +629,15 @@ const healthUrl = joinUrl(base, normalizePathInput(els.healthPath.value, "/healt
     stopPoll();
 
     //const base = normalizeBaseUrl(els.gatewayBase.value);
-    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
+const directBase = normalizeBaseUrl(els.gatewayBase.value);
+if (!directBase){
+  setReqState("bad", "Missing base");
+  return;
+}
 
-    if (!base){
-      setReqState("bad", "Missing base");
-      return;
-    }
-    const method = (els.method.value || "POST").toUpperCase();
-    //const path = els.path.value.trim() || "/";
-    //const url = joinUrl(base, path);
+const method = (els.method.value || "POST").toUpperCase();
+const url = buildFetchUrl(els.path.value || "/");
 
-    const path = normalizePathInput(els.path.value, "/");
-const url = joinUrl(base, path);
 
 
     // Build headers with trace injection (this may trigger preflight; that's expected)
@@ -640,7 +678,9 @@ const url = joinUrl(base, path);
       const interval = parseInt(els.pollInterval.value, 10);
       const ms = Number.isFinite(interval) && interval > 300 ? interval : 1500;
        //const pollUrl = joinUrl(base, applyTemplate(poll));
-      const pollUrl = joinUrl(base, normalizePathInput(applyTemplate(poll), "/"));
+     // const pollUrl = joinUrl(base, normalizePathInput(applyTemplate(poll), "/"));
+      const pollUrl = buildFetchUrl(applyTemplate(poll));
+
 
       logLine(`Polling enabled: ${pollUrl} every ${ms}ms`);
       pollTimer = setInterval(async () => {
@@ -665,11 +705,10 @@ const url = joinUrl(base, path);
 
   function buildCurl(){
     //const base = normalizeBaseUrl(els.gatewayBase.value);
-    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
+const base = normalizeBaseUrl(els.gatewayBase.value);
 
-    const method = (els.method.value || "POST").toUpperCase();
-    //const url = joinUrl(base, els.path.value.trim() || "/");
-    const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
+const method = (els.method.value || "POST").toUpperCase();
+const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
 
 
     const hdr = buildInjectedHeaders();
@@ -797,4 +836,5 @@ const url = joinUrl(base, path);
 </script>
 </body>
 </html>
+
 
