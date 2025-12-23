@@ -390,17 +390,23 @@ function normalizePathInput(input, fallback){
 
 
 // ===== [PATCH REPLACE BEGIN] browser -> worker proxy base resolver (non-breaking) =====
-function resolveGatewayBaseForBrowser(_inputBase){
-  // 支持用 URL 参数指定 Worker 代理域名（解决“页面不在 Worker 同域”导致 /wf 404）
+function resolveGatewayBaseForBrowser(inputBase){
+  // 1) 用户手填优先：允许直接填 Cloud Run 或 wf.oliverfr.com
+  const raw = String(inputBase || "").trim();
+  if (raw) {
+    // 允许用户只填域名（无协议）时自动补 https://
+    const withScheme = /^https?:\/\//i.test(raw) ? raw : ("https://" + raw);
+    return normalizeBaseUrl(withScheme);
+  }
+
+  // 2) 没填才走“同域 Worker 代理”逻辑（用于解决跨域/CORS）
   // 用法示例：
-  //   https://your-pages-site/workflow-console.html?proxy_origin=https://doc.mefans.workers.dev
-  // 可选：proxy_prefix=/wf（默认 /wf）
+  //   https://your-site/workflow-console.html?proxy_origin=https://wf.oliverfr.com&proxy_prefix=/wf
   const sp = new URLSearchParams(location.search);
 
   const qpOrigin = (sp.get("proxy_origin") || sp.get("proxy") || "").trim();
   const qpPrefix = (sp.get("proxy_prefix") || sp.get("prefix") || "").trim();
 
-  // 允许持久化：打开一次带参数后，后续无需再带
   const lsOrigin = (localStorage.getItem("wf_console_proxy_origin") || "").trim();
   const lsPrefix = (localStorage.getItem("wf_console_proxy_prefix") || "").trim();
 
@@ -411,11 +417,12 @@ function resolveGatewayBaseForBrowser(_inputBase){
   if (qpPrefix) localStorage.setItem("wf_console_proxy_prefix", prefix);
 
   if (!prefix.startsWith("/")) prefix = "/" + prefix;
-  prefix = prefix.replace(/\/+$/, ""); // 去掉尾部 /
+  prefix = prefix.replace(/\/+$/, "");
 
   return origin + prefix;
 }
 // ===== [PATCH REPLACE END] =====
+
 
 
   function joinUrl(base, path){
@@ -790,3 +797,4 @@ const url = joinUrl(base, path);
 </script>
 </body>
 </html>
+
