@@ -147,33 +147,11 @@
       <div class="card">
         <h2>1) Connection</h2>
         <div class="row">
-          <!-- ===== [PATCH INSERT] mode + proxy base (non-breaking) ===== -->
-          <div class="row2">
-            <div>
-              <label>Connection mode</label>
-              <select id="connMode">
-                <option value="direct">Direct（直连 gatewayBase，可能受 CORS 影响）</option>
-                <option value="proxy">Proxy（同源 /wf 代理，不吃 CORS；需 Worker 提供 /wf）</option>
-              </select>
-              <div class="small" style="margin-top:6px">
-                说明：你截图里出现 <span class="mono">/wf/readyz</span> 404，典型是“页面在打 Proxy，但同域没有 /wf 路由”。
-              </div>
-            </div>
-            <div>
-              <label>Proxy Base (mode=Proxy)</label>
-              <input id="proxyBase" class="mono" placeholder="https://doc.mefans.workers.dev/wf" />
-              <div class="small" style="margin-top:6px">
-                可选：URL 参数也支持：<span class="mono">?proxy_base=https://doc.mefans.workers.dev/wf</span>
-              </div>
-            </div>
-          </div>
-          <!-- ===== [PATCH END] ===== -->
-
           <div>
             <label>Gateway URL (base)</label>
             <input id="gatewayBase" class="mono" placeholder="https://workflow-gateway-xxxx.us-central1.run.app" />
             <div class="small" style="margin-top:6px">
-              说明：Direct 模式下浏览器调用可能受 CORS 影响；若“地址栏访问 OK，但这里失败”，优先判断 CORS。
+              说明：浏览器调用可能受 CORS 影响；若“地址栏访问 OK，但这里失败”，优先判断 CORS。
             </div>
           </div>
 
@@ -195,13 +173,6 @@
               仅用于一键打开 Grafana 首页；Tempo Explore 的 URL 版本差异大，本页改为输出可复制的 TraceQL/检索条件。
             </div>
           </div>
-
-          <!-- ===== [PATCH INSERT] effective base preview (non-breaking) ===== -->
-          <div class="kv">
-            <div class="k">Page origin</div><div class="v" id="pageOrigin"></div>
-            <div class="k">Effective base</div><div class="v" id="effectiveBase"></div>
-          </div>
-          <!-- ===== [PATCH END] ===== -->
 
           <div class="btns">
             <button class="primary" id="btnCheck">Check (ready + health)</button>
@@ -305,15 +276,6 @@
           </div>
         </div>
 
-        <!-- ===== [PATCH INSERT] poll headers toggle (non-breaking) ===== -->
-        <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <label style="margin:0;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)">
-            <input id="pollWithHeaders" type="checkbox" style="width:auto;transform:translateY(1px)">
-            Poll 时附带 trace headers（会触发 CORS preflight；默认关闭更稳）
-          </label>
-        </div>
-        <!-- ===== [PATCH END] ===== -->
-
         <div class="btns">
           <button class="primary" id="btnSend">Send Request</button>
           <button id="btnStopPoll">Stop Poll</button>
@@ -350,14 +312,6 @@
     statusPill: $("statusPill"),
     statusDot: $("statusDot"),
     statusText: $("statusText"),
-
-    // ===== [PATCH INSERT] conn mode + proxy base (non-breaking) =====
-    connMode: $("connMode"),
-    proxyBase: $("proxyBase"),
-    pageOrigin: $("pageOrigin"),
-    effectiveBase: $("effectiveBase"),
-    // ===== [PATCH END] =====
-
     gatewayBase: $("gatewayBase"),
     readyPath: $("readyPath"),
     healthPath: $("healthPath"),
@@ -376,9 +330,6 @@
     body: $("body"),
     pollPath: $("pollPath"),
     pollInterval: $("pollInterval"),
-    // ===== [PATCH INSERT] poll headers toggle (non-breaking) =====
-    pollWithHeaders: $("pollWithHeaders"),
-    // ===== [PATCH END] =====
 
     reqDot: $("reqDot"),
     reqText: $("reqText"),
@@ -413,85 +364,63 @@
   function normalizeBaseUrl(u){
     u = (u || "").trim();
     if (!u) return "";
+    // remove trailing slash
     return u.replace(/\/+$/, "");
   }
 
-  // ===== [PATCH REPLACE] robust path normalize (non-breaking) =====
-  function normalizePathInput(input, fallback){
-    const v = String(input || "").trim();
-    if (!v) return fallback || "";
+  // ===== [PATCH INSERT BEGIN] normalize relative path input (non-breaking) =====
+function normalizePathInput(input, fallback){
+  const v = String(input || "").trim();
+  if (!v) return fallback || "";
 
-    // If user pasted full URL, extract pathname + search
-    if (/^https?:\/\//i.test(v)){
-      try{
-        const u = new URL(v);
-        const ps = (u.pathname || "/") + (u.search || "");
-        return ps || (fallback || "/");
-      }catch(e){
-        return fallback || "/";
-      }
+  // If user mistakenly pasted a full URL, extract pathname only
+  if (/^https?:\/\//i.test(v)){
+    try{
+      const u = new URL(v);
+      return u.pathname || (fallback || "/");
+    }catch(e){
+      return fallback || "/";
     }
-
-    // Ensure it is a relative path
-    return v.startsWith("/") ? v : "/" + v;
-  }
-  // ===== [PATCH END] =====
-
-  // ===== [PATCH INSERT] proxy base resolver (non-breaking) =====
-  function resolveProxyBase(){
-    // 优先：输入框
-    const input = normalizeBaseUrl(els.proxyBase.value);
-    if (input) return input;
-
-    // 次级：URL 参数
-    const sp = new URLSearchParams(location.search);
-    const qpBase = normalizeBaseUrl(sp.get("proxy_base") || "");
-    if (qpBase) {
-      try { localStorage.setItem("wf_console_proxy_base", qpBase); } catch(e){}
-      return qpBase;
-    }
-
-    // 兜底：localStorage
-    let lsBase = "";
-    try { lsBase = normalizeBaseUrl(localStorage.getItem("wf_console_proxy_base") || ""); } catch(e){}
-    if (lsBase) return lsBase;
-
-    // 再兜底：同源 /wf（file:// 无 origin）
-    if (location.protocol !== "file:" && location.origin) {
-      return normalizeBaseUrl(location.origin) + "/wf";
-    }
-    return "";
   }
 
-  function resolveEffectiveBase(){
-    const mode = (els.connMode.value || "direct").trim();
+  // Ensure it is a relative path
+  return v.startsWith("/") ? v : "/" + v;
+}
+// ===== [PATCH INSERT END] =====
 
-    if (mode === "proxy"){
-      const pb = resolveProxyBase();
-      return { mode, base: pb };
-    }
 
-    // direct
-    const gb = normalizeBaseUrl(els.gatewayBase.value);
-    return { mode, base: gb };
-  }
+// ===== [PATCH REPLACE BEGIN] browser -> worker proxy base resolver (non-breaking) =====
+function resolveGatewayBaseForBrowser(_inputBase){
+  // 支持用 URL 参数指定 Worker 代理域名（解决“页面不在 Worker 同域”导致 /wf 404）
+  // 用法示例：
+  //   https://your-pages-site/workflow-console.html?proxy_origin=https://doc.mefans.workers.dev
+  // 可选：proxy_prefix=/wf（默认 /wf）
+  const sp = new URLSearchParams(location.search);
 
-  function refreshEffectivePreview(){
-    const po = (location.protocol === "file:") ? "file:// (no origin)" : (location.origin || "");
-    els.pageOrigin.textContent = po;
+  const qpOrigin = (sp.get("proxy_origin") || sp.get("proxy") || "").trim();
+  const qpPrefix = (sp.get("proxy_prefix") || sp.get("prefix") || "").trim();
 
-    const eff = resolveEffectiveBase();
-    els.effectiveBase.textContent = eff.base ? `${eff.base}  (mode=${eff.mode})` : `EMPTY (mode=${eff.mode})`;
-  }
-  // ===== [PATCH END] =====
+  // 允许持久化：打开一次带参数后，后续无需再带
+  const lsOrigin = (localStorage.getItem("wf_console_proxy_origin") || "").trim();
+  const lsPrefix = (localStorage.getItem("wf_console_proxy_prefix") || "").trim();
+
+  const origin = normalizeBaseUrl(qpOrigin || lsOrigin || location.origin);
+  let prefix = (qpPrefix || lsPrefix || "/wf").trim();
+
+  if (qpOrigin) localStorage.setItem("wf_console_proxy_origin", origin);
+  if (qpPrefix) localStorage.setItem("wf_console_proxy_prefix", prefix);
+
+  if (!prefix.startsWith("/")) prefix = "/" + prefix;
+  prefix = prefix.replace(/\/+$/, ""); // 去掉尾部 /
+
+  return origin + prefix;
+}
+// ===== [PATCH REPLACE END] =====
+
 
   function joinUrl(base, path){
     base = normalizeBaseUrl(base);
-    path = String(path || "").trim();
-
-    // If path is absolute url, use it as-is
-    if (/^https?:\/\//i.test(path)) return path;
-
+    path = (path || "").trim();
     if (!path.startsWith("/")) path = "/" + path;
     return base + path;
   }
@@ -505,28 +434,24 @@
     return b;
   }
   function genId(prefix){
+    // short id for UI readability
     return (prefix || "id") + "-" + hex(randBytes(9));
   }
   function genTraceparent(){
+    // version 00 + 16-byte trace-id + 8-byte span-id + flags 01
     const traceId = hex(randBytes(16));
     const spanId  = hex(randBytes(8));
     return `00-${traceId}-${spanId}-01`;
   }
 
-  function buildInjectedHeaders(method){
-    const m = String(method || "").toUpperCase();
-    const hdr = {
+  function buildInjectedHeaders(){
+    return {
+      "content-type": "application/json",
       "x-request-id": els.requestId.value.trim(),
       "traceparent": els.traceparent.value.trim(),
       "x-workflow-id": els.workflowId.value.trim(),
       "x-job-id": els.jobId.value.trim(),
-      "accept": "application/json, text/plain, */*"
     };
-    // Only add content-type for methods with body to reduce noise
-    if (m !== "GET" && m !== "HEAD" && m !== "DELETE"){
-      hdr["content-type"] = "application/json";
-    }
-    return hdr;
   }
 
   function renderTempoHints(){
@@ -547,12 +472,9 @@
     ];
     els.tempoHints.textContent = lines.join("\n");
 
-    const hdr = buildInjectedHeaders(els.method.value || "POST");
-    // 预览中不强制显示空值
+    const hdr = buildInjectedHeaders();
     els.injectHeadersPreview.textContent =
-      Object.entries(hdr)
-        .filter(([_,v]) => String(v || "").trim().length > 0)
-        .map(([k,v]) => `${k}: ${v}`).join("\n");
+      Object.entries(hdr).map(([k,v]) => `${k}: ${v}`).join("\n");
   }
 
   function applyTemplate(str){
@@ -578,16 +500,11 @@
     els.log.textContent = `[${now}] ${s}\n` + els.log.textContent;
   }
 
-  function truncate(s, n){
-    s = String(s || "");
-    if (s.length <= n) return s;
-    return s.slice(0, n) + " ...<truncated>";
-  }
-
   async function apiCall({method, url, headers, bodyText}){
+    // Important: if CORS blocks, fetch throws TypeError and we cannot read status/body.
     const init = {
       method,
-      headers: headers || {},
+      headers,
       mode: "cors",
       credentials: "omit",
     };
@@ -600,7 +517,7 @@
       const resp = await fetch(url, init);
       const ms = Math.round(performance.now() - t0);
       const text = await safeReadText(resp);
-      return { ok: resp.ok, status: resp.status, ms, text };
+      return { ok: resp.ok, status: resp.status, ms, text, headers: resp.headers };
     }catch(err){
       const ms = Math.round(performance.now() - t0);
       return { ok: false, status: 0, ms, text: "", error: String(err && err.message ? err.message : err) };
@@ -608,51 +525,48 @@
   }
 
   async function check(){
-    const eff = resolveEffectiveBase();
-    refreshEffectivePreview();
+   // const base = normalizeBaseUrl(els.gatewayBase.value);
+    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
 
-    const base = eff.base;
     if (!base){
-      setStatus("bad", eff.mode === "proxy" ? "Missing Proxy Base" : "Missing Gateway URL");
-      logLine(`Check aborted: effective base is empty (mode=${eff.mode})`);
-      if (eff.mode === "proxy" && location.protocol === "file:"){
-        logLine(`DIAG: file:// 打开时没有 origin，Proxy 模式必须手填 Proxy Base（例如 https://doc.mefans.workers.dev/wf）`);
-      }
+      setStatus("bad", "Missing Gateway URL");
       return;
     }
-
     setStatus("warn", "Checking...");
-    logLine(`Check started: mode=${eff.mode} base=${base}`);
+    logLine(`Check started: base=${base}`);
+
+    // use minimal headers (no custom headers) to reduce preflight surface
+     // const readyUrl = joinUrl(base, els.readyPath.value || "/readyz");
+     // const healthUrl = joinUrl(base, els.healthPath.value || "/health");
 
     const readyUrl  = joinUrl(base, normalizePathInput(els.readyPath.value, "/readyz"));
-    const healthUrl = joinUrl(base, normalizePathInput(els.healthPath.value, "/health"));
+const healthUrl = joinUrl(base, normalizePathInput(els.healthPath.value, "/health"));
 
-    logLine(`Effective URLs: ready=${readyUrl}  health=${healthUrl}`);
 
-    // 尽量减少 preflight：不带自定义 header
-    const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{ "accept":"application/json, text/plain, */*" }, bodyText:null });
+    const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{}, bodyText:null });
     logLine(`GET ${readyUrl} -> status=${r1.status || "fetch_error"} time=${r1.ms}ms ${r1.error ? " err=" + r1.error : ""}`);
     if (r1.status) logLine(`ready body: ${truncate(r1.text, 800)}`);
 
-    const r2 = await apiCall({ method:"GET", url: healthUrl, headers:{ "accept":"application/json, text/plain, */*" }, bodyText:null });
+    const r2 = await apiCall({ method:"GET", url: healthUrl, headers:{}, bodyText:null });
     logLine(`GET ${healthUrl} -> status=${r2.status || "fetch_error"} time=${r2.ms}ms ${r2.error ? " err=" + r2.error : ""}`);
     if (r2.status) logLine(`health body: ${truncate(r2.text, 800)}`);
 
+    // Decide
     if (r1.status === 0 || r2.status === 0){
-      setStatus("bad", "Failed to fetch (likely CORS/network)");
-      if (eff.mode === "proxy"){
-        logLine("DIAG(proxy): 如果是 404，多数是当前域/Proxy Base 并没有实现 /wf/* 路由。");
-      } else {
-        logLine("DIAG(direct): 若地址栏访问 OK 但这里 Failed to fetch，几乎必然是 CORS 未允许本页面 Origin。");
-      }
+      setStatus("bad", "Fetch blocked (likely CORS/network)");
       return;
     }
-
     if (r1.status >= 200 && r1.status < 300 && r2.status >= 200 && r2.status < 300){
-      setStatus("ok", `Ready + Health OK (${eff.mode})`);
+      setStatus("ok", "Ready + Health OK");
       return;
     }
     setStatus("bad", `Check failed (ready=${r1.status}, health=${r2.status})`);
+  }
+
+  function truncate(s, n){
+    s = String(s || "");
+    if (s.length <= n) return s;
+    return s.slice(0, n) + " ...<truncated>";
   }
 
   function stopPoll(){
@@ -666,47 +580,46 @@
   async function send(){
     stopPoll();
 
-    const eff = resolveEffectiveBase();
-    refreshEffectivePreview();
+    //const base = normalizeBaseUrl(els.gatewayBase.value);
+    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
 
-    const base = eff.base;
     if (!base){
-      setReqState("bad", eff.mode === "proxy" ? "Missing Proxy Base" : "Missing base");
-      logLine(`Send aborted: effective base is empty (mode=${eff.mode})`);
+      setReqState("bad", "Missing base");
       return;
     }
-
     const method = (els.method.value || "POST").toUpperCase();
-    const path = normalizePathInput(els.path.value, "/");
-    const url = joinUrl(base, path);
+    //const path = els.path.value.trim() || "/";
+    //const url = joinUrl(base, path);
 
-    // Build headers with trace injection
-    const hdr = buildInjectedHeaders(method);
+    const path = normalizePathInput(els.path.value, "/");
+const url = joinUrl(base, path);
+
+
+    // Build headers with trace injection (this may trigger preflight; that's expected)
+    const hdr = buildInjectedHeaders();
 
     // Body templating
     let bodyText = null;
     if (method !== "GET" && method !== "HEAD"){
       const raw = applyTemplate(els.body.value);
       bodyText = raw;
+      // Validate JSON but still send raw if user wants (we enforce JSON default)
       try { JSON.parse(raw); } catch(e){
         logLine("WARN: Body is not valid JSON; request will still be sent as text.");
       }
     }
 
     setReqState("warn", "Sending...");
-    logLine(`SEND mode=${eff.mode} ${method} ${url}`);
-    logLine(`headers:\n${Object.entries(hdr).filter(([_,v])=>String(v||"").trim()).map(([k,v])=>`${k}: ${v}`).join("\n")}`);
+    logLine(`SEND ${method} ${url}`);
+    logLine(`headers:\n${Object.entries(hdr).map(([k,v])=>`${k}: ${v}`).join("\n")}`);
     if (bodyText) logLine(`body:\n${truncate(bodyText, 1200)}`);
 
     const r = await apiCall({ method, url, headers: hdr, bodyText });
     if (r.status === 0){
+      // CORS / network
       setReqState("bad", "Failed to fetch (CORS/network)");
       logLine(`ERROR: fetch failed after ${r.ms}ms; err=${r.error || "unknown"}`);
-      if (eff.mode === "proxy"){
-        logLine("DIAG(proxy): 若你看到 404/Not Found，说明 Proxy Base 没有 /wf 或没有转发到目标 gateway。");
-      } else {
-        logLine("DIAG(direct): 若 URL 地址栏访问 OK 但这里失败，几乎必然是 CORS 未允许本页面 Origin。");
-      }
+      logLine("DIAG: If URL works in address bar but fails here, the backend likely does NOT allow this page Origin in CORS.");
       return;
     }
 
@@ -715,25 +628,16 @@
     logLine(`RESP body:\n${truncate(r.text, 3000)}`);
 
     // Optional polling
-    const poll = String(els.pollPath.value || "").trim();
+    const poll = els.pollPath.value.trim();
     if (poll){
       const interval = parseInt(els.pollInterval.value, 10);
       const ms = Number.isFinite(interval) && interval > 300 ? interval : 1500;
+       //const pollUrl = joinUrl(base, applyTemplate(poll));
+      const pollUrl = joinUrl(base, normalizePathInput(applyTemplate(poll), "/"));
 
-      const pollResolved = normalizePathInput(applyTemplate(poll), "/");
-      const pollUrl = joinUrl(base, pollResolved);
-
-      const includeHeaders = !!els.pollWithHeaders.checked;
-
-      logLine(`Polling enabled: ${pollUrl} every ${ms}ms (withHeaders=${includeHeaders})`);
+      logLine(`Polling enabled: ${pollUrl} every ${ms}ms`);
       pollTimer = setInterval(async () => {
-        const pr = await apiCall({
-          method:"GET",
-          url: pollUrl,
-          headers: includeHeaders ? buildInjectedHeaders("GET") : { "accept":"application/json, text/plain, */*" },
-          bodyText: null
-        });
-
+        const pr = await apiCall({ method:"GET", url: pollUrl, headers: buildInjectedHeaders(), bodyText: null });
         if (pr.status === 0){
           logLine(`POLL fetch blocked; err=${pr.error || "unknown"}`);
           return;
@@ -752,19 +656,16 @@
     }
   }
 
-  function shellQuote(s){
-    s = String(s || "");
-    return "'" + s.replace(/'/g, `'\\''`) + "'";
-  }
-
   function buildCurl(){
-    const eff = resolveEffectiveBase();
-    const base = eff.base;
+    //const base = normalizeBaseUrl(els.gatewayBase.value);
+    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
 
     const method = (els.method.value || "POST").toUpperCase();
+    //const url = joinUrl(base, els.path.value.trim() || "/");
     const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
 
-    const hdr = buildInjectedHeaders(method);
+
+    const hdr = buildInjectedHeaders();
     const headerArgs = Object.entries(hdr)
       .filter(([_,v]) => String(v || "").trim().length > 0)
       .map(([k,v]) => `-H ${shellQuote(`${k}: ${v}`)}`)
@@ -776,8 +677,13 @@
       dataArg = `--data ${shellQuote(raw)}`;
     }
 
-    const note = `# mode=${eff.mode}\n`;
-    return (note + `curl -i -X ${method} ${headerArgs} ${dataArg} ${shellQuote(url)}`).replace(/\s+/g, " ").trim();
+    return `curl -i -X ${method} ${headerArgs} ${dataArg} ${shellQuote(url)}`.replace(/\s+/g, " ").trim();
+  }
+
+  function shellQuote(s){
+    // simple single-quote wrap for bash
+    s = String(s || "");
+    return "'" + s.replace(/'/g, `'\\''`) + "'";
   }
 
   function loadSettings(){
@@ -785,12 +691,6 @@
       const raw = localStorage.getItem("wf_console_settings_v1");
       if (!raw) return;
       const s = JSON.parse(raw);
-
-      // ===== [PATCH INSERT] load mode/proxy base (non-breaking) =====
-      els.connMode.value = s.connMode || "direct";
-      els.proxyBase.value = s.proxyBase || "";
-      // ===== [PATCH END] =====
-
       els.gatewayBase.value = s.gatewayBase || "";
       els.readyPath.value = s.readyPath || "/readyz";
       els.healthPath.value = s.healthPath || "/health";
@@ -800,20 +700,11 @@
       els.body.value = s.body || els.body.value;
       els.pollPath.value = s.pollPath || "";
       els.pollInterval.value = s.pollInterval || "1500";
-      // ===== [PATCH INSERT] poll headers default (non-breaking) =====
-      els.pollWithHeaders.checked = !!s.pollWithHeaders;
-      // ===== [PATCH END] =====
     }catch(e){}
   }
 
   function saveSettings(){
     const s = {
-      // ===== [PATCH INSERT] persist mode/proxy base (non-breaking) =====
-      connMode: els.connMode.value,
-      proxyBase: els.proxyBase.value.trim(),
-      pollWithHeaders: !!els.pollWithHeaders.checked,
-      // ===== [PATCH END] =====
-
       gatewayBase: els.gatewayBase.value.trim(),
       readyPath: els.readyPath.value.trim(),
       healthPath: els.healthPath.value.trim(),
@@ -826,19 +717,11 @@
     };
     localStorage.setItem("wf_console_settings_v1", JSON.stringify(s));
     logLine("Settings saved.");
-    refreshEffectivePreview();
   }
 
   function resetAll(){
     stopPoll();
     localStorage.removeItem("wf_console_settings_v1");
-
-    // ===== [PATCH INSERT] reset defaults (non-breaking) =====
-    els.connMode.value = "direct";
-    els.proxyBase.value = "";
-    els.pollWithHeaders.checked = false;
-    // ===== [PATCH END] =====
-
     els.gatewayBase.value = "";
     els.readyPath.value = "/readyz";
     els.healthPath.value = "/health";
@@ -856,14 +739,13 @@
     setStatus("warn", "Not checked");
     setReqState("warn", "Idle");
     genIds();
-    refreshEffectivePreview();
     logLine("Reset done.");
   }
 
   function genIds(){
     const wf = genId("wf");
     els.workflowId.value = wf;
-    els.jobId.value = wf;
+    els.jobId.value = wf; // 默认同一个，方便你在系统里关联；你也可以手动改成不同
     els.requestId.value = genId("req");
     els.traceparent.value = genTraceparent();
     renderTempoHints();
@@ -886,8 +768,8 @@
 
   els.btnGenIds.addEventListener("click", genIds);
   els.btnCopyHeaders.addEventListener("click", () => {
-    const hdr = buildInjectedHeaders(els.method.value || "POST");
-    copy(Object.entries(hdr).filter(([_,v])=>String(v||"").trim()).map(([k,v]) => `${k}: ${v}`).join("\n"));
+    const hdr = buildInjectedHeaders();
+    copy(Object.entries(hdr).map(([k,v]) => `${k}: ${v}`).join("\n"));
   });
   els.btnCopyTempoHints.addEventListener("click", () => copy(els.tempoHints.textContent));
 
@@ -900,25 +782,10 @@
     $(id).addEventListener("input", renderTempoHints);
   });
 
-  // ===== [PATCH INSERT] live preview refresh (non-breaking) =====
-  ["connMode","proxyBase","gatewayBase","readyPath","healthPath"].forEach(id=>{
-    $(id).addEventListener("input", refreshEffectivePreview);
-    $(id).addEventListener("change", refreshEffectivePreview);
-  });
-  // ===== [PATCH END] =====
-
   // Boot
   loadSettings();
-
-  // ===== [PATCH INSERT] default gateway base if empty (non-breaking) =====
-  if (!String(els.gatewayBase.value || "").trim()) {
-    els.gatewayBase.value = "https://workflow-gateway-233489274446.us-central1.run.app";
-  }
-  // ===== [PATCH END] =====
-
   genIds();
   setReqState("warn", "Idle");
-  refreshEffectivePreview();
 })();
 </script>
 </body>
