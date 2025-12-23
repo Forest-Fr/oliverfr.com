@@ -3,793 +3,425 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Workflow Console</title>
-  <link rel="icon" href="MeFan Logo.png" type="image/x-icon">
+  <title>Workflow Ops Console</title>
   <meta name="color-scheme" content="dark light" />
   <style>
     :root{
       --bg:#0b1120;
       --card:#0f172a;
-      --card2:#0b1224;
       --border:rgba(148,163,184,.22);
       --text:#e5e7eb;
       --muted:#94a3b8;
-      --muted2:#64748b;
       --ok:#22c55e;
       --warn:#f59e0b;
       --bad:#ef4444;
-      --accent:#38bdf8;
-      --accent2:#0ea5e9;
-      --shadow:0 10px 30px rgba(0,0,0,.35);
-      --radius:18px;
+      --btn:#111827;
+      --btn2:#0b1224;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:var(--sans);
-      background: radial-gradient(1200px 600px at 15% 10%, rgba(56,189,248,.18), transparent 60%),
-                  radial-gradient(1000px 500px at 85% 20%, rgba(34,197,94,.12), transparent 55%),
-                  var(--bg);
-      color:var(--text);
-    }
-    .wrap{max-width:1200px;margin:0 auto;padding:28px 18px 60px}
-    h1{margin:0 0 8px;font-size:28px;letter-spacing:.2px}
-    .sub{margin:0 0 22px;color:var(--muted);line-height:1.5}
-    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px}
-    @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+    body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--sans); }
+    .wrap{ max-width:1080px; margin:0 auto; padding:18px 14px 40px; }
+    h1{ margin:6px 0 6px; font-size:18px; font-weight:700; }
+    .hint{ color:var(--muted); font-size:13px; line-height:1.6; margin:0 0 14px; }
     .card{
-      background:linear-gradient(180deg, rgba(15,23,42,.92), rgba(11,18,36,.92));
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
       border:1px solid var(--border);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      padding:16px 16px 14px;
+      border-radius:14px;
+      padding:14px;
+      margin:12px 0;
     }
-    .card h2{margin:0 0 12px;font-size:16px;color:#f8fafc}
-    .row{display:grid;grid-template-columns: 1fr;gap:10px}
-    .row2{display:grid;grid-template-columns: 1fr 1fr;gap:10px}
-    @media (max-width: 680px){ .row2{grid-template-columns:1fr} }
-    label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
-    input, textarea, select{
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .col{ flex:1 1 240px; min-width:240px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+    input, select, textarea{
       width:100%;
-      border:1px solid rgba(148,163,184,.25);
-      background:rgba(2,6,23,.55);
+      box-sizing:border-box;
+      background:rgba(15,23,42,.6);
+      border:1px solid var(--border);
       color:var(--text);
-      border-radius:12px;
-      padding:10px 12px;
+      border-radius:10px;
+      padding:10px 10px;
+      font-family:var(--mono);
+      font-size:12.5px;
       outline:none;
     }
-    textarea{min-height:120px;font-family:var(--mono);font-size:12.5px;line-height:1.5;resize:vertical}
-    .mono{font-family:var(--mono)}
-    .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    textarea{ min-height:120px; resize:vertical; line-height:1.5; }
+    .btns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
     button{
-      border:1px solid rgba(148,163,184,.25);
-      background:rgba(2,6,23,.45);
+      background:var(--btn);
       color:var(--text);
-      padding:10px 12px;
-      border-radius:14px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:13px;
       cursor:pointer;
-      transition: transform .06s ease, background .15s ease, border-color .15s ease;
     }
-    button:hover{border-color:rgba(56,189,248,.55); background:rgba(56,189,248,.10)}
-    button:active{transform: translateY(1px)}
-    .primary{background:rgba(14,165,233,.20); border-color:rgba(14,165,233,.45)}
-    .danger{background:rgba(239,68,68,.14); border-color:rgba(239,68,68,.35)}
+    button.secondary{ background:var(--btn2); }
+    button.danger{ border-color:rgba(239,68,68,.35); }
     .pill{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:8px 10px;border-radius:999px;
-      border:1px solid rgba(148,163,184,.25);
+      display:inline-flex; align-items:center; gap:8px;
+      border:1px solid var(--border);
       background:rgba(2,6,23,.35);
-      font-size:12px;color:var(--muted);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:13px;
+      margin:2px 0 0;
     }
-    .dot{width:10px;height:10px;border-radius:50%}
-    .ok{background:var(--ok)}
-    .bad{background:var(--bad)}
-    .warn{background:var(--warn)}
-    .kv{
-      display:grid;
-      grid-template-columns: 150px 1fr;
-      gap:8px 10px;
-      align-items:center;
-      margin-top:10px;
-      padding-top:10px;
-      border-top:1px dashed rgba(148,163,184,.22);
-    }
-    .k{color:var(--muted);font-size:12px}
-    .v{font-family:var(--mono);font-size:12.5px;color:#e2e8f0;word-break:break-all}
-    .hint{
-      margin-top:10px;
-      padding:10px 12px;
-      border-radius:14px;
-      border:1px solid rgba(148,163,184,.18);
-      background:rgba(2,6,23,.28);
-      color:var(--muted);
-      line-height:1.55;
-      font-size:12.5px;
-    }
-    .log{
-      margin-top:10px;
-      border:1px solid rgba(148,163,184,.18);
+    .dot{ width:10px; height:10px; border-radius:50%; background:var(--muted); }
+    .dot.ok{ background:var(--ok); }
+    .dot.bad{ background:var(--bad); }
+    .dot.warn{ background:var(--warn); }
+    pre{
+      margin:10px 0 0;
       background:rgba(2,6,23,.35);
-      border-radius:14px;
-      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px;
+      overflow:auto;
       font-family:var(--mono);
-      font-size:12.2px;
+      font-size:12px;
       line-height:1.55;
       white-space:pre-wrap;
       word-break:break-word;
-      min-height:140px;
     }
-    .small{font-size:12px;color:var(--muted2)}
-    a{color:var(--accent);text-decoration:none}
-    a:hover{text-decoration:underline}
+    .small{ color:var(--muted); font-size:12px; margin-top:8px; line-height:1.6; }
+    .warnbox{
+      margin-top:10px;
+      border:1px solid rgba(245,158,11,.35);
+      background:rgba(245,158,11,.08);
+      color:rgba(245,158,11,.95);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:12.5px;
+      line-height:1.6;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-      <div>
-        <h1>Workflow Console</h1>
-        <p class="sub">
-          目标：以“真实请求 + 真实 Trace 注入”为主线，联动 Gateway → Temporal/Worker → Grafana Tempo（Service Graph / Span 树 / Waterfall）。
-          本页面不包含密钥，不触碰数据库，不承担管理能力；仅用于触发与验收。
-        </p>
-      </div>
+    <h1>Workflow Ops Console</h1>
+    <p class="hint">
+      目标：用最小“真实请求”验证 Gateway → Worker/Temporal → Grafana Tempo 的联动（Service Graph / Span 树 / Waterfall）。<br/>
+      本页面不包含密钥、不触碰数据库、不承接管理能力；仅用于触发与验收。
+    </p>
+
+    <div class="card">
       <div class="pill" id="statusPill">
-        <span class="dot warn" id="statusDot"></span>
-        <span id="statusText">Not checked</span>
-      </div>
-    </div>
-
-    <div class="grid">
-      <!-- Left -->
-      <div class="card">
-        <h2>1) Connection</h2>
-        <div class="row">
-          <div>
-            <label>Gateway URL (base)</label>
-            <input id="gatewayBase" class="mono" placeholder="https://workflow-gateway-xxxx.us-central1.run.app" />
-            <div class="small" style="margin-top:6px">
-              说明：浏览器调用可能受 CORS 影响；若“地址栏访问 OK，但这里失败”，优先判断 CORS。
-            </div>
-          </div>
-
-          <div class="row2">
-            <div>
-              <label>Ready path (default /readyz)</label>
-              <input id="readyPath" class="mono" value="/readyz" />
-            </div>
-            <div>
-              <label>Health path (default /health)</label>
-              <input id="healthPath" class="mono" value="/health" />
-            </div>
-          </div>
-
-          <div>
-            <label>Grafana URL (optional)</label>
-            <input id="grafanaBase" class="mono" placeholder="https://oliverfr.grafana.net" />
-            <div class="small" style="margin-top:6px">
-              仅用于一键打开 Grafana 首页；Tempo Explore 的 URL 版本差异大，本页改为输出可复制的 TraceQL/检索条件。
-            </div>
-          </div>
-
-          <div class="btns">
-            <button class="primary" id="btnCheck">Check (ready + health)</button>
-            <button id="btnSave">Save Settings</button>
-            <button class="danger" id="btnReset">Reset</button>
-            <button id="btnOpenGrafana">Open Grafana</button>
-          </div>
-
-          <div class="hint" id="checkHint">
-            建议验收顺序：先 Check 通过（ready/health），再去 2) 生成 IDs，最后用 3) 发起一次真实 POST 请求并在 Tempo 中检索到同一条 Trace。
-          </div>
-        </div>
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Idle</span>
       </div>
 
-      <!-- Right -->
-      <div class="card">
-        <h2>2) Trace Context (generate & inject)</h2>
-
-        <div class="row2">
-          <div>
-            <label>workflow_id</label>
-            <input id="workflowId" class="mono" />
-          </div>
-          <div>
-            <label>job_id</label>
-            <input id="jobId" class="mono" />
-          </div>
-        </div>
-
-        <div class="row2" style="margin-top:10px">
-          <div>
-            <label>x-request-id</label>
-            <input id="requestId" class="mono" />
-          </div>
-          <div>
-            <label>traceparent (W3C)</label>
-            <input id="traceparent" class="mono" />
-          </div>
-        </div>
-
-        <div class="btns">
-          <button class="primary" id="btnGenIds">Generate New IDs</button>
-          <button id="btnCopyHeaders">Copy Injected Headers</button>
-          <button id="btnCopyTempoHints">Copy Tempo Search Hints</button>
-        </div>
-
-        <div class="hint">
-          <div style="margin-bottom:6px;color:#e2e8f0">Tempo 检索建议（复制到 Grafana Explore / Tempo）：</div>
-          <div class="mono" id="tempoHints" style="font-size:12.5px;line-height:1.6"></div>
-        </div>
-
-        <div class="kv">
-          <div class="k">Inject headers</div><div class="v" id="injectHeadersPreview"></div>
-          <div class="k">Note</div><div class="v" style="color:var(--muted)">后端若未把这些字段写入 span attributes，请在 Gateway/Worker 的 OTEL middleware 中补充 attribute 绑定（稍后你下指令我再动代码）。</div>
-        </div>
-      </div>
-
-      <!-- Left bottom: Request Builder -->
-      <div class="card">
-        <h2>3) Trigger a real request (configurable)</h2>
-
-        <div class="row2">
-          <div>
-            <label>Method</label>
-            <select id="method">
-              <option>POST</option>
-              <option>GET</option>
-              <option>PUT</option>
-              <option>DELETE</option>
-            </select>
-          </div>
-          <div>
-            <label>Path (relative to base)</label>
-            <input id="path" class="mono" value="/api/trigger" />
-          </div>
-        </div>
-
-        <div style="margin-top:10px">
-          <label>JSON Body (optional; ignored for GET)</label>
-          <textarea id="body" spellcheck="false">{
-  "workflow_id": "{{workflow_id}}",
-  "job_id": "{{job_id}}",
-  "note": "console demo request"
-}</textarea>
-          <div class="small" style="margin-top:6px">
-            支持模板变量：<span class="mono">{{workflow_id}}</span>、<span class="mono">{{job_id}}</span>、<span class="mono">{{x_request_id}}</span>、<span class="mono">{{traceparent}}</span>
-          </div>
-        </div>
-
-        <div class="row2" style="margin-top:10px">
-          <div>
-            <label>Optional: Status poll path (e.g. /api/jobs/{{job_id}})</label>
-            <input id="pollPath" class="mono" placeholder="" />
-            <div class="small" style="margin-top:6px">
-              如果你的系统是异步队列：填一个可查询 job 状态的接口路径；本页会轮询并展示状态。
-            </div>
-          </div>
-          <div>
-            <label>Poll interval (ms)</label>
-            <input id="pollInterval" class="mono" value="1500" />
-          </div>
-        </div>
-
-        <div class="btns">
-          <button class="primary" id="btnSend">Send Request</button>
-          <button id="btnStopPoll">Stop Poll</button>
-          <button id="btnCopyCurl">Copy as curl</button>
-        </div>
-
-        <div class="hint" id="sendHint">
-          提示：如果 Send 结果显示 “Failed to fetch / CORS”，但你在浏览器地址栏直接访问该 URL 是 OK 的，则几乎必然是后端未允许本页面 Origin。
-        </div>
-      </div>
-
-      <!-- Right bottom: Result -->
-      <div class="card">
-        <h2>4) Result & Diagnostics</h2>
-        <div class="row">
-          <div class="pill">
-            <span class="dot warn" id="reqDot"></span>
-            <span id="reqText" class="mono">Idle</span>
-          </div>
-          <div class="log" id="log"></div>
+      <div class="row">
+        <div class="col">
+          <label>连接模式</label>
+          <select id="mode">
+            <option value="proxy">Proxy（同源 /wf/*，推荐：不吃 CORS）</option>
+            <option value="direct">Direct（直连 Cloud Run：需要 CORS）</option>
+          </select>
           <div class="small">
-            诊断规则：能读到 HTTP status/body ⇒ 说明请求到达服务；读不到（Failed to fetch） ⇒ 多数是 CORS / 网络层阻断。
+            Proxy 模式会把请求打到：<span style="font-family:var(--mono)">${location.origin}/wf/...</span><br/>
+            Direct 模式会把请求打到：你填写的 Gateway Base + Path
           </div>
         </div>
+
+        <div class="col">
+          <label>Gateway Base（Direct 模式使用）</label>
+          <input id="gatewayBase" placeholder="https://workflow-gateway-xxxx.us-central1.run.app" />
+          <div class="small">不要填到 path 里；这里才是 base。</div>
+        </div>
+
+        <div class="col">
+          <label>Proxy Base（Proxy 模式使用）</label>
+          <input id="proxyBase" placeholder="https://doc.mefans.workers.dev/wf" />
+          <div class="small">通常就是当前站点 + <span style="font-family:var(--mono)">/wf</span></div>
+        </div>
       </div>
+
+      <div class="row">
+        <div class="col">
+          <label>Ready Path（默认 /readyz）</label>
+          <input id="readyPath" placeholder="/readyz" />
+        </div>
+        <div class="col">
+          <label>Health Path（默认 /health）</label>
+          <input id="healthPath" placeholder="/health" />
+        </div>
+        <div class="col">
+          <label>Grafana URL（可选）</label>
+          <input id="grafanaBase" placeholder="https://oliverfr.grafana.net" />
+          <div class="small">仅用于一键打开 Grafana（不做鉴权）。</div>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="btnCheck">Check（ready + health）</button>
+        <button id="btnSave" class="secondary">Save Settings</button>
+        <button id="btnReset" class="danger">Reset</button>
+        <button id="btnOpenGrafana" class="secondary">Open Grafana</button>
+      </div>
+
+      <div class="warnbox" id="fileWarn" style="display:none"></div>
+
+      <pre id="checkOut">尚未执行检查。</pre>
     </div>
+
+    <div class="card">
+      <h1 style="font-size:14px;margin:0 0 6px;">Request Runner（用于触发真实链路/Trace）</h1>
+      <p class="hint" style="margin:0 0 8px;">
+        你可以在这里手工打你真实的 workflow 触发接口（例如启动 EchoWorkflow / DocWorkflow），以便 Tempo 里出现 span。
+      </p>
+
+      <div class="row">
+        <div class="col" style="flex:0 0 180px;min-width:180px;">
+          <label>Method</label>
+          <select id="reqMethod">
+            <option>GET</option>
+            <option>POST</option>
+            <option>PUT</option>
+            <option>DELETE</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Path（只填 path，例如 /api/echo 或 /workflows/echo）</label>
+          <input id="reqPath" placeholder="/api/echo" />
+        </div>
+      </div>
+
+      <label>JSON Body（GET 可留空）</label>
+      <textarea id="reqBody" placeholder='{"ping":"from console"}'></textarea>
+
+      <div class="btns">
+        <button id="btnSend">Send Request</button>
+      </div>
+
+      <pre id="reqOut">尚未发送请求。</pre>
+    </div>
+
   </div>
 
 <script>
-(function(){
+(() => {
   const $ = (id) => document.getElementById(id);
 
-  const els = {
-    statusPill: $("statusPill"),
-    statusDot: $("statusDot"),
-    statusText: $("statusText"),
-    gatewayBase: $("gatewayBase"),
-    readyPath: $("readyPath"),
-    healthPath: $("healthPath"),
-    grafanaBase: $("grafanaBase"),
+  const STORAGE_KEY = "wf_console_settings_v2";
 
-    workflowId: $("workflowId"),
-    jobId: $("jobId"),
-    requestId: $("requestId"),
-    traceparent: $("traceparent"),
-
-    tempoHints: $("tempoHints"),
-    injectHeadersPreview: $("injectHeadersPreview"),
-
-    method: $("method"),
-    path: $("path"),
-    body: $("body"),
-    pollPath: $("pollPath"),
-    pollInterval: $("pollInterval"),
-
-    reqDot: $("reqDot"),
-    reqText: $("reqText"),
-    log: $("log"),
-
-    btnCheck: $("btnCheck"),
-    btnSave: $("btnSave"),
-    btnReset: $("btnReset"),
-    btnOpenGrafana: $("btnOpenGrafana"),
-
-    btnGenIds: $("btnGenIds"),
-    btnCopyHeaders: $("btnCopyHeaders"),
-    btnCopyTempoHints: $("btnCopyTempoHints"),
-
-    btnSend: $("btnSend"),
-    btnStopPoll: $("btnStopPoll"),
-    btnCopyCurl: $("btnCopyCurl"),
+  const defaults = {
+    mode: "proxy",
+    gatewayBase: "https://workflow-gateway-233489274446.us-central1.run.app",
+    proxyBase: (location.protocol === "file:") ? "" : (location.origin.replace(/\/+$/,"") + "/wf"),
+    readyPath: "/readyz",
+    healthPath: "/health",
+    grafanaBase: "https://oliverfr.grafana.net",
+    reqMethod: "POST",
+    reqPath: "/",
+    reqBody: '{"ping":"from console"}'
   };
 
-  let pollTimer = null;
-
-  function setStatus(state, text){
-    // state: ok / bad / warn
-    els.statusDot.className = "dot " + (state === "ok" ? "ok" : state === "bad" ? "bad" : "warn");
-    els.statusText.textContent = text;
-  }
-  function setReqState(state, text){
-    els.reqDot.className = "dot " + (state === "ok" ? "ok" : state === "bad" ? "bad" : "warn");
-    els.reqText.textContent = text;
+  function setPill(kind, text){
+    const dot = $("statusDot");
+    dot.classList.remove("ok","bad","warn");
+    if (kind) dot.classList.add(kind);
+    $("statusText").textContent = text;
   }
 
-  function normalizeBaseUrl(u){
-    u = (u || "").trim();
-    if (!u) return "";
-    // remove trailing slash
-    return u.replace(/\/+$/, "");
+  function normalizeBase(base){
+    return String(base || "").trim().replace(/\/+$/,"");
   }
 
-  // ===== [PATCH INSERT BEGIN] normalize relative path input (non-breaking) =====
-function normalizePathInput(input, fallback){
-  const v = String(input || "").trim();
-  if (!v) return fallback || "";
-
-  // If user mistakenly pasted a full URL, extract pathname only
-  if (/^https?:\/\//i.test(v)){
-    try{
-      const u = new URL(v);
-      return u.pathname || (fallback || "/");
-    }catch(e){
-      return fallback || "/";
-    }
+  function normalizePath(path){
+    const p = String(path || "").trim();
+    if (!p) return "/";
+    // 如果用户填了完整 URL，就直接用（但不推荐）
+    if (/^https?:\/\//i.test(p)) return p;
+    return p.startsWith("/") ? p : ("/" + p);
   }
 
-  // Ensure it is a relative path
-  return v.startsWith("/") ? v : "/" + v;
-}
-// ===== [PATCH INSERT END] =====
-
-
-// ===== [PATCH REPLACE BEGIN] browser -> worker proxy base resolver (non-breaking) =====
-function resolveGatewayBaseForBrowser(_inputBase){
-  // 支持用 URL 参数指定 Worker 代理域名（解决“页面不在 Worker 同域”导致 /wf 404）
-  // 用法示例：
-  //   https://your-pages-site/workflow-console.html?proxy_origin=https://doc.mefans.workers.dev
-  // 可选：proxy_prefix=/wf（默认 /wf）
-  const sp = new URLSearchParams(location.search);
-
-  const qpOrigin = (sp.get("proxy_origin") || sp.get("proxy") || "").trim();
-  const qpPrefix = (sp.get("proxy_prefix") || sp.get("prefix") || "").trim();
-
-  // 允许持久化：打开一次带参数后，后续无需再带
-  const lsOrigin = (localStorage.getItem("wf_console_proxy_origin") || "").trim();
-  const lsPrefix = (localStorage.getItem("wf_console_proxy_prefix") || "").trim();
-
-  const origin = normalizeBaseUrl(qpOrigin || lsOrigin || location.origin);
-  let prefix = (qpPrefix || lsPrefix || "/wf").trim();
-
-  if (qpOrigin) localStorage.setItem("wf_console_proxy_origin", origin);
-  if (qpPrefix) localStorage.setItem("wf_console_proxy_prefix", prefix);
-
-  if (!prefix.startsWith("/")) prefix = "/" + prefix;
-  prefix = prefix.replace(/\/+$/, ""); // 去掉尾部 /
-
-  return origin + prefix;
-}
-// ===== [PATCH REPLACE END] =====
-
-
-  function joinUrl(base, path){
-    base = normalizeBaseUrl(base);
-    path = (path || "").trim();
-    if (!path.startsWith("/")) path = "/" + path;
-    return base + path;
+  function buildUrl(base, path){
+    const p = normalizePath(path);
+    if (/^https?:\/\//i.test(p)) return p;
+    const b = normalizeBase(base);
+    return b + p;
   }
 
-  function hex(bytes){
-    return Array.from(bytes).map(b => b.toString(16).padStart(2,"0")).join("");
-  }
-  function randBytes(n){
-    const b = new Uint8Array(n);
-    crypto.getRandomValues(b);
-    return b;
-  }
-  function genId(prefix){
-    // short id for UI readability
-    return (prefix || "id") + "-" + hex(randBytes(9));
-  }
-  function genTraceparent(){
-    // version 00 + 16-byte trace-id + 8-byte span-id + flags 01
-    const traceId = hex(randBytes(16));
-    const spanId  = hex(randBytes(8));
-    return `00-${traceId}-${spanId}-01`;
+  function currentBase(){
+    const mode = $("mode").value;
+    if (mode === "direct") return normalizeBase($("gatewayBase").value);
+    return normalizeBase($("proxyBase").value);
   }
 
-  function buildInjectedHeaders(){
-    return {
-      "content-type": "application/json",
-      "x-request-id": els.requestId.value.trim(),
-      "traceparent": els.traceparent.value.trim(),
-      "x-workflow-id": els.workflowId.value.trim(),
-      "x-job-id": els.jobId.value.trim(),
-    };
+  function safeJsonParse(text){
+    try { return JSON.parse(text); } catch (_) { return null; }
   }
 
-  function renderTempoHints(){
-    const wf = els.workflowId.value.trim();
-    const job = els.jobId.value.trim();
-    const req = els.requestId.value.trim();
-    const tp = els.traceparent.value.trim();
-    const traceId = (tp.split("-")[1] || "").trim();
-
-    const lines = [
-      `service.name="workflow-gateway"`,
-      wf ? `workflow_id="${wf}" (若你把 workflow_id 写入 span attributes)` : `workflow_id="<workflow_id>"`,
-      job ? `job_id="${job}" (同上)` : `job_id="<job_id>"`,
-      req ? `x_request_id="${req}" (同上)` : `x_request_id="<x-request-id>"`,
-      traceId ? `trace_id=${traceId}  (最稳：直接按 trace_id 查)` : `trace_id=<from traceparent>`,
-      ``,
-      `建议做法：先在网关发一次请求 → 从返回/日志里拿 trace_id → Tempo 里用 trace_id 直查 span 树。`
-    ];
-    els.tempoHints.textContent = lines.join("\n");
-
-    const hdr = buildInjectedHeaders();
-    els.injectHeadersPreview.textContent =
-      Object.entries(hdr).map(([k,v]) => `${k}: ${v}`).join("\n");
-  }
-
-  function applyTemplate(str){
-    const map = {
-      "{{workflow_id}}": els.workflowId.value.trim(),
-      "{{job_id}}": els.jobId.value.trim(),
-      "{{x_request_id}}": els.requestId.value.trim(),
-      "{{traceparent}}": els.traceparent.value.trim(),
-    };
-    let out = String(str || "");
-    for (const [k,v] of Object.entries(map)){
-      out = out.split(k).join(v || "");
-    }
-    return out;
-  }
-
-  async function safeReadText(resp){
-    try { return await resp.text(); } catch(e){ return ""; }
-  }
-
-  function logLine(s){
-    const now = new Date().toISOString();
-    els.log.textContent = `[${now}] ${s}\n` + els.log.textContent;
-  }
-
-  async function apiCall({method, url, headers, bodyText}){
-    // Important: if CORS blocks, fetch throws TypeError and we cannot read status/body.
-    const init = {
-      method,
-      headers,
-      mode: "cors",
-      credentials: "omit",
-    };
-    if (method !== "GET" && method !== "HEAD" && bodyText != null){
-      init.body = bodyText;
-    }
-
+  async function fetchText(url, opts){
     const t0 = performance.now();
     try{
-      const resp = await fetch(url, init);
-      const ms = Math.round(performance.now() - t0);
-      const text = await safeReadText(resp);
-      return { ok: resp.ok, status: resp.status, ms, text, headers: resp.headers };
+      const res = await fetch(url, Object.assign({
+        method: "GET",
+        headers: {
+          "accept": "application/json",
+          "x-wf-console": "1"
+        }
+      }, opts || {}));
+      const text = await res.text();
+      return {
+        ok: res.ok,
+        status: res.status,
+        ms: Math.round(performance.now() - t0),
+        text,
+        json: safeJsonParse(text)
+      };
     }catch(err){
-      const ms = Math.round(performance.now() - t0);
-      return { ok: false, status: 0, ms, text: "", error: String(err && err.message ? err.message : err) };
+      return {
+        ok: false,
+        status: "FETCH_ERR",
+        ms: Math.round(performance.now() - t0),
+        error: String(err)
+      };
     }
+  }
+
+  function load(){
+    let cfg = null;
+    try{
+      cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    }catch(_){ cfg = null; }
+    const c = Object.assign({}, defaults, cfg || {});
+
+    $("mode").value = c.mode;
+    $("gatewayBase").value = c.gatewayBase;
+    $("proxyBase").value = c.proxyBase;
+    $("readyPath").value = c.readyPath;
+    $("healthPath").value = c.healthPath;
+    $("grafanaBase").value = c.grafanaBase;
+
+    $("reqMethod").value = c.reqMethod;
+    $("reqPath").value = c.reqPath;
+    $("reqBody").value = c.reqBody;
+
+    if (location.protocol === "file:") {
+      $("fileWarn").style.display = "block";
+      $("fileWarn").textContent =
+        "你当前是 file:// 打开页面。Proxy 模式无法使用 location.origin（为 null）。" +
+        "请改用 Direct 模式，或把页面托管到任意静态站点后再用 Proxy 模式。";
+    } else {
+      $("fileWarn").style.display = "none";
+      $("fileWarn").textContent = "";
+    }
+  }
+
+  function save(){
+    const c = {
+      mode: $("mode").value,
+      gatewayBase: $("gatewayBase").value,
+      proxyBase: $("proxyBase").value,
+      readyPath: $("readyPath").value,
+      healthPath: $("healthPath").value,
+      grafanaBase: $("grafanaBase").value,
+      reqMethod: $("reqMethod").value,
+      reqPath: $("reqPath").value,
+      reqBody: $("reqBody").value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
+  }
+
+  function reset(){
+    localStorage.removeItem(STORAGE_KEY);
+    load();
+    setPill(null, "Reset done");
+    $("checkOut").textContent = "已重置配置。";
+    $("reqOut").textContent = "已重置配置。";
   }
 
   async function check(){
-   // const base = normalizeBaseUrl(els.gatewayBase.value);
-    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
+    setPill("warn", "Checking...");
+    const base = currentBase();
 
-    if (!base){
-      setStatus("bad", "Missing Gateway URL");
-      return;
-    }
-    setStatus("warn", "Checking...");
-    logLine(`Check started: base=${base}`);
+    const readyUrl = buildUrl(base, $("readyPath").value);
+    const healthUrl = buildUrl(base, $("healthPath").value);
 
-    // use minimal headers (no custom headers) to reduce preflight surface
-     // const readyUrl = joinUrl(base, els.readyPath.value || "/readyz");
-     // const healthUrl = joinUrl(base, els.healthPath.value || "/health");
+    const lines = [];
+    lines.push("== Effective Requests ==");
+    lines.push("mode      : " + $("mode").value);
+    lines.push("base      : " + base);
+    lines.push("readyUrl  : " + readyUrl);
+    lines.push("healthUrl : " + healthUrl);
+    lines.push("");
 
-    const readyUrl  = joinUrl(base, normalizePathInput(els.readyPath.value, "/readyz"));
-const healthUrl = joinUrl(base, normalizePathInput(els.healthPath.value, "/health"));
+    const r1 = await fetchText(readyUrl, { method: "GET" });
+    const r2 = await fetchText(healthUrl, { method: "GET" });
 
+    lines.push("== Ready ==");
+    lines.push(JSON.stringify(r1, null, 2));
+    lines.push("");
+    lines.push("== Health ==");
+    lines.push(JSON.stringify(r2, null, 2));
 
-    const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{}, bodyText:null });
-    logLine(`GET ${readyUrl} -> status=${r1.status || "fetch_error"} time=${r1.ms}ms ${r1.error ? " err=" + r1.error : ""}`);
-    if (r1.status) logLine(`ready body: ${truncate(r1.text, 800)}`);
+    $("checkOut").textContent = lines.join("\n");
 
-    const r2 = await apiCall({ method:"GET", url: healthUrl, headers:{}, bodyText:null });
-    logLine(`GET ${healthUrl} -> status=${r2.status || "fetch_error"} time=${r2.ms}ms ${r2.error ? " err=" + r2.error : ""}`);
-    if (r2.status) logLine(`health body: ${truncate(r2.text, 800)}`);
-
-    // Decide
-    if (r1.status === 0 || r2.status === 0){
-      setStatus("bad", "Fetch blocked (likely CORS/network)");
-      return;
-    }
-    if (r1.status >= 200 && r1.status < 300 && r2.status >= 200 && r2.status < 300){
-      setStatus("ok", "Ready + Health OK");
-      return;
-    }
-    setStatus("bad", `Check failed (ready=${r1.status}, health=${r2.status})`);
+    if (r1.ok && r2.ok) setPill("ok", "Check OK");
+    else setPill("bad", `Check failed (ready=${r1.status}, health=${r2.status})`);
   }
 
-  function truncate(s, n){
-    s = String(s || "");
-    if (s.length <= n) return s;
-    return s.slice(0, n) + " ...<truncated>";
-  }
+  async function sendRequest(){
+    setPill("warn", "Sending request...");
+    const base = currentBase();
+    const method = $("reqMethod").value;
+    const path = $("reqPath").value || "/";
+    const url = buildUrl(base, path);
 
-  function stopPoll(){
-    if (pollTimer){
-      clearInterval(pollTimer);
-      pollTimer = null;
-      logLine("Polling stopped.");
-    }
-  }
+    let body = null;
+    let headers = { "accept":"application/json", "x-wf-console":"1" };
 
-  async function send(){
-    stopPoll();
-
-    //const base = normalizeBaseUrl(els.gatewayBase.value);
-    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
-
-    if (!base){
-      setReqState("bad", "Missing base");
-      return;
-    }
-    const method = (els.method.value || "POST").toUpperCase();
-    //const path = els.path.value.trim() || "/";
-    //const url = joinUrl(base, path);
-
-    const path = normalizePathInput(els.path.value, "/");
-const url = joinUrl(base, path);
-
-
-    // Build headers with trace injection (this may trigger preflight; that's expected)
-    const hdr = buildInjectedHeaders();
-
-    // Body templating
-    let bodyText = null;
-    if (method !== "GET" && method !== "HEAD"){
-      const raw = applyTemplate(els.body.value);
-      bodyText = raw;
-      // Validate JSON but still send raw if user wants (we enforce JSON default)
-      try { JSON.parse(raw); } catch(e){
-        logLine("WARN: Body is not valid JSON; request will still be sent as text.");
+    const raw = String($("reqBody").value || "").trim();
+    if (method !== "GET" && method !== "DELETE") {
+      if (raw) {
+        try{
+          JSON.parse(raw);
+          body = raw;
+          headers["content-type"] = "application/json";
+        }catch(err){
+          $("reqOut").textContent =
+            "Body 不是合法 JSON，已阻止发送。\n\n" +
+            "error: " + String(err) + "\n\n" +
+            "raw:\n" + raw;
+          setPill("bad", "Body JSON invalid");
+          return;
+        }
       }
     }
 
-    setReqState("warn", "Sending...");
-    logLine(`SEND ${method} ${url}`);
-    logLine(`headers:\n${Object.entries(hdr).map(([k,v])=>`${k}: ${v}`).join("\n")}`);
-    if (bodyText) logLine(`body:\n${truncate(bodyText, 1200)}`);
+    const result = await fetchText(url, { method, headers, body });
 
-    const r = await apiCall({ method, url, headers: hdr, bodyText });
-    if (r.status === 0){
-      // CORS / network
-      setReqState("bad", "Failed to fetch (CORS/network)");
-      logLine(`ERROR: fetch failed after ${r.ms}ms; err=${r.error || "unknown"}`);
-      logLine("DIAG: If URL works in address bar but fails here, the backend likely does NOT allow this page Origin in CORS.");
-      return;
-    }
+    const lines = [];
+    lines.push("== Effective Request ==");
+    lines.push("mode   : " + $("mode").value);
+    lines.push("url    : " + url);
+    lines.push("method : " + method);
+    lines.push("");
+    lines.push("== Response ==");
+    lines.push(JSON.stringify(result, null, 2));
 
-    setReqState(r.ok ? "ok" : "bad", `HTTP ${r.status} (${r.ms}ms)`);
-    logLine(`RESP status=${r.status} time=${r.ms}ms`);
-    logLine(`RESP body:\n${truncate(r.text, 3000)}`);
+    $("reqOut").textContent = lines.join("\n");
 
-    // Optional polling
-    const poll = els.pollPath.value.trim();
-    if (poll){
-      const interval = parseInt(els.pollInterval.value, 10);
-      const ms = Number.isFinite(interval) && interval > 300 ? interval : 1500;
-       //const pollUrl = joinUrl(base, applyTemplate(poll));
-      const pollUrl = joinUrl(base, normalizePathInput(applyTemplate(poll), "/"));
-
-      logLine(`Polling enabled: ${pollUrl} every ${ms}ms`);
-      pollTimer = setInterval(async () => {
-        const pr = await apiCall({ method:"GET", url: pollUrl, headers: buildInjectedHeaders(), bodyText: null });
-        if (pr.status === 0){
-          logLine(`POLL fetch blocked; err=${pr.error || "unknown"}`);
-          return;
-        }
-        logLine(`POLL ${pollUrl} -> ${pr.status} ${truncate(pr.text, 600)}`);
-      }, ms);
-    }
+    if (result.ok) setPill("ok", "Request OK");
+    else setPill("bad", "Request failed");
   }
 
-  async function copy(text){
-    try{
-      await navigator.clipboard.writeText(text);
-      logLine("Copied to clipboard.");
-    }catch(e){
-      logLine("Clipboard copy failed (browser permissions).");
-    }
-  }
-
-  function buildCurl(){
-    //const base = normalizeBaseUrl(els.gatewayBase.value);
-    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
-
-    const method = (els.method.value || "POST").toUpperCase();
-    //const url = joinUrl(base, els.path.value.trim() || "/");
-    const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
-
-
-    const hdr = buildInjectedHeaders();
-    const headerArgs = Object.entries(hdr)
-      .filter(([_,v]) => String(v || "").trim().length > 0)
-      .map(([k,v]) => `-H ${shellQuote(`${k}: ${v}`)}`)
-      .join(" ");
-
-    let dataArg = "";
-    if (method !== "GET" && method !== "HEAD"){
-      const raw = applyTemplate(els.body.value);
-      dataArg = `--data ${shellQuote(raw)}`;
-    }
-
-    return `curl -i -X ${method} ${headerArgs} ${dataArg} ${shellQuote(url)}`.replace(/\s+/g, " ").trim();
-  }
-
-  function shellQuote(s){
-    // simple single-quote wrap for bash
-    s = String(s || "");
-    return "'" + s.replace(/'/g, `'\\''`) + "'";
-  }
-
-  function loadSettings(){
-    try{
-      const raw = localStorage.getItem("wf_console_settings_v1");
-      if (!raw) return;
-      const s = JSON.parse(raw);
-      els.gatewayBase.value = s.gatewayBase || "";
-      els.readyPath.value = s.readyPath || "/readyz";
-      els.healthPath.value = s.healthPath || "/health";
-      els.grafanaBase.value = s.grafanaBase || "";
-      els.method.value = s.method || "POST";
-      els.path.value = s.path || "/api/trigger";
-      els.body.value = s.body || els.body.value;
-      els.pollPath.value = s.pollPath || "";
-      els.pollInterval.value = s.pollInterval || "1500";
-    }catch(e){}
-  }
-
-  function saveSettings(){
-    const s = {
-      gatewayBase: els.gatewayBase.value.trim(),
-      readyPath: els.readyPath.value.trim(),
-      healthPath: els.healthPath.value.trim(),
-      grafanaBase: els.grafanaBase.value.trim(),
-      method: els.method.value,
-      path: els.path.value.trim(),
-      body: els.body.value,
-      pollPath: els.pollPath.value.trim(),
-      pollInterval: els.pollInterval.value.trim(),
-    };
-    localStorage.setItem("wf_console_settings_v1", JSON.stringify(s));
-    logLine("Settings saved.");
-  }
-
-  function resetAll(){
-    stopPoll();
-    localStorage.removeItem("wf_console_settings_v1");
-    els.gatewayBase.value = "";
-    els.readyPath.value = "/readyz";
-    els.healthPath.value = "/health";
-    els.grafanaBase.value = "";
-    els.method.value = "POST";
-    els.path.value = "/api/trigger";
-    els.body.value = `{
-  "workflow_id": "{{workflow_id}}",
-  "job_id": "{{job_id}}",
-  "note": "console demo request"
-}`;
-    els.pollPath.value = "";
-    els.pollInterval.value = "1500";
-    els.log.textContent = "";
-    setStatus("warn", "Not checked");
-    setReqState("warn", "Idle");
-    genIds();
-    logLine("Reset done.");
-  }
-
-  function genIds(){
-    const wf = genId("wf");
-    els.workflowId.value = wf;
-    els.jobId.value = wf; // 默认同一个，方便你在系统里关联；你也可以手动改成不同
-    els.requestId.value = genId("req");
-    els.traceparent.value = genTraceparent();
-    renderTempoHints();
-  }
-
-  function openGrafana(){
-    const u = normalizeBaseUrl(els.grafanaBase.value);
-    if (!u){
-      logLine("Grafana URL not set.");
-      return;
-    }
-    window.open(u, "_blank", "noopener");
-  }
-
-  // Events
-  els.btnCheck.addEventListener("click", check);
-  els.btnSave.addEventListener("click", () => { saveSettings(); });
-  els.btnReset.addEventListener("click", resetAll);
-  els.btnOpenGrafana.addEventListener("click", openGrafana);
-
-  els.btnGenIds.addEventListener("click", genIds);
-  els.btnCopyHeaders.addEventListener("click", () => {
-    const hdr = buildInjectedHeaders();
-    copy(Object.entries(hdr).map(([k,v]) => `${k}: ${v}`).join("\n"));
-  });
-  els.btnCopyTempoHints.addEventListener("click", () => copy(els.tempoHints.textContent));
-
-  els.btnSend.addEventListener("click", send);
-  els.btnStopPoll.addEventListener("click", stopPoll);
-  els.btnCopyCurl.addEventListener("click", () => copy(buildCurl()));
-
-  // Live updates
-  ["workflowId","jobId","requestId","traceparent"].forEach(id=>{
-    $(id).addEventListener("input", renderTempoHints);
+  $("btnCheck").addEventListener("click", check);
+  $("btnSave").addEventListener("click", () => { save(); setPill("ok","Saved"); });
+  $("btnReset").addEventListener("click", reset);
+  $("btnSend").addEventListener("click", sendRequest);
+  $("btnOpenGrafana").addEventListener("click", () => {
+    const g = normalizeBase($("grafanaBase").value);
+    if (!g) return;
+    window.open(g, "_blank", "noopener,noreferrer");
   });
 
-  // Boot
-  loadSettings();
-  genIds();
-  setReqState("warn", "Idle");
+  load();
+  setPill(null, "Idle");
 })();
 </script>
 </body>
 </html>
-
-
-
