@@ -368,6 +368,27 @@
     return u.replace(/\/+$/, "");
   }
 
+  // ===== [PATCH INSERT BEGIN] normalize relative path input (non-breaking) =====
+function normalizePathInput(input, fallback){
+  const v = String(input || "").trim();
+  if (!v) return fallback || "";
+
+  // If user mistakenly pasted a full URL, extract pathname only
+  if (/^https?:\/\//i.test(v)){
+    try{
+      const u = new URL(v);
+      return u.pathname || (fallback || "/");
+    }catch(e){
+      return fallback || "/";
+    }
+  }
+
+  // Ensure it is a relative path
+  return v.startsWith("/") ? v : "/" + v;
+}
+// ===== [PATCH INSERT END] =====
+
+
   // ===== [PATCH INSERT BEGIN] force browser -> worker proxy (non-breaking) =====
 function resolveGatewayBaseForBrowser(inputBase){
   const raw = normalizeBaseUrl(inputBase);
@@ -498,8 +519,12 @@ function resolveGatewayBaseForBrowser(inputBase){
     logLine(`Check started: base=${base}`);
 
     // use minimal headers (no custom headers) to reduce preflight surface
-    const readyUrl = joinUrl(base, els.readyPath.value || "/readyz");
-    const healthUrl = joinUrl(base, els.healthPath.value || "/health");
+     // const readyUrl = joinUrl(base, els.readyPath.value || "/readyz");
+     // const healthUrl = joinUrl(base, els.healthPath.value || "/health");
+
+    const readyUrl  = joinUrl(base, normalizePathInput(els.readyPath.value, "/readyz"));
+const healthUrl = joinUrl(base, normalizePathInput(els.healthPath.value, "/health"));
+
 
     const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{}, bodyText:null });
     logLine(`GET ${readyUrl} -> status=${r1.status || "fetch_error"} time=${r1.ms}ms ${r1.error ? " err=" + r1.error : ""}`);
@@ -546,8 +571,12 @@ function resolveGatewayBaseForBrowser(inputBase){
       return;
     }
     const method = (els.method.value || "POST").toUpperCase();
-    const path = els.path.value.trim() || "/";
-    const url = joinUrl(base, path);
+    //const path = els.path.value.trim() || "/";
+    //const url = joinUrl(base, path);
+
+    const path = normalizePathInput(els.path.value, "/");
+const url = joinUrl(base, path);
+
 
     // Build headers with trace injection (this may trigger preflight; that's expected)
     const hdr = buildInjectedHeaders();
@@ -586,7 +615,9 @@ function resolveGatewayBaseForBrowser(inputBase){
     if (poll){
       const interval = parseInt(els.pollInterval.value, 10);
       const ms = Number.isFinite(interval) && interval > 300 ? interval : 1500;
-      const pollUrl = joinUrl(base, applyTemplate(poll));
+       //const pollUrl = joinUrl(base, applyTemplate(poll));
+      const pollUrl = joinUrl(base, normalizePathInput(applyTemplate(poll), "/"));
+
       logLine(`Polling enabled: ${pollUrl} every ${ms}ms`);
       pollTimer = setInterval(async () => {
         const pr = await apiCall({ method:"GET", url: pollUrl, headers: buildInjectedHeaders(), bodyText: null });
@@ -613,7 +644,9 @@ function resolveGatewayBaseForBrowser(inputBase){
     const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
 
     const method = (els.method.value || "POST").toUpperCase();
-    const url = joinUrl(base, els.path.value.trim() || "/");
+    //const url = joinUrl(base, els.path.value.trim() || "/");
+    const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
+
 
     const hdr = buildInjectedHeaders();
     const headerArgs = Object.entries(hdr)
@@ -740,4 +773,5 @@ function resolveGatewayBaseForBrowser(inputBase){
 </script>
 </body>
 </html>
+
 
