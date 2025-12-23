@@ -389,17 +389,34 @@ function normalizePathInput(input, fallback){
 // ===== [PATCH INSERT END] =====
 
 
-  // ===== [PATCH INSERT BEGIN] force browser -> worker proxy (non-breaking) =====
-function resolveGatewayBaseForBrowser(inputBase){
-  const raw = normalizeBaseUrl(inputBase);
-  if (!raw) return "";
+// ===== [PATCH REPLACE BEGIN] browser -> worker proxy base resolver (non-breaking) =====
+function resolveGatewayBaseForBrowser(_inputBase){
+  // 支持用 URL 参数指定 Worker 代理域名（解决“页面不在 Worker 同域”导致 /wf 404）
+  // 用法示例：
+  //   https://your-pages-site/workflow-console.html?proxy_origin=https://doc.mefans.workers.dev
+  // 可选：proxy_prefix=/wf（默认 /wf）
+  const sp = new URLSearchParams(location.search);
 
-  // 浏览器环境：强制走同源 Worker /wf
-  // 真实 Gateway 由 Worker 侧 WORKFLOW_GATEWAY_BASE 决定
-  const sameOrigin = location.origin;
-  return sameOrigin + "/wf";
+  const qpOrigin = (sp.get("proxy_origin") || sp.get("proxy") || "").trim();
+  const qpPrefix = (sp.get("proxy_prefix") || sp.get("prefix") || "").trim();
+
+  // 允许持久化：打开一次带参数后，后续无需再带
+  const lsOrigin = (localStorage.getItem("wf_console_proxy_origin") || "").trim();
+  const lsPrefix = (localStorage.getItem("wf_console_proxy_prefix") || "").trim();
+
+  const origin = normalizeBaseUrl(qpOrigin || lsOrigin || location.origin);
+  let prefix = (qpPrefix || lsPrefix || "/wf").trim();
+
+  if (qpOrigin) localStorage.setItem("wf_console_proxy_origin", origin);
+  if (qpPrefix) localStorage.setItem("wf_console_proxy_prefix", prefix);
+
+  if (!prefix.startsWith("/")) prefix = "/" + prefix;
+  prefix = prefix.replace(/\/+$/, ""); // 去掉尾部 /
+
+  return origin + prefix;
 }
-// ===== [PATCH INSERT END] =====
+// ===== [PATCH REPLACE END] =====
+
 
   function joinUrl(base, path){
     base = normalizeBaseUrl(base);
@@ -773,5 +790,6 @@ const url = joinUrl(base, path);
 </script>
 </body>
 </html>
+
 
 
