@@ -3,780 +3,699 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Workflow Ops Console</title>
+  <title>Workflow Console</title>
   <meta name="color-scheme" content="dark light" />
   <style>
     :root{
       --bg:#0b1120;
       --card:#0f172a;
-      --card2:#0b1224;
       --border:rgba(148,163,184,.22);
       --text:#e5e7eb;
       --muted:#94a3b8;
-      --muted2:#64748b;
+      --accent:#38bdf8;
+      --danger:#ef4444;
       --ok:#22c55e;
       --warn:#f59e0b;
-      --bad:#ef4444;
-      --accent:#38bdf8;
-      --accent2:#0ea5e9;
-      --shadow:0 10px 30px rgba(0,0,0,.35);
-      --radius:18px;
-      --radius2:14px;
-      --gap:14px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --radius: 14px;
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
     body{
       margin:0;
-      font-family:var(--sans);
-      background: radial-gradient(1200px 600px at 20% 0%, rgba(56,189,248,.10), transparent 60%),
-                  radial-gradient(900px 500px at 90% 10%, rgba(34,197,94,.07), transparent 55%),
+      font-family: var(--sans);
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(56,189,248,.10), transparent 60%),
+                  radial-gradient(900px 500px at 90% 10%, rgba(34,197,94,.08), transparent 55%),
                   var(--bg);
-      color:var(--text);
+      color: var(--text);
     }
-    a{color:inherit}
-    .wrap{max-width:1180px;margin:0 auto;padding:22px 16px 40px}
-    .topbar{
-      display:flex;gap:12px;align-items:center;justify-content:space-between;
-      padding:14px 16px;border:1px solid var(--border);
-      background:linear-gradient(180deg, rgba(15,23,42,.90), rgba(15,23,42,.70));
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      position:sticky;top:10px;z-index:20;
-      backdrop-filter: blur(8px);
+    .wrap{
+      max-width: 1100px;
+      margin: 26px auto 60px;
+      padding: 0 16px;
     }
-    .brand{display:flex;flex-direction:column;gap:2px}
-    .brand h1{margin:0;font-size:16px;letter-spacing:.2px}
-    .brand .sub{font-size:12px;color:var(--muted)}
-    .pillrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .pill{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:7px 10px;border-radius:999px;
+    .top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom: 14px;
+    }
+    h1{
+      font-size: 20px;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .sub{
+      margin-top:6px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+      max-width: 720px;
+    }
+    .statusBadge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
       border:1px solid var(--border);
-      background:rgba(2,6,23,.35);
-      font-size:12px;color:var(--muted);
-      white-space:nowrap;
+      border-radius: 999px;
+      background: rgba(15,23,42,.65);
+      white-space: nowrap;
+      font-size: 13px;
+      color: var(--muted);
     }
-    .dot{width:8px;height:8px;border-radius:999px;background:var(--muted2)}
-    .dot.ok{background:var(--ok)}
-    .dot.bad{background:var(--bad)}
-    .dot.warn{background:var(--warn)}
-    .btn{
-      appearance:none;border:1px solid var(--border);
-      background:rgba(2,6,23,.35);
-      color:var(--text);
-      padding:8px 10px;border-radius:12px;
-      font-size:13px;cursor:pointer;
-      transition: transform .08s ease, border-color .15s ease, background .15s ease;
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background: #64748b;
+      box-shadow: 0 0 0 4px rgba(100,116,139,.15);
     }
-    .btn:hover{border-color:rgba(56,189,248,.45)}
-    .btn:active{transform: translateY(1px)}
-    .btn.primary{
-      border-color:rgba(56,189,248,.55);
-      background:rgba(56,189,248,.10);
-    }
-    .btn.danger{
-      border-color:rgba(239,68,68,.55);
-      background:rgba(239,68,68,.10);
-    }
+    .dot.ok{ background: var(--ok); box-shadow: 0 0 0 4px rgba(34,197,94,.15); }
+    .dot.bad{ background: var(--danger); box-shadow: 0 0 0 4px rgba(239,68,68,.15); }
     .grid{
-      margin-top:14px;
-      display:grid;grid-template-columns: 1.25fr .75fr;
-      gap:var(--gap);
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+      margin-top: 14px;
     }
     @media (max-width: 980px){
-      .grid{grid-template-columns:1fr}
-      .topbar{position:relative;top:auto}
+      .grid{ grid-template-columns: 1fr; }
+      .top{ flex-direction: column; }
     }
     .card{
-      border:1px solid var(--border);
-      background:linear-gradient(180deg, rgba(15,23,42,.78), rgba(11,18,36,.72));
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      overflow:hidden;
+      background: rgba(15,23,42,.72);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
     }
-    .card .hd{
-      padding:14px 16px;border-bottom:1px solid var(--border);
-      display:flex;align-items:center;justify-content:space-between;gap:10px;
+    .card h2{
+      font-size: 14px;
+      margin: 0 0 10px;
+      color: #dbeafe;
+      letter-spacing: .2px;
     }
-    .card .hd .title{font-size:14px;margin:0}
-    .card .bd{padding:14px 16px}
-    .controls{
-      display:grid;grid-template-columns: 1fr 140px 140px 140px;
-      gap:10px;align-items:center;
-    }
-    @media (max-width: 980px){
-      .controls{grid-template-columns:1fr 1fr; }
-    }
-    .field{
-      display:flex;flex-direction:column;gap:6px;
-    }
-    .label{font-size:12px;color:var(--muted)}
-    input,select{
-      width:100%;padding:10px 12px;
-      border-radius:12px;border:1px solid var(--border);
-      background:rgba(2,6,23,.30);
-      color:var(--text);
-      outline:none;
-      font-size:13px;
-    }
-    input:focus,select:focus{border-color:rgba(56,189,248,.55)}
-    .table{
-      width:100%;
-      border-collapse:separate;border-spacing:0;
-      overflow:hidden;
-      border:1px solid var(--border);
-      border-radius:14px;
-    }
-    .table th,.table td{
-      text-align:left;
-      padding:10px 10px;
-      border-bottom:1px solid rgba(148,163,184,.14);
-      font-size:12px;
-      vertical-align:top;
-    }
-    .table th{
-      color:var(--muted);
-      font-weight:600;
-      background:rgba(2,6,23,.28);
-      position:sticky;top:0;z-index:5;
-    }
-    .table tr:hover td{background:rgba(56,189,248,.06)}
-    .mono{font-family:var(--mono)}
-    .status{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:6px 10px;border-radius:999px;
-      border:1px solid var(--border);
-      font-size:12px;
-      background:rgba(2,6,23,.28);
-    }
-    .status .s{width:8px;height:8px;border-radius:999px;background:var(--muted2)}
-    .status.running .s{background:var(--warn)}
-    .status.completed .s{background:var(--ok)}
-    .status.failed .s{background:var(--bad)}
-    .small{font-size:12px;color:var(--muted)}
     .row{
-      display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+      margin-bottom: 10px;
     }
-    .pager{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
-    .kbd{
-      font-family:var(--mono);
-      font-size:11px;
-      color:var(--muted);
-      padding:3px 7px;
-      border:1px solid var(--border);
-      border-radius:10px;
-      background:rgba(2,6,23,.28);
+    label{
+      font-size: 12px;
+      color: var(--muted);
     }
-    .empty{
-      padding:18px;
-      border:1px dashed rgba(148,163,184,.25);
-      border-radius:14px;
-      color:var(--muted);
-      background:rgba(2,6,23,.18);
+    input, textarea, select{
+      width: 100%;
+      box-sizing: border-box;
+      background: rgba(2,6,23,.55);
+      border: 1px solid rgba(148,163,184,.25);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 10px;
+      outline: none;
+      font-family: var(--sans);
+      font-size: 13px;
     }
-    .split{
-      display:flex;flex-direction:column;gap:10px;
+    input:focus, textarea:focus{
+      border-color: rgba(56,189,248,.65);
+      box-shadow: 0 0 0 4px rgba(56,189,248,.12);
     }
-    pre{
-      margin:0;
-      padding:12px;
-      border-radius:14px;
-      border:1px solid rgba(148,163,184,.18);
-      background:rgba(2,6,23,.35);
-      overflow:auto;
-      max-height:360px;
-      font-family:var(--mono);
-      font-size:12px;
-      line-height:1.35;
+    textarea{
+      min-height: 120px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.45;
+      resize: vertical;
     }
-    .drawer{
-      position:fixed;inset:0;
-      display:none;
-      background:rgba(0,0,0,.42);
-      z-index:50;
-      padding:14px;
+    .col{
+      flex: 1 1 260px;
+      min-width: 240px;
     }
-    .drawer.show{display:block}
-    .drawer .panel{
-      width:min(920px, 100%);
-      margin:0 auto;
-      border:1px solid var(--border);
-      border-radius:22px;
-      background:linear-gradient(180deg, rgba(15,23,42,.92), rgba(11,18,36,.92));
-      box-shadow:var(--shadow);
-      overflow:hidden;
+    .btnRow{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
     }
-    .drawer .panel .ph{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;
-      padding:14px 16px;border-bottom:1px solid var(--border);
+    button{
+      appearance: none;
+      border: 1px solid rgba(148,163,184,.22);
+      background: rgba(2,6,23,.35);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: transform .06s ease, border-color .15s ease, background .15s ease;
     }
-    .drawer .panel .pb{padding:14px 16px}
-    .toast{
-      position:fixed;left:50%;bottom:14px;transform:translateX(-50%);
-      max-width:min(780px, calc(100% - 24px));
-      padding:10px 12px;border-radius:14px;
-      border:1px solid var(--border);
-      background:rgba(2,6,23,.78);
-      box-shadow:var(--shadow);
-      display:none;
-      z-index:60;
-      color:var(--muted);
-      font-size:12px;
+    button:hover{
+      border-color: rgba(56,189,248,.50);
+      background: rgba(56,189,248,.10);
     }
-    .toast.show{display:block}
+    button:active{ transform: translateY(1px); }
+    button.primary{
+      border-color: rgba(56,189,248,.55);
+      background: rgba(56,189,248,.14);
+    }
+    button.danger{
+      border-color: rgba(239,68,68,.45);
+      background: rgba(239,68,68,.10);
+    }
+    button:disabled{
+      opacity: .55;
+      cursor: not-allowed;
+    }
+    .kv{
+      display:grid;
+      grid-template-columns: 160px 1fr;
+      gap: 8px 10px;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .k{ color: var(--muted); }
+    .v{
+      font-family: var(--mono);
+      overflow-wrap:anywhere;
+    }
+    .hint{
+      margin-top:10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .out{
+      margin-top: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,.20);
+      background: rgba(2,6,23,.45);
+      padding: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 220px;
+    }
+    .mini{
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .pill{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,.20);
+      background: rgba(2,6,23,.30);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      overflow-wrap:anywhere;
+    }
   </style>
 </head>
+
 <body>
   <div class="wrap">
-    <div class="topbar">
-      <div class="brand">
-        <h1>Workflow Ops Console</h1>
-        <div class="sub">Phase 3/4: Temporal → Gateway → Neon truth table → Ops UI</div>
+    <div class="top">
+      <div>
+        <h1>Workflow Console</h1>
+        <div class="sub">
+          面向展示与验收：通过 Gateway 触发 Temporal Workflow / Activity，并把关键链路字段（workflow_id/job_id/run_id/traceparent/x-request-id）直接呈现，
+          便于在 Grafana Tempo 里检索同一条链路，验证 Service Graph、瀑布图和 Span 树。
+          本页面不包含任何密钥，不直连数据库，不触碰管理权限边界。
+        </div>
       </div>
-      <div class="pillrow">
-        <div class="pill" id="pill-conn"><span class="dot" id="dot-conn"></span><span id="txt-conn">Disconnected</span></div>
-        <div class="pill"><span class="dot" id="dot-neon"></span><span id="txt-neon">Neon: unknown</span></div>
-        <button class="btn" id="btn-config">Config</button>
-        <button class="btn primary" id="btn-refresh">Refresh</button>
+      <div class="statusBadge" id="badge">
+        <span class="dot" id="badgeDot"></span>
+        <span id="badgeText">Not checked</span>
       </div>
     </div>
 
     <div class="grid">
-      <!-- LEFT: Jobs list -->
       <div class="card">
-        <div class="hd">
-          <div>
-            <div class="title">Jobs</div>
-            <div class="small">Search / filter / paginate from <span class="mono" id="txt-base-mini">—</span></div>
+        <h2>1) Connection</h2>
+        <div class="row">
+          <div class="col">
+            <label>Gateway URL (base)</label>
+            <input id="gatewayUrl" placeholder="e.g. https://workflow-gateway-xxxx.us-central1.run.app" />
+            <div class="mini">提示：建议将本页面部署在你的域名下；若跨域报错，需要 Gateway 允许你的页面 Origin。</div>
           </div>
-          <div class="row">
-            <span class="kbd">Enter</span><span class="small">search</span>
-            <span class="kbd">R</span><span class="small">refresh</span>
+          <div class="col">
+            <label>Grafana URL (optional, for convenience)</label>
+            <input id="grafanaUrl" placeholder="e.g. https://YOUR-STACK.grafana.net" />
+            <div class="mini">仅用于生成快捷跳转链接，不会发请求。</div>
           </div>
         </div>
-        <div class="bd">
-          <div class="controls">
-            <div class="field">
-              <div class="label">Query</div>
-              <input id="q" placeholder="job_id / workflow_id / trace_id / n8n_execution_id..." />
-            </div>
-            <div class="field">
-              <div class="label">Status</div>
-              <select id="status">
-                <option value="">All</option>
-                <option value="running">running</option>
-                <option value="completed">completed</option>
-                <option value="failed">failed</option>
-              </select>
-            </div>
-            <div class="field">
-              <div class="label">Page size</div>
-              <select id="pageSize">
-                <option>10</option>
-                <option selected>20</option>
-                <option>50</option>
-                <option>100</option>
-              </select>
-            </div>
-            <div class="field">
-              <div class="label">Auto refresh</div>
-              <select id="auto">
-                <option value="0">off</option>
-                <option value="3">3s</option>
-                <option value="5">5s</option>
-                <option value="10">10s</option>
-              </select>
-            </div>
-          </div>
 
-          <div style="height:12px"></div>
+        <div class="btnRow">
+          <button class="primary" id="btnReady">Check Gateway /readyz</button>
+          <button id="btnSave">Save Settings</button>
+          <button class="danger" id="btnReset">Reset</button>
+        </div>
 
-          <div id="jobsArea" class="split">
-            <div class="empty">Loading…</div>
-          </div>
-
-          <div style="height:12px"></div>
-
-          <div class="pager">
-            <button class="btn" id="btn-prev">Prev</button>
-            <div class="small">Page <span class="mono" id="txt-page">1</span> / <span class="mono" id="txt-pages">1</span> · Total <span class="mono" id="txt-total">0</span></div>
-            <button class="btn" id="btn-next">Next</button>
-          </div>
+        <div class="kv">
+          <div class="k">Last check</div><div class="v" id="lastCheck">-</div>
+          <div class="k">Ready result</div><div class="v" id="readyResult">-</div>
         </div>
       </div>
 
-      <!-- RIGHT: Quick actions / info -->
       <div class="card">
-        <div class="hd">
-          <div class="title">Quick checks</div>
-          <div class="small">Gateway health & readiness</div>
+        <h2>2) Trace Context (deterministic, for Tempo search)</h2>
+        <div class="row">
+          <div class="col">
+            <label>workflow_id</label>
+            <input id="workflowId" />
+          </div>
+          <div class="col">
+            <label>job_id</label>
+            <input id="jobId" />
+          </div>
         </div>
-        <div class="bd">
-          <div class="split">
-            <button class="btn" id="btn-health">GET /healthz</button>
-            <button class="btn" id="btn-ready">GET /readyz</button>
-            <div class="small">Last response</div>
-            <pre id="pre-last">{}</pre>
 
-            <div class="small" style="margin-top:10px;">
-              Notes
-              <ul class="small">
-                <li>Jobs 列表来自 <span class="mono">/ops/jobs</span></li>
-                <li>详情来自 <span class="mono">/ops/jobs/{job_id}</span></li>
-                <li>Neon 未启用时，列表会标记 <span class="mono">disabled:true</span></li>
-              </ul>
+        <div class="row">
+          <div class="col">
+            <label>x-request-id (we generate & send)</label>
+            <input id="xRequestId" />
+          </div>
+          <div class="col">
+            <label>traceparent (W3C)</label>
+            <input id="traceparent" />
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button id="btnNewIds">Generate New IDs</button>
+          <button id="btnCopyKeys">Copy Keys</button>
+          <button id="btnOpenGrafana" class="primary">Open Grafana (if set)</button>
+        </div>
+
+        <div class="hint">
+          Tempo 检索建议（复制到 Explore / TraceQL 或搜索栏）：
+          <span class="pill">service.name="workflow-gateway"</span>
+          <span class="pill">job_id="&lt;job_id&gt;"</span>
+          <span class="pill">temporal.workflow_id="&lt;workflow_id&gt;"</span>
+          <span class="pill">trace_id="&lt;x-request-id&gt;"</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>3) Start Workflow (DocWorkflow)</h2>
+
+        <div class="row">
+          <div class="col">
+            <label>payload (JSON)</label>
+            <textarea id="payload">{ "doc": "demo", "note": "from workflow-console.html" }</textarea>
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button class="primary" id="btnStartDoc">POST /workflow/doc/start</button>
+          <button id="btnDocStatus">GET /workflow/doc/status (wait result)</button>
+        </div>
+
+        <div class="kv">
+          <div class="k">run_id</div><div class="v" id="runId">-</div>
+          <div class="k">last endpoint</div><div class="v" id="lastEndpoint">-</div>
+        </div>
+
+        <div class="hint">
+          说明：Gateway 的 <span class="pill">/workflow/doc/status</span> 会等待 workflow 完成并返回 result（用于瀑布图和跨组件链路验收）。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>4) Ops (optional): Neon Jobs Store via Gateway</h2>
+
+        <div class="row">
+          <div class="col">
+            <label>List jobs: status / q / page</label>
+            <div class="row" style="margin-bottom:0;">
+              <div class="col"><input id="opsStatus" placeholder="status (optional)" /></div>
+              <div class="col"><input id="opsQ" placeholder="q (optional)" /></div>
+            </div>
+            <div class="row" style="margin-bottom:0;">
+              <div class="col"><input id="opsPage" placeholder="page" value="1" /></div>
+              <div class="col"><input id="opsPageSize" placeholder="page_size" value="20" /></div>
             </div>
           </div>
+        </div>
+
+        <div class="btnRow">
+          <button id="btnOpsList">GET /ops/jobs</button>
+          <button id="btnOpsGet">GET /ops/jobs/{job_id}</button>
+        </div>
+
+        <div class="hint">
+          说明：这里只做只读展示，不做删除/写库操作；符合“前端不触碰管理权限”的边界。
         </div>
       </div>
     </div>
 
-    <!-- Drawer -->
-    <div class="drawer" id="drawer">
-      <div class="panel">
-        <div class="ph">
-          <div>
-            <div class="title">Job detail</div>
-            <div class="small mono" id="detail-id">—</div>
-          </div>
-          <div class="row">
-            <button class="btn" id="btn-copy">Copy JSON</button>
-            <button class="btn danger" id="btn-close">Close</button>
-          </div>
-        </div>
-        <div class="pb">
-          <div class="row" style="justify-content:space-between;align-items:flex-start">
-            <div class="row">
-              <span class="status" id="detail-status"><span class="s"></span><span class="mono">—</span></span>
-              <span class="small">created: <span class="mono" id="detail-created">—</span></span>
-              <span class="small">completed: <span class="mono" id="detail-completed">—</span></span>
-              <span class="small">duration_ms: <span class="mono" id="detail-duration">—</span></span>
-            </div>
-          </div>
-          <div style="height:10px"></div>
-          <pre id="pre-detail">{}</pre>
-        </div>
-      </div>
+    <div class="card" style="margin-top:14px;">
+      <h2>Output</h2>
+      <div class="mini" id="outMeta">-</div>
+      <div class="out" id="out">Ready.</div>
     </div>
-
-    <!-- Config modal (simple drawer reuse) -->
-    <div class="drawer" id="cfg">
-      <div class="panel">
-        <div class="ph">
-          <div>
-            <div class="title">Config</div>
-            <div class="small">Set gateway base URL; saved in localStorage</div>
-          </div>
-          <div class="row">
-            <button class="btn primary" id="btn-save">Save</button>
-            <button class="btn danger" id="btn-cancel">Close</button>
-          </div>
-        </div>
-        <div class="pb">
-          <div class="split">
-            <div class="field">
-              <div class="label">Gateway base URL</div>
-              <input id="baseUrl" placeholder="https://workflow-gateway-xxxxx-uc.a.run.app" />
-              <div class="small">Tip: keep no trailing slash. The UI will call <span class="mono">/ops/jobs</span>, <span class="mono">/healthz</span>, <span class="mono">/readyz</span>.</div>
-            </div>
-            <div class="row">
-              <button class="btn" id="btn-clear">Clear saved</button>
-              <div class="small">Current: <span class="mono" id="txt-base">—</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="toast" id="toast"></div>
   </div>
 
 <script>
-(function(){
-  const $ = (id)=>document.getElementById(id);
+  // ---------- utilities ----------
+  const $ = (id) => document.getElementById(id);
 
-  const LS_KEY = "workflow_console_gateway_base";
-  const state = {
-    base: "",
-    page: 1,
-    pageSize: 20,
-    status: "",
-    q: "",
-    total: 0,
-    totalPages: 1,
-    disabled: false,
-    timer: null,
-    lastDetailJson: null,
-  };
-
-  function toast(msg){
-    const el = $("toast");
-    el.textContent = msg;
-    el.classList.add("show");
-    clearTimeout(el._t);
-    el._t = setTimeout(()=>el.classList.remove("show"), 2600);
+  function nowIso(){
+    return new Date().toISOString();
   }
 
-  function normBase(u){
-    if(!u) return "";
-    return String(u).trim().replace(/\/+$/,"");
+  function safeJsonParse(s){
+    try { return { ok:true, value: JSON.parse(s) }; }
+    catch(e){ return { ok:false, error: String(e) }; }
   }
 
-  function inferBase(){
-    // If you later reverse-proxy gateway under same domain, you can set:
-    // return location.origin + "/workflow-gateway";
-    return "https://workflow-gateway-233489274446.us-central1.run.app";
+  function bytesToHex(bytes){
+    return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
   }
 
-  function loadBase(){
-    const saved = localStorage.getItem(LS_KEY);
-    const inferred = inferBase();
-    state.base = normBase(saved || inferred || "");
-    $("txt-base").textContent = state.base || "—";
-    $("txt-base-mini").textContent = state.base || "—";
-    $("baseUrl").value = state.base || "";
+  function randomHex(nBytes){
+    const arr = new Uint8Array(nBytes);
+    crypto.getRandomValues(arr);
+    return bytesToHex(arr);
   }
 
-  function setConn(ok, neon){
-    const dot = $("dot-conn");
-    const pill = $("pill-conn");
-    dot.className = "dot " + (ok ? "ok" : "bad");
-    $("txt-conn").textContent = ok ? "Connected" : "Disconnected";
-
-    const dotN = $("dot-neon");
-    dotN.className = "dot " + (neon === "enabled" ? "ok" : neon === "disabled" ? "warn" : "");
-    $("txt-neon").textContent = neon === "enabled" ? "Neon: enabled" : neon === "disabled" ? "Neon: disabled" : "Neon: unknown";
+  // W3C traceparent: version(2)-traceid(32)-spanid(16)-flags(2)
+  function newTraceparent(){
+    const traceId = randomHex(16); // 16 bytes => 32 hex
+    const spanId  = randomHex(8);  // 8 bytes  => 16 hex
+    const flags = "01"; // sampled
+    return `00-${traceId}-${spanId}-${flags}`;
   }
 
-  async function fetchJson(path, opts={}){
-    if(!state.base) throw new Error("Gateway base URL is not set.");
-    const url = state.base + path;
+  function newId(prefix){
+    const hex = randomHex(8);
+    return `${prefix}-${hex}`;
+  }
 
-    const ctrl = new AbortController();
-    const t = setTimeout(()=>ctrl.abort(), opts.timeoutMs || 8000);
+  function normalizeBaseUrl(u){
+    u = (u || "").trim();
+    if (!u) return "";
+    // remove trailing slash
+    return u.replace(/\/+$/,"");
+  }
+
+  function setBadge(ok, text){
+    const dot = $("badgeDot");
+    const t = $("badgeText");
+    dot.classList.remove("ok","bad");
+    if (ok === true) dot.classList.add("ok");
+    if (ok === false) dot.classList.add("bad");
+    t.textContent = text || "Not checked";
+  }
+
+  function showOutput(obj, meta){
+    $("outMeta").textContent = meta || "";
+    if (typeof obj === "string") {
+      $("out").textContent = obj;
+      return;
+    }
     try{
-      const res = await fetch(url, {
-        method: opts.method || "GET",
-        headers: Object.assign({"Accept":"application/json"}, opts.headers||{}),
-        body: opts.body || undefined,
-        signal: ctrl.signal,
+      $("out").textContent = JSON.stringify(obj, null, 2);
+    }catch(e){
+      $("out").textContent = String(obj);
+    }
+  }
+
+  function getSettings(){
+    return {
+      gatewayUrl: normalizeBaseUrl(localStorage.getItem("wf_console_gateway") || ""),
+      grafanaUrl: normalizeBaseUrl(localStorage.getItem("wf_console_grafana") || "")
+    };
+  }
+
+  function saveSettings(gatewayUrl, grafanaUrl){
+    localStorage.setItem("wf_console_gateway", normalizeBaseUrl(gatewayUrl));
+    localStorage.setItem("wf_console_grafana", normalizeBaseUrl(grafanaUrl));
+  }
+
+  function resetSettings(){
+    localStorage.removeItem("wf_console_gateway");
+    localStorage.removeItem("wf_console_grafana");
+  }
+
+  function ensureIdsIfEmpty(){
+    if (!$("workflowId").value.trim()) $("workflowId").value = newId("wf");
+    if (!$("jobId").value.trim()) $("jobId").value = $("workflowId").value.trim();
+    if (!$("xRequestId").value.trim()) $("xRequestId").value = newId("req");
+    if (!$("traceparent").value.trim()) $("traceparent").value = newTraceparent();
+  }
+
+  async function callApi(method, path, bodyObj){
+    const base = normalizeBaseUrl($("gatewayUrl").value);
+    if (!base) throw new Error("Gateway URL is empty.");
+
+    ensureIdsIfEmpty();
+
+    const url = base + path;
+
+    const headers = {
+      "content-type": "application/json",
+      "x-request-id": $("xRequestId").value.trim(),
+      "traceparent": $("traceparent").value.trim(),
+    };
+
+    // Keep these keys visible for your gateway span attributes / neon store linkage
+    // (Your gateway code already attaches job_id/temporal.workflow_id to current span)
+    headers["x-oliverfr-job-id"] = $("jobId").value.trim();
+    headers["x-oliverfr-workflow-id"] = $("workflowId").value.trim();
+
+    const init = { method, headers };
+
+    if (bodyObj !== undefined && bodyObj !== null){
+      init.body = JSON.stringify(bodyObj);
+    }
+
+    $("lastEndpoint").textContent = `${method} ${path}`;
+
+    const started = performance.now();
+    let res, text;
+    try{
+      res = await fetch(url, init);
+      text = await res.text();
+    }catch(e){
+      throw new Error(`Fetch failed: ${String(e)}`);
+    }
+    const ms = Math.round(performance.now() - started);
+
+    let parsed = text;
+    try{ parsed = JSON.parse(text); } catch(e){ /* keep as text */ }
+
+    return { ok: res.ok, status: res.status, ms, url, data: parsed };
+  }
+
+  function copyToClipboard(s){
+    return navigator.clipboard.writeText(s);
+  }
+
+  // ---------- init ----------
+  (function init(){
+    const st = getSettings();
+    $("gatewayUrl").value = st.gatewayUrl;
+    $("grafanaUrl").value = st.grafanaUrl;
+
+    $("workflowId").value = localStorage.getItem("wf_console_workflowId") || "";
+    $("jobId").value      = localStorage.getItem("wf_console_jobId") || "";
+    $("xRequestId").value = localStorage.getItem("wf_console_xRequestId") || "";
+    $("traceparent").value= localStorage.getItem("wf_console_traceparent") || "";
+    $("runId").textContent= localStorage.getItem("wf_console_runId") || "-";
+
+    ensureIdsIfEmpty();
+
+    // persist ids on change
+    ["workflowId","jobId","xRequestId","traceparent"].forEach(id=>{
+      $(id).addEventListener("change", ()=>{
+        localStorage.setItem("wf_console_"+id, $(id).value.trim());
       });
-      const txt = await res.text();
-      let json = null;
-      try{ json = txt ? JSON.parse(txt) : {}; }catch(e){ json = { raw: txt }; }
-      if(!res.ok){
-        const err = new Error("HTTP " + res.status);
-        err.detail = json;
-        throw err;
-      }
-      return json;
-    } finally {
-      clearTimeout(t);
-    }
-  }
+    });
+  })();
 
-  function fmtTime(v){
-    if(!v) return "—";
+  // ---------- handlers ----------
+  $("btnSave").addEventListener("click", ()=>{
+    saveSettings($("gatewayUrl").value, $("grafanaUrl").value);
+    showOutput({ ok:true, saved:true, at: nowIso(), settings: getSettings() }, "Saved settings");
+  });
+
+  $("btnReset").addEventListener("click", ()=>{
+    resetSettings();
+    $("gatewayUrl").value = "";
+    $("grafanaUrl").value = "";
+    setBadge(null,"Not checked");
+    showOutput({ ok:true, reset:true, at: nowIso() }, "Reset done");
+  });
+
+  $("btnNewIds").addEventListener("click", ()=>{
+    $("workflowId").value = newId("wf");
+    $("jobId").value = $("workflowId").value;
+    $("xRequestId").value = newId("req");
+    $("traceparent").value = newTraceparent();
+    localStorage.setItem("wf_console_workflowId", $("workflowId").value.trim());
+    localStorage.setItem("wf_console_jobId", $("jobId").value.trim());
+    localStorage.setItem("wf_console_xRequestId", $("xRequestId").value.trim());
+    localStorage.setItem("wf_console_traceparent", $("traceparent").value.trim());
+    $("runId").textContent = "-";
+    localStorage.removeItem("wf_console_runId");
+
+    showOutput({
+      ok:true,
+      workflow_id: $("workflowId").value.trim(),
+      job_id: $("jobId").value.trim(),
+      "x-request-id": $("xRequestId").value.trim(),
+      traceparent: $("traceparent").value.trim(),
+      at: nowIso()
+    }, "Generated new IDs");
+  });
+
+  $("btnCopyKeys").addEventListener("click", async ()=>{
+    const s =
+`workflow_id=${$("workflowId").value.trim()}
+job_id=${$("jobId").value.trim()}
+x-request-id=${$("xRequestId").value.trim()}
+traceparent=${$("traceparent").value.trim()}
+run_id=${($("runId").textContent || "").trim()}`;
     try{
-      const d = new Date(v);
-      if(!isNaN(d.getTime())){
-        return d.toLocaleString();
-      }
-      return String(v);
-    }catch(e){ return String(v); }
-  }
-
-  function statusPill(s){
-    const cls = (s==="running"||s==="completed"||s==="failed") ? s : "";
-    return `<span class="status ${cls}"><span class="s"></span><span class="mono">${s||"—"}</span></span>`;
-  }
-
-  function renderTable(items){
-    if(!items || !items.length){
-      return `<div class="empty">No jobs found.</div>`;
+      await copyToClipboard(s);
+      showOutput({ ok:true, copied:true, at: nowIso(), keys: s }, "Copied keys to clipboard");
+    }catch(e){
+      showOutput({ ok:false, error: String(e), keys: s }, "Copy failed (browser permission?)");
     }
-    return `
-      <div style="max-height:520px;overflow:auto;border-radius:14px;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th style="width:170px;">job_id</th>
-              <th style="width:170px;">workflow_id</th>
-              <th style="width:130px;">status</th>
-              <th style="width:170px;">created</th>
-              <th style="width:170px;">completed</th>
-              <th style="width:110px;">duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(row=>{
-              const jid = row.job_id || "";
-              const wid = row.workflow_id || "";
-              const s = row.status || "";
-              const created = fmtTime(row.created_at);
-              const completed = fmtTime(row.completed_at);
-              const dur = (row.duration_ms!=null) ? (String(row.duration_ms)+"ms") : "—";
-              return `
-                <tr data-jid="${encodeURIComponent(jid)}" class="job-row" style="cursor:pointer;">
-                  <td class="mono">${escapeHtml(jid)}</td>
-                  <td class="mono">${escapeHtml(wid)}</td>
-                  <td>${statusPill(escapeHtml(s))}</td>
-                  <td class="mono">${escapeHtml(created)}</td>
-                  <td class="mono">${escapeHtml(completed)}</td>
-                  <td class="mono">${escapeHtml(dur)}</td>
-                </tr>
-              `;
-            }).join("")}
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
+  });
 
-  function escapeHtml(s){
-    return String(s==null?"":s)
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
+  $("btnOpenGrafana").addEventListener("click", ()=>{
+    const g = normalizeBaseUrl($("grafanaUrl").value);
+    if (!g){
+      showOutput({ ok:false, error:"Grafana URL not set." }, "Open Grafana");
+      return;
+    }
+    window.open(g, "_blank", "noopener,noreferrer");
+  });
 
-  async function refreshJobs(){
-    if(!state.base){
-      setConn(false, "unknown");
-      $("jobsArea").innerHTML = `<div class="empty">Gateway base URL is not set. Click <span class="mono">Config</span>.</div>`;
+  $("btnReady").addEventListener("click", async ()=>{
+    setBadge(null,"Checking...");
+    $("lastCheck").textContent = nowIso();
+
+    try{
+      const r = await callApi("GET", "/readyz");
+      $("readyResult").textContent = `HTTP ${r.status} (${r.ms}ms)`;
+      setBadge(r.ok, r.ok ? "Gateway ready" : "Gateway not ready");
+      showOutput(r, "GET /readyz");
+    }catch(e){
+      $("readyResult").textContent = "failed";
+      setBadge(false, "Check failed");
+      showOutput({ ok:false, error: String(e) }, "GET /readyz failed");
+    }
+  });
+
+  $("btnStartDoc").addEventListener("click", async ()=>{
+    const p = safeJsonParse($("payload").value || "{}");
+    if (!p.ok){
+      showOutput({ ok:false, error:"Payload JSON invalid", detail: p.error }, "Payload parse failed");
       return;
     }
 
-    $("jobsArea").innerHTML = `<div class="empty">Loading…</div>`;
+    const body = {
+      workflow_id: $("workflowId").value.trim(),
+      job_id: $("jobId").value.trim(),
+      payload: p.value
+    };
 
+    showOutput({ note:"Starting DocWorkflow...", body }, "POST /workflow/doc/start");
     try{
-      // quick connectivity probe (healthz) first
-      const health = await fetchJson("/healthz", { timeoutMs: 5000 });
-      $("pre-last").textContent = JSON.stringify(health, null, 2);
-      setConn(true, "unknown");
-
-      const qs = new URLSearchParams();
-      if(state.status) qs.set("status", state.status);
-      if(state.q) qs.set("q", state.q);
-      qs.set("page", String(state.page));
-      qs.set("page_size", String(state.pageSize));
-
-      const data = await fetchJson("/ops/jobs?" + qs.toString(), { timeoutMs: 8000 });
-
-      state.total = Number(data.total || 0);
-      state.totalPages = Number(data.total_pages || data.totalPages || Math.max(1, Math.ceil(state.total / state.pageSize)) || 1);
-      state.disabled = !!data.disabled;
-
-      $("txt-total").textContent = String(state.total);
-      $("txt-page").textContent = String(state.page);
-      $("txt-pages").textContent = String(state.totalPages);
-
-      const neonState = state.disabled ? "disabled" : "enabled";
-      setConn(true, neonState);
-
-      $("jobsArea").innerHTML = renderTable(data.items || []);
-
-      // bind row click
-      Array.from(document.querySelectorAll(".job-row")).forEach(tr=>{
-        tr.addEventListener("click", async ()=>{
-          const jid = decodeURIComponent(tr.getAttribute("data-jid") || "");
-          if(!jid) return;
-          await openDetail(jid);
-        });
-      });
-
-    }catch(err){
-      setConn(false, "unknown");
-      const detail = err && err.detail ? JSON.stringify(err.detail, null, 2) : "";
-      $("jobsArea").innerHTML = `<div class="empty">Failed to load jobs.<br/><span class="mono">${escapeHtml(err.message || String(err))}</span></div>`;
-      $("pre-last").textContent = detail || (err.stack ? String(err.stack) : String(err));
-      toast("Load failed: " + (err.message || err));
+      const r = await callApi("POST", "/workflow/doc/start", body);
+      // try capture run_id
+      const runId = (r.data && r.data.run_id) ? String(r.data.run_id) : "";
+      if (runId){
+        $("runId").textContent = runId;
+        localStorage.setItem("wf_console_runId", runId);
+      }
+      showOutput({
+        ...r,
+        keys: {
+          workflow_id: $("workflowId").value.trim(),
+          job_id: $("jobId").value.trim(),
+          "x-request-id": $("xRequestId").value.trim(),
+          traceparent: $("traceparent").value.trim(),
+          run_id: runId || null
+        }
+      }, "POST /workflow/doc/start");
+    }catch(e){
+      showOutput({ ok:false, error: String(e) }, "POST /workflow/doc/start failed");
     }
-  }
+  });
 
-  async function openDetail(jobId){
-    if(state.disabled){
-      toast("Neon store is disabled; detail is unavailable.");
+  $("btnDocStatus").addEventListener("click", async ()=>{
+    const wid = $("workflowId").value.trim();
+    const rid = ($("runId").textContent || "").trim();
+    if (!wid){
+      showOutput({ ok:false, error:"workflow_id empty" }, "Cannot call status");
       return;
     }
-    $("drawer").classList.add("show");
-    $("detail-id").textContent = jobId;
-    $("pre-detail").textContent = "Loading…";
-    $("detail-created").textContent = "—";
-    $("detail-completed").textContent = "—";
-    $("detail-duration").textContent = "—";
-    $("detail-status").className = "status";
-    $("detail-status").querySelector(".mono")?.remove?.();
 
+    const qs = new URLSearchParams({ workflow_id: wid });
+    if (rid && rid !== "-") qs.set("run_id", rid);
+
+    showOutput({ note:"Fetching DocWorkflow result (this may wait until completed)...", workflow_id: wid, run_id: rid || null }, "GET /workflow/doc/status");
     try{
-      const data = await fetchJson("/ops/jobs/" + encodeURIComponent(jobId), { timeoutMs: 8000 });
-      state.lastDetailJson = data;
-
-      const s = data.status || "";
-      $("detail-status").className = "status " + (s==="running"||s==="completed"||s==="failed" ? s : "");
-      $("detail-status").innerHTML = `<span class="s"></span><span class="mono">${escapeHtml(s||"—")}</span>`;
-
-      $("detail-created").textContent = fmtTime(data.created_at);
-      $("detail-completed").textContent = fmtTime(data.completed_at);
-      $("detail-duration").textContent = (data.duration_ms!=null) ? (String(data.duration_ms)+"ms") : "—";
-
-      $("pre-detail").textContent = JSON.stringify(data, null, 2);
-    }catch(err){
-      $("pre-detail").textContent = (err.detail ? JSON.stringify(err.detail, null, 2) : (err.stack || String(err)));
-      toast("Detail load failed: " + (err.message || err));
-    }
-  }
-
-  function closeDetail(){
-    $("drawer").classList.remove("show");
-  }
-
-  function openCfg(){
-    $("cfg").classList.add("show");
-    $("baseUrl").value = state.base || "";
-  }
-  function closeCfg(){
-    $("cfg").classList.remove("show");
-  }
-
-  function applyControls(){
-    state.q = $("q").value.trim();
-    state.status = $("status").value.trim();
-    state.pageSize = Number($("pageSize").value) || 20;
-  }
-
-  function setupAuto(){
-    if(state.timer){
-      clearInterval(state.timer);
-      state.timer = null;
-    }
-    const sec = Number($("auto").value) || 0;
-    if(sec > 0){
-      state.timer = setInterval(()=>refreshJobs(), sec * 1000);
-    }
-  }
-
-  // events
-  $("btn-refresh").addEventListener("click", ()=>refreshJobs());
-  $("btn-health").addEventListener("click", async ()=>{
-    try{
-      const j = await fetchJson("/healthz", { timeoutMs: 5000 });
-      $("pre-last").textContent = JSON.stringify(j, null, 2);
-      setConn(true, state.disabled ? "disabled" : "enabled");
+      const r = await callApi("GET", "/workflow/doc/status?" + qs.toString());
+      showOutput({
+        ...r,
+        keys: {
+          workflow_id: wid,
+          job_id: $("jobId").value.trim(),
+          "x-request-id": $("xRequestId").value.trim(),
+          traceparent: $("traceparent").value.trim(),
+          run_id: rid && rid !== "-" ? rid : (r.data && r.data.run_id ? String(r.data.run_id) : null)
+        }
+      }, "GET /workflow/doc/status");
     }catch(e){
-      $("pre-last").textContent = e.detail ? JSON.stringify(e.detail, null, 2) : (e.stack || String(e));
-      setConn(false, "unknown");
+      showOutput({ ok:false, error: String(e) }, "GET /workflow/doc/status failed");
     }
   });
-  $("btn-ready").addEventListener("click", async ()=>{
+
+  $("btnOpsList").addEventListener("click", async ()=>{
+    const qs = new URLSearchParams();
+    const st = $("opsStatus").value.trim();
+    const q = $("opsQ").value.trim();
+    const page = $("opsPage").value.trim() || "1";
+    const ps = $("opsPageSize").value.trim() || "20";
+    if (st) qs.set("status", st);
+    if (q) qs.set("q", q);
+    qs.set("page", page);
+    qs.set("page_size", ps);
+
+    showOutput({ note:"Listing jobs..." }, "GET /ops/jobs");
     try{
-      const j = await fetchJson("/readyz", { timeoutMs: 7000 });
-      $("pre-last").textContent = JSON.stringify(j, null, 2);
-      setConn(!!j.ok, state.disabled ? "disabled" : "enabled");
+      const r = await callApi("GET", "/ops/jobs?" + qs.toString());
+      showOutput(r, "GET /ops/jobs");
     }catch(e){
-      $("pre-last").textContent = e.detail ? JSON.stringify(e.detail, null, 2) : (e.stack || String(e));
-      setConn(false, "unknown");
+      showOutput({ ok:false, error: String(e) }, "GET /ops/jobs failed");
     }
   });
 
-  $("q").addEventListener("keydown", (ev)=>{
-    if(ev.key === "Enter"){
-      state.page = 1;
-      applyControls();
-      refreshJobs();
+  $("btnOpsGet").addEventListener("click", async ()=>{
+    const jobId = $("jobId").value.trim();
+    if (!jobId){
+      showOutput({ ok:false, error:"job_id empty" }, "GET /ops/jobs/{job_id}");
+      return;
     }
-  });
-  $("status").addEventListener("change", ()=>{
-    state.page = 1;
-    applyControls();
-    refreshJobs();
-  });
-  $("pageSize").addEventListener("change", ()=>{
-    state.page = 1;
-    applyControls();
-    refreshJobs();
-  });
-  $("auto").addEventListener("change", ()=>{
-    setupAuto();
-  });
-
-  $("btn-prev").addEventListener("click", ()=>{
-    if(state.page > 1){
-      state.page -= 1;
-      refreshJobs();
-    }
-  });
-  $("btn-next").addEventListener("click", ()=>{
-    if(state.page < state.totalPages){
-      state.page += 1;
-      refreshJobs();
-    }
-  });
-
-  $("btn-config").addEventListener("click", openCfg);
-  $("btn-cancel").addEventListener("click", closeCfg);
-  $("btn-save").addEventListener("click", ()=>{
-    const v = normBase($("baseUrl").value);
-    state.base = v;
-    localStorage.setItem(LS_KEY, v);
-    $("txt-base").textContent = v || "—";
-    $("txt-base-mini").textContent = v || "—";
-    closeCfg();
-    toast("Saved.");
-    refreshJobs();
-  });
-  $("btn-clear").addEventListener("click", ()=>{
-    localStorage.removeItem(LS_KEY);
-    state.base = "";
-    $("txt-base").textContent = "—";
-    $("txt-base-mini").textContent = "—";
-    $("baseUrl").value = "";
-    toast("Cleared.");
-    setConn(false, "unknown");
-    $("jobsArea").innerHTML = `<div class="empty">Gateway base URL is not set. Click <span class="mono">Config</span>.</div>`;
-  });
-
-  $("btn-close").addEventListener("click", closeDetail);
-  $("drawer").addEventListener("click", (e)=>{
-    if(e.target === $("drawer")) closeDetail();
-  });
-  $("cfg").addEventListener("click", (e)=>{
-    if(e.target === $("cfg")) closeCfg();
-  });
-
-  $("btn-copy").addEventListener("click", async ()=>{
+    showOutput({ note:"Fetching job...", job_id: jobId }, "GET /ops/jobs/{job_id}");
     try{
-      const txt = JSON.stringify(state.lastDetailJson || {}, null, 2);
-      await navigator.clipboard.writeText(txt);
-      toast("Copied.");
+      const r = await callApi("GET", "/ops/jobs/" + encodeURIComponent(jobId));
+      showOutput(r, "GET /ops/jobs/" + jobId);
     }catch(e){
-      toast("Copy failed.");
+      showOutput({ ok:false, error: String(e) }, "GET /ops/jobs/{job_id} failed");
     }
   });
-
-  // keyboard
-  window.addEventListener("keydown", (e)=>{
-    if(e.key === "r" || e.key === "R"){
-      refreshJobs();
-    }
-    if(e.key === "Escape"){
-      closeDetail();
-      closeCfg();
-    }
-  });
-
-  // init
-  loadBase();
-  applyControls();
-  setupAuto();
-  refreshJobs();
-
-})();
 </script>
 </body>
 </html>
