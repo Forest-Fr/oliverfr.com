@@ -367,6 +367,19 @@
     // remove trailing slash
     return u.replace(/\/+$/, "");
   }
+
+  // ===== [PATCH INSERT BEGIN] force browser -> worker proxy (non-breaking) =====
+function resolveGatewayBaseForBrowser(inputBase){
+  const raw = normalizeBaseUrl(inputBase);
+  if (!raw) return "";
+
+  // 浏览器环境：强制走同源 Worker /wf
+  // 真实 Gateway 由 Worker 侧 WORKFLOW_GATEWAY_BASE 决定
+  const sameOrigin = location.origin;
+  return sameOrigin + "/wf";
+}
+// ===== [PATCH INSERT END] =====
+
   function joinUrl(base, path){
     base = normalizeBaseUrl(base);
     path = (path || "").trim();
@@ -474,7 +487,9 @@
   }
 
   async function check(){
-    const base = normalizeBaseUrl(els.gatewayBase.value);
+   // const base = normalizeBaseUrl(els.gatewayBase.value);
+    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
+
     if (!base){
       setStatus("bad", "Missing Gateway URL");
       return;
@@ -523,7 +538,9 @@
   async function send(){
     stopPoll();
 
-    const base = normalizeBaseUrl(els.gatewayBase.value);
+    //const base = normalizeBaseUrl(els.gatewayBase.value);
+    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
+
     if (!base){
       setReqState("bad", "Missing base");
       return;
@@ -592,7 +609,9 @@
   }
 
   function buildCurl(){
-    const base = normalizeBaseUrl(els.gatewayBase.value);
+    //const base = normalizeBaseUrl(els.gatewayBase.value);
+    const base = resolveGatewayBaseForBrowser(els.gatewayBase.value);
+
     const method = (els.method.value || "POST").toUpperCase();
     const url = joinUrl(base, els.path.value.trim() || "/");
 
@@ -721,3 +740,4 @@
 </script>
 </body>
 </html>
+
