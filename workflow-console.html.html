@@ -405,6 +405,16 @@
     return u.replace(/\/+$/,"");
   }
 
+  // ===== [PATCH INSERT] prevent mis-config (non-breaking) =====
+function sanitizeGatewayInput(u){
+  const v = normalizeBaseUrl(u);
+  // 误把 grafana 当 gateway：直接判定为无效
+  if (/\.grafana\.net$/i.test(v) || /\.grafana\.net\//i.test(v)) return "";
+  return v;
+}
+// ===== [PATCH END] =====
+
+
   function setBadge(ok, text){
     const dot = $("badgeDot");
     const t = $("badgeText");
@@ -452,7 +462,9 @@
   }
 
   async function callApi(method, path, bodyObj){
-    const base = normalizeBaseUrl($("gatewayUrl").value);
+    //const base = normalizeBaseUrl($("gatewayUrl").value);
+    const base = sanitizeGatewayInput($("gatewayUrl").value);
+
     if (!base) throw new Error("Gateway URL is empty.");
 
     ensureIdsIfEmpty();
@@ -501,7 +513,9 @@
   // ---------- init ----------
   (function init(){
     const st = getSettings();
-    $("gatewayUrl").value = st.gatewayUrl;
+    //$("gatewayUrl").value = st.gatewayUrl;
+    $("gatewayUrl").value = sanitizeGatewayInput(st.gatewayUrl);
+
     $("grafanaUrl").value = st.grafanaUrl;
 
     $("workflowId").value = localStorage.getItem("wf_console_workflowId") || "";
@@ -699,3 +713,4 @@ run_id=${($("runId").textContent || "").trim()}`;
 </script>
 </body>
 </html>
+
