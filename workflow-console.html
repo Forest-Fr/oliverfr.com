@@ -246,7 +246,9 @@
           </div>
           <div>
             <label>Path (relative to base)</label>
-            <input id="path" class="mono" value="/api/trigger" />
+           
+            <input id="path" class="mono" value="/workflow/doc/start" />
+
           </div>
         </div>
 
@@ -255,7 +257,8 @@
           <textarea id="body" spellcheck="false">{
   "workflow_id": "{{workflow_id}}",
   "job_id": "{{job_id}}",
-  "note": "console demo request"
+  "payload": {
+    "note": "console demo request"
 }</textarea>
           <div class="small" style="margin-top:6px">
             支持模板变量：<span class="mono">{{workflow_id}}</span>、<span class="mono">{{job_id}}</span>、<span class="mono">{{x_request_id}}</span>、<span class="mono">{{traceparent}}</span>
@@ -654,8 +657,22 @@ if (!directBase){
   return;
 }
 
-const method = (els.method.value || "POST").toUpperCase();
-const url = buildFetchUrl(els.path.value || "/");
+//const method = (els.method.value || "POST").toUpperCase();
+//const url = buildFetchUrl(els.path.value || "/");
+
+    let method = (els.method.value || "POST").toUpperCase();
+const pathNormalized = normalizePathInput(els.path.value || "/workflow/doc/start", "/workflow/doc/start");
+
+// 如果是 /workflow/*/start，强制 POST（避免误选 PUT/GET 导致 404/405）
+if (/^\/workflow\/.+\/start(\?|$)/.test(pathNormalized) && method !== "POST"){
+  logLine(`INFO: Method auto-corrected to POST for start endpoint (was ${method}).`);
+  method = "POST";
+  els.method.value = "POST";
+}
+
+const url = buildFetchUrl(pathNormalized);
+
+    
 
 
 
@@ -761,12 +778,45 @@ const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
       els.healthPath.value = s.healthPath || "/health";
       els.grafanaBase.value = s.grafanaBase || "";
       els.method.value = s.method || "POST";
-      els.path.value = s.path || "/api/trigger";
+      //els.path.value = s.path || "/api/trigger";
+      els.path.value = s.path || "/workflow/doc/start";
+
       els.body.value = s.body || els.body.value;
       els.pollPath.value = s.pollPath || "";
       els.pollInterval.value = s.pollInterval || "1500";
     }catch(e){}
   }
+
+  // ===== [PATCH INSERT] migrate legacy trigger config to OpenAPI routes (non-breaking) =====
+function migrateLegacyTriggerConfig(){
+  const pRaw = (els.path.value || "").trim();
+
+  // 兼容历史默认：/api/trigger（该路由不存在，导致 404）
+  if (pRaw === "/api/trigger" || pRaw === "api/trigger" || pRaw === ""){
+    els.method.value = "POST";
+    els.path.value = "/workflow/doc/start";
+
+    // 尝试把旧 body: {workflow_id, job_id, note} 无损迁移为 {workflow_id, job_id, payload:{note}}
+    try{
+      const obj = JSON.parse(els.body.value || "{}");
+      if (obj && typeof obj === "object" && !Array.isArray(obj)){
+        const hasPayload = Object.prototype.hasOwnProperty.call(obj, "payload");
+        const hasNote = Object.prototype.hasOwnProperty.call(obj, "note");
+        if (!hasPayload && hasNote){
+          obj.payload = { note: obj.note };
+          delete obj.note;
+          els.body.value = JSON.stringify(obj, null, 2);
+        }
+      }
+    }catch(e){
+      // body 不是 JSON 就不动，保持无损
+    }
+
+    logLine("INFO: Migrated legacy /api/trigger -> /workflow/doc/start (Scheme A).");
+  }
+}
+// ===== [PATCH END] =====
+
 
   function saveSettings(){
     const s = {
@@ -792,12 +842,23 @@ const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
     els.healthPath.value = "/health";
     els.grafanaBase.value = "";
     els.method.value = "POST";
-    els.path.value = "/api/trigger";
-    els.body.value = `{
+    //els.path.value = "/api/trigger";
+   // els.body.value = `{
+  //"workflow_id": "{{workflow_id}}",
+  //"job_id": "{{job_id}}",
+  //"note": "console demo request"
+//}`;
+
+    els.path.value = "/workflow/doc/start";
+els.body.value = `{
   "workflow_id": "{{workflow_id}}",
   "job_id": "{{job_id}}",
-  "note": "console demo request"
+  "payload": {
+    "note": "console demo request"
+  }
 }`;
+
+    
     els.pollPath.value = "";
     els.pollInterval.value = "1500";
     els.log.textContent = "";
@@ -849,12 +910,14 @@ const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
 
   // Boot
   loadSettings();
+  migrateLegacyTriggerConfig(); // ===== [PATCH INSERT] =====
   genIds();
   setReqState("warn", "Idle");
 })();
 </script>
 </body>
 </html>
+
 
 
 
