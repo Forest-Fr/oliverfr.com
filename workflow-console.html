@@ -526,12 +526,18 @@ u.searchParams.set("__upstream", directBase);        // 兼容旧 Worker 版本
     const tp = els.traceparent.value.trim();
     const traceId = (tp.split("-")[1] || "").trim();
 
+    // ===== [PATCH INSERT] allow server-returned trace id (non-breaking) =====
+const respTraceId = (els.__lastTraceId || "").trim();
+// ===== [PATCH END] =====
+
+
     const lines = [
       `service.name="workflow-gateway"`,
       wf ? `workflow_id="${wf}" (若你把 workflow_id 写入 span attributes)` : `workflow_id="<workflow_id>"`,
       job ? `job_id="${job}" (同上)` : `job_id="<job_id>"`,
       req ? `x_request_id="${req}" (同上)` : `x_request_id="<x-request-id>"`,
-      traceId ? `trace_id=${traceId}  (最稳：直接按 trace_id 查)` : `trace_id=<from traceparent>`,
+     // traceId ? `trace_id=${traceId}  (最稳：直接按 trace_id 查)` : `trace_id=<from traceparent>`,
+      (respTraceId ? `x_trace_id=${respTraceId}  (最稳：从响应头拿到的 trace id 直查)` : (traceId ? `trace_id=${traceId}  (从 traceparent 解析)` : `trace_id=<from traceparent>`)),
       ``,
       `建议做法：先在网关发一次请求 → 从返回/日志里拿 trace_id → Tempo 里用 trace_id 直查 span 树。`
     ];
@@ -640,6 +646,18 @@ function prepareBodyForSend(raw){
     try { return await resp.text(); } catch(e){ return ""; }
   }
 
+  // ===== [PATCH INSERT BEGIN] read trace id from response headers (non-breaking) =====
+function readTraceIdFromHeaders(h){
+  try{
+    if (!h || typeof h.get !== "function") return "";
+    return (h.get("x-trace-id") || h.get("X-Trace-Id") || "").trim();
+  }catch(e){
+    return "";
+  }
+}
+// ===== [PATCH INSERT END] =====
+
+
   function logLine(s){
     const now = new Date().toISOString();
     els.log.textContent = `[${now}] ${s}\n` + els.log.textContent;
@@ -695,11 +713,15 @@ const healthUrl = buildFetchUrl(els.healthPath.value || "/health");
 
 
 
-    const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{}, bodyText:null });
+    //const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{}, bodyText:null });
+    const t1 = readTraceIdFromHeaders(r1.headers); if (t1) logLine(`ready header x-trace-id: ${t1}`);
+
     logLine(`GET ${readyUrl} -> status=${r1.status || "fetch_error"} time=${r1.ms}ms ${r1.error ? " err=" + r1.error : ""}`);
     if (r1.status) logLine(`ready body: ${truncate(r1.text, 800)}`);
 
-    const r2 = await apiCall({ method:"GET", url: healthUrl, headers:{}, bodyText:null });
+    //const r2 = await apiCall({ method:"GET", url: healthUrl, headers:{}, bodyText:null });
+    const t2 = readTraceIdFromHeaders(r2.headers); if (t2) logLine(`health header x-trace-id: ${t2}`);
+
     logLine(`GET ${healthUrl} -> status=${r2.status || "fetch_error"} time=${r2.ms}ms ${r2.error ? " err=" + r2.error : ""}`);
     if (r2.status) logLine(`health body: ${truncate(r2.text, 800)}`);
 
@@ -794,6 +816,15 @@ if (method !== "GET" && method !== "HEAD"){
     if (bodyText) logLine(`body:\n${truncate(bodyText, 1200)}`);
 
     const r = await apiCall({ method, url, headers: hdr, bodyText });
+    // ===== [PATCH INSERT BEGIN] capture x-trace-id for Tempo search (non-breaking) =====
+const xTraceId = readTraceIdFromHeaders(r.headers);
+if (xTraceId){
+  els.__lastTraceId = xTraceId;      // cache for renderTempoHints()
+  logLine(`RESP header x-trace-id: ${xTraceId}`);
+  renderTempoHints();
+}
+// ===== [PATCH INSERT END] =====
+
     if (r.status === 0){
       // CORS / network
       setReqState("bad", "Failed to fetch (CORS/network)");
@@ -1050,6 +1081,7 @@ els.body.value = `{
 </script>
 </body>
 </html>
+
 
 
 
