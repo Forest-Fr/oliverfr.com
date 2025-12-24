@@ -408,17 +408,30 @@ function resolveGatewayBaseForBrowser(inputBase){
   if (typed) {
     try {
       const tu = new URL(typed);
-      const isWorkers = tu.hostname.endsWith("workers.dev") || tu.hostname.endsWith("mefans.workers.dev");
+      //const isWorkers = tu.hostname.endsWith("workers.dev") || tu.hostname.endsWith("mefans.workers.dev");
+      //const endsWf = tu.pathname.replace(/\/+$/, "").endsWith("/wf");
+      //if (isWorkers && endsWf) return typed;
+
+            const isWorkers = tu.hostname.endsWith("workers.dev") || tu.hostname.endsWith("mefans.workers.dev");
       const endsWf = tu.pathname.replace(/\/+$/, "").endsWith("/wf");
-      if (isWorkers && endsWf) return typed;
+      const isSameOrigin = (tu.origin === location.origin);
+      if ((isWorkers || isSameOrigin) && endsWf) return typed;
+
     } catch (_) {}
   }
 
   // 默认 Worker 域名：如果页面本身就在 workers.dev，则用 location.origin；否则用你部署的 doc Worker
-  const defaultOrigin =
-    (location.hostname.endsWith("workers.dev") || location.hostname.endsWith("mefans.workers.dev"))
-      ? location.origin
-      : "https://doc.mefans.workers.dev";
+  //const defaultOrigin =
+    //(location.hostname.endsWith("workers.dev") || location.hostname.endsWith("mefans.workers.dev"))
+     // ? location.origin
+      //: "https://doc.mefans.workers.dev";
+
+    // ===== [PATCH REPLACE BEGIN] Scheme A: same-origin worker route default (non-breaking) =====
+  // 方案A：Worker 已绑定到当前站点的同域路由（例如 oliverfr.com/wf*）
+  // 所以默认代理 origin 直接使用当前页面 origin，彻底避免 CORS
+  const defaultOrigin = location.origin;
+  // ===== [PATCH REPLACE END] =====
+
 
   const origin = normalizeBaseUrl(qpOrigin || lsOrigin || defaultOrigin);
   let prefix = (qpPrefix || lsPrefix || "/wf").trim();
@@ -836,5 +849,6 @@ const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
 </script>
 </body>
 </html>
+
 
 
