@@ -713,17 +713,26 @@ const healthUrl = buildFetchUrl(els.healthPath.value || "/health");
 
 
 
-    //const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{}, bodyText:null });
-    const t1 = readTraceIdFromHeaders(r1.headers); if (t1) logLine(`ready header x-trace-id: ${t1}`);
+// ===== [PATCH REPLACE BEGIN] define r1/r2 to avoid ReferenceError (non-breaking) =====
+if (!readyUrl || !healthUrl){
+  setStatus("bad", "Invalid URL (ready/health)");
+  logLine(`ERROR: Invalid ready/health url. readyUrl=${String(readyUrl)} healthUrl=${String(healthUrl)}`);
+  return;
+}
 
-    logLine(`GET ${readyUrl} -> status=${r1.status || "fetch_error"} time=${r1.ms}ms ${r1.error ? " err=" + r1.error : ""}`);
-    if (r1.status) logLine(`ready body: ${truncate(r1.text, 800)}`);
+const r1 = await apiCall({ method:"GET", url: readyUrl, headers:{}, bodyText:null });
+const t1 = readTraceIdFromHeaders(r1.headers); if (t1) logLine(`ready header x-trace-id: ${t1}`);
 
-    //const r2 = await apiCall({ method:"GET", url: healthUrl, headers:{}, bodyText:null });
-    const t2 = readTraceIdFromHeaders(r2.headers); if (t2) logLine(`health header x-trace-id: ${t2}`);
+logLine(`GET ${readyUrl} -> status=${r1.status || "fetch_error"} time=${r1.ms}ms ${r1.error ? " err=" + r1.error : ""}`);
+if (r1.status) logLine(`ready body: ${truncate(r1.text, 800)}`);
 
-    logLine(`GET ${healthUrl} -> status=${r2.status || "fetch_error"} time=${r2.ms}ms ${r2.error ? " err=" + r2.error : ""}`);
-    if (r2.status) logLine(`health body: ${truncate(r2.text, 800)}`);
+const r2 = await apiCall({ method:"GET", url: healthUrl, headers:{}, bodyText:null });
+const t2 = readTraceIdFromHeaders(r2.headers); if (t2) logLine(`health header x-trace-id: ${t2}`);
+
+logLine(`GET ${healthUrl} -> status=${r2.status || "fetch_error"} time=${r2.ms}ms ${r2.error ? " err=" + r2.error : ""}`);
+if (r2.status) logLine(`health body: ${truncate(r2.text, 800)}`);
+// ===== [PATCH REPLACE END] =====
+
 
     // Decide
     if (r1.status === 0 || r2.status === 0){
@@ -1081,6 +1090,7 @@ els.body.value = `{
 </script>
 </body>
 </html>
+
 
 
 
