@@ -553,6 +553,86 @@ u.searchParams.set("__upstream", directBase);        // 兼容旧 Worker 版本
     }
     return out;
   }
+// ===== [PATCH INSERT BEGIN] strict-ish JSON prepare (non-breaking) =====
+function _stripTrailingCommas(jsonText){
+  // remove trailing commas before } or ]
+  // e.g. {"a":1,} -> {"a":1}
+  return String(jsonText || "")
+    .replace(/,\s*([}\]])/g, "$1");
+}
+
+function _extractJsJsonErrorPos(err){
+  // V8 usually: "Unexpected token } in JSON at position 123"
+  const m = String(err && err.message ? err.message : err).match(/position\s+(\d+)/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function _buildJsonErrorSnippet(raw, pos){
+  const s = String(raw || "");
+  if (pos == null || !Number.isFinite(pos)) return "";
+  const start = Math.max(0, pos - 40);
+  const end = Math.min(s.length, pos + 40);
+  const head = s.slice(start, pos);
+  const tail = s.slice(pos, end);
+  return `${head}<<<HERE>>>${tail}`;
+}
+
+/**
+ * Prepare request body for POST/PUT/DELETE:
+ * - If looks like JSON ({ or [), enforce JSON parse.
+ * - Try to auto-fix trailing commas once.
+ * - If still invalid, return ok:false and a helpful snippet.
+ * - If not JSON-looking, allow plain text (keeps original flexibility).
+ */
+function prepareBodyForSend(raw){
+  const text = String(raw == null ? "" : raw);
+  const trimmed = text.trim();
+
+  // Non-JSON payload: keep old behavior, but correct content-type
+  if (!trimmed || (!trimmed.startsWith("{") && !trimmed.startsWith("["))){
+    return {
+      ok: true,
+      bodyText: text,
+      contentType: "text/plain;charset=utf-8",
+      fixed: false,
+      note: "plain_text"
+    };
+  }
+
+  // JSON payload: must be valid
+  try{
+    const obj = JSON.parse(trimmed);
+    return {
+      ok: true,
+      bodyText: JSON.stringify(obj),
+      contentType: "application/json",
+      fixed: false,
+      note: "json_ok"
+    };
+  }catch(e1){
+    // try one safe fix: trailing commas
+    const fixed = _stripTrailingCommas(trimmed);
+    try{
+      const obj2 = JSON.parse(fixed);
+      return {
+        ok: true,
+        bodyText: JSON.stringify(obj2),
+        contentType: "application/json",
+        fixed: true,
+        note: "json_fixed_trailing_comma"
+      };
+    }catch(e2){
+      const pos = _extractJsJsonErrorPos(e2) ?? _extractJsJsonErrorPos(e1);
+      return {
+        ok: false,
+        error: String(e2 && e2.message ? e2.message : e2),
+        pos,
+        snippet: _buildJsonErrorSnippet(trimmed, pos),
+      };
+    }
+  }
+}
+// ===== [PATCH INSERT END] =====
 
   async function safeReadText(resp){
     try { return await resp.text(); } catch(e){ return ""; }
@@ -676,19 +756,35 @@ const url = buildFetchUrl(pathNormalized);
 
 
 
-    // Build headers with trace injection (this may trigger preflight; that's expected)
-    const hdr = buildInjectedHeaders();
+   // ===== [PATCH REPLACE BEGIN] prepare body & content-type (non-breaking) =====
+const hdr0 = buildInjectedHeaders();
+const hdr = { ...hdr0 }; // clone so we can safely override content-type
 
-    // Body templating
-    let bodyText = null;
-    if (method !== "GET" && method !== "HEAD"){
-      const raw = applyTemplate(els.body.value);
-      bodyText = raw;
-      // Validate JSON but still send raw if user wants (we enforce JSON default)
-      try { JSON.parse(raw); } catch(e){
-        logLine("WARN: Body is not valid JSON; request will still be sent as text.");
-      }
-    }
+let bodyText = null;
+if (method !== "GET" && method !== "HEAD"){
+  const raw = applyTemplate(els.body.value);
+
+  const prepared = prepareBodyForSend(raw);
+  if (!prepared.ok){
+    setReqState("bad", "Body JSON invalid");
+    logLine(`ERROR: Body JSON invalid; ${prepared.error || "unknown parse error"}`);
+    if (prepared.pos != null) logLine(`ERROR: JSON parse position=${prepared.pos}`);
+    if (prepared.snippet) logLine(`ERROR: snippet:\n${prepared.snippet}`);
+    logLine(`HINT: 请检查是否缺少逗号/大括号，或存在尾逗号（trailing comma）。修复后再点 Send。`);
+    return; // stop here to avoid 422 spam
+  }
+
+  bodyText = prepared.bodyText;
+
+  // ensure content-type matches what we actually send
+  if (prepared.contentType) hdr["content-type"] = prepared.contentType;
+
+  if (prepared.fixed){
+    logLine(`INFO: Body auto-fixed (${prepared.note}).`);
+  }
+}
+// ===== [PATCH REPLACE END] =====
+
 
     setReqState("warn", "Sending...");
     logLine(`SEND ${method} ${url}`);
@@ -741,10 +837,19 @@ const url = buildFetchUrl(pathNormalized);
 
   function buildCurl(){
     //const base = normalizeBaseUrl(els.gatewayBase.value);
-const base = normalizeBaseUrl(els.gatewayBase.value);
+//const base = normalizeBaseUrl(els.gatewayBase.value);
 
+//const method = (els.method.value || "POST").toUpperCase();
+//const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
+
+    // ===== [PATCH REPLACE BEGIN] curl uses same URL as Send (non-breaking) =====
 const method = (els.method.value || "POST").toUpperCase();
-const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
+const url = buildFetchUrl(els.path.value || "/");
+if (!url){
+  return "curl: missing URL";
+}
+// ===== [PATCH REPLACE END] =====
+
 
 
     const hdr = buildInjectedHeaders();
@@ -917,6 +1022,7 @@ els.body.value = `{
 </script>
 </body>
 </html>
+
 
 
 
