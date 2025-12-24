@@ -394,6 +394,7 @@ function normalizePathInput(input, fallback){
 
 
 // ===== [PATCH REPLACE BEGIN] browser -> worker proxy base resolver (non-breaking, correct default) =====
+// ===== [PATCH REPLACE BEGIN] browser -> worker proxy base resolver (Scheme A: same-origin /wf) =====
 function resolveGatewayBaseForBrowser(inputBase){
   const sp = new URLSearchParams(location.search);
 
@@ -403,37 +404,25 @@ function resolveGatewayBaseForBrowser(inputBase){
   const lsOrigin = (localStorage.getItem("wf_console_proxy_origin") || "").trim();
   const lsPrefix = (localStorage.getItem("wf_console_proxy_prefix") || "").trim();
 
-  // 若你已经在输入框里填了一个 Worker /wf 作为 base，则直接使用它（不改变原有功能语义）
+  // 若你在输入框里直接填了一个 “同源 /wf” 或 “workers.dev/.../wf” 的 base，则直接使用它（不改变原语义）
   const typed = normalizeBaseUrl(inputBase);
   if (typed) {
     try {
       const tu = new URL(typed);
-      //const isWorkers = tu.hostname.endsWith("workers.dev") || tu.hostname.endsWith("mefans.workers.dev");
-      //const endsWf = tu.pathname.replace(/\/+$/, "").endsWith("/wf");
-      //if (isWorkers && endsWf) return typed;
-
-            const isWorkers = tu.hostname.endsWith("workers.dev") || tu.hostname.endsWith("mefans.workers.dev");
       const endsWf = tu.pathname.replace(/\/+$/, "").endsWith("/wf");
-      const isSameOrigin = (tu.origin === location.origin);
+      const isWorkers = tu.hostname.endsWith("workers.dev") || tu.hostname.endsWith("mefans.workers.dev");
+      const isSameOrigin = (location.origin && location.origin !== "null" && tu.origin === location.origin);
       if ((isWorkers || isSameOrigin) && endsWf) return typed;
-
     } catch (_) {}
   }
 
-  // 默认 Worker 域名：如果页面本身就在 workers.dev，则用 location.origin；否则用你部署的 doc Worker
-  //const defaultOrigin =
-    //(location.hostname.endsWith("workers.dev") || location.hostname.endsWith("mefans.workers.dev"))
-     // ? location.origin
-      //: "https://doc.mefans.workers.dev";
+  // 方案A：默认同源路由代理（oliverfr.com/wf* 已绑定到 Worker）
+  const safeOrigin =
+    (location.origin && location.origin !== "null")
+      ? location.origin
+      : "https://doc.mefans.workers.dev"; // 仅用于 file:// 本地打开时兜底
 
-    // ===== [PATCH REPLACE BEGIN] Scheme A: same-origin worker route default (non-breaking) =====
-  // 方案A：Worker 已绑定到当前站点的同域路由（例如 oliverfr.com/wf*）
-  // 所以默认代理 origin 直接使用当前页面 origin，彻底避免 CORS
-  const defaultOrigin = location.origin;
-  // ===== [PATCH REPLACE END] =====
-
-
-  const origin = normalizeBaseUrl(qpOrigin || lsOrigin || defaultOrigin);
+  const origin = normalizeBaseUrl(qpOrigin || lsOrigin || safeOrigin);
   let prefix = (qpPrefix || lsPrefix || "/wf").trim();
 
   if (qpOrigin) localStorage.setItem("wf_console_proxy_origin", origin);
@@ -444,6 +433,8 @@ function resolveGatewayBaseForBrowser(inputBase){
 
   return origin + prefix;
 }
+// ===== [PATCH REPLACE END] =====
+
 // ===== [PATCH REPLACE END] =====
 
 
@@ -483,7 +474,12 @@ function buildFetchUrl(pathStr){
   const proxyBase = resolveGatewayBaseForBrowser(directBase);
   const u = new URL(joinUrl(proxyBase, rel));
   // 把真实上游带给 Worker（不加自定义 header，避免 GET/ready/health 触发 preflight）
-  u.searchParams.set("__upstream", directBase);
+  //u.searchParams.set("__upstream", directBase);
+  // ===== [PATCH REPLACE] upstream param compat (non-breaking) =====
+u.searchParams.set("upstream", directBase);          // 兼容你截图里实际显示的参数名
+u.searchParams.set("__upstream", directBase);        // 兼容旧 Worker 版本
+// ===== [PATCH END] =====
+
   return u.toString();
 }
 // ===== [PATCH INSERT END] =====
@@ -566,12 +562,22 @@ function buildFetchUrl(pathStr){
 
   async function apiCall({method, url, headers, bodyText}){
     // Important: if CORS blocks, fetch throws TypeError and we cannot read status/body.
-    const init = {
+    /*const init = {
       method,
       headers,
       mode: "cors",
       credentials: "omit",
-    };
+    };*/
+    const u = new URL(url, location.href);
+const sameOrigin = (location.origin && location.origin !== "null" && u.origin === location.origin);
+
+const init = {
+  method,
+  headers,
+  mode: sameOrigin ? "same-origin" : "cors",
+  credentials: "omit",
+};
+
     if (method !== "GET" && method !== "HEAD" && bodyText != null){
       init.body = bodyText;
     }
@@ -849,6 +855,7 @@ const url = joinUrl(base, normalizePathInput(els.path.value, "/"));
 </script>
 </body>
 </html>
+
 
 
 
