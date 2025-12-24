@@ -254,12 +254,14 @@
 
         <div style="margin-top:10px">
           <label>JSON Body (optional; ignored for GET)</label>
-          <textarea id="body" spellcheck="false">{
+<textarea id="body" spellcheck="false">{
   "workflow_id": "{{workflow_id}}",
   "job_id": "{{job_id}}",
   "payload": {
     "note": "console demo request"
+  }
 }</textarea>
+
           <div class="small" style="margin-top:6px">
             支持模板变量：<span class="mono">{{workflow_id}}</span>、<span class="mono">{{job_id}}</span>、<span class="mono">{{x_request_id}}</span>、<span class="mono">{{traceparent}}</span>
           </div>
@@ -922,6 +924,30 @@ function migrateLegacyTriggerConfig(){
 }
 // ===== [PATCH END] =====
 
+// ===== [PATCH INSERT] fix legacy broken default JSON body for /workflow/*/start (non-breaking) =====
+function fixLegacyBrokenBodyTemplate(){
+  const p = normalizePathInput(els.path.value || "", "/workflow/doc/start");
+  if (!/^\/workflow\/.+\/start(\?|$)/.test(p)) return;
+
+  const raw = String(els.body.value || "");
+  // 仅针对你截图里这一类“缺右大括号”的历史坏模板做修复，避免误伤用户自定义 body
+  const looksLikeOldBroken =
+    raw.includes('"payload": {') &&
+    raw.includes('"note": "console demo request"') &&
+    !raw.trim().endsWith("}");
+
+  if (!looksLikeOldBroken) return;
+
+  els.body.value = `{
+  "workflow_id": "{{workflow_id}}",
+  "job_id": "{{job_id}}",
+  "payload": {
+    "note": "console demo request"
+  }
+}`;
+  logLine("INFO: Fixed legacy broken default JSON body template loaded from settings.");
+}
+// ===== [PATCH END] =====
 
   function saveSettings(){
     const s = {
@@ -1016,12 +1042,15 @@ els.body.value = `{
   // Boot
   loadSettings();
   migrateLegacyTriggerConfig(); // ===== [PATCH INSERT] =====
+    fixLegacyBrokenBodyTemplate();
+
   genIds();
   setReqState("warn", "Idle");
 })();
 </script>
 </body>
 </html>
+
 
 
 
