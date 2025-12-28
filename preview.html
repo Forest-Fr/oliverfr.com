@@ -1,112 +1,726 @@
-<!doctype html>
+<!DOCTYPE html> 
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Hero Slide (slide3.jpg)</title>
-  <style>
-    /* ===== Base reset (safe) ===== */
-    *{ box-sizing: border-box; }
-    body{
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-      background: #0b1120;
-      color: #fff;
-    }
+<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    /* ===== HERO (image stays original ratio; no radius, no shadow) ===== */
-    .hero{
-      width: 100%;
-      padding: 28px 0; /* 外部留白，不影响图片本身 */
-    }
+  <!-- ✅ SEO optimization meta elements -->
+<meta name="description" content="MeFan - High-quality wireless Bluetooth headphones that deliver an exceptional audio experience." />
+<meta name="keywords" content="Bluetooth headphones, MeFan, wireless audio, premium sound, noise-cancelling headphones" />
+<meta name="author" content="MeFan Solutions" />
+<meta name="robots" content="index, follow" />
+<!-- ✅ End -->
 
-    .hero-content.hero-slide{
-      position: relative;
-      width: 100%;
-      min-height: 520px;          /* 仅保证可视高度 */
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: contain;   /* 关键：保持原始比例，不裁切 */
-    }
+  <title>MeFan - 让体验无线自由</title>
+  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
 
-    /* 指定 slide3.jpg */
-    .hero-slide-3{
-      background-image: url("slide3.jpg");
-    }
+  <!-- 引入字体 -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Poppins:wght@400;600&display=swap"
+    rel="stylesheet"
+  >
 
-    /* 覆盖层：只做暗化与居中排版，不改变图片尺寸/比例 */
-    .hero-overlay{
-      position: absolute;
-      inset: 0;
-      background: rgba(18, 22, 30, 0.48);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
+  <!-- 样式与脚本 -->
+  <link rel="stylesheet" href="styles.css" />
+<!-- ☑ Scroll 原链接保留 -->
+<script src="scroll.js"></script>
 
-    /* 文案容器 */
-    .hero-inner{
-      text-align: center;
-      max-width: 980px;
-      width: 100%;
-    }
+<!-- ☑ 业务脚本（原 scripts.js） -->
+<script src="scripts.js" defer></script>
 
-    .hero-inner h1{
-      margin: 0 0 16px;
-      font-size: clamp(28px, 3.6vw, 46px);
-      line-height: 1.15;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: #fff;
-    }
-
-    .hero-inner p{
-      margin: 0 auto 22px;
-      max-width: 860px;
-      font-size: 16px;
-      line-height: 1.7;
-      color: rgba(255,255,255,0.84);
-    }
-
-    /* 示例按钮（若你已有 .btn，可删掉这一段以免重复） */
-    .btn{
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 12px 22px;
-      border-radius: 12px;
-      background: #1f6feb;
-      color: #fff;
-      text-decoration: none;
-      font-weight: 700;
-    }
-
-    /* 移动端：降低最小高度，避免空白过大（不改图比例） */
-    @media (max-width: 768px){
-      .hero-content.hero-slide{
-        min-height: 420px;
-      }
-      .hero-inner p{
-        font-size: 15px;
-      }
-    }
-  </style>
+<!-- ☑ Natural1 打包脚本（上条回复给你的完整 bundle） -->
+<script src="natural1.bundle.js" defer></script>
 </head>
 <body>
 
+  <!-- 顶部：淡色背景/渐变（默认示例：浅蓝渐变） -->
+  <header class="header-gradient" id="mainHeader">
+    <!-- 左侧 Logo -->
+    <img src="MeFan Logo.png" alt="MeFan Logo" class="logo-img" />
+
+    <!-- 桌面端导航列表，居中对齐，带 Home / Products / About / Contact / 搜索按钮 -->
+    <nav class="desktop-nav">
+      <ul class="nav-list">
+        <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <!-- 桌面搜索图标 -->
+        <li>
+          <div class="search-icon" id="desktopSearchIcon">🔍</div>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- 移动端图标区：搜索 + 汉堡菜单 -->
+    <div class="mobile-icons">
+      <!-- 搜索图标，与汉堡菜单相距 30px -->
+      <span id="mobileSearchIcon" class="mobile-search-icon">🔍</span>
+
+      <!-- 汉堡菜单：三条水平线，竖向堆叠，类似小号“三”字形 -->
+      <div class="vertical-hamburger" id="menuIcon">
+        <div class="v-bar"></div>
+        <div class="v-bar"></div>
+        <div class="v-bar"></div>
+      </div>
+    </div>
+
+    <!-- 移动端全屏菜单 -->
+    <nav id="mobileNav">
+      <div class="close-btn" id="closeBtn">&times;</div>
+      <ul>
+      <!-- 修改为触发二级面板，增加 data-level 属性 -->
+        <li><a href="javascript:void(0);" data-level="home">Home</a></li>
+        <li><a href="javascript:void(0);" data-level="products">Products</a></li>
+        <li><a href="javascript:void(0);" data-level="about">About</a></li>
+        <li><a href="javascript:void(0);" data-level="contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+  
+  <!-- ===== [PATCH INSERT] n8n banner (non-breaking) ===== -->
+  <div class="n8n-banner" role="region" aria-label="n8n access banner">
+    <a class="n8n-banner__link"
+       href="https://n8n.oliverfr.com"
+       target="_blank"
+       rel="noopener noreferrer">
+      n8n子域底架+Auth Access 门禁接入（点击进入）
+    </a>
+  </div>
+  <!-- ===== [PATCH END] ===== -->
+
+
+  <!-- 新增：移动端二级菜单面板（仅手机端有效） -->
+  <div id="mobileNavLevel2Home" class="menu-panel menu-panel--level2">
+    <div class="menu-panel__header">
+      <div class="menu-panel__back">&lt; 返回</div>
+      <div class="menu-panel__title">Explore the Mefan</div>
+      <div class="menu-panel__close">&times;</div>
+    </div>
+    <div class="menu-panel__content">
+      <ul>
+        <li><a href="http://mefans.pages.dev" target="_blank">Explore the Mefan</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="mobileNavLevel2Products" class="menu-panel menu-panel--level2">
+    <div class="menu-panel__header">
+      <div class="menu-panel__back">&lt; 返回</div>
+      <div class="menu-panel__title">Products</div>
+      <div class="menu-panel__close">&times;</div>
+    </div>
+    <div class="menu-panel__content">
+      <!-- 分组1：Mefan Series -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">MEFAN SERIES</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="product-lite.html" target="_blank">MeFan Lite</a></li>
+          <li><a href="product-x1.html" target="_blank">MeFan X1</a></li>
+          <li><a href="product-pro.html" target="_blank">MeFan Pro</a></li>
+        </ul>
+      </div>
+      <!-- 分组2：Mefan Premium Series -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">MEFAN PREMIUM SERIES</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="example.html" target="_blank">Premium p1</a></li>
+          <li><a href="example.html" target="_blank">Premium p2</a></li>
+          <li><a href="example.html" target="_blank">Premium p3</a></li>
+        </ul>
+      </div>
+      <!-- 分组3：Mefan Classic Series -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">MEFAN CLASSIC SERIES</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="example.html" target="_blank">Classic c1</a></li>
+          <li><a href="example.html" target="_blank">Classic c2</a></li>
+          <li><a href="example.html" target="_blank">Classic c3</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+   <!-- About 二级面板 -->
+  <div id="mobileNavLevel2About" class="menu-panel menu-panel--level2">
+    <div class="menu-panel__header">
+      <div class="menu-panel__back">&lt; 返回</div>
+      <div class="menu-panel__title">About</div>
+      <div class="menu-panel__close">&times;</div>
+    </div>
+    <div class="menu-panel__content">
+      <!-- 分组1：PERSONAL -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">PERSONAL</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="http://mefans.pages.dev" target="_blank">mefans.pages.dev</a></li>
+        </ul>
+      </div>
+      <!-- 分组2：OPPORTUNITY & CHALLENGE -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">OPPORTUNITY &amp; CHALLENGE</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="http://mefans.pages.dev" target="_blank">mefans.pages.dev</a></li>
+          <li><a href="example.html" target="_blank">example.html</a></li>
+          <li><a href="http://mefans.pages.dev/example.html" target="_blank">example.html</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact 二级面板 -->
+  <div id="mobileNavLevel2Contact" class="menu-panel menu-panel--level2">
+    <div class="menu-panel__header">
+      <div class="menu-panel__back">&lt; 返回</div>
+      <div class="menu-panel__title">Contact</div>
+      <div class="menu-panel__close">&times;</div>
+    </div>
+    <div class="menu-panel__content">
+      <!-- 分组：CONTACT -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">CONTACT</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="contact.html" target="_blank">Contact us</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+ <!-- 全屏阴影层，用于点击/移动关闭大面板 -->
+<div class="hover1-overlay" id="hover1Overlay"></div>
+
+<!-- 模糊背景层 -->
+<div class="blur1-bg" id="blur1Bg"></div>
+
+<!-- 悬停面板容器（固定在导航下方） -->
+<div class="hover1-content" id="hover1Content">
+  <!-- 首页面板 -->
+  <div class="hover1-section" id="hover1Home">
+    <div class="home1-horizontal-row">
+      <div class="home1-intro-col">
+        <h3>Home - 特别推荐</h3>
+        <p>欢迎回到首页，看看 MeFan 最新动态。</p>
+      </div>
+      <div class="home1-links-col">
+        <ul>
+          <li><a href="https://mefans.pages.dev" target="_blank" rel="noopener noreferrer">MeFan</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 产品面板 -->
+  <div class="hover1-section" id="hover1Products">
+    <div class="products-horizontal-row">
+      <div class="products-intro-col">
+        <h3>Products - 产品阵列</h3>
+        <p>在这里可以直接预览或跳转到各产品介绍，体验更多。</p>
+        <ul>
+          <li><a href="product-lite.html">MeFan Lite</a></li>
+          <li><a href="product-x1.html">MeFan X1</a></li>
+          <li><a href="product-pro.html">MeFan Pro</a></li>
+        </ul>
+      </div>
+      <div class="premium1-column">
+        <h4 class="premium1-title">Premium</h4>
+        <ul class="premium1-list">
+          <li><a href="example.html">p1</a></li>
+          <li><a href="example.html">p2</a></li>
+          <li><a href="example.html">p3</a></li>
+        </ul>
+      </div>
+      <div class="classic1-column">
+        <h4 class="classic1-title">Classic</h4>
+        <ul class="classic1-list">
+          <li><a href="example.html">c1</a></li>
+          <li><a href="example.html">c2</a></li>
+          <li><a href="example.html">c3</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- About 面板 -->
+  <div class="hover1-section" id="hover1About">
+    <div class="about1-horizontal-row">
+      <div class="about1-intro-col">
+        <h3>About - 关于我们</h3>
+        <p>认识 MeFan 团队，了解我们的背景、理念与愿景。</p>
+      </div>
+      <div class="about1-links-col">
+        <ul>
+          <li><a href="about.html">About us</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact 面板 -->
+  <div class="hover1-section" id="hover1Contact">
+    <div class="contact1-horizontal-row">
+      <div class="contact1-intro-col">
+        <h3>Contact - 联系我们</h3>
+        <p>问题咨询、商务合作，请在此找到联系方式。</p>
+      </div>
+      <div class="contact1-links-col">
+        <ul>
+          <li><a href="contact.html">Contact us</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  <!-- ===== 全屏搜索界面 ===== -->
+  <div class="search-panel" id="searchPanel">
+    <!-- 关闭按钮 (在手机端靠上右侧,避免文字遮挡) -->
+    <span class="search-close-btn" id="searchClose">&times;</span>
+
+    <!-- 大标题(可编辑)，同时用伪元素显示提示“🔍 Search mefans.pages.dev” -->
+    <h2 class="search-title" id="searchTitle" contenteditable="true" data-placeholder="🔍 Search oliverfr.com"></h2>	
+
+    <!-- 搜索结果列表 -->
+    <div class="search-results" id="searchResults"></div>
+
+    <!-- Quick Links 区域（固定展示） -->
+    <div class="quick-links">
+      <p>Quick Links</p>
+      <ul>
+        <li><a href="products.html">Products</a></li>
+        <li><a href="about.html">About Us</a></li>
+       <li><a href="https://mefans.pages.dev" target="_blank" rel="noopener noreferrer">Support</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </div>
+  </div>
+
+
+  <!-- Hero：全屏背景轮播 -->
   <section class="hero">
-    <!-- 这一块就是你要的“完整阴影区域”：图片 + 暗化层 + 文案 -->
-    <div class="hero-content hero-slide hero-slide-3">
-      <div class="hero-overlay">
-        <div class="hero-inner">
-          <h1>MeFan AI 智能体 - 让运维与开发更「自动」</h1>
-          <p>基于 Python · FastAPI · LangChain · LangGraph · Supa · Github · Cloudflare · Google Cloud 搭建的全栈 AI Agent 平台。</p>
-          <a href="agent-test.html" class="btn">Let's智能体</a>
-        </div>
+    <div class="hero-slides" id="hero-slides">
+      <div class="hero-slide" style="background-image: url('slide1.jpg');"></div>
+      <div class="hero-slide" style="background-image: url('slide2.jpg');"></div>
+      <div class="hero-slide" style="background-image: url('slide3.jpg');"></div>
+    </div>
+
+    <div class="hero-dots">
+      <span class="dot"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+    </div>
+
+<section class="gpt-hero">
+  <div class="gpt-hero-wrap">
+    <!-- 底图：原始尺寸，不裁切 -->
+    <img src="slide1.jpg" alt="MeFan AI Hero" class="gpt-hero-image" />
+
+    <!-- 叠加层：只负责文字 -->
+    <div class="gpt-hero-overlay">
+      <div class="hero-content">
+        <h1>MeFan AI 智能体 - 让运维与开发更「自动」</h1>
+        <p>
+          基于 Python · FastAPI · LangChain · LangGraph · Supa · Github · Cloudflare ·
+          Google Cloud 搭建的全栈 AI Agent 平台。
+        </p>
+        <a href="agent-test.html" class="btn">Let's智能体</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<section class="gpt-hero">
+  <a href="https://oliverfr.com/streaming-no-voice" class="gpt-hero-link" target="_blank" rel="noopener noreferrer">
+    <img src="gpt.png" alt="LiteGPT" class="gpt-hero-image" />
+    <div class="gpt-hero-overlay">
+      <h1 class="gpt-hero-title">LiteGPT</h1>
+      <p class="gpt-hero-subtitle">the present shape the future</p>
+      <span class="gpt-hero-button">Learn More</span>
+    </div>
+  </a>
+</section>
+
+
+  <!-- Premium BT Earbuds 图片与按钮 -->
+  <section class="premium-earbuds-section">
+    <div class="premium-earbuds-image">
+      <img src="Premium BT Earbuds.png" alt="Premium BT Earbuds" class="premium-earbuds-img" />
+      <div class="premium-overlay">
+        <a href="workflow-console.html" class="btn learn-more-btn">link Temporal/Worker/Grafana</a>
+        <a href="doc.html" class="btn enjoy-btn">文档异步处理</a>
       </div>
     </div>
   </section>
 
-</body>
-</html>
+
+
+
+  <!-- 新插入的6张图片 -->
+  <section class="image-gallery">
+    <div class="image-card">
+      <a href="your-medical.html">
+        <img src="nature1.png" alt="nature1"/>
+        <div class="overlay">
+          <p>Learn More</p>
+        </div>
+      </a>
+    </div>
+    <div class="image-card">
+      <a href="your-cv.html">
+        <img src="nature2.png" alt="nature2"/>
+        <div class="overlay">
+          <p>Learn More</p>
+        </div>
+      </a>
+    </div>
+    <div class="image-card">
+      <a href="go-agent.html">
+        <img src="slide2.jpg" alt="slide2"/>
+        <div class="overlay">
+          <p>Learn More</p>
+        </div>
+      </a>
+    </div>
+    <div class="image-card">
+      <a href="admin-mefan-articles.html">
+        <img src="seo-article.png" alt="seo-article"/>
+        <div class="overlay">
+          <p>Learn More</p>
+        </div>
+      </a>
+    </div>
+
+  </section>
+
+
+
+
+
+ <!-- 帧动画 原Step into nature’s serenity with MeFan. -->
+<section class="animation-container" id="animationContainer">
+    <canvas id="animationCanvas"></canvas>
+    <div class="overlay-content">
+        <p class="banner-text">API engineering. Real results. API 工程，不止于构建，更见实效</p>
+
+        <!-- ✅ 新增 wrapper 容器 -->
+        <div class="cta1-button-wrapper">
+            <!-- ✅ Explore Now 按钮 -->
+            <a href="https://oliverfr.com/voice-en-cn.html" target="_blank" rel="noopener noreferrer" class="cta1-button">Explore Now</a>
+
+            <!-- ✅ Almost Here 按钮 -->
+            <a href="script-gpt.html" target="_blank" rel="noopener noreferrer" class="cta1-button">Almost Here</a>
+        </div>
+    </div>
+
+    <button id="playPauseButton" class="play-pause">❚❚</button>
+</section>
+
+    <!-- 社交联系信息模块 -->
+<div id="info1-contact-wrapper">
+    <div id="info1-contact-container">
+      <!-- Contact QR Code（仅悬停显示二维码） -->
+      <div class="info1-contact-item">
+        <img src="qr-icon.png" alt="QR Code" class="info1-icon"/>
+        <!-- MODIFIED: 删除多余的 </a> 标签 -->
+        <div class="info1-hover-zone"></div> <!-- 鼠标缓冲区 -->
+        <span class="info1-popup">
+          <img src="Mefan@Oliver F.png" alt="Contact QR" class="info1-qr"/>
+        </span>
+      </div>
+    </div>
+</div> <!-- MODIFIED: 将错误的 </section> 改为 </div> -->
+<div class="natural1-carousel-container">
+  <!-- 左侧切换按钮 -->
+  <button class="natural1-carousel-prev">&lt;</button>
+
+  <!-- 
+    外层包裹 .natural1-carousel-track-wrapper
+    不改动，保持原结构
+  -->
+  <div class="natural1-carousel-track-wrapper">
+    <div class="natural1-carousel-track">
+      
+   
+
+    <!-- 轮播项5 -->
+      <div class="natural1-carousel-slide">
+        <a href="product-lite.html" target="_blank">
+          <img src="MeFan Lite.png" 
+               alt="MeFan Lite">
+        </a>
+        <div class="natural1-overlay">
+          <div class="natural1-button-title-group">
+            <div class="natural1-bottom-row">
+              <button class="natural1-explore-btn"
+                      onclick="window.open('product-lite.html', '_blank')">
+                Explore now
+              </button>
+              <div class="natural1-text-bottom">桌面沿用scroll.</div>
+            </div>
+            <div class="natural1-title">MeFan Lite</div>
+          </div>
+        </div>
+      </div>
+
+    <!-- 轮播项6-->
+      <div class="natural1-carousel-slide">
+        <a href="product-x1.html" target="_blank">
+          <img src="MeFan X1.png" 
+               alt="MeFan X1">
+        </a>
+        <div class="natural1-overlay">
+          <div class="natural1-button-title-group">
+            <div class="natural1-bottom-row">
+              <button class="natural1-explore-btn"
+                      onclick="window.open('example.htmlproduct-x1.html', '_blank')">
+                Explore now
+              </button>
+              <div class="natural1-text-bottom">桌面沿用scroll.</div>
+            </div>
+            <div class="natural1-title">MeFan X1</div>
+          </div>
+        </div>
+      </div>
+
+    <!-- 轮播项7 -->
+      <div class="natural1-carousel-slide">
+        <a href="product-pro.html" target="_blank">
+          <img src="MeFan Pro.png" 
+               alt="MeFan Pro">
+        </a>
+        <div class="natural1-overlay">
+          <div class="natural1-button-title-group">
+            <div class="natural1-bottom-row">
+              <button class="natural1-explore-btn"
+                      onclick="window.open('product-pro.html', '_blank')">
+                Explore now
+              </button>
+              <div class="natural1-text-bottom">桌面沿用scroll.</div>
+            </div>
+            <div class="natural1-title">Mefan Pro</div>
+          </div>
+        </div>
+      </div>
+
+
+
+
+
+
+
+    </div>
+  </div>
+
+  <!-- 右侧切换按钮 -->
+  <button class="natural1-carousel-next">&gt;</button>
+</div>
+
+<!-- 小圆点容器 (保留不变) -->
+<div class="natural1-carousel-dots-container">
+  <div class="natural1-carousel-dots">
+    <span class="natural1-carousel-dot"></span>
+    <span class="natural1-carousel-dot"></span>
+    <span class="natural1-carousel-dot"></span>
+    <span class="natural1-carousel-dot"></span>
+
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <!-- ✅ 3) 无限滚动优化 -->
+  <section class="infinite-scroller-container">
+    <div class="infinite-scroller">
+      <div class="infinite-scroller-track" id="infiniteScroller">
+        <div class="product-marquee-card">
+          <a href="brookside.html">
+            <img src="A peaceful brookside setting.png" alt="Brookside setting" />
+            <div class="overlay">Explore now</div>
+            <p class="text">Brookside setting</p>
+          </a>
+        </div>
+        <div class="product-marquee-card">
+          <a href="gardenia.html">
+            <img src="A scenic riverside bend.png" alt="Riverside bend" />
+            <div class="overlay">Explore now</div>
+            <p class="text">Riverside bend</p>
+          </a>
+        </div>
+        <div class="product-marquee-card">
+          <a href="serene-coastal-shore.html">
+            <img src="A serene coastal shore.png" alt="Coastal shore" />
+            <div class="overlay">Explore now</div>
+            <p class="text">Coastal shore</p>
+          </a>
+        </div>
+        <div class="product-marquee-card">
+          <a href="shaded-forest-path.html">
+            <img src="A shaded forest path.png" alt="Forest path" />
+            <div class="overlay">Explore now</div>
+            <p class="text">Forest path</p>
+          </a>
+        </div>
+      </div>
+
+      <!-- ✅ 让按钮与滚动区域保持在一起 -->
+      <div id="pauseBtn-container">
+        <button id="pauseBtn"></button>
+      </div>
+    </div>
+  </section>
+<!-- ✅ 新增第一行内容 -->
+    <div class="extra-line">提示:本网站中图片的命名与实际播放,实际展示的图片内容是不符的(Note: Image names on this website do not correspond to the actual displayed or played content.)</div>
+  <!-- 简要介绍区 -->
+  <section class="intro-section">
+    <h2>为什么选择 MeFan?</h2>
+    <p>我们专注于无线音频领域，融合最新技术与时尚设计，为您带来舒适与卓越的聆听体验。</p>
+    <button class="btn" data-modal-target="#whyModal">更多详情</button>
+  </section>
+
+  <!-- 场景应用卡片区 -->
+  <section class="use-case-section">
+    <h2>应用场景</h2>
+    <p>在不同场景中，MeFan耳机如何展现卓越表现？</p>
+
+    <div class="use-case-grid">
+      <!-- 运动场景 -> #sportModal -->
+      <div class="use-case-item" data-modal-target="#sportModal">
+        <h3>运动场景</h3>
+        <p>运动时的防水、防汗表现……</p>
+      </div>
+      <!-- 通勤场景 -> #commuteModal -->
+      <div class="use-case-item" data-modal-target="#commuteModal">
+        <h3>通勤场景</h3>
+        <p>地铁、公交、办公室等噪音环境表现……</p>
+      </div>
+      <!-- 会议场景 -> #meetingModal -->
+      <div class="use-case-item" data-modal-target="#meetingModal">
+        <h3>会议场景</h3>
+        <p>语音通话、降噪麦克风等……</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="value-section">
+    <h2>Our Vision & Core Values</h2>
+    <p>At Mefan, we’re at the very beginning of something exciting. Though our vision is still in its early stages, we believe deeply in the value of hard work, learning, and steady progress.</p>
+    <p>We know the path ahead will take time and persistence. Success isn’t immediate, but it’s built step by step. We’re committed to refining our ideas, focusing on quality, and staying true to our mission of creating meaningful audio experiences.</p>
+    <p>For now, we focus on laying the foundation. We aim to deliver real value to our future customers with every product we create. Your trust means a lot to us as we start this journey. The road may be long, but we’re confident that with time, this vision will take shape.</p>
+  </section>
+
+  <!-- 横线部分 -->
+  <div class="divider"></div>
+
+  <!-- 核心价值展示部分 -->
+  <section class="core-values-section">
+    <div class="core-value-item">
+      <h3 class="dropdown">Mefan Value <span class="dropdown-arrow">&#x2304;</span></h3>
+      <ul class="dropdown-content">
+        <li><a href="accessibility.html">Accessibility</a></li>
+      </ul>
+    </div>
+
+    <div class="core-value-item">
+      <h3 class="dropdown">For Business <span class="dropdown-arrow">&#x2304;</span></h3>
+      <ul class="dropdown-content">
+        <li><a href="mefan-and-business.html">Mefan and Business</a></li>
+      </ul>
+    </div>
+
+    <div class="core-value-item">
+      <h3 class="dropdown">Entertainment <span class="dropdown-arrow">&#x2304;</span></h3>
+      <ul class="dropdown-content">
+        <li><a href="mefan-one.html">Mefan One</a></li>
+      </ul>
+    </div>
+  </section>
+
+
+  <!-- Social Media Icons -->
+  <div class="footer-info">
+    <div class="social-media">
+      <a href="https://wa.me/12817839998" target="_blank" aria-label="WhatsApp">
+        <img src="https://cdn-icons-png.flaticon.com/512/124/124034.png" alt="WhatsApp" class="social-icon"/>
+      </a>
+      <a href="https://linkedin.com/in/oliver-f-448b8a287" target="_blank" aria-label="LinkedIn">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" alt="LinkedIn" class="social-icon"/>
+      </a>
+      <a href="https://web.skype.com/?openPstnPage=true" target="_self" aria-label="Skype">
+        <img src="Skype Logo.png" alt="Skype Logo" class="social-icon"/>
+      </a>
+      <a href="weixin://dl/chat?wxid=wxid_kesvxwp296ci12" aria-label="WeChat">
+        <img src="WeChat Logo.png" alt="WeChat Logo" class="social-icon"/>
+      </a>
+    </div>
+  </div>
+
+  <!-- 横线部分 -->
+  <div class="divider"></div>
+  <div class="footer-extend">
+    <p>&copy; 2025 MeFan@Oliver F. All rights reserved.</p>
+  </div>
+
+  <!-- 4个模态窗口 (去重并修正) -->
+  <div class="modal" id="whyModal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <iframe
+        src="whyMeFanDetail.html"
+        frameborder="0"
+        class="modal-iframe">
+      </iframe>
+    </div>
+  </div>
+
+  <div class="modal" id="sportModal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <iframe
+        src="useCaseSport.html"
+        frameborder="0"
+        class="modal-iframe">
+      </iframe>
+    </div>
+  </div>
+
+  <div class="modal" id="commuteModal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <iframe
+        src="useCaseCommute.html"
+        frameborder="0"
+        class="modal-iframe">
+      </iframe>
+    </div>
+  </div>
+
+
+  <div class="modal" id="meetingModal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <iframe
+        src="useCaseMeeting.html"
+        frameborder="0"
+        class="modal-iframe">
+      </iframe>
+    </div>
+  </div>
+  <!-- 内联脚本：搜索逻辑与事件（原有） -->
+ <!-- 其余HTML结构、CSS链接等保持不变，在 </body> 前插入以下脚本 -->
+<!-- 其他 HTML 结构... -->
+
+
+  <!-- 新增：回到顶部按钮 -->
+  <button id="backToTop" title="Back to Top">&#8679;</button>
