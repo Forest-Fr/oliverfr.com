@@ -18,35 +18,38 @@
     /* Desktop */
     @media (min-width: 769px) {
       .section0-carousel{
-        position: relative;
+     position: relative;
         width: 100%;
+        height: 495px;
         overflow: hidden;
         margin: auto;
         display: flex;
         justify-content: center;
         align-items: center;
-        top: 12px
+        padding: 12px 10%0
       }
       .section0-track{
-        display: flex;
-        width: 100%;
-        gap: var(--gap);
-        column-gap: var(--gap);
-        row-gap: 0;
-        justify-content: flex-start;
-        will-change: transform;
+     display: flex;
+        gap: 15px;
+        transition: transform .5s ease-in-out;
+        justify-content: flex-start
       }
       .section0-slide{
 
-        flex: 0 0 calc(75%);
-        scroll-snap-align: center;
-        height: 520px;
+          flex: 0 0 auto;
+        width: 100%;
+        opacity: 1!important;
+        transition: opacity .3s ease-in-out;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         position: relative
       }
       .section0-slide img{
-       width: 100%;
+      width: 100%;
         height: auto;
         display: block;
+        border-radius: 10px;
         filter: none!important;
         opacity: 1!important
       }
@@ -55,21 +58,20 @@
     /* Mobile */
     @media (max-width: 768px) {
       .section0-carousel{
-        position: relative;
-        width: 100vw;
+          width: 100vw;
+        padding-left: calc((100vw - 75vw)/2);
+        padding-right: calc((100vw - 75vw)/2);
+        overflow-x: hidden;
         margin: 0 auto;
-        overflow: hidden;
-        height: 495px;
-        top: 12px;
-        padding-bottom: 40px
+        position: relative!important;
+        padding-top: 12px
         touch-action: pan-y;
       }
       .section0-track{
         display: flex;
         gap: 15px;
-        overflow: visible;
-        white-space: nowrap;
-        transition: none
+        align-items: center;
+        transition: transform .5s ease-in-out
       }
       .section0-slide{
                 flex: 0 0 auto;
@@ -688,4 +690,5 @@
   </script>
 </body>
 </html>
+
 
