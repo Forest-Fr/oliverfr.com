@@ -19,7 +19,7 @@
         margin: 10px auto 30px auto;
         padding: 0 10%;
         box-sizing: border-box;
-        touch-action: pan-y; /* 允许上下滚动；横向由脚本识别 */
+        touch-action: pan-y;
       }
       .section0-track{
         display: flex;
@@ -59,7 +59,7 @@
         margin: 5px auto 27px auto;
         position: relative;
         box-sizing: border-box;
-        touch-action: pan-y; /* 上下滚动优先，横向滑动由脚本识别 */
+        touch-action: pan-y;
       }
       .section0-track{
         display: flex;
@@ -88,7 +88,6 @@
     /* =========================
        Apple TV-like bar + dots + play (NO keyframes)
        ========================= */
-
     .section0-buttonRow{
       width: min(920px, 92vw);
       height: 44px;
@@ -108,7 +107,6 @@
       transform: translateY(-10px) scale(.96);
       pointer-events: none;
     }
-
     .btn-container{
       position: absolute;
       top: 50%;
@@ -124,7 +122,6 @@
       left: auto;
       transform: translateY(-50%);
     }
-
     #section0-leftCapsule{
       width: auto;
       height: auto;
@@ -135,7 +132,6 @@
       align-items: center;
       justify-content: center;
     }
-
     .dots{
       display: flex;
       align-items: center;
@@ -143,7 +139,6 @@
       padding: 0 14px;
       user-select: none;
     }
-
     .dot{
       --dotS: 6px;
       --pillW: 36px;
@@ -171,7 +166,7 @@
       opacity: .92;
     }
 
-    /* ===== Play/Pause button ===== */
+    /* Play/Pause */
     #section0-rightButton{
       width: 34px;
       height: 34px;
@@ -186,8 +181,6 @@
       transition: transform .18s ease, background-color .18s ease, opacity .18s ease, box-shadow .18s ease;
     }
     #section0-rightButton:active{ transform: scale(.96); }
-
-    /* ✅ 暂停时：按第一张截图的“浅灰圆 + 播放三角”风格 */
     #section0-rightButton.is-paused{
       background: rgba(0,0,0,.16);
       box-shadow: 0 6px 18px rgba(0,0,0,.12);
@@ -200,69 +193,71 @@
       user-select: none;
       transform: translateX(1px);
     }
-    #section0-rightButton.is-paused #section0-playIcon{
-      color: rgba(0,0,0,.66);
-    }
 
     /* =========================
-       Center-slide overlay (match screenshot #2 style)
-       - Only center clickable to open new window
-       - Neighbors can only move left/right (click = prev/next), no open
+       Center-slide hero content
+       (Use the exact HTML structure you provided)
        ========================= */
+
+    /* Overlay wrapper */
     .section0-heroOverlay{
       position: absolute;
       inset: 0;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      text-align: center;
       padding: 18px 16px;
-      color: #fff;
       background: rgba(0,0,0,.22);
       backdrop-filter: blur(2px);
       -webkit-backdrop-filter: blur(2px);
       opacity: 0;
       pointer-events: none;
       transition: opacity .22s ease;
+      text-align: center;
     }
-    .section0-heroTitle{
-      font-weight: 800;
+
+    /* ✅ Your required structure */
+    .section0-heroOverlay .hero-content{
+      max-width: 92%;
+      color: #fff;
+    }
+    .section0-heroOverlay .hero-content h1{
+      margin: 0 0 10px 0;
+      font-weight: 900;
       letter-spacing: .2px;
-      margin: 0 0 8px 0;
-      line-height: 1.1;
+      line-height: 1.12;
       font-size: clamp(20px, 3.8vw, 46px);
       text-shadow: 0 10px 24px rgba(0,0,0,.35);
     }
-    .section0-heroSub{
-      margin: 0 0 12px 0;
+    .section0-heroOverlay .hero-content p{
+      margin: 0 0 14px 0;
       opacity: .92;
-      line-height: 1.45;
+      line-height: 1.5;
       font-size: clamp(12px, 1.5vw, 18px);
       text-shadow: 0 10px 24px rgba(0,0,0,.30);
-      max-width: 92%;
     }
-    .section0-heroBtn{
-      border: none;
+    .section0-heroOverlay .hero-content .btn{
+      display: inline-block;
       background: #1677ff;
       color: #fff;
-      font-weight: 700;
+      font-weight: 800;
       padding: 10px 18px;
       border-radius: 8px;
-      cursor: pointer;
+      text-decoration: none;
       box-shadow: 0 12px 28px rgba(0,0,0,.22);
       transition: transform .18s ease, filter .18s ease;
       user-select: none;
     }
-    .section0-heroBtn:active{ transform: scale(.98); }
+    .section0-heroOverlay .hero-content .btn:active{
+      transform: scale(.98);
+    }
 
-    /* Only center shows overlay + allowed to open */
+    /* Only center shows overlay + clickable */
     .section0-slide.is-center .section0-heroOverlay{
       opacity: 1;
       pointer-events: auto;
     }
 
-    /* Cursor hinting */
     .section0-slide.is-center{ cursor: pointer; }
     .section0-slide.is-neighbor{ cursor: pointer; }
   </style>
@@ -312,10 +307,10 @@
       const LINK_URL = 'https://oliverfr.com/agent-test.html';
 
       // ===== Speed (slower, keep friendly) =====
-      const TRANSITION_MS = 680;     // ✅ 放慢：滑动更柔和
-      const INTERVAL_MS   = 4500;    // ✅ 放慢：停留更久
+      const TRANSITION_MS = 680;
+      const INTERVAL_MS   = 4500;
       const SWIPE_PX_DESK = 50;
-      const SWIPE_PX_MOB  = 35;      // ✅ 手机更灵敏
+      const SWIPE_PX_MOB  = 35;
 
       // ===== Build triple clones (no flash on edges) =====
       let originalSlides = Array.from(track.querySelectorAll('.section0-slide'));
@@ -334,6 +329,7 @@
         }
       }
 
+      // ✅ Use your provided HTML structure inside overlay
       function ensureOverlay(slide) {
         if (!slide) return;
         if (slide.querySelector('.section0-heroOverlay')) return;
@@ -341,19 +337,19 @@
         const overlay = document.createElement('div');
         overlay.className = 'section0-heroOverlay';
         overlay.innerHTML = `
-          <div class="section0-heroTitle">MeFan AI 智能体——让运维与<br>开发更「自动」</div>
-          <div class="section0-heroSub">
-            基于 Python · FastAPI · LangChain · LangGraph · Supa · GitHub · Cloudflare · Google Cloud
-            搭建的全栈 AI Agent 平台。
+          <div class="hero-content">
+            <h1>MeFan AI 智能体 - 让运维与开发更「自动」</h1>
+            <p>基于 Python · FastAPI · LangChain · LangGraph · Supa · Github · Cloudflare · google cloud搭建的全栈 AI Agent 平台。</p>
+            <a href="agent-test.html" class="btn">Let's智能体</a>
           </div>
-          <button class="section0-heroBtn" type="button">Let&#39;s智能体</button>
         `;
         slide.appendChild(overlay);
 
-        // CTA button click: open new window
-        const btn = overlay.querySelector('.section0-heroBtn');
-        if (btn) {
-          btn.addEventListener('click', (e) => {
+        // Anchor click opens new window (and prevents hash/replace)
+        const a = overlay.querySelector('a.btn');
+        if (a) {
+          a.addEventListener('click', (e) => {
+            e.preventDefault();
             e.stopPropagation();
             window.open(LINK_URL, '_blank', 'noopener');
           });
@@ -380,7 +376,6 @@
       cloneTriple();
 
       let slides = Array.from(track.querySelectorAll('.section0-slide'));
-      // Inject overlay into all clones (only center will show, via class)
       slides.forEach(ensureOverlay);
 
       // Start at middle copy
@@ -476,7 +471,7 @@
           rightButton.classList.remove('is-paused');
         } else {
           playIcon.textContent = '►';
-          rightButton.classList.add('is-paused'); // ✅ 暂停时变为截图1风格
+          rightButton.classList.add('is-paused');
         }
       }
 
@@ -521,7 +516,7 @@
 
       function goToRealIndex(realIdx) {
         if (realCount <= 1) return;
-        currentPos = realCount + realIdx; // middle copy
+        currentPos = realCount + realIdx;
         applyTransform(true);
         setActiveDot(realIdx, true);
         updateCenterClasses();
@@ -548,9 +543,9 @@
         if (wasPlaying) schedule();
       });
 
-      // ✅ Slide click behavior:
-      // - center: open LINK_URL in new window
-      // - neighbor / others: only move left/right, never open
+      // Slide click behavior:
+      // center: open new window
+      // neighbors/others: only move
       track.addEventListener('click', (e) => {
         const slide = e.target && e.target.closest ? e.target.closest('.section0-slide') : null;
         if (!slide) return;
@@ -558,21 +553,18 @@
         const idx = slides.indexOf(slide);
         if (idx < 0) return;
 
-        // 如果点到了中心：打开新窗口
         if (idx === currentPos) {
           window.open(LINK_URL, '_blank', 'noopener');
           return;
         }
 
-        // 非中心：只能左右移动（不打开）
-        pause(); // 手动交互时暂停（更可控）
+        pause();
         if (idx < currentPos) prev(true);
         else next(true);
       });
 
-      // ===== Touch swipe (more accurate + mobile sensitive) =====
-      let sx = 0, sy = 0;
-      let ex = 0, ey = 0;
+      // ===== Touch swipe (mobile sensitive; keep vertical scroll) =====
+      let sx = 0, sy = 0, ex = 0, ey = 0;
 
       track.addEventListener('touchstart', (e) => {
         const t = e.touches && e.touches[0];
@@ -590,13 +582,12 @@
         const dx = ex - sx;
         const dy = ey - sy;
 
-        // 只在“横向明显大于纵向”时才触发轮播，保证上下滚动丝滑
         if (Math.abs(dx) <= Math.abs(dy)) return;
 
         const thr = (window.innerWidth <= 768) ? SWIPE_PX_MOB : SWIPE_PX_DESK;
         if (Math.abs(dx) < thr) return;
 
-        pause(); // 手动滑动暂停
+        pause();
         if (dx < 0) next(true);
         else prev(true);
       }, { passive: true });
@@ -610,7 +601,6 @@
       }, { threshold: 0 });
       observer.observe(container);
 
-      // Optional: keep original scroll nudge logic
       window.addEventListener('scroll', () => {
         if (!buttonRow) return;
         const br = buttonRow.getBoundingClientRect();
@@ -631,10 +621,8 @@
         applyTransform(false);
         updateCenterClasses();
 
-        // 初始 dot：小 -> 胶囊 pop
         setActiveDot(getRealIndex(), true);
 
-        // 默认自动播放（无限）
         updatePlayButtonUI();
         play();
       }
