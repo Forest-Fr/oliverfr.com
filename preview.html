@@ -1,707 +1,703 @@
-<!doctype html>
+<!DOCTYPE html> 
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Section0 Carousel</title>
-  <style>
-    
-body {
-    padding-top: 20px;
-    font-family: "Poppins",sans-serif;
-    background-color: #fff;
-    color: #333;
-    line-height: 1.6
-}
-    :root{
-      --gap: 15px;
-      --peek-desktop: clamp(52px, 9vw, 96px);
-      --peek-mobile: 7vw;
-    }
+<meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    /* =========================
-       Carousel layout (Peek Preview)
-       ========================= */
+  <!-- ✅ SEO optimization meta elements -->
+<meta name="description" content="MeFan - High-quality wireless Bluetooth headphones that deliver an exceptional audio experience." />
+<meta name="keywords" content="Bluetooth headphones, MeFan, wireless audio, premium sound, noise-cancelling headphones" />
+<meta name="author" content="MeFan Solutions" />
+<meta name="robots" content="index, follow" />
+<!-- ✅ End -->
 
-    /* Desktop */
-    @media (min-width: 769px) {
-      .section0-carousel{
-        position: relative;
-        width: 100%;
-        height: 520px;
-        overflow: hidden;
-        margin: 10px auto 0 auto;      /* 下方间距由按钮条统一控制 */
-        padding: 0;
-        box-sizing: border-box;
-        touch-action: pan-y;           /* 保留上下滚动 */
-      }
-      .section0-track{
-        display: flex;
-        width: 100%;
-        gap: var(--gap);
-        column-gap: var(--gap);
-        row-gap: 0;
-        justify-content: flex-start;
-        will-change: transform;
-      }
-      .section0-slide{
-        flex: 0 0 auto;
-        width: calc(100% - (var(--peek-desktop) * 2));
-        max-width: calc(100% - (var(--peek-desktop) * 2));
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        opacity: 1 !important;
-        transition: opacity .3s ease-in-out;
-        position: relative;
-        border-radius: 10px;
-        overflow: hidden;
-      }
-      .section0-slide img{
-        width: 100%;
-        height: auto;
-        display: block;
-        border-radius: 10px;
-        filter: none !important;
-        opacity: 1 !important;
-      }
-    }
+  <title>MeFan - 让体验无线自由</title>
+  <link rel="icon" href="MeFan Logo.png" type="image/x-icon"/>
 
-    /* Mobile */
-    @media (max-width: 768px) {
-      .section0-carousel{
-        width: 100vw;
-        padding-left: calc((100vw - 85vw) / 2);
-        padding-right: calc((100vw - 85vw) / 2);
-        overflow: hidden;
-        margin: 5px auto 0 auto;
-        position: relative;
-        box-sizing: border-box;
-        touch-action: pan-y;
-      }
-      .section0-track{
-        display: flex;
-        width: 100%;
-        gap: var(--gap);
-        column-gap: var(--gap);
-        align-items: center;
-        will-change: transform;
-      }
-      .section0-slide{
-        flex: 0 0 auto;
-        width: 85vw;
-        aspect-ratio: 9 / 16;
-        overflow: hidden;
-        position: relative;
-        border-radius: 10px;
-      }
-      .section0-slide img{
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        filter: none !important;
-        opacity: 1 !important;
-      }
-    }
+  <!-- 引入字体 -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Poppins:wght@400;600&display=swap"
+    rel="stylesheet"
+  >
 
-    /* =========================
-       ✅ 固定在轮播下方 15px 的圆点胶囊条
-       ========================= */
-    .section0-buttonRow{
-      width: min(920px, 92vw);
-      height: 44px;
-      margin: 15px auto 16px auto;     /* ✅ 与轮播区域下方总间隔 15px */
-      position: relative;              /* 固定在轮播下方（非 sticky） */
-      z-index: 999;
-      background: rgba(240,240,240,.96);
-      border-radius: 999px;
-      box-sizing: border-box;
-      /* ✅ 阴影调浅 */
-      box-shadow: 0 10px 26px rgba(0,0,0,.05);
-    }
+  <!-- 样式与脚本 -->
+  <link rel="stylesheet" href="styles.css" />
+<!-- ☑ Scroll 原链接保留 -->
+<script src="scroll.js"></script>
 
-    .btn-container{
-      position: absolute;
-      top: 50%;
-      opacity: 1;
-      pointer-events: auto;
-      transform: translateY(-50%);
-    }
-    #leftBtnContainer{
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-    #rightBtnContainer{
-      right: 10px;
-      left: auto;
-    }
+<!-- ☑ 业务脚本（原 scripts.js） -->
+<script src="scripts.js" defer></script>
 
-    #section0-leftCapsule{
-      background: transparent;
-      border: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .dots{
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 0 14px;
-      user-select: none;
-    }
-
-    /* Dot style (capsule active, small dots inactive) */
-    .dot{
-      --dotS: 6px;
-      --pillW: 36px;
-      --pillH: 8px;
-
-      width: var(--dotS);
-      height: var(--dotS);
-      border-radius: 999px;
-      background: rgba(0,0,0,.30);
-      opacity: .85;
-      cursor: pointer;
-      transition: width .26s ease, height .26s ease, background-color .26s ease, opacity .26s ease, transform .26s ease;
-      transform: translateZ(0);
-    }
-    .dot.is-active{
-      width: var(--pillW);
-      height: var(--pillH);
-      background: rgba(0,0,0,.78);
-      opacity: 1;
-    }
-    .dot.is-active.is-pre{
-      width: var(--dotS);
-      height: var(--dotS);
-      background: rgba(0,0,0,.45);
-      opacity: .92;
-    }
-
-    /* Play/Pause */
-    #section0-rightButton{
-      width: 34px;
-      height: 34px;
-      border: none;
-      border-radius: 50%;
-      background: rgba(0,0,0,.10);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      /* ✅ 阴影调浅 */
-      box-shadow: 0 6px 16px rgba(0,0,0,.08);
-      transition: transform .18s ease, background-color .18s ease, opacity .18s ease, box-shadow .18s ease;
-    }
-    #section0-rightButton:active{ transform: scale(.96); }
-    #section0-rightButton.is-paused{
-      background: rgba(0,0,0,.14);
-      box-shadow: 0 6px 18px rgba(0,0,0,.09);
-    }
-    #section0-playIcon{
-      font-size: 14px;
-      line-height: 1;
-      color: rgba(0,0,0,.72);
-      letter-spacing: -1px;
-      user-select: none;
-      transform: translateX(1px);
-    }
-
-    /* =========================
-       ✅ 只保留 hero-content（一个框），中心显示
-       ========================= */
-    .section0-slide .hero-content{
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: min(92%, 760px);
-      text-align: center;
-
-      /* 一个“框” */
-      background: rgba(0,0,0,.22);
-      border: 1px solid rgba(255,255,255,.18);
-      border-radius: 14px;
-      padding: 18px 16px;
-
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .22s ease;
-    }
-
-    .section0-slide.is-center .hero-content{
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .section0-slide .hero-content h1{
-      margin: 0 0 10px 0;
-      color: #fff;
-      font-weight: 900;
-      letter-spacing: .2px;
-      line-height: 1.12;
-      font-size: clamp(20px, 3.8vw, 46px);
-      /* ✅ 文本阴影调浅 */
-      text-shadow: 0 10px 24px rgba(0,0,0,.18);
-    }
-    .section0-slide .hero-content p{
-      margin: 0 0 14px 0;
-      color: rgba(255,255,255,.92);
-      line-height: 1.5;
-      font-size: clamp(12px, 1.5vw, 18px);
-      /* ✅ 文本阴影调浅 */
-      text-shadow: 0 10px 24px rgba(0,0,0,.16);
-    }
-    .section0-slide .hero-content .btn{
-      display: inline-block;
-      background: #1677ff;
-      color: #fff;
-      font-weight: 800;
-      padding: 10px 18px;
-      border-radius: 8px;
-      text-decoration: none;
-      /* ✅ 按钮阴影调浅 */
-      box-shadow: 0 12px 28px rgba(0,0,0,.16);
-      transition: transform .18s ease, filter .18s ease;
-      user-select: none;
-    }
-    .section0-slide .hero-content .btn:active{ transform: scale(.98); }
-
-    .section0-slide.is-center{ cursor: pointer; }
-    .section0-slide.is-neighbor{ cursor: pointer; }
-  </style>
+<!-- ☑ Natural1 打包脚本（上条回复给你的完整 bundle） -->
+<script src="natural1.bundle.js" defer></script>
 </head>
-
 <body>
 
-  <!-- 轮播容器 -->
-  <div class="section0-carousel">
-    <div class="section0-track">
-      <div class="section0-slide"><img src="slide1.jpg" alt="nature1" /></div>
-      <div class="section0-slide"><img src="slide2.jpg" alt="nature2" /></div>
-      <div class="section0-slide"><img src="slide3.jpg" alt="nature3" /></div>
+  <!-- 顶部：淡色背景/渐变（默认示例：浅蓝渐变） -->
+  <header class="header-gradient" id="mainHeader">
+    <!-- 左侧 Logo -->
+    <img src="MeFan Logo.png" alt="MeFan Logo" class="logo-img" />
+
+    <!-- 桌面端导航列表，居中对齐，带 Home / Products / About / Contact / 搜索按钮 -->
+    <nav class="desktop-nav">
+      <ul class="nav-list">
+        <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <!-- 桌面搜索图标 -->
+        <li>
+          <div class="search-icon" id="desktopSearchIcon">🔍</div>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- 移动端图标区：搜索 + 汉堡菜单 -->
+    <div class="mobile-icons">
+      <!-- 搜索图标，与汉堡菜单相距 30px -->
+      <span id="mobileSearchIcon" class="mobile-search-icon">🔍</span>
+
+      <!-- 汉堡菜单：三条水平线，竖向堆叠，类似小号“三”字形 -->
+      <div class="vertical-hamburger" id="menuIcon">
+        <div class="v-bar"></div>
+        <div class="v-bar"></div>
+        <div class="v-bar"></div>
+      </div>
+    </div>
+
+    <!-- 移动端全屏菜单 -->
+    <nav id="mobileNav">
+      <div class="close-btn" id="closeBtn">&times;</div>
+      <ul>
+      <!-- 修改为触发二级面板，增加 data-level 属性 -->
+        <li><a href="javascript:void(0);" data-level="home">Home</a></li>
+        <li><a href="javascript:void(0);" data-level="products">Products</a></li>
+        <li><a href="javascript:void(0);" data-level="about">About</a></li>
+        <li><a href="javascript:void(0);" data-level="contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+  
+  <!-- ===== [PATCH INSERT] n8n banner (non-breaking) ===== -->
+  <div class="n8n-banner" role="region" aria-label="n8n access banner">
+    <a class="n8n-banner__link"
+       href="https://n8n.oliverfr.com"
+       target="_blank"
+       rel="noopener noreferrer">
+      n8n子域底架+Auth Access 门禁接入（点击进入）
+    </a>
+  </div>
+  <!-- ===== [PATCH END] ===== -->
+
+
+  <!-- 新增：移动端二级菜单面板（仅手机端有效） -->
+  <div id="mobileNavLevel2Home" class="menu-panel menu-panel--level2">
+    <div class="menu-panel__header">
+      <div class="menu-panel__back">&lt; 返回</div>
+      <div class="menu-panel__title">Explore the Mefan</div>
+      <div class="menu-panel__close">&times;</div>
+    </div>
+    <div class="menu-panel__content">
+      <ul>
+        <li><a href="http://mefans.pages.dev" target="_blank">Explore the Mefan</a></li>
+      </ul>
     </div>
   </div>
 
-  <!-- 固定在轮播下方 15px 的圆点 + 播放暂停 -->
-  <div id="section0-buttonRow" class="section0-buttonRow">
-    <div id="leftBtnContainer" class="btn-container">
-      <div id="section0-leftCapsule">
-        <div class="dots" id="section0-dotsWrap">
-          <div class="dot" data-index="0"></div>
-          <div class="dot" data-index="1"></div>
-          <div class="dot" data-index="2"></div>
+  <div id="mobileNavLevel2Products" class="menu-panel menu-panel--level2">
+    <div class="menu-panel__header">
+      <div class="menu-panel__back">&lt; 返回</div>
+      <div class="menu-panel__title">Products</div>
+      <div class="menu-panel__close">&times;</div>
+    </div>
+    <div class="menu-panel__content">
+      <!-- 分组1：Mefan Series -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">MEFAN SERIES</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="product-lite.html" target="_blank">MeFan Lite</a></li>
+          <li><a href="product-x1.html" target="_blank">MeFan X1</a></li>
+          <li><a href="product-pro.html" target="_blank">MeFan Pro</a></li>
+        </ul>
+      </div>
+      <!-- 分组2：Mefan Premium Series -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">MEFAN PREMIUM SERIES</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="example.html" target="_blank">Premium p1</a></li>
+          <li><a href="example.html" target="_blank">Premium p2</a></li>
+          <li><a href="example.html" target="_blank">Premium p3</a></li>
+        </ul>
+      </div>
+      <!-- 分组3：Mefan Classic Series -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">MEFAN CLASSIC SERIES</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="example.html" target="_blank">Classic c1</a></li>
+          <li><a href="example.html" target="_blank">Classic c2</a></li>
+          <li><a href="example.html" target="_blank">Classic c3</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+   <!-- About 二级面板 -->
+  <div id="mobileNavLevel2About" class="menu-panel menu-panel--level2">
+    <div class="menu-panel__header">
+      <div class="menu-panel__back">&lt; 返回</div>
+      <div class="menu-panel__title">About</div>
+      <div class="menu-panel__close">&times;</div>
+    </div>
+    <div class="menu-panel__content">
+      <!-- 分组1：PERSONAL -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">PERSONAL</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="http://mefans.pages.dev" target="_blank">mefans.pages.dev</a></li>
+        </ul>
+      </div>
+      <!-- 分组2：OPPORTUNITY & CHALLENGE -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">OPPORTUNITY &amp; CHALLENGE</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="http://mefans.pages.dev" target="_blank">mefans.pages.dev</a></li>
+          <li><a href="example.html" target="_blank">example.html</a></li>
+          <li><a href="http://mefans.pages.dev/example.html" target="_blank">example.html</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact 二级面板 -->
+  <div id="mobileNavLevel2Contact" class="menu-panel menu-panel--level2">
+    <div class="menu-panel__header">
+      <div class="menu-panel__back">&lt; 返回</div>
+      <div class="menu-panel__title">Contact</div>
+      <div class="menu-panel__close">&times;</div>
+    </div>
+    <div class="menu-panel__content">
+      <!-- 分组：CONTACT -->
+      <div class="menu-panel__group">
+        <div class="menu-panel__group-title">CONTACT</div>
+        <ul class="menu-panel__group-list">
+          <li><a href="contact.html" target="_blank">Contact us</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+ <!-- 全屏阴影层，用于点击/移动关闭大面板 -->
+<div class="hover1-overlay" id="hover1Overlay"></div>
+
+<!-- 模糊背景层 -->
+<div class="blur1-bg" id="blur1Bg"></div>
+
+<!-- 悬停面板容器（固定在导航下方） -->
+<div class="hover1-content" id="hover1Content">
+  <!-- 首页面板 -->
+  <div class="hover1-section" id="hover1Home">
+    <div class="home1-horizontal-row">
+      <div class="home1-intro-col">
+        <h3>Home - 特别推荐</h3>
+        <p>欢迎回到首页，看看 MeFan 最新动态。</p>
+      </div>
+      <div class="home1-links-col">
+        <ul>
+          <li><a href="https://mefans.pages.dev" target="_blank" rel="noopener noreferrer">MeFan</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 产品面板 -->
+  <div class="hover1-section" id="hover1Products">
+    <div class="products-horizontal-row">
+      <div class="products-intro-col">
+        <h3>Products - 产品阵列</h3>
+        <p>在这里可以直接预览或跳转到各产品介绍，体验更多。</p>
+        <ul>
+          <li><a href="product-lite.html">MeFan Lite</a></li>
+          <li><a href="product-x1.html">MeFan X1</a></li>
+          <li><a href="product-pro.html">MeFan Pro</a></li>
+        </ul>
+      </div>
+      <div class="premium1-column">
+        <h4 class="premium1-title">Premium</h4>
+        <ul class="premium1-list">
+          <li><a href="example.html">p1</a></li>
+          <li><a href="example.html">p2</a></li>
+          <li><a href="example.html">p3</a></li>
+        </ul>
+      </div>
+      <div class="classic1-column">
+        <h4 class="classic1-title">Classic</h4>
+        <ul class="classic1-list">
+          <li><a href="example.html">c1</a></li>
+          <li><a href="example.html">c2</a></li>
+          <li><a href="example.html">c3</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- About 面板 -->
+  <div class="hover1-section" id="hover1About">
+    <div class="about1-horizontal-row">
+      <div class="about1-intro-col">
+        <h3>About - 关于我们</h3>
+        <p>认识 MeFan 团队，了解我们的背景、理念与愿景。</p>
+      </div>
+      <div class="about1-links-col">
+        <ul>
+          <li><a href="about.html">About us</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact 面板 -->
+  <div class="hover1-section" id="hover1Contact">
+    <div class="contact1-horizontal-row">
+      <div class="contact1-intro-col">
+        <h3>Contact - 联系我们</h3>
+        <p>问题咨询、商务合作，请在此找到联系方式。</p>
+      </div>
+      <div class="contact1-links-col">
+        <ul>
+          <li><a href="contact.html">Contact us</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  <!-- ===== 全屏搜索界面 ===== -->
+  <div class="search-panel" id="searchPanel">
+    <!-- 关闭按钮 (在手机端靠上右侧,避免文字遮挡) -->
+    <span class="search-close-btn" id="searchClose">&times;</span>
+
+    <!-- 大标题(可编辑)，同时用伪元素显示提示“🔍 Search mefans.pages.dev” -->
+    <h2 class="search-title" id="searchTitle" contenteditable="true" data-placeholder="🔍 Search oliverfr.com"></h2>	
+
+    <!-- 搜索结果列表 -->
+    <div class="search-results" id="searchResults"></div>
+
+    <!-- Quick Links 区域（固定展示） -->
+    <div class="quick-links">
+      <p>Quick Links</p>
+      <ul>
+        <li><a href="products.html">Products</a></li>
+        <li><a href="about.html">About Us</a></li>
+       <li><a href="https://mefans.pages.dev" target="_blank" rel="noopener noreferrer">Support</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </div>
+  </div>
+
+
+<div class="hero-content hero-slide hero-slide-3">
+  <div class="hero-slide-overlay">
+    <div class="hero-slide-inner">
+      <h1>MeFan AI 智能体 - 让运维与开发更「自动」</h1>
+      <p>基于 Python · FastAPI · LangChain · LangGraph · Supa · Github · Cloudflare · google cloud 搭建的全栈 AI Agent 平台。</p>
+      <a href="agent-test.html" class="btn hero-cta">Let's智能体</a>
+    </div>
+  </div>
+</div>
+
+
+
+<section class="gpt-hero">
+  <a href="https://oliverfr.com/streaming-no-voice" class="gpt-hero-link" target="_blank" rel="noopener noreferrer">
+    <img src="gpt.png" alt="LiteGPT" class="gpt-hero-image" />
+    <div class="gpt-hero-overlay">
+      <h1 class="gpt-hero-title">LiteGPT</h1>
+      <p class="gpt-hero-subtitle">the present shape the future</p>
+      <span class="gpt-hero-button">Learn More</span>
+    </div>
+  </a>
+</section>
+
+
+  <!-- Premium BT Earbuds 图片与按钮 -->
+  <section class="premium-earbuds-section">
+    <div class="premium-earbuds-image">
+      <img src="Premium BT Earbuds.png" alt="Premium BT Earbuds" class="premium-earbuds-img" />
+      <div class="premium-overlay">
+        <a href="workflow-console.html" class="btn learn-more-btn">link Temporal/Worker/Grafana</a>
+        <a href="doc.html" class="btn enjoy-btn">文档异步处理</a>
+      </div>
+    </div>
+  </section>
+
+
+
+
+  <!-- 新插入的6张图片 -->
+  <section class="image-gallery">
+    <div class="image-card">
+      <a href="your-medical.html">
+        <img src="nature1.png" alt="nature1"/>
+        <div class="overlay">
+          <p>Learn More</p>
+        </div>
+      </a>
+    </div>
+    <div class="image-card">
+      <a href="your-cv.html">
+        <img src="nature2.png" alt="nature2"/>
+        <div class="overlay">
+          <p>Learn More</p>
+        </div>
+      </a>
+    </div>
+    <div class="image-card">
+      <a href="go-agent.html">
+        <img src="slide2.jpg" alt="slide2"/>
+        <div class="overlay">
+          <p>Learn More</p>
+        </div>
+      </a>
+    </div>
+    <div class="image-card">
+      <a href="admin-mefan-articles.html">
+        <img src="seo-article.png" alt="seo-article"/>
+        <div class="overlay">
+          <p>Learn More</p>
+        </div>
+      </a>
+    </div>
+
+  </section>
+
+
+
+
+
+ <!-- 帧动画 原Step into nature’s serenity with MeFan. -->
+<section class="animation-container" id="animationContainer">
+    <canvas id="animationCanvas"></canvas>
+    <div class="overlay-content">
+        <p class="banner-text">API engineering. Real results. API 工程，不止于构建，更见实效</p>
+
+        <!-- ✅ 新增 wrapper 容器 -->
+        <div class="cta1-button-wrapper">
+            <!-- ✅ Explore Now 按钮 -->
+            <a href="https://oliverfr.com/voice-en-cn.html" target="_blank" rel="noopener noreferrer" class="cta1-button">Explore Now</a>
+
+            <!-- ✅ Almost Here 按钮 -->
+            <a href="script-gpt.html" target="_blank" rel="noopener noreferrer" class="cta1-button">Almost Here</a>
+        </div>
+    </div>
+
+    <button id="playPauseButton" class="play-pause">❚❚</button>
+</section>
+
+    <!-- 社交联系信息模块 -->
+<div id="info1-contact-wrapper">
+    <div id="info1-contact-container">
+      <!-- Contact QR Code（仅悬停显示二维码） -->
+      <div class="info1-contact-item">
+        <img src="qr-icon.png" alt="QR Code" class="info1-icon"/>
+        <!-- MODIFIED: 删除多余的 </a> 标签 -->
+        <div class="info1-hover-zone"></div> <!-- 鼠标缓冲区 -->
+        <span class="info1-popup">
+          <img src="Mefan@Oliver F.png" alt="Contact QR" class="info1-qr"/>
+        </span>
+      </div>
+    </div>
+</div> <!-- MODIFIED: 将错误的 </section> 改为 </div> -->
+<div class="natural1-carousel-container">
+  <!-- 左侧切换按钮 -->
+  <button class="natural1-carousel-prev">&lt;</button>
+
+  <!-- 
+    外层包裹 .natural1-carousel-track-wrapper
+    不改动，保持原结构
+  -->
+  <div class="natural1-carousel-track-wrapper">
+    <div class="natural1-carousel-track">
+      
+   
+
+    <!-- 轮播项5 -->
+      <div class="natural1-carousel-slide">
+        <a href="product-lite.html" target="_blank">
+          <img src="MeFan Lite.png" 
+               alt="MeFan Lite">
+        </a>
+        <div class="natural1-overlay">
+          <div class="natural1-button-title-group">
+            <div class="natural1-bottom-row">
+              <button class="natural1-explore-btn"
+                      onclick="window.open('product-lite.html', '_blank')">
+                Explore now
+              </button>
+              <div class="natural1-text-bottom">桌面沿用scroll.</div>
+            </div>
+            <div class="natural1-title">MeFan Lite</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div id="rightBtnContainer" class="btn-container">
-      <div id="section0-rightButton" aria-label="Play/Pause">
-        <span id="section0-playIcon">❚❚</span>
+    <!-- 轮播项6-->
+      <div class="natural1-carousel-slide">
+        <a href="product-x1.html" target="_blank">
+          <img src="MeFan X1.png" 
+               alt="MeFan X1">
+        </a>
+        <div class="natural1-overlay">
+          <div class="natural1-button-title-group">
+            <div class="natural1-bottom-row">
+              <button class="natural1-explore-btn"
+                      onclick="window.open('example.htmlproduct-x1.html', '_blank')">
+                Explore now
+              </button>
+              <div class="natural1-text-bottom">桌面沿用scroll.</div>
+            </div>
+            <div class="natural1-title">MeFan X1</div>
+          </div>
+        </div>
       </div>
+
+    <!-- 轮播项7 -->
+      <div class="natural1-carousel-slide">
+        <a href="product-pro.html" target="_blank">
+          <img src="MeFan Pro.png" 
+               alt="MeFan Pro">
+        </a>
+        <div class="natural1-overlay">
+          <div class="natural1-button-title-group">
+            <div class="natural1-bottom-row">
+              <button class="natural1-explore-btn"
+                      onclick="window.open('product-pro.html', '_blank')">
+                Explore now
+              </button>
+              <div class="natural1-text-bottom">桌面沿用scroll.</div>
+            </div>
+            <div class="natural1-title">Mefan Pro</div>
+          </div>
+        </div>
+      </div>
+
+
+
+
+
+
+
     </div>
   </div>
 
-  <script>
-    (function () {
-      const container = document.querySelector('.section0-carousel');
-      const track = document.querySelector('.section0-track');
-      const rightButton = document.getElementById('section0-rightButton');
-      const playIcon = document.getElementById('section0-playIcon');
-      const dotsWrap = document.getElementById('section0-dotsWrap');
-
-      if (!container || !track) return;
-
-      const LINK_URL = 'https://oliverfr.com/agent-test.html';
-
-      // ===== Speed (slower, friendly) =====
-      const TRANSITION_MS = 680;
-      const INTERVAL_MS   = 4500;
-      const SWIPE_PX_DESK = 50;
-      const SWIPE_PX_MOB  = 35;
-
-      // ===== Triple clones =====
-      let originalSlides = Array.from(track.querySelectorAll('.section0-slide'));
-      const realCount = originalSlides.length;
-
-      function syncDotsCount() {
-        if (!dotsWrap) return;
-        const exist = Array.from(dotsWrap.querySelectorAll('.dot'));
-        if (exist.length === realCount) return;
-        dotsWrap.innerHTML = '';
-        for (let i = 0; i < realCount; i++) {
-          const d = document.createElement('div');
-          d.className = 'dot';
-          d.dataset.index = String(i);
-          dotsWrap.appendChild(d);
-        }
-      }
-
-      function ensureHeroContent(slide) {
-        if (!slide) return;
-        if (slide.querySelector('.hero-content')) return;
-
-        const hero = document.createElement('div');
-        hero.className = 'hero-content';
-        hero.innerHTML = `
-          <h1>MeFan AI 智能体 - 让运维与开发更「自动」</h1>
-          <p>基于 Python · FastAPI · LangChain · LangGraph · Supa · Github · Cloudflare · google cloud搭建的全栈 AI Agent 平台。</p>
-          <a href="agent-test.html" class="btn">Let's智能体</a>
-        `;
-        slide.appendChild(hero);
-
-        const a = hero.querySelector('a.btn');
-        if (a) {
-          a.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            window.open(LINK_URL, '_blank', 'noopener');
-          });
-        }
-      }
-
-      function cloneTriple() {
-        if (realCount <= 1) return;
-
-        const base = originalSlides.map(n => n.cloneNode(true));
-        track.innerHTML = '';
-
-        for (let pass = 0; pass < 3; pass++) {
-          for (let i = 0; i < base.length; i++) {
-            const node = base[i].cloneNode(true);
-            node.dataset.realIndex = String(i);
-            node.dataset.pass = String(pass);
-            track.appendChild(node);
-          }
-        }
-      }
-
-      syncDotsCount();
-      cloneTriple();
-
-      let slides = Array.from(track.querySelectorAll('.section0-slide'));
-      slides.forEach(ensureHeroContent);
-
-      // Start at middle copy
-      let currentPos = (realCount > 1) ? realCount : 0;
-
-      // ===== Measurements (precision to 3 decimals) =====
-      let slideSpan = 0;
-      let slideWidth = 0;
-      let gapPx = 15;
-
-      function getGapPx() {
-        const cs = getComputedStyle(track);
-        const raw = cs.columnGap || cs.gap || '15';
-        const g = parseFloat(raw);
-        return Number.isFinite(g) ? g : 15;
-      }
-
-      function getContainerWidth() {
-        const rect = container.getBoundingClientRect();
-        return rect && rect.width ? rect.width : (container.offsetWidth || 0);
-      }
-
-      function recalcSpan() {
-        if (!slides.length) return;
-
-        const safePos = Math.min(Math.max(currentPos, 0), slides.length - 1);
-        const el = slides[safePos];
-        const rect = el ? el.getBoundingClientRect() : null;
-        const wMeasured = rect && rect.width ? rect.width : (el ? el.offsetWidth : 0);
-
-        const cw = getContainerWidth();
-        const fallback = cw ? (window.innerWidth <= 768 ? cw * 0.85 : cw * 0.82) : 0;
-
-        slideWidth = (Number.isFinite(wMeasured) && wMeasured > 0) ? wMeasured : fallback;
-
-        gapPx = getGapPx();
-        slideSpan = slideWidth + gapPx;
-      }
-
-      function applyTransform(animated) {
-        if (!slideSpan) recalcSpan();
-
-        const contW = getContainerWidth();
-        const offset = currentPos * slideSpan - ((contW - slideWidth) / 2);
-
-        track.style.transition = animated
-          ? `transform ${TRANSITION_MS}ms cubic-bezier(.22,.61,.36,1)`
-          : 'none';
-
-        track.style.transform = `translate3d(-${offset.toFixed(3)}px, 0, 0)`;
-      }
-
-      function getRealIndexByMod() {
-        if (realCount <= 1) return 0;
-        // 用 mod 保证即便 currentPos 越界也能得到正确 realIndex
-        let r = currentPos % realCount;
-        if (r < 0) r += realCount;
-        return r;
-      }
-
-      function setActiveDot(idx, pop) {
-        const dots = Array.from(document.querySelectorAll('.dot'));
-        dots.forEach(d => d.classList.remove('is-active', 'is-pre'));
-
-        const active = dots[idx];
-        if (!active) return;
-
-        active.classList.add('is-active');
-        if (pop) {
-          active.classList.add('is-pre');
-          requestAnimationFrame(() => active.classList.remove('is-pre'));
-        }
-      }
-
-      function updateCenterClasses() {
-        slides.forEach(s => s.classList.remove('is-center', 'is-neighbor'));
-
-        const center = slides[currentPos];
-        const left = slides[currentPos - 1];
-        const right = slides[currentPos + 1];
-
-        if (center) center.classList.add('is-center');
-        if (left) left.classList.add('is-neighbor');
-        if (right) right.classList.add('is-neighbor');
-      }
-
-      // ===== Normalize (NO blank even if transitionend never fires) =====
-      let normalizeTimer = null;
-
-      function snapToMiddleNoAnim() {
-        if (realCount <= 1) return;
-        const ri = getRealIndexByMod();
-        currentPos = realCount + ri;      // 永远回到中间副本
-        recalcSpan();
-        applyTransform(false);
-        updateCenterClasses();
-        setActiveDot(ri, false);
-      }
-
-      function scheduleNormalize() {
-        clearTimeout(normalizeTimer);
-        normalizeTimer = setTimeout(() => {
-          // 兜底：无论 transitionend 触发与否，最终都能回到中间副本
-          snapToMiddleNoAnim();
-        }, TRANSITION_MS + 80);
-      }
-
-      // transitionend 仍然保留（正常情况下更顺滑）
-      track.addEventListener('transitionend', (e) => {
-        if (e.propertyName !== 'transform') return;
-        snapToMiddleNoAnim();
-      });
-
-      // ===== Autoplay (play/pause) =====
-      let isPlaying = true;
-      let timer = null;
-
-      // ✅ 用户手动暂停标记：防止“后台回来后自动乱续播”
-      let userPaused = false;
-      // ✅ 后台前是否在播放：用于后台回来后决定是否续播
-      let wasPlayingBeforeHide = false;
-
-      function updatePlayButtonUI() {
-        if (!rightButton || !playIcon) return;
-        if (isPlaying) {
-          playIcon.textContent = '❚❚';
-          rightButton.classList.remove('is-paused');
-        } else {
-          playIcon.textContent = '►';
-          rightButton.classList.add('is-paused');
-        }
-      }
-
-      function schedule() {
-        clearTimeout(timer);
-        if (!isPlaying || realCount <= 1) return;
-
-        timer = setTimeout(() => {
-          next(true);
-          schedule();
-        }, INTERVAL_MS);
-      }
-
-      function play(internal = false) {
-        isPlaying = true;
-        if (!internal) userPaused = false;
-        updatePlayButtonUI();
-        schedule();
-      }
-
-      function pause(internal = false) {
-        isPlaying = false;
-        clearTimeout(timer);
-        timer = null;
-        if (!internal) userPaused = true;
-        updatePlayButtonUI();
-      }
-
-      // ===== Navigation =====
-      function next(popDot) {
-        if (realCount <= 1) return;
-
-        // ✅ 每次移动前先把位置拉回中间副本，避免后台节流导致越界
-        snapToMiddleNoAnim();
-
-        currentPos += 1;                 // 右 -> 左
-        applyTransform(true);
-        setActiveDot(getRealIndexByMod(), !!popDot);
-        updateCenterClasses();
-
-        // ✅ 双保险兜底
-        scheduleNormalize();
-      }
-
-      function prev(popDot) {
-        if (realCount <= 1) return;
-
-        snapToMiddleNoAnim();
-
-        currentPos -= 1;
-        applyTransform(true);
-        setActiveDot(getRealIndexByMod(), !!popDot);
-        updateCenterClasses();
-
-        scheduleNormalize();
-      }
-
-      function goToRealIndex(realIdx) {
-        if (realCount <= 1) return;
-        currentPos = realCount + realIdx;
-        recalcSpan();
-        applyTransform(true);
-        setActiveDot(realIdx, true);
-        updateCenterClasses();
-        scheduleNormalize();
-      }
-
-      // ===== Controls =====
-      if (rightButton) {
-        rightButton.addEventListener('click', () => {
-          if (isPlaying) pause(false);   // manual pause
-          else play(false);              // manual play
-        });
-      }
-
-      // Dots click
-      document.addEventListener('click', (e) => {
-        const t = e.target;
-        if (!t || !t.classList || !t.classList.contains('dot')) return;
-        const idx = parseInt(t.getAttribute('data-index') || '0', 10);
-        if (!Number.isFinite(idx)) return;
-
-        const shouldResume = isPlaying;
-        goToRealIndex(idx);
-        if (shouldResume) schedule();
-      });
-
-      // Slide click behavior:
-      // center: open new window
-      // neighbors/others: only move
-      track.addEventListener('click', (e) => {
-        const slide = e.target && e.target.closest ? e.target.closest('.section0-slide') : null;
-        if (!slide) return;
-
-        const idx = slides.indexOf(slide);
-        if (idx < 0) return;
-
-        if (idx === currentPos) {
-          window.open(LINK_URL, '_blank', 'noopener');
-          return;
-        }
-
-        pause(true);                     // 内部暂停，不算用户手动暂停
-        if (idx < currentPos) prev(true);
-        else next(true);
-      });
-
-      // ===== Touch swipe (mobile sensitive; keep vertical scroll) =====
-      let sx = 0, sy = 0, ex = 0, ey = 0;
-
-      track.addEventListener('touchstart', (e) => {
-        const t = e.touches && e.touches[0];
-        if (!t) return;
-        sx = t.clientX;
-        sy = t.clientY;
-      }, { passive: true });
-
-      track.addEventListener('touchend', (e) => {
-        const t = e.changedTouches && e.changedTouches[0];
-        if (!t) return;
-        ex = t.clientX;
-        ey = t.clientY;
-
-        const dx = ex - sx;
-        const dy = ey - sy;
-
-        // 横向明显大于纵向才触发，保证上下滚动灵敏
-        if (Math.abs(dx) <= Math.abs(dy)) return;
-
-        const thr = (window.innerWidth <= 768) ? SWIPE_PX_MOB : SWIPE_PX_DESK;
-        if (Math.abs(dx) < thr) return;
-
-        pause(true);                     // 内部暂停
-        if (dx < 0) next(true);
-        else prev(true);
-      }, { passive: true });
-
-      // ===== Heal: solve "back to tab => stopped/blank" =====
-      function heal(reason) {
-        // 容器宽度为 0 时（某些恢复瞬间），稍后再试
-        const cw = container.getBoundingClientRect().width || container.offsetWidth || 0;
-        if (!cw) {
-          setTimeout(() => heal(reason + ':retry'), 120);
-          return;
-        }
-
-        // 强制重算尺寸 + 回中间副本 + 修正 transform
-        recalcSpan();
-        snapToMiddleNoAnim();
-
-        // 如果后台回来前在播放，且用户没有手动暂停，则续播
-        if (wasPlayingBeforeHide && !userPaused) {
-          play(true);
-        } else {
-          updatePlayButtonUI();
-        }
-      }
-
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          wasPlayingBeforeHide = isPlaying;
-          if (isPlaying) pause(true);   // 后台内部暂停（不改 userPaused）
-        } else {
-          heal('visibility');
-        }
-      });
-
-      // BFCache / 返回历史页面时常见：pageshow 会触发
-      window.addEventListener('pageshow', () => heal('pageshow'));
-
-      // 重新聚焦也做一次修复
-      window.addEventListener('focus', () => heal('focus'));
-
-      // Resize
-      window.addEventListener('resize', () => {
-        recalcSpan();
-        snapToMiddleNoAnim();
-      });
-
-      // ===== Init =====
-      function init() {
-        recalcSpan();
-        snapToMiddleNoAnim();
-        updatePlayButtonUI();
-        play(true);
-      }
-
-      window.addEventListener('load', init, { once: true });
-    })();
-  </script>
-</body>
-</html>
-
+  <!-- 右侧切换按钮 -->
+  <button class="natural1-carousel-next">&gt;</button>
+</div>
+
+<!-- 小圆点容器 (保留不变) -->
+<div class="natural1-carousel-dots-container">
+  <div class="natural1-carousel-dots">
+    <span class="natural1-carousel-dot"></span>
+    <span class="natural1-carousel-dot"></span>
+    <span class="natural1-carousel-dot"></span>
+    <span class="natural1-carousel-dot"></span>
+
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <!-- ✅ 3) 无限滚动优化 -->
+  <section class="infinite-scroller-container">
+    <div class="infinite-scroller">
+      <div class="infinite-scroller-track" id="infiniteScroller">
+        <div class="product-marquee-card">
+          <a href="brookside.html">
+            <img src="A peaceful brookside setting.png" alt="Brookside setting" />
+            <div class="overlay">Explore now</div>
+            <p class="text">Brookside setting</p>
+          </a>
+        </div>
+        <div class="product-marquee-card">
+          <a href="gardenia.html">
+            <img src="A scenic riverside bend.png" alt="Riverside bend" />
+            <div class="overlay">Explore now</div>
+            <p class="text">Riverside bend</p>
+          </a>
+        </div>
+        <div class="product-marquee-card">
+          <a href="serene-coastal-shore.html">
+            <img src="A serene coastal shore.png" alt="Coastal shore" />
+            <div class="overlay">Explore now</div>
+            <p class="text">Coastal shore</p>
+          </a>
+        </div>
+        <div class="product-marquee-card">
+          <a href="shaded-forest-path.html">
+            <img src="A shaded forest path.png" alt="Forest path" />
+            <div class="overlay">Explore now</div>
+            <p class="text">Forest path</p>
+          </a>
+        </div>
+      </div>
+
+      <!-- ✅ 让按钮与滚动区域保持在一起 -->
+      <div id="pauseBtn-container">
+        <button id="pauseBtn"></button>
+      </div>
+    </div>
+  </section>
+<!-- ✅ 新增第一行内容 -->
+    <div class="extra-line">提示:本网站中图片的命名与实际播放,实际展示的图片内容是不符的(Note: Image names on this website do not correspond to the actual displayed or played content.)</div>
+  <!-- 简要介绍区 -->
+  <section class="intro-section">
+    <h2>为什么选择 MeFan?</h2>
+    <p>我们专注于无线音频领域，融合最新技术与时尚设计，为您带来舒适与卓越的聆听体验。</p>
+    <button class="btn" data-modal-target="#whyModal">更多详情</button>
+  </section>
+
+  <!-- 场景应用卡片区 -->
+  <section class="use-case-section">
+    <h2>应用场景</h2>
+    <p>在不同场景中，MeFan耳机如何展现卓越表现？</p>
+
+    <div class="use-case-grid">
+      <!-- 运动场景 -> #sportModal -->
+      <div class="use-case-item" data-modal-target="#sportModal">
+        <h3>运动场景</h3>
+        <p>运动时的防水、防汗表现……</p>
+      </div>
+      <!-- 通勤场景 -> #commuteModal -->
+      <div class="use-case-item" data-modal-target="#commuteModal">
+        <h3>通勤场景</h3>
+        <p>地铁、公交、办公室等噪音环境表现……</p>
+      </div>
+      <!-- 会议场景 -> #meetingModal -->
+      <div class="use-case-item" data-modal-target="#meetingModal">
+        <h3>会议场景</h3>
+        <p>语音通话、降噪麦克风等……</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="value-section">
+    <h2>Our Vision & Core Values</h2>
+    <p>At Mefan, we’re at the very beginning of something exciting. Though our vision is still in its early stages, we believe deeply in the value of hard work, learning, and steady progress.</p>
+    <p>We know the path ahead will take time and persistence. Success isn’t immediate, but it’s built step by step. We’re committed to refining our ideas, focusing on quality, and staying true to our mission of creating meaningful audio experiences.</p>
+    <p>For now, we focus on laying the foundation. We aim to deliver real value to our future customers with every product we create. Your trust means a lot to us as we start this journey. The road may be long, but we’re confident that with time, this vision will take shape.</p>
+  </section>
+
+  <!-- 横线部分 -->
+  <div class="divider"></div>
+
+  <!-- 核心价值展示部分 -->
+  <section class="core-values-section">
+    <div class="core-value-item">
+      <h3 class="dropdown">Mefan Value <span class="dropdown-arrow">&#x2304;</span></h3>
+      <ul class="dropdown-content">
+        <li><a href="accessibility.html">Accessibility</a></li>
+      </ul>
+    </div>
+
+    <div class="core-value-item">
+      <h3 class="dropdown">For Business <span class="dropdown-arrow">&#x2304;</span></h3>
+      <ul class="dropdown-content">
+        <li><a href="mefan-and-business.html">Mefan and Business</a></li>
+      </ul>
+    </div>
+
+    <div class="core-value-item">
+      <h3 class="dropdown">Entertainment <span class="dropdown-arrow">&#x2304;</span></h3>
+      <ul class="dropdown-content">
+        <li><a href="mefan-one.html">Mefan One</a></li>
+      </ul>
+    </div>
+  </section>
+
+
+  <!-- Social Media Icons -->
+  <div class="footer-info">
+    <div class="social-media">
+      <a href="https://wa.me/12817839998" target="_blank" aria-label="WhatsApp">
+        <img src="https://cdn-icons-png.flaticon.com/512/124/124034.png" alt="WhatsApp" class="social-icon"/>
+      </a>
+      <a href="https://linkedin.com/in/oliver-f-448b8a287" target="_blank" aria-label="LinkedIn">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" alt="LinkedIn" class="social-icon"/>
+      </a>
+      <a href="https://web.skype.com/?openPstnPage=true" target="_self" aria-label="Skype">
+        <img src="Skype Logo.png" alt="Skype Logo" class="social-icon"/>
+      </a>
+      <a href="weixin://dl/chat?wxid=wxid_kesvxwp296ci12" aria-label="WeChat">
+        <img src="WeChat Logo.png" alt="WeChat Logo" class="social-icon"/>
+      </a>
+    </div>
+  </div>
+
+  <!-- 横线部分 -->
+  <div class="divider"></div>
+  <div class="footer-extend">
+    <p>&copy; 2025 MeFan@Oliver F. All rights reserved.</p>
+  </div>
+
+  <!-- 4个模态窗口 (去重并修正) -->
+  <div class="modal" id="whyModal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <iframe
+        src="whyMeFanDetail.html"
+        frameborder="0"
+        class="modal-iframe">
+      </iframe>
+    </div>
+  </div>
+
+  <div class="modal" id="sportModal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <iframe
+        src="useCaseSport.html"
+        frameborder="0"
+        class="modal-iframe">
+      </iframe>
+    </div>
+  </div>
+
+  <div class="modal" id="commuteModal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <iframe
+        src="useCaseCommute.html"
+        frameborder="0"
+        class="modal-iframe">
+      </iframe>
+    </div>
+  </div>
+
+
+  <div class="modal" id="meetingModal">
+    <div class="modal-content">
+      <span class="modal-close" data-modal-close>&times;</span>
+      <iframe
+        src="useCaseMeeting.html"
+        frameborder="0"
+        class="modal-iframe">
+      </iframe>
+    </div>
+  </div>
+  <!-- 内联脚本：搜索逻辑与事件（原有） -->
+ <!-- 其余HTML结构、CSS链接等保持不变，在 </body> 前插入以下脚本 -->
+<!-- 其他 HTML 结构... -->
+
+
+  <!-- 新增：回到顶部按钮 -->
+  <button id="backToTop" title="Back to Top">&#8679;</button>
