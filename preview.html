@@ -20,12 +20,12 @@
       .section0-carousel{
         position: relative;
         width: 100%;
-        height: 520px;
         overflow: hidden;
-        margin: 10px auto 0 auto;      /* 下方间距由按钮条统一控制 */
-        padding: 0;
-        box-sizing: border-box;
-        touch-action: pan-y;           /* 保留上下滚动 */
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: 12px
       }
       .section0-track{
         display: flex;
@@ -37,63 +37,55 @@
         will-change: transform;
       }
       .section0-slide{
-        flex: 0 0 auto;
-        width: calc(100% - (var(--peek-desktop) * 2));
-        max-width: calc(100% - (var(--peek-desktop) * 2));
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        opacity: 1 !important;
-        transition: opacity .3s ease-in-out;
-        position: relative;
-        border-radius: 10px;
-        overflow: hidden;
+
+        flex: 0 0 calc(75%);
+        scroll-snap-align: center;
+        height: 520px;
+        position: relative
       }
       .section0-slide img{
-        width: 100%;
+       width: 100%;
         height: auto;
         display: block;
-        border-radius: 10px;
-        filter: none !important;
-        opacity: 1 !important;
+        filter: none!important;
+        opacity: 1!important
       }
     }
 
     /* Mobile */
     @media (max-width: 768px) {
       .section0-carousel{
-        width: 100vw;
-        padding-left: calc((100vw - 85vw) / 2);
-        padding-right: calc((100vw - 85vw) / 2);
-        overflow: hidden;
-        margin: 5px auto 0 auto;
         position: relative;
-        box-sizing: border-box;
+        width: 100vw;
+        margin: 0 auto;
+        overflow: hidden;
+        height: 495px;
+        top: 12px;
+        padding-bottom: 40px
         touch-action: pan-y;
       }
       .section0-track{
         display: flex;
-        width: 100%;
-        gap: var(--gap);
-        column-gap: var(--gap);
-        align-items: center;
-        will-change: transform;
+        gap: 15px;
+        overflow: visible;
+        white-space: nowrap;
+        transition: none
       }
       .section0-slide{
-        flex: 0 0 auto;
-        width: 85vw;
-        aspect-ratio: 9 / 16;
-        overflow: hidden;
-        position: relative;
-        border-radius: 10px;
+                flex: 0 0 auto;
+        width: 66vw;
+        height: 495px;
+        box-sizing: border-box;
+        aspect-ratio: 9/16;
+        backface-visibility: hidden
       }
       .section0-slide img{
-        width: 100%;
+      width: 100%;
         height: 100%;
         object-fit: cover;
         display: block;
-        filter: none !important;
-        opacity: 1 !important;
+        filter: none!important;
+        opacity: 1!important
       }
     }
 
@@ -696,3 +688,4 @@
   </script>
 </body>
 </html>
+
