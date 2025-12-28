@@ -16,10 +16,10 @@
         width: 100%;
         height: 520px;
         overflow: hidden;
-        margin: 10px auto 30px auto;
+        margin: 10px auto 0 auto;      /* ✅ 下方间距交给按钮条统一控制 */
         padding: 0 10%;
         box-sizing: border-box;
-        touch-action: pan-y;
+        touch-action: pan-y;           /* 保留上下滚动 */
       }
       .section0-track{
         display: flex;
@@ -56,7 +56,7 @@
         padding-left: calc((100vw - 85vw) / 2);
         padding-right: calc((100vw - 85vw) / 2);
         overflow: hidden;
-        margin: 5px auto 27px auto;
+        margin: 5px auto 0 auto;       /* ✅ 下方间距交给按钮条统一控制 */
         position: relative;
         box-sizing: border-box;
         touch-action: pan-y;
@@ -86,32 +86,27 @@
     }
 
     /* =========================
-       Apple TV-like bar + dots + play (NO keyframes)
+       ✅ 轮播下方固定 15px 间距的圆点胶囊条
        ========================= */
     .section0-buttonRow{
       width: min(920px, 92vw);
       height: 44px;
-      margin: 16px auto;
-      position: sticky;
-      top: 26px;
+      margin: 15px auto 16px auto;     /* ✅ 与轮播区域下方保持总间隔 15px */
+      position: relative;              /* ✅ 固定在轮播下方（非 sticky/非浮动） */
       z-index: 999;
       background: rgba(240,240,240,.96);
       border-radius: 999px;
       box-sizing: border-box;
       box-shadow: 0 10px 26px rgba(0,0,0,.08);
-      transition: transform .35s ease, opacity .35s ease;
-      opacity: 1;
     }
-    .section0-buttonRow.is-hidden{
-      opacity: 0;
-      transform: translateY(-10px) scale(.96);
-      pointer-events: none;
-    }
+
+    /* Containers inside the bar */
     .btn-container{
       position: absolute;
       top: 50%;
       opacity: 1;
       pointer-events: auto;
+      transform: translateY(-50%);
     }
     #leftBtnContainer{
       left: 50%;
@@ -120,14 +115,11 @@
     #rightBtnContainer{
       right: 10px;
       left: auto;
-      transform: translateY(-50%);
     }
+
     #section0-leftCapsule{
-      width: auto;
-      height: auto;
       background: transparent;
       border: none;
-      border-radius: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -139,6 +131,8 @@
       padding: 0 14px;
       user-select: none;
     }
+
+    /* Dot style (capsule active, small dots inactive) */
     .dot{
       --dotS: 6px;
       --pillW: 36px;
@@ -195,48 +189,52 @@
     }
 
     /* =========================
-       Center-slide hero content
-       (Use the exact HTML structure you provided)
+       ✅ 只保留你给的 hero-content 结构（不再有任何截图相关 overlay 额外层）
+       - 仅中心显示
+       - 视觉就是“一个框”
        ========================= */
-
-    /* Overlay wrapper */
-    .section0-heroOverlay{
+    .section0-slide .hero-content{
       position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(92%, 760px);
+      text-align: center;
+
+      /* 一个“框” */
+      background: rgba(0,0,0,.24);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 14px;
       padding: 18px 16px;
-      background: rgba(0,0,0,.22);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
+
+      /* 默认隐藏：只有中心显示 */
       opacity: 0;
       pointer-events: none;
       transition: opacity .22s ease;
-      text-align: center;
     }
 
-    /* ✅ Your required structure */
-    .section0-heroOverlay .hero-content{
-      max-width: 92%;
-      color: #fff;
+    .section0-slide.is-center .hero-content{
+      opacity: 1;
+      pointer-events: auto;
     }
-    .section0-heroOverlay .hero-content h1{
+
+    .section0-slide .hero-content h1{
       margin: 0 0 10px 0;
+      color: #fff;
       font-weight: 900;
       letter-spacing: .2px;
       line-height: 1.12;
       font-size: clamp(20px, 3.8vw, 46px);
       text-shadow: 0 10px 24px rgba(0,0,0,.35);
     }
-    .section0-heroOverlay .hero-content p{
+    .section0-slide .hero-content p{
       margin: 0 0 14px 0;
-      opacity: .92;
+      color: rgba(255,255,255,.92);
       line-height: 1.5;
       font-size: clamp(12px, 1.5vw, 18px);
       text-shadow: 0 10px 24px rgba(0,0,0,.30);
     }
-    .section0-heroOverlay .hero-content .btn{
+    .section0-slide .hero-content .btn{
       display: inline-block;
       background: #1677ff;
       color: #fff;
@@ -248,16 +246,9 @@
       transition: transform .18s ease, filter .18s ease;
       user-select: none;
     }
-    .section0-heroOverlay .hero-content .btn:active{
-      transform: scale(.98);
-    }
+    .section0-slide .hero-content .btn:active{ transform: scale(.98); }
 
-    /* Only center shows overlay + clickable */
-    .section0-slide.is-center .section0-heroOverlay{
-      opacity: 1;
-      pointer-events: auto;
-    }
-
+    /* 点击规则提示（可选） */
     .section0-slide.is-center{ cursor: pointer; }
     .section0-slide.is-neighbor{ cursor: pointer; }
   </style>
@@ -274,8 +265,8 @@
     </div>
   </div>
 
-  <!-- 按钮行容器 -->
-  <div id="section0-buttonRow" class="section0-buttonRow is-hidden">
+  <!-- ✅ 固定在轮播下方（间隔 15px）的圆点 + 播放暂停 -->
+  <div id="section0-buttonRow" class="section0-buttonRow">
     <div id="leftBtnContainer" class="btn-container">
       <div id="section0-leftCapsule">
         <div class="dots" id="section0-dotsWrap">
@@ -297,7 +288,6 @@
     (function () {
       const container = document.querySelector('.section0-carousel');
       const track = document.querySelector('.section0-track');
-      const buttonRow = document.getElementById('section0-buttonRow');
       const rightButton = document.getElementById('section0-rightButton');
       const playIcon = document.getElementById('section0-playIcon');
       const dotsWrap = document.getElementById('section0-dotsWrap');
@@ -329,24 +319,22 @@
         }
       }
 
-      // ✅ Use your provided HTML structure inside overlay
-      function ensureOverlay(slide) {
+      // ✅ 只注入你给的 hero-content 结构（无任何额外 overlay 层）
+      function ensureHeroContent(slide) {
         if (!slide) return;
-        if (slide.querySelector('.section0-heroOverlay')) return;
+        if (slide.querySelector('.hero-content')) return;
 
-        const overlay = document.createElement('div');
-        overlay.className = 'section0-heroOverlay';
-        overlay.innerHTML = `
-          <div class="hero-content">
-            <h1>MeFan AI 智能体 - 让运维与开发更「自动」</h1>
-            <p>基于 Python · FastAPI · LangChain · LangGraph · Supa · Github · Cloudflare · google cloud搭建的全栈 AI Agent 平台。</p>
-            <a href="agent-test.html" class="btn">Let's智能体</a>
-          </div>
+        const hero = document.createElement('div');
+        hero.className = 'hero-content';
+        hero.innerHTML = `
+          <h1>MeFan AI 智能体 - 让运维与开发更「自动」</h1>
+          <p>基于 Python · FastAPI · LangChain · LangGraph · Supa · Github · Cloudflare · google cloud搭建的全栈 AI Agent 平台。</p>
+          <a href="agent-test.html" class="btn">Let's智能体</a>
         `;
-        slide.appendChild(overlay);
+        slide.appendChild(hero);
 
-        // Anchor click opens new window (and prevents hash/replace)
-        const a = overlay.querySelector('a.btn');
+        // 仅按钮：新开窗口（并阻止冒泡，避免触发 slide click）
+        const a = hero.querySelector('a.btn');
         if (a) {
           a.addEventListener('click', (e) => {
             e.preventDefault();
@@ -376,7 +364,7 @@
       cloneTriple();
 
       let slides = Array.from(track.querySelectorAll('.section0-slide'));
-      slides.forEach(ensureOverlay);
+      slides.forEach(ensureHeroContent);
 
       // Start at middle copy
       let currentPos = (realCount > 1) ? realCount : 0;
@@ -500,7 +488,7 @@
       // ===== Navigation =====
       function next(popDot) {
         if (realCount <= 1) return;
-        currentPos += 1;
+        currentPos += 1;  // 右 -> 左
         applyTransform(true);
         setActiveDot(getRealIndex(), !!popDot);
         updateCenterClasses();
@@ -582,6 +570,7 @@
         const dx = ex - sx;
         const dy = ey - sy;
 
+        // 横向明显大于纵向才触发，保证上下滚动灵敏
         if (Math.abs(dx) <= Math.abs(dy)) return;
 
         const thr = (window.innerWidth <= 768) ? SWIPE_PX_MOB : SWIPE_PX_DESK;
@@ -590,23 +579,6 @@
         pause();
         if (dx < 0) next(true);
         else prev(true);
-      }, { passive: true });
-
-      // ===== IntersectionObserver show/hide =====
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (!buttonRow) return;
-          buttonRow.classList.toggle('is-hidden', !entry.isIntersecting);
-        });
-      }, { threshold: 0 });
-      observer.observe(container);
-
-      window.addEventListener('scroll', () => {
-        if (!buttonRow) return;
-        const br = buttonRow.getBoundingClientRect();
-        buttonRow.style.transform = (br.bottom > window.innerHeight)
-          ? 'translateY(-180px)'
-          : (buttonRow.classList.contains('is-hidden') ? 'translateY(-10px) scale(.96)' : '');
       }, { passive: true });
 
       // ===== Resize =====
@@ -620,9 +592,7 @@
         recalcSpan();
         applyTransform(false);
         updateCenterClasses();
-
         setActiveDot(getRealIndex(), true);
-
         updatePlayButtonUI();
         play();
       }
