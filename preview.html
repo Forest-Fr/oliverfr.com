@@ -16,7 +16,7 @@
         width: 100%;
         height: 520px;
         overflow: hidden;
-        margin: 10px auto 0 auto;      /* ✅ 下方间距交给按钮条统一控制 */
+        margin: 10px auto 0 auto;      /* 下方间距由按钮条统一控制 */
         padding: 0 10%;
         box-sizing: border-box;
         touch-action: pan-y;           /* 保留上下滚动 */
@@ -56,7 +56,7 @@
         padding-left: calc((100vw - 85vw) / 2);
         padding-right: calc((100vw - 85vw) / 2);
         overflow: hidden;
-        margin: 5px auto 0 auto;       /* ✅ 下方间距交给按钮条统一控制 */
+        margin: 5px auto 0 auto;
         position: relative;
         box-sizing: border-box;
         touch-action: pan-y;
@@ -86,21 +86,21 @@
     }
 
     /* =========================
-       ✅ 轮播下方固定 15px 间距的圆点胶囊条
+       ✅ 固定在轮播下方 15px 的圆点胶囊条
        ========================= */
     .section0-buttonRow{
       width: min(920px, 92vw);
       height: 44px;
-      margin: 15px auto 16px auto;     /* ✅ 与轮播区域下方保持总间隔 15px */
-      position: relative;              /* ✅ 固定在轮播下方（非 sticky/非浮动） */
+      margin: 15px auto 16px auto;     /* ✅ 与轮播区域下方总间隔 15px */
+      position: relative;              /* 固定在轮播下方（非 sticky） */
       z-index: 999;
       background: rgba(240,240,240,.96);
       border-radius: 999px;
       box-sizing: border-box;
-      box-shadow: 0 10px 26px rgba(0,0,0,.08);
+      /* ✅ 阴影调浅 */
+      box-shadow: 0 10px 26px rgba(0,0,0,.05);
     }
 
-    /* Containers inside the bar */
     .btn-container{
       position: absolute;
       top: 50%;
@@ -171,13 +171,14 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 6px 16px rgba(0,0,0,.10);
+      /* ✅ 阴影调浅 */
+      box-shadow: 0 6px 16px rgba(0,0,0,.08);
       transition: transform .18s ease, background-color .18s ease, opacity .18s ease, box-shadow .18s ease;
     }
     #section0-rightButton:active{ transform: scale(.96); }
     #section0-rightButton.is-paused{
-      background: rgba(0,0,0,.16);
-      box-shadow: 0 6px 18px rgba(0,0,0,.12);
+      background: rgba(0,0,0,.14);
+      box-shadow: 0 6px 18px rgba(0,0,0,.09);
     }
     #section0-playIcon{
       font-size: 14px;
@@ -189,9 +190,7 @@
     }
 
     /* =========================
-       ✅ 只保留你给的 hero-content 结构（不再有任何截图相关 overlay 额外层）
-       - 仅中心显示
-       - 视觉就是“一个框”
+       ✅ 只保留 hero-content（一个框），中心显示
        ========================= */
     .section0-slide .hero-content{
       position: absolute;
@@ -202,12 +201,11 @@
       text-align: center;
 
       /* 一个“框” */
-      background: rgba(0,0,0,.24);
+      background: rgba(0,0,0,.22);
       border: 1px solid rgba(255,255,255,.18);
       border-radius: 14px;
       padding: 18px 16px;
 
-      /* 默认隐藏：只有中心显示 */
       opacity: 0;
       pointer-events: none;
       transition: opacity .22s ease;
@@ -225,14 +223,16 @@
       letter-spacing: .2px;
       line-height: 1.12;
       font-size: clamp(20px, 3.8vw, 46px);
-      text-shadow: 0 10px 24px rgba(0,0,0,.35);
+      /* ✅ 文本阴影调浅 */
+      text-shadow: 0 10px 24px rgba(0,0,0,.18);
     }
     .section0-slide .hero-content p{
       margin: 0 0 14px 0;
       color: rgba(255,255,255,.92);
       line-height: 1.5;
       font-size: clamp(12px, 1.5vw, 18px);
-      text-shadow: 0 10px 24px rgba(0,0,0,.30);
+      /* ✅ 文本阴影调浅 */
+      text-shadow: 0 10px 24px rgba(0,0,0,.16);
     }
     .section0-slide .hero-content .btn{
       display: inline-block;
@@ -242,13 +242,13 @@
       padding: 10px 18px;
       border-radius: 8px;
       text-decoration: none;
-      box-shadow: 0 12px 28px rgba(0,0,0,.22);
+      /* ✅ 按钮阴影调浅 */
+      box-shadow: 0 12px 28px rgba(0,0,0,.16);
       transition: transform .18s ease, filter .18s ease;
       user-select: none;
     }
     .section0-slide .hero-content .btn:active{ transform: scale(.98); }
 
-    /* 点击规则提示（可选） */
     .section0-slide.is-center{ cursor: pointer; }
     .section0-slide.is-neighbor{ cursor: pointer; }
   </style>
@@ -265,7 +265,7 @@
     </div>
   </div>
 
-  <!-- ✅ 固定在轮播下方（间隔 15px）的圆点 + 播放暂停 -->
+  <!-- 固定在轮播下方 15px 的圆点 + 播放暂停 -->
   <div id="section0-buttonRow" class="section0-buttonRow">
     <div id="leftBtnContainer" class="btn-container">
       <div id="section0-leftCapsule">
@@ -296,13 +296,13 @@
 
       const LINK_URL = 'https://oliverfr.com/agent-test.html';
 
-      // ===== Speed (slower, keep friendly) =====
+      // ===== Speed (slower, friendly) =====
       const TRANSITION_MS = 680;
       const INTERVAL_MS   = 4500;
       const SWIPE_PX_DESK = 50;
       const SWIPE_PX_MOB  = 35;
 
-      // ===== Build triple clones (no flash on edges) =====
+      // ===== Triple clones =====
       let originalSlides = Array.from(track.querySelectorAll('.section0-slide'));
       const realCount = originalSlides.length;
 
@@ -319,7 +319,6 @@
         }
       }
 
-      // ✅ 只注入你给的 hero-content 结构（无任何额外 overlay 层）
       function ensureHeroContent(slide) {
         if (!slide) return;
         if (slide.querySelector('.hero-content')) return;
@@ -333,7 +332,6 @@
         `;
         slide.appendChild(hero);
 
-        // 仅按钮：新开窗口（并阻止冒泡，避免触发 slide click）
         const a = hero.querySelector('a.btn');
         if (a) {
           a.addEventListener('click', (e) => {
@@ -374,15 +372,30 @@
 
       function getGapPx() {
         const cs = getComputedStyle(track);
-        const g = parseFloat(cs.columnGap || cs.gap || '0');
+        const raw = cs.columnGap || cs.gap || '0';
+        const g = parseFloat(raw);
         return Number.isFinite(g) ? g : 0;
       }
 
       function recalcSpan() {
         if (!slides.length) return;
-        const idx = Math.min(Math.max(currentPos, 0), slides.length - 1);
-        const w = slides[idx].getBoundingClientRect().width;
-        slideSpan = w + getGapPx();
+
+        const safePos = Math.min(Math.max(currentPos, 0), slides.length - 1);
+        const el = slides[safePos];
+        const w1 = el ? el.getBoundingClientRect().width : 0;
+        const w2 = el ? el.offsetWidth : 0;
+
+        let w = (Number.isFinite(w1) && w1 > 0) ? w1 : w2;
+
+        // fallback（极端情况下后台/恢复时宽度可能为 0）
+        if (!Number.isFinite(w) || w <= 0) {
+          const cw = container.getBoundingClientRect().width || container.offsetWidth || 0;
+          if (cw > 0) {
+            w = (window.innerWidth <= 768) ? (cw * 0.85) : cw;
+          }
+        }
+
+        slideSpan = (w > 0 ? w : 0) + getGapPx();
       }
 
       function applyTransform(animated) {
@@ -395,11 +408,12 @@
         track.style.transform = `translateX(-${offset.toFixed(3)}px)`;
       }
 
-      function getRealIndex() {
+      function getRealIndexByMod() {
         if (realCount <= 1) return 0;
-        const el = slides[currentPos];
-        const ri = el ? parseInt(el.dataset.realIndex || '0', 10) : 0;
-        return Number.isFinite(ri) ? ri : 0;
+        // 用 mod 保证即便 currentPos 越界也能得到正确 realIndex
+        let r = currentPos % realCount;
+        if (r < 0) r += realCount;
+        return r;
       }
 
       function setActiveDot(idx, pop) {
@@ -428,29 +442,41 @@
         if (right) right.classList.add('is-neighbor');
       }
 
-      // ===== Infinite loop boundary fix =====
-      function normalizeAfterTransition() {
-        if (realCount <= 1) return;
+      // ===== Normalize (NO blank even if transitionend never fires) =====
+      let normalizeTimer = null;
 
-        if (currentPos >= realCount * 2) {
-          currentPos -= realCount;
-          applyTransform(false);
-        }
-        if (currentPos < realCount) {
-          currentPos += realCount;
-          applyTransform(false);
-        }
+      function snapToMiddleNoAnim() {
+        if (realCount <= 1) return;
+        const ri = getRealIndexByMod();
+        currentPos = realCount + ri;      // 永远回到中间副本
+        recalcSpan();
+        applyTransform(false);
         updateCenterClasses();
+        setActiveDot(ri, false);
       }
 
+      function scheduleNormalize() {
+        clearTimeout(normalizeTimer);
+        normalizeTimer = setTimeout(() => {
+          // 兜底：无论 transitionend 触发与否，最终都能回到中间副本
+          snapToMiddleNoAnim();
+        }, TRANSITION_MS + 80);
+      }
+
+      // transitionend 仍然保留（正常情况下更顺滑）
       track.addEventListener('transitionend', (e) => {
         if (e.propertyName !== 'transform') return;
-        normalizeAfterTransition();
+        snapToMiddleNoAnim();
       });
 
       // ===== Autoplay (play/pause) =====
       let isPlaying = true;
       let timer = null;
+
+      // ✅ 用户手动暂停标记：防止“后台回来后自动乱续播”
+      let userPaused = false;
+      // ✅ 后台前是否在播放：用于后台回来后决定是否续播
+      let wasPlayingBeforeHide = false;
 
       function updatePlayButtonUI() {
         if (!rightButton || !playIcon) return;
@@ -466,56 +492,72 @@
       function schedule() {
         clearTimeout(timer);
         if (!isPlaying || realCount <= 1) return;
+
         timer = setTimeout(() => {
           next(true);
           schedule();
         }, INTERVAL_MS);
       }
 
-      function play() {
+      function play(internal = false) {
         isPlaying = true;
+        if (!internal) userPaused = false;
         updatePlayButtonUI();
         schedule();
       }
 
-      function pause() {
+      function pause(internal = false) {
         isPlaying = false;
         clearTimeout(timer);
         timer = null;
+        if (!internal) userPaused = true;
         updatePlayButtonUI();
       }
 
       // ===== Navigation =====
       function next(popDot) {
         if (realCount <= 1) return;
-        currentPos += 1;  // 右 -> 左
+
+        // ✅ 每次移动前先把位置拉回中间副本，避免后台节流导致越界
+        snapToMiddleNoAnim();
+
+        currentPos += 1;                 // 右 -> 左
         applyTransform(true);
-        setActiveDot(getRealIndex(), !!popDot);
+        setActiveDot(getRealIndexByMod(), !!popDot);
         updateCenterClasses();
+
+        // ✅ 双保险兜底
+        scheduleNormalize();
       }
 
       function prev(popDot) {
         if (realCount <= 1) return;
+
+        snapToMiddleNoAnim();
+
         currentPos -= 1;
         applyTransform(true);
-        setActiveDot(getRealIndex(), !!popDot);
+        setActiveDot(getRealIndexByMod(), !!popDot);
         updateCenterClasses();
+
+        scheduleNormalize();
       }
 
       function goToRealIndex(realIdx) {
         if (realCount <= 1) return;
         currentPos = realCount + realIdx;
+        recalcSpan();
         applyTransform(true);
         setActiveDot(realIdx, true);
         updateCenterClasses();
-        normalizeAfterTransition();
+        scheduleNormalize();
       }
 
       // ===== Controls =====
       if (rightButton) {
         rightButton.addEventListener('click', () => {
-          if (isPlaying) pause();
-          else play();
+          if (isPlaying) pause(false);   // manual pause
+          else play(false);              // manual play
         });
       }
 
@@ -526,9 +568,9 @@
         const idx = parseInt(t.getAttribute('data-index') || '0', 10);
         if (!Number.isFinite(idx)) return;
 
-        const wasPlaying = isPlaying;
+        const shouldResume = isPlaying;
         goToRealIndex(idx);
-        if (wasPlaying) schedule();
+        if (shouldResume) schedule();
       });
 
       // Slide click behavior:
@@ -546,7 +588,7 @@
           return;
         }
 
-        pause();
+        pause(true);                     // 内部暂停，不算用户手动暂停
         if (idx < currentPos) prev(true);
         else next(true);
       });
@@ -576,25 +618,59 @@
         const thr = (window.innerWidth <= 768) ? SWIPE_PX_MOB : SWIPE_PX_DESK;
         if (Math.abs(dx) < thr) return;
 
-        pause();
+        pause(true);                     // 内部暂停
         if (dx < 0) next(true);
         else prev(true);
       }, { passive: true });
 
-      // ===== Resize =====
+      // ===== Heal: solve "back to tab => stopped/blank" =====
+      function heal(reason) {
+        // 容器宽度为 0 时（某些恢复瞬间），稍后再试
+        const cw = container.getBoundingClientRect().width || container.offsetWidth || 0;
+        if (!cw) {
+          setTimeout(() => heal(reason + ':retry'), 120);
+          return;
+        }
+
+        // 强制重算尺寸 + 回中间副本 + 修正 transform
+        recalcSpan();
+        snapToMiddleNoAnim();
+
+        // 如果后台回来前在播放，且用户没有手动暂停，则续播
+        if (wasPlayingBeforeHide && !userPaused) {
+          play(true);
+        } else {
+          updatePlayButtonUI();
+        }
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          wasPlayingBeforeHide = isPlaying;
+          if (isPlaying) pause(true);   // 后台内部暂停（不改 userPaused）
+        } else {
+          heal('visibility');
+        }
+      });
+
+      // BFCache / 返回历史页面时常见：pageshow 会触发
+      window.addEventListener('pageshow', () => heal('pageshow'));
+
+      // 重新聚焦也做一次修复
+      window.addEventListener('focus', () => heal('focus'));
+
+      // Resize
       window.addEventListener('resize', () => {
         recalcSpan();
-        applyTransform(false);
+        snapToMiddleNoAnim();
       });
 
       // ===== Init =====
       function init() {
         recalcSpan();
-        applyTransform(false);
-        updateCenterClasses();
-        setActiveDot(getRealIndex(), true);
+        snapToMiddleNoAnim();
         updatePlayButtonUI();
-        play();
+        play(true);
       }
 
       window.addEventListener('load', init, { once: true });
