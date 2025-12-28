@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Section0 Carousel</title>
   <style>
+    :root{
+      --gap: 15px;
+      --peek-desktop: clamp(52px, 9vw, 96px);
+      --peek-mobile: 7vw;
+    }
+
     /* =========================
        Carousel layout (Peek Preview)
        ========================= */
@@ -17,19 +23,23 @@
         height: 520px;
         overflow: hidden;
         margin: 10px auto 0 auto;      /* 下方间距由按钮条统一控制 */
-        padding: 0 10%;
+        padding: 0;
         box-sizing: border-box;
         touch-action: pan-y;           /* 保留上下滚动 */
       }
       .section0-track{
         display: flex;
-        gap: 15px;
+        width: 100%;
+        gap: var(--gap);
+        column-gap: var(--gap);
+        row-gap: 0;
         justify-content: flex-start;
         will-change: transform;
       }
       .section0-slide{
         flex: 0 0 auto;
-        width: 100%;
+        width: calc(100% - (var(--peek-desktop) * 2));
+        max-width: calc(100% - (var(--peek-desktop) * 2));
         display: flex;
         justify-content: center;
         align-items: center;
@@ -63,7 +73,9 @@
       }
       .section0-track{
         display: flex;
-        gap: 15px;
+        width: 100%;
+        gap: var(--gap);
+        column-gap: var(--gap);
         align-items: center;
         will-change: transform;
       }
@@ -369,12 +381,19 @@
 
       // ===== Measurements (precision to 3 decimals) =====
       let slideSpan = 0;
+      let slideWidth = 0;
+      let gapPx = 15;
 
       function getGapPx() {
         const cs = getComputedStyle(track);
-        const raw = cs.columnGap || cs.gap || '0';
+        const raw = cs.columnGap || cs.gap || '15';
         const g = parseFloat(raw);
-        return Number.isFinite(g) ? g : 0;
+        return Number.isFinite(g) ? g : 15;
+      }
+
+      function getContainerWidth() {
+        const rect = container.getBoundingClientRect();
+        return rect && rect.width ? rect.width : (container.offsetWidth || 0);
       }
 
       function recalcSpan() {
@@ -382,30 +401,29 @@
 
         const safePos = Math.min(Math.max(currentPos, 0), slides.length - 1);
         const el = slides[safePos];
-        const w1 = el ? el.getBoundingClientRect().width : 0;
-        const w2 = el ? el.offsetWidth : 0;
+        const rect = el ? el.getBoundingClientRect() : null;
+        const wMeasured = rect && rect.width ? rect.width : (el ? el.offsetWidth : 0);
 
-        let w = (Number.isFinite(w1) && w1 > 0) ? w1 : w2;
+        const cw = getContainerWidth();
+        const fallback = cw ? (window.innerWidth <= 768 ? cw * 0.85 : cw * 0.82) : 0;
 
-        // fallback（极端情况下后台/恢复时宽度可能为 0）
-        if (!Number.isFinite(w) || w <= 0) {
-          const cw = container.getBoundingClientRect().width || container.offsetWidth || 0;
-          if (cw > 0) {
-            w = (window.innerWidth <= 768) ? (cw * 0.85) : cw;
-          }
-        }
+        slideWidth = (Number.isFinite(wMeasured) && wMeasured > 0) ? wMeasured : fallback;
 
-        slideSpan = (w > 0 ? w : 0) + getGapPx();
+        gapPx = getGapPx();
+        slideSpan = slideWidth + gapPx;
       }
 
       function applyTransform(animated) {
         if (!slideSpan) recalcSpan();
+
+        const contW = getContainerWidth();
+        const offset = currentPos * slideSpan - ((contW - slideWidth) / 2);
+
         track.style.transition = animated
           ? `transform ${TRANSITION_MS}ms cubic-bezier(.22,.61,.36,1)`
           : 'none';
 
-        const offset = currentPos * slideSpan;
-        track.style.transform = `translateX(-${offset.toFixed(3)}px)`;
+        track.style.transform = `translate3d(-${offset.toFixed(3)}px, 0, 0)`;
       }
 
       function getRealIndexByMod() {
