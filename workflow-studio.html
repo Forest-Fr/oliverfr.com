@@ -1135,6 +1135,37 @@ function apiUrl(path){
   return base + path;
 }
 
+  // ===== [PATCH INSERT: runs.requestOptions.v1] (non-breaking) =====
+function _isAbsoluteUrl(u){ return /^https?:\/\//i.test(String(u||"")); }
+function _isCrossOriginBase(base){
+  if(!_isAbsoluteUrl(base)) return false;
+  try{ return new URL(base).origin !== location.origin; }catch{ return true; }
+}
+function _buildCommonHeaders(token){
+  const h = { "accept":"application/json" };
+  if(token) h["authorization"] = "Bearer " + token;
+  return h;
+}
+function _withTraceHeaders(headers, tp, rid){
+  const h = Object.assign({}, headers);
+  h["traceparent"] = tp;
+  h["x-request-id"] = rid;
+  return h;
+}
+function _fetchOpts(method, headers, body, signal){
+  const o = { method, headers, mode:"cors", cache:"no-store", redirect:"follow" };
+  if(body != null) o.body = body;
+  if(signal) o.signal = signal;
+  return o;
+}
+function _abortAfter(ms){
+  const ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  if(!ac) return { signal: undefined, cancel: ()=>{} };
+  const t = setTimeout(()=>{ try{ ac.abort(); }catch{} }, ms);
+  return { signal: ac.signal, cancel: ()=>clearTimeout(t) };
+}
+// ===== [PATCH END: runs.requestOptions.v1] =====
+
 
 // ===== [PATCH INSERT] Runs endpoint candidates + fallback (non-breaking) =====
 function _runsUrlCandidates(){
@@ -1175,13 +1206,18 @@ function _runsUrlCandidates(){
   return out;
 }
 
-async function _requestRuns(method, headers, body){
+async function _requestRuns(method, headers, body, opt){
   const candidates = _runsUrlCandidates();
   let last = null;
 
+  const timeoutMs = opt && opt.timeoutMs ? Number(opt.timeoutMs) : 0;
+
   for(const u of candidates){
+    let guard = null;
     try{
-      const res = await fetch(u, { method, headers, body, mode:"cors" });
+      guard = timeoutMs ? _abortAfter(timeoutMs) : { signal: undefined, cancel: ()=>{} };
+
+      const res = await fetch(u, _fetchOpts(method, headers, body, guard.signal));
 
       // 404 通常表示“路径形态不对”，继续尝试下一个候选
       if(res.status === 404){
@@ -1194,12 +1230,15 @@ async function _requestRuns(method, headers, body){
       return { url: u, res };
     }catch(e){
       last = { url: u, error: e };
+    }finally{
+      try{ guard && guard.cancel && guard.cancel(); }catch{}
     }
   }
 
   if(last && last.error) throw last.error;
   return last; // 可能是最后一个 404 的 res
 }
+
 // ===== [PATCH END] Runs endpoint candidates + fallback =====
 
 
@@ -1730,13 +1769,13 @@ async function testRoutes(){
 
   const tp = newTraceparent();
   const rid = uuid();
-  const headers = {
-    "accept":"application/json",
-    "traceparent": tp,
-    "x-request-id": rid
-  };
+
   const token = (authTokenInput.value || "").trim();
-  if(token) headers["authorization"] = "Bearer " + token;
+
+  // 无损增强：跨域时尽量不发自定义 header，避免 CORS 预检/allow-headers 漏配
+  const cross = _isCrossOriginBase(getApiBase());
+  const baseHeaders = _buildCommonHeaders(token);
+  const headers = cross ? baseHeaders : _withTraceHeaders(baseHeaders, tp, rid);
 
   kApiBase.textContent = getApiBase();
   setChip(chipWorker, "warn", "Worker: checking…");
@@ -1745,43 +1784,54 @@ async function testRoutes(){
   try{
     let res;
 
-    // 无损增强：若存在 _requestRuns，则自动探测并命中正确 runs 端点；否则保持原逻辑
     if(typeof _requestRuns === "function"){
-      const rr = await _requestRuns("GET", headers);
+      const rr = await _requestRuns("GET", headers, null, { timeoutMs: 12000 });
       url = (rr && rr.url) ? rr.url : defaultUrl;
       res = rr && rr.res;
     }else{
-      url = defaultUrl;
-      res = await fetch(url, { method:"GET", headers, mode:"cors" });
+      // 兜底：保持原逻辑
+      const guard = _abortAfter(12000);
+      try{
+        url = defaultUrl;
+        res = await fetch(url, _fetchOpts("GET", headers, null, guard.signal));
+      }finally{
+        guard.cancel();
+      }
     }
 
-    if(!res){
-      throw new Error("No response (runs endpoint unresolved).");
-    }
+    if(!res) throw new Error("No response (runs endpoint unresolved).");
 
     const txt = await res.text();
-    const js = safeJsonParse(txt, { raw: txt });
+    const js = txt ? safeJsonParse(txt, { raw: txt }) : {};
+
+    const hdrTrace = res.headers.get("traceparent") || res.headers.get("x-traceparent") || "";
+    const hdrReqId = res.headers.get("x-request-id") || res.headers.get("x-requestid") || "";
 
     if(res.ok){
       state.lastContract = js;
-      const c = js.contract || "v1";
+      const c = (js && typeof js === "object" && js.contract) ? js.contract : "v1";
       kContract.textContent = c;
       setChip(chipWorker, "good", "Worker: OK (" + c + ")");
-      const n8n = js.n8n_enabled;
-      const auth = js.auth_mode || "off";
+
+      const n8n = (js && typeof js === "object") ? js.n8n_enabled : undefined;
+      const auth = (js && typeof js === "object" && js.auth_mode) ? js.auth_mode : "off";
 
       if(n8n === true) setChip(chipN8n, "good", "n8n: enabled");
       else if(n8n === false) setChip(chipN8n, "warn", "n8n: disabled");
       else setChip(chipN8n, "warn", "n8n: unknown");
 
-      // show a concise note
       runLog.textContent = pretty({
         at: nowIso(),
         ping_url: url,
         status: res.status,
         contract: c,
         auth_mode: auth,
-        n8n_enabled: n8n
+        n8n_enabled: n8n,
+        traceparent_client: tp,
+        request_id_client: rid,
+        traceparent_resp_header: hdrTrace || null,
+        x_request_id_resp_header: hdrReqId || null,
+        body: js
       });
     }else{
       setChip(chipWorker, "bad", "Worker: " + res.status);
@@ -1790,6 +1840,8 @@ async function testRoutes(){
         at: nowIso(),
         ping_url: url,
         status: res.status,
+        traceparent_client: tp,
+        request_id_client: rid,
         body: js
       });
     }
@@ -1799,10 +1851,13 @@ async function testRoutes(){
     runLog.textContent = pretty({
       at: nowIso(),
       ping_url: url,
-      error: String(e)
+      error: String(e),
+      traceparent_client: tp,
+      request_id_client: rid
     });
   }
 }
+
 
 
   btnPing.addEventListener("click", ()=>{
@@ -1823,13 +1878,16 @@ async function runWorkflow(){
   const rid = uuid();
 
   const token = (authTokenInput.value || "").trim();
-  const headers = {
+
+  // 无损增强：跨域时减少自定义 header；traceparent 放到 meta 里确保可串联
+  const cross = _isCrossOriginBase(getApiBase());
+  const baseHeaders = {
     "content-type":"application/json",
-    "accept":"application/json",
-    "traceparent": tp,
-    "x-request-id": rid
+    "accept":"application/json"
   };
-  if(token) headers["authorization"] = "Bearer " + token;
+  if(token) baseHeaders["authorization"] = "Bearer " + token;
+
+  const headers = cross ? baseHeaders : _withTraceHeaders(baseHeaders, tp, rid);
 
   // payload
   const userInput = safeJsonParse(globalInputEl.value, null);
@@ -1841,7 +1899,6 @@ async function runWorkflow(){
   const spec = compileSpec();
   const wfKind = pickWorkflowKind(); // doc / echo
 
-  // 工程级：明确 contract 结构与字段边界
   const body = {
     workflow: wfKind,
     workflow_id: userInput.workflow_id || "studio-run",
@@ -1852,57 +1909,71 @@ async function runWorkflow(){
       studio_version: spec.studio.version,
       client_ts: nowIso(),
       route_base: getApiBase(),
-      request_id: rid
+      request_id: rid,
+      traceparent: tp
     }
   };
 
   showTab("run");
-  runLog.textContent = "Running…\n" + pretty({ post_url: url, workflow: wfKind, request_id: rid, traceparent: tp });
+  runLog.textContent = "Running…\n" + pretty({
+    post_url: url,
+    workflow: wfKind,
+    request_id: rid,
+    traceparent_client: tp
+  });
 
   try{
     const payload = JSON.stringify(body);
     let res;
 
-    // 无损增强：若存在 _requestRuns，则自动探测并命中正确 runs 端点；否则保持原逻辑
     if(typeof _requestRuns === "function"){
-      const rr = await _requestRuns("POST", headers, payload);
+      const rr = await _requestRuns("POST", headers, payload, { timeoutMs: 20000 });
       url = (rr && rr.url) ? rr.url : defaultUrl;
       res = rr && rr.res;
     }else{
-      url = defaultUrl;
-      res = await fetch(url, { method:"POST", headers, body: payload, mode:"cors" });
+      const guard = _abortAfter(20000);
+      try{
+        url = defaultUrl;
+        res = await fetch(url, _fetchOpts("POST", headers, payload, guard.signal));
+      }finally{
+        guard.cancel();
+      }
     }
 
-    if(!res){
-      throw new Error("No response (runs endpoint unresolved).");
-    }
+    if(!res) throw new Error("No response (runs endpoint unresolved).");
 
     const txt = await res.text();
-    const js = safeJsonParse(txt, { raw: txt });
+    const js = txt ? safeJsonParse(txt, { raw: txt }) : {};
 
-    // render response
+    const hdrTrace = res.headers.get("traceparent") || res.headers.get("x-traceparent") || "";
+    const hdrReqId = res.headers.get("x-request-id") || res.headers.get("x-requestid") || "";
+
     const out = {
       at: nowIso(),
       status: res.status,
       ok: res.ok,
-      run_id: js.run_id,
-      trace_id: js.trace_id,
-      traceparent: js.traceparent || tp,
-      x_request_id: js.x_request_id || rid,
-      contract: js.contract,
-      n8n_triggered: js.n8n_triggered,
-      n8n_error: js.n8n_error,
-      upstream: js.upstream
+
+      run_id: (js && typeof js === "object") ? js.run_id : undefined,
+      trace_id: (js && typeof js === "object") ? js.trace_id : undefined,
+
+      // 优先：body -> header -> client
+      traceparent: (js && typeof js === "object" && js.traceparent) ? js.traceparent : (hdrTrace || tp),
+      x_request_id: (js && typeof js === "object" && js.x_request_id) ? js.x_request_id : (hdrReqId || rid),
+
+      contract: (js && typeof js === "object") ? js.contract : undefined,
+      n8n_triggered: (js && typeof js === "object") ? js.n8n_triggered : undefined,
+      n8n_error: (js && typeof js === "object") ? js.n8n_error : undefined,
+      upstream: (js && typeof js === "object") ? js.upstream : undefined,
+      raw: js
     };
 
     runLog.textContent = pretty(out);
 
-    // update chips lightly
     if(res.ok){
       setChip(chipWorker, "good", "Worker: OK");
-      if(js.n8n_triggered === true && !js.n8n_error){
+      if(out.n8n_triggered === true && !out.n8n_error){
         setChip(chipN8n, "good", "n8n: triggered");
-      }else if(js.n8n_triggered === true && js.n8n_error){
+      }else if(out.n8n_triggered === true && out.n8n_error){
         setChip(chipN8n, "warn", "n8n: error");
       }
     }else{
@@ -1915,10 +1986,11 @@ async function runWorkflow(){
       post_url: url,
       error: String(e),
       request_id: rid,
-      traceparent: tp
+      traceparent_client: tp
     });
   }
 }
+
 
 
   btnRun.addEventListener("click", runWorkflow);
@@ -1949,3 +2021,4 @@ async function runWorkflow(){
 </script>
 </body>
 </html>
+
