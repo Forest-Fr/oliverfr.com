@@ -1,0 +1,1951 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Workflow Studio · oliverfr</title>
+  <meta name="color-scheme" content="light" />
+  <style>
+    :root{
+      --bg:#ffffff;
+      --panel:#ffffff;
+      --panel2:#fbfbfc;
+      --text:#0f172a;
+      --muted:#64748b;
+      --border:rgba(15,23,42,.12);
+      --border2:rgba(15,23,42,.08);
+      --shadow:0 10px 30px rgba(2,6,23,.08);
+      --shadow2:0 6px 16px rgba(2,6,23,.08);
+      --accent:#2563eb;
+      --accent2:#1d4ed8;
+      --good:#16a34a;
+      --warn:#d97706;
+      --bad:#dc2626;
+      --chip:#eef2ff;
+      --chip2:#f1f5f9;
+      --radius:16px;
+      --radius2:12px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+      --col-gap:14px;
+      --row-gap:14px;
+      --topbar-h:64px;
+
+      --canvas-grid: rgba(15,23,42,.06);
+      --canvas-grid2: rgba(15,23,42,.03);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family:var(--font);
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(37,99,235,.08), transparent 60%),
+                  radial-gradient(900px 600px at 90% 10%, rgba(2,132,199,.06), transparent 65%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    a{ color:inherit; text-decoration:none; }
+    button, input, textarea, select { font-family: inherit; }
+    button{ cursor:pointer; }
+
+    /* ===== Layout ===== */
+    .app{
+      min-height:100%;
+      display:flex;
+      flex-direction:column;
+    }
+
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:30;
+      height:var(--topbar-h);
+      background:rgba(255,255,255,.86);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border2);
+      display:flex;
+      align-items:center;
+      padding:0 16px;
+      gap:12px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:240px;
+    }
+    .logo{
+      width:34px; height:34px;
+      border-radius:10px;
+      background:linear-gradient(135deg, rgba(37,99,235,1), rgba(16,185,129,1));
+      box-shadow: 0 10px 24px rgba(37,99,235,.18);
+    }
+    .brand h1{
+      font-size:14px;
+      line-height:1.1;
+      margin:0;
+      letter-spacing:.2px;
+    }
+    .brand small{
+      display:block;
+      margin-top:2px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:500;
+    }
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-left:auto;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      background:var(--chip2);
+      border:1px solid var(--border2);
+      border-radius:999px;
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:var(--muted);
+      opacity:.8;
+    }
+    .chip.good{ background:rgba(22,163,74,.08); color:#166534; border-color:rgba(22,163,74,.18); }
+    .chip.good .dot{ background:var(--good); }
+    .chip.warn{ background:rgba(217,119,6,.08); color:#92400e; border-color:rgba(217,119,6,.18); }
+    .chip.warn .dot{ background:var(--warn); }
+    .chip.bad{ background:rgba(220,38,38,.08); color:#991b1b; border-color:rgba(220,38,38,.18); }
+    .chip.bad .dot{ background:var(--bad); }
+    .chip.info{ background:rgba(37,99,235,.08); color:#1e3a8a; border-color:rgba(37,99,235,.18); }
+    .chip.info .dot{ background:var(--accent); }
+
+    .btn{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:13px;
+      font-weight:650;
+      color:var(--text);
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      box-shadow: 0 2px 8px rgba(2,6,23,.05);
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+    }
+    .btn:hover{ background:#fbfbff; border-color:rgba(37,99,235,.25); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background:linear-gradient(180deg, #2b6cf6, #1f56e6);
+      color:#fff;
+      border-color:rgba(37,99,235,.55);
+      box-shadow: 0 12px 28px rgba(37,99,235,.22);
+    }
+    .btn.primary:hover{ filter:brightness(1.03); }
+    .btn.danger{
+      background:rgba(220,38,38,.06);
+      border-color:rgba(220,38,38,.22);
+      color:#991b1b;
+    }
+
+    .main{
+      flex:1;
+      display:grid;
+      grid-template-columns: 320px 1fr 360px;
+      gap:var(--col-gap);
+      padding:16px;
+      max-width: 1400px;
+      width:100%;
+      margin:0 auto;
+    }
+
+    .panel{
+      background:rgba(255,255,255,.92);
+      border:1px solid var(--border2);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow2);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height: calc(100vh - var(--topbar-h) - 32px);
+    }
+
+    .panel-header{
+      padding:14px 14px 10px 14px;
+      border-bottom:1px solid var(--border2);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .panel-title{
+      margin:0;
+      font-size:13px;
+      letter-spacing:.2px;
+    }
+    .panel-sub{
+      margin:4px 0 0 0;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.4;
+    }
+    .panel-body{
+      padding:12px 14px 14px 14px;
+      overflow:auto;
+    }
+
+    .kpi{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .kpi .card{
+      border:1px solid var(--border2);
+      border-radius:var(--radius2);
+      background:linear-gradient(180deg, #fff, #fafafa);
+      padding:10px;
+    }
+    .kpi .label{ font-size:11px; color:var(--muted); }
+    .kpi .value{ margin-top:6px; font-size:13px; font-weight:750; }
+
+    .field{ margin:10px 0; }
+    .field label{
+      display:flex; align-items:center; justify-content:space-between;
+      font-size:12px; color:var(--muted);
+      margin-bottom:6px;
+    }
+    .field input,.field textarea,.field select{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:13px;
+      outline:none;
+      background:#fff;
+      transition:border-color .15s ease, box-shadow .15s ease;
+    }
+    .field textarea{ min-height:84px; resize:vertical; font-family:var(--mono); font-size:12px; }
+    .field input:focus,.field textarea:focus,.field select:focus{
+      border-color:rgba(37,99,235,.45);
+      box-shadow:0 0 0 4px rgba(37,99,235,.10);
+    }
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.5;
+      margin:8px 0 0;
+    }
+    .mini{
+      font-size:11px;
+      color:var(--muted);
+      font-family:var(--mono);
+      word-break:break-all;
+    }
+
+    /* ===== Palette ===== */
+    .palette{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .node-item{
+      border:1px solid var(--border2);
+      border-radius:14px;
+      background:linear-gradient(180deg,#fff,#fbfbfc);
+      padding:12px;
+      transition: transform .08s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .node-item:hover{
+      transform: translateY(-1px);
+      border-color:rgba(37,99,235,.25);
+      box-shadow: 0 12px 26px rgba(2,6,23,.08);
+    }
+    .node-item h3{
+      margin:0;
+      font-size:13px;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .badge{
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid var(--border2);
+      background:var(--chip);
+      color:#1e3a8a;
+      white-space:nowrap;
+    }
+    .node-item p{
+      margin:8px 0 0;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+    .node-item .row{
+      margin-top:10px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .pill{
+      border:1px solid var(--border2);
+      background:#fff;
+      color:var(--muted);
+      font-size:11px;
+      padding:6px 8px;
+      border-radius:999px;
+    }
+
+    /* ===== Canvas ===== */
+    .canvas-wrap{
+      position:relative;
+      flex:1;
+      min-height: 560px;
+    }
+    .canvas{
+      position:relative;
+      width:100%;
+      height:100%;
+      border:1px solid var(--border2);
+      border-radius:var(--radius);
+      overflow:hidden;
+      background:
+        linear-gradient(to right, var(--canvas-grid) 1px, transparent 1px) 0 0 / 26px 26px,
+        linear-gradient(to bottom, var(--canvas-grid) 1px, transparent 1px) 0 0 / 26px 26px,
+        radial-gradient(1400px 600px at 40% 0%, rgba(37,99,235,.06), transparent 60%),
+        radial-gradient(900px 520px at 80% 40%, rgba(16,185,129,.05), transparent 55%),
+        #ffffff;
+    }
+
+    .canvas-tools{
+      position:absolute;
+      right:12px;
+      top:12px;
+      display:flex;
+      gap:8px;
+      z-index:10;
+      align-items:center;
+    }
+    .icon-btn{
+      width:38px; height:38px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:12px;
+      border:1px solid var(--border2);
+      background:rgba(255,255,255,.92);
+      box-shadow: 0 10px 22px rgba(2,6,23,.10);
+      font-weight:900;
+      color:var(--text);
+    }
+    .zoom-pill{
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--border2);
+      background:rgba(255,255,255,.92);
+      box-shadow: 0 10px 22px rgba(2,6,23,.10);
+      font-size:12px;
+      color:var(--muted);
+      min-width:72px;
+      text-align:center;
+      font-family:var(--mono);
+    }
+
+    /* Nodes inside canvas */
+    .node{
+      position:absolute;
+      width: 260px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:rgba(255,255,255,.96);
+      box-shadow: var(--shadow);
+      user-select:none;
+      transform-origin: top left;
+    }
+    .node.selected{
+      border-color:rgba(37,99,235,.55);
+      box-shadow: 0 18px 40px rgba(37,99,235,.18);
+    }
+    .node .hdr{
+      padding:10px 10px 8px 10px;
+      border-bottom:1px solid var(--border2);
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+      cursor: grab;
+    }
+    .node .hdr:active{ cursor:grabbing; }
+    .node .hdr .t{
+      display:flex; flex-direction:column;
+      gap:3px;
+      min-width:0;
+    }
+    .node .hdr .name{
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:.2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:190px;
+    }
+    .node .hdr .meta{
+      font-size:11px;
+      color:var(--muted);
+      font-family:var(--mono);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:190px;
+    }
+    .node .hdr .x{
+      border:1px solid var(--border2);
+      background:#fff;
+      width:28px;height:28px;
+      border-radius:10px;
+      font-weight:900;
+      color:var(--muted);
+    }
+    .node .body{
+      padding:10px;
+      display:grid;
+      gap:10px;
+    }
+    .node .kv{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      font-size:12px;
+      color:var(--muted);
+      font-family:var(--mono);
+    }
+    .node .ports{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-top:2px;
+    }
+    .port{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .pin{
+      width:12px;height:12px;
+      border-radius:999px;
+      border:2px solid rgba(37,99,235,.65);
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(37,99,235,.12);
+    }
+    .pin.out{ border-color:rgba(16,185,129,.70); }
+    .pin.disabled{
+      border-color: rgba(100,116,139,.25);
+      opacity:.7;
+    }
+
+    /* SVG wires */
+    .wires{
+      position:absolute;
+      inset:0;
+      z-index:2;
+      pointer-events:none;
+    }
+    .wire{
+      fill:none;
+      stroke: rgba(37,99,235,.55);
+      stroke-width:2.2;
+    }
+    .wire.active{
+      stroke: rgba(16,185,129,.65);
+      stroke-width:2.4;
+    }
+
+    .canvas-viewport{
+      position:absolute;
+      inset:0;
+      z-index:3;
+      transform: translate(var(--vx,0px), var(--vy,0px)) scale(var(--vz,1));
+      transform-origin: 0 0;
+    }
+
+    .empty-tip{
+      position:absolute;
+      left:50%;
+      top:48%;
+      transform: translate(-50%,-50%);
+      width:min(520px, 92%);
+      border:1px dashed rgba(37,99,235,.35);
+      border-radius:18px;
+      background:rgba(37,99,235,.04);
+      padding:16px;
+      text-align:left;
+      z-index:1;
+    }
+    .empty-tip h2{
+      margin:0;
+      font-size:14px;
+      letter-spacing:.2px;
+    }
+    .empty-tip p{
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.6;
+    }
+    .empty-tip ul{
+      margin:10px 0 0 18px;
+      padding:0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.6;
+    }
+
+    /* ===== Inspector ===== */
+    .tabs{
+      display:flex;
+      gap:8px;
+      padding:10px 14px 0 14px;
+      border-bottom:1px solid var(--border2);
+      background:rgba(255,255,255,.92);
+    }
+    .tab{
+      border:1px solid var(--border2);
+      background:#fff;
+      border-radius:999px;
+      padding:8px 10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .tab.active{
+      border-color:rgba(37,99,235,.35);
+      background:rgba(37,99,235,.08);
+      color:#1e3a8a;
+      font-weight:800;
+    }
+
+    .log{
+      border:1px solid var(--border2);
+      border-radius:14px;
+      background:linear-gradient(180deg, #fff, #fafafa);
+      padding:10px;
+      font-family:var(--mono);
+      font-size:12px;
+      color:#0f172a;
+      line-height:1.5;
+      white-space:pre-wrap;
+      word-break:break-word;
+      min-height:140px;
+    }
+
+    .row-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    .split{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+
+    /* ===== Mobile ===== */
+    @media (max-width: 980px){
+      .main{
+        grid-template-columns: 1fr;
+      }
+      .panel{
+        min-height:auto;
+      }
+      .brand{ min-width: 200px; }
+      .topbar{ height:auto; padding:10px 12px; }
+    }
+
+    /* mobile “studio mode”: tabs to switch left/canvas/right */
+    .mobile-switch{
+      display:none;
+      margin-left:auto;
+      gap:8px;
+    }
+    .seg{
+      display:inline-flex;
+      background:#fff;
+      border:1px solid var(--border2);
+      border-radius:999px;
+      overflow:hidden;
+      box-shadow:0 2px 10px rgba(2,6,23,.05);
+    }
+    .seg button{
+      border:none;
+      background:transparent;
+      padding:9px 10px;
+      font-size:12px;
+      color:var(--muted);
+      font-weight:750;
+    }
+    .seg button.active{
+      background:rgba(37,99,235,.08);
+      color:#1e3a8a;
+    }
+
+    @media (max-width: 720px){
+      .brand{ min-width: 140px; }
+      .top-actions{ display:none; } /* keep bar clean */
+      .mobile-switch{ display:flex; }
+      .main{ padding:12px; gap:12px; }
+    }
+
+    .only-mobile{ display:none; }
+    @media (max-width: 720px){
+      .only-mobile{ display:block; }
+    }
+
+    /* utility */
+    .muted{ color:var(--muted); }
+    .sep{ height:1px; background:var(--border2); margin:12px 0; }
+    .kbd{
+      font-family:var(--mono);
+      font-size:11px;
+      padding:2px 6px;
+      border:1px solid var(--border2);
+      border-radius:8px;
+      background:#fff;
+      color:var(--muted);
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- ===== Topbar ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>Workflow Studio</h1>
+        <small>白底 · 可视化编排 · 运行/观测一体</small>
+      </div>
+    </div>
+
+    <div class="mobile-switch" aria-label="Mobile navigation">
+      <div class="seg" role="tablist" aria-label="Studio sections">
+        <button id="mTabPalette" class="active" type="button" role="tab" aria-selected="true">Palette</button>
+        <button id="mTabCanvas" type="button" role="tab" aria-selected="false">Canvas</button>
+        <button id="mTabInspector" type="button" role="tab" aria-selected="false">Inspector</button>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <span id="chipRoute" class="chip info" title="Worker route status">
+        <span class="dot"></span><span id="routeText">Route: /agent/*</span>
+      </span>
+      <span id="chipWorker" class="chip warn" title="Worker contract check">
+        <span class="dot"></span><span id="workerText">Worker: checking…</span>
+      </span>
+      <span id="chipN8n" class="chip warn" title="n8n联动（由后端 Worker 控制）">
+        <span class="dot"></span><span id="n8nText">n8n: unknown</span>
+      </span>
+
+      <button id="btnPing" class="btn" type="button" title="GET /agent/api/workflows/outbound/runs">
+        Test Routes
+      </button>
+      <button id="btnRun" class="btn primary" type="button" title="POST /agent/api/workflows/outbound/runs">
+        Run
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Main ===== -->
+  <main class="main">
+    <!-- ===== Left: Palette ===== -->
+    <section id="panelPalette" class="panel" aria-label="Node palette">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Palette（节点库）</h2>
+          <p class="panel-sub">点击“Add to Canvas”创建节点；再在 Canvas 上连线与配置。</p>
+        </div>
+        <span class="badge">Studio</span>
+      </div>
+      <div class="panel-body">
+        <div class="kpi">
+          <div class="card">
+            <div class="label">API Base</div>
+            <div id="kApiBase" class="value">/agent</div>
+          </div>
+          <div class="card">
+            <div class="label">Contract</div>
+            <div id="kContract" class="value">v1</div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="palette">
+          <div class="node-item" data-kind="doc" data-label="DocWorkflow" data-role="workflow" tabindex="0">
+            <h3>DocWorkflow <span class="badge">workflow</span></h3>
+            <p>面向“文档/异步处理”的标准入口：适合将 Doc 平台能力纳入统一编排。</p>
+            <div class="row">
+              <span class="pill">/workflow/doc/start</span>
+              <span class="pill">traceparent</span>
+              <span class="pill">run_id</span>
+            </div>
+            <div class="row">
+              <button class="btn" type="button" data-add="doc">Add to Canvas</button>
+            </div>
+          </div>
+
+          <div class="node-item" data-kind="echo" data-label="EchoWorkflow" data-role="workflow" tabindex="0">
+            <h3>EchoWorkflow <span class="badge">workflow</span></h3>
+            <p>最小可验证工作流，用于链路验收与跨组件 tracing 观测。</p>
+            <div class="row">
+              <span class="pill">/workflow/echo/start</span>
+              <span class="pill">health-ready</span>
+              <span class="pill">low-risk</span>
+            </div>
+            <div class="row">
+              <button class="btn" type="button" data-add="echo">Add to Canvas</button>
+            </div>
+          </div>
+
+          <div class="node-item" data-kind="http" data-label="HTTP Call" data-role="step" tabindex="0">
+            <h3>HTTP Call <span class="badge">step</span></h3>
+            <p>工作流中的通用外呼步骤（在 Studio 内做编排与约束，后端可按 spec 执行）。</p>
+            <div class="row">
+              <span class="pill">method</span>
+              <span class="pill">headers</span>
+              <span class="pill">timeout</span>
+            </div>
+            <div class="row">
+              <button class="btn" type="button" data-add="http">Add to Canvas</button>
+            </div>
+          </div>
+
+          <div class="node-item" data-kind="n8n" data-label="n8n Bridge" data-role="side-effect" tabindex="0">
+            <h3>n8n Bridge <span class="badge">side-effect</span></h3>
+            <p>用于表达“n8n联动意图”。实际触发由 Worker 环境变量控制（不会破坏主链路）。</p>
+            <div class="row">
+              <span class="pill">best-effort</span>
+              <span class="pill">waitUntil</span>
+              <span class="pill">no-block</span>
+            </div>
+            <div class="row">
+              <button class="btn" type="button" data-add="n8n">Add to Canvas</button>
+            </div>
+          </div>
+
+          <div class="node-item" data-kind="input" data-label="Input" data-role="io" tabindex="0">
+            <h3>Input <span class="badge">io</span></h3>
+            <p>统一输入口。你可以在右侧 Inspector 配置 payload 字段；Run 时自动组装。</p>
+            <div class="row">
+              <span class="pill">payload</span>
+              <span class="pill">meta</span>
+              <span class="pill">schema</span>
+            </div>
+            <div class="row">
+              <button class="btn" type="button" data-add="input">Add to Canvas</button>
+            </div>
+          </div>
+
+          <div class="node-item" data-kind="output" data-label="Output" data-role="io" tabindex="0">
+            <h3>Output <span class="badge">io</span></h3>
+            <p>统一输出口。用于标记“终点”，便于 Studio 在运行后结构化展示响应。</p>
+            <div class="row">
+              <span class="pill">result</span>
+              <span class="pill">trace</span>
+              <span class="pill">run</span>
+            </div>
+            <div class="row">
+              <button class="btn" type="button" data-add="output">Add to Canvas</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <p class="hint">
+          设计差异化说明：Workflow Studio 强调“编排与契约”，因此默认白底、结构化面板、可视化 Canvas；
+          与 console（偏验收/观测）与 doc（偏业务提交/预览）形成明显区分。
+        </p>
+      </div>
+    </section>
+
+    <!-- ===== Center: Canvas ===== -->
+    <section id="panelCanvas" class="panel" aria-label="Workflow canvas">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Canvas（编排画布）</h2>
+          <p class="panel-sub">
+            拖拽节点、点击选中后在右侧配置；连线表达依赖。<span class="kbd">Del</span> 删除选中节点。
+          </p>
+        </div>
+        <span class="badge">Graph</span>
+      </div>
+
+      <div class="panel-body" style="padding:12px;">
+        <div class="canvas-wrap">
+          <div class="canvas-tools" aria-label="Canvas tools">
+            <button id="btnZoomOut" class="icon-btn" type="button" title="Zoom out">−</button>
+            <div id="zoomLabel" class="zoom-pill" title="Zoom">100%</div>
+            <button id="btnZoomIn" class="icon-btn" type="button" title="Zoom in">＋</button>
+            <button id="btnResetView" class="icon-btn" type="button" title="Reset view">⟲</button>
+          </div>
+
+          <div id="canvas" class="canvas" tabindex="0" aria-label="Canvas area">
+            <svg id="wires" class="wires" aria-hidden="true"></svg>
+            <div id="viewport" class="canvas-viewport"></div>
+
+            <div id="emptyTip" class="empty-tip">
+              <h2>从 Palette 添加节点开始</h2>
+              <p>建议最小链路（工程级验收最稳）：</p>
+              <ul>
+                <li>Input → EchoWorkflow → Output（先跑通 /agent 路由与 tracing）</li>
+                <li>再替换为 DocWorkflow，接入真实文档异步链路</li>
+                <li>如需 n8n 联动，在图上添加 n8n Bridge（实际触发由 Worker 控制）</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="split">
+          <div class="field">
+            <label>
+              API Base（匹配 Cloudflare Worker Route：<span class="kbd">oliverfr.com/agent/*</span>）
+              <span class="kbd" title="默认相对路径">relative</span>
+            </label>
+            <input id="apiBase" type="text" value="/agent" spellcheck="false" />
+            <div class="hint">页面部署在 oliverfr.com 上时，建议保持 <span class="kbd">/agent</span>，确保调用走到你的 Worker 路由。</div>
+          </div>
+
+          <div class="field">
+            <label>
+              Auth（可选）
+              <span class="kbd">Bearer</span>
+            </label>
+            <input id="authToken" type="password" placeholder="可选：AUTH_MODE=token 时使用" spellcheck="false" />
+            <div class="hint">若后端 AUTH_MODE=off，则无需填写。填写后会以 Authorization: Bearer ... 发送。</div>
+          </div>
+        </div>
+
+        <div class="row-actions">
+          <button id="btnAddStarter" class="btn" type="button">Add Starter Graph</button>
+          <button id="btnExport" class="btn" type="button">Export Spec</button>
+          <button id="btnClear" class="btn danger" type="button">Clear Canvas</button>
+          <button id="btnRun2" class="btn primary" type="button">Run</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Right: Inspector ===== -->
+    <section id="panelInspector" class="panel" aria-label="Inspector">
+      <div class="tabs">
+        <button id="tabInspector" class="tab active" type="button">Inspector</button>
+        <button id="tabRun" class="tab" type="button">Run & Trace</button>
+        <button id="tabSpec" class="tab" type="button">Spec</button>
+      </div>
+
+      <div id="inspectorBody" class="panel-body">
+        <div id="viewInspector">
+          <div class="panel-header" style="border:0; padding:0 0 10px 0; background:transparent;">
+            <div>
+              <h2 class="panel-title">节点配置</h2>
+              <p class="panel-sub">选中节点后在此修改；未选中时配置全局输入。</p>
+            </div>
+            <span class="badge">Props</span>
+          </div>
+
+          <div class="field">
+            <label>Global Input（运行时输入）</label>
+            <textarea id="globalInput" spellcheck="false">{
+  "workflow_id": "studio-demo",
+  "prompt": "hello from workflow-studio",
+  "params": {
+    "mode": "smoke",
+    "notes": "white-background studio"
+  }
+}</textarea>
+            <p class="hint">
+              运行时 payload 将与 Studio Spec 一起提交给：<span class="kbd">POST /api/workflows/outbound/runs</span>（通过 /agent 路由）。
+            </p>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="panel-header" style="border:0; padding:0 0 8px 0; background:transparent;">
+            <div>
+              <h2 class="panel-title">Selected Node</h2>
+              <p id="selHelp" class="panel-sub">当前未选中节点。点击 Canvas 中的节点。</p>
+            </div>
+          </div>
+
+          <div id="nodeForm" style="display:none;">
+            <div class="field">
+              <label>Label</label>
+              <input id="nodeLabel" type="text" value="" />
+            </div>
+
+            <div class="field">
+              <label>Kind</label>
+              <input id="nodeKind" type="text" value="" disabled />
+            </div>
+
+            <div class="field">
+              <label>Config（JSON）</label>
+              <textarea id="nodeConfig" spellcheck="false">{}</textarea>
+              <p class="hint">用于表达节点参数（如 HTTP url/method、n8n payload hint 等）。后端执行策略可按该 spec 扩展。</p>
+            </div>
+
+            <div class="row-actions">
+              <button id="btnSaveNode" class="btn primary" type="button">Save</button>
+              <button id="btnDeleteNode" class="btn danger" type="button">Delete</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="viewRun" style="display:none;">
+          <div class="panel-header" style="border:0; padding:0 0 10px 0; background:transparent;">
+            <div>
+              <h2 class="panel-title">Run & Trace</h2>
+              <p class="panel-sub">返回 run_id / trace_id / traceparent，便于 Tempo/Service Graph 验收。</p>
+            </div>
+            <span class="badge">Ops</span>
+          </div>
+
+          <div class="field">
+            <label>Last Response</label>
+            <div id="runLog" class="log">尚未运行。点击上方 Run 或此页 Run。</div>
+          </div>
+
+          <div class="field">
+            <label>Quick Links</label>
+            <div class="hint">
+              你可将 <span class="kbd">trace_id</span> 复制到 Grafana Tempo 搜索（按你的 Grafana Cloud 设置）。
+              Studio 不内置 Grafana URL，避免与 console 职责重叠；但会把 tracing 关键字段完整呈现。
+            </div>
+          </div>
+
+          <div class="row-actions">
+            <button id="btnPing2" class="btn" type="button">Test Routes</button>
+            <button id="btnRun3" class="btn primary" type="button">Run</button>
+          </div>
+        </div>
+
+        <div id="viewSpec" style="display:none;">
+          <div class="panel-header" style="border:0; padding:0 0 10px 0; background:transparent;">
+            <div>
+              <h2 class="panel-title">Spec（导出/复制）</h2>
+              <p class="panel-sub">这是 Studio 的“契约输出”，便于后端演进/审计/版本管理。</p>
+            </div>
+            <span class="badge">JSON</span>
+          </div>
+
+          <div class="field">
+            <label>Workflow Spec</label>
+            <textarea id="specOut" spellcheck="false">{}</textarea>
+          </div>
+
+          <div class="row-actions">
+            <button id="btnRefreshSpec" class="btn" type="button">Refresh</button>
+            <button id="btnCopySpec" class="btn primary" type="button">Copy</button>
+          </div>
+
+          <p class="hint">
+            规范建议（工程级）：将导出的 spec 按版本存入仓库（或 Supabase 表）；
+            运行与审计分离，从而实现可回滚与可对比。
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer style="padding: 14px 16px 22px 16px; color: var(--muted); font-size: 12px; text-align:center;">
+    Workflow Studio · white-background visual builder · routed via <span class="kbd">oliverfr.com/agent/*</span> · n8n linkage is server-controlled (non-breaking)
+  </footer>
+
+</div>
+
+<script>
+/**
+ * Workflow Studio (single-file, no external deps)
+ * - White background, differentiated from workflow-console/doc
+ * - Uses Worker route: /agent/*  ->  /agent/api/workflows/outbound/runs
+ * - Visual: nodes + wires (SVG), drag, select, export spec
+ * - n8n linkage: visual intent node; actual trigger is controlled by Worker env (N8N_ENABLED)
+ */
+
+(function(){
+  "use strict";
+
+  // ===== DOM =====
+  const $ = (id) => document.getElementById(id);
+
+  const panelPalette   = $("panelPalette");
+  const panelCanvas    = $("panelCanvas");
+  const panelInspector = $("panelInspector");
+
+  const canvas   = $("canvas");
+  const viewport = $("viewport");
+  const wiresSvg = $("wires");
+  const emptyTip = $("emptyTip");
+
+  const apiBaseInput = $("apiBase");
+  const authTokenInput = $("authToken");
+  const globalInputEl = $("globalInput");
+
+  const chipWorker = $("chipWorker");
+  const workerText = $("workerText");
+  const chipN8n    = $("chipN8n");
+  const n8nText    = $("n8nText");
+
+  const kApiBase = $("kApiBase");
+  const kContract = $("kContract");
+
+  const btnPing = $("btnPing");
+  const btnPing2 = $("btnPing2");
+  const btnRun  = $("btnRun");
+  const btnRun2 = $("btnRun2");
+  const btnRun3 = $("btnRun3");
+
+  const btnAddStarter = $("btnAddStarter");
+  const btnExport = $("btnExport");
+  const btnClear  = $("btnClear");
+
+  const btnZoomIn = $("btnZoomIn");
+  const btnZoomOut = $("btnZoomOut");
+  const btnResetView = $("btnResetView");
+  const zoomLabel = $("zoomLabel");
+
+  const tabInspector = $("tabInspector");
+  const tabRun = $("tabRun");
+  const tabSpec = $("tabSpec");
+  const viewInspector = $("viewInspector");
+  const viewRun = $("viewRun");
+  const viewSpec = $("viewSpec");
+
+  const runLog = $("runLog");
+  const specOut = $("specOut");
+  const btnRefreshSpec = $("btnRefreshSpec");
+  const btnCopySpec = $("btnCopySpec");
+
+  const selHelp = $("selHelp");
+  const nodeForm = $("nodeForm");
+  const nodeLabel = $("nodeLabel");
+  const nodeKind = $("nodeKind");
+  const nodeConfig = $("nodeConfig");
+  const btnSaveNode = $("btnSaveNode");
+  const btnDeleteNode = $("btnDeleteNode");
+
+  // Mobile segment
+  const mTabPalette = $("mTabPalette");
+  const mTabCanvas = $("mTabCanvas");
+  const mTabInspector = $("mTabInspector");
+
+  // ===== State =====
+  const state = {
+    nodes: [],    // {id, kind, label, x, y, config}
+    edges: [],    // {from, to}
+    selectedId: null,
+    drag: { active:false, id:null, ox:0, oy:0 },
+    connect: { active:false, from:null },
+    view: { x:0, y:0, z:1 },
+    lastContract: null
+  };
+
+  // ===== Utils =====
+  function nowIso(){
+    try{ return new Date().toISOString(); } catch{ return ""; }
+  }
+  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+  function safeJsonParse(str, fallback){
+    try { return JSON.parse(str); } catch { return fallback; }
+  }
+  function pretty(obj){
+    try{ return JSON.stringify(obj, null, 2); } catch { return String(obj); }
+  }
+
+  // traceparent generator (client-side; worker will ensure too)
+  function hex(bytes){
+    const a = new Uint8Array(bytes);
+    crypto.getRandomValues(a);
+    return Array.from(a).map(b=>b.toString(16).padStart(2,"0")).join("");
+  }
+  function newTraceparent(){
+    const traceId = hex(16); // 32 hex
+    const spanId = hex(8);   // 16 hex
+    return `00-${traceId}-${spanId}-01`;
+  }
+  function uuid(){
+    try { return crypto.randomUUID(); } catch { return String(Date.now()) + "-" + Math.random().toString(16).slice(2); }
+  }
+
+function _normalizeApiBase(raw){
+  let v = (raw || "").trim();
+  if(!v) v = "/agent";
+
+  // 允许用户直接填：agent.mefans.workers.dev 或 agent.mefans.workers.dev/agent
+  if(!/^https?:\/\//i.test(v) && !v.startsWith("/")){
+    const looksHost = /^[a-z0-9.-]+\.[a-z]{2,}(?::\d+)?(\/.*)?$/i.test(v);
+    v = looksHost ? ("https://" + v) : ("/" + v);
+  }
+
+  // 避免 https 页面下填 http 触发 mixed content（localhost 例外）
+  try{
+    if(location.protocol === "https:" && /^http:\/\//i.test(v) && !/\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(v)){
+      v = v.replace(/^http:\/\//i, "https://");
+    }
+  }catch{}
+
+  return v.endsWith("/") ? v.slice(0, -1) : v;
+}
+
+function getApiBase(){
+  return _normalizeApiBase(apiBaseInput.value);
+}
+
+function apiUrl(path){
+  const base = getApiBase();
+  return base + path;
+}
+
+
+// ===== [PATCH INSERT] Runs endpoint candidates + fallback (non-breaking) =====
+function _runsUrlCandidates(){
+  const base = getApiBase();
+  const out = [];
+  const push = (u)=>{ if(u && !out.includes(u)) out.push(u); };
+
+  // 优先使用已探测成功的 runs url（减少反复探测）
+  if(state.__runsUrl) push(state.__runsUrl);
+
+  // 1) 现有默认（你的原始行为）
+  push(base + "/api/workflows/outbound/runs");
+
+  // 2) 兼容：Worker 挂在 /agent/*，但 Worker 内部路由实际按 /api/*（剥离了 /agent 前缀）
+  if(/\/agent$/i.test(base)){
+    push(base.replace(/\/agent$/i, "") + "/api/workflows/outbound/runs");
+  }
+
+  // 3) 兼容：用户填了 Worker 域名根（https://agent.mefans.workers.dev）但没带 /agent
+  if(/^https?:\/\//i.test(base) && !/\/agent$/i.test(base)){
+    push(base + "/agent/api/workflows/outbound/runs");
+  }
+
+  // 4) 兼容：页面不是 oliverfr.com（未绑定 /agent 路由）时，给一个保底候选（仅作为 fallback）
+  try{
+    const host = String(location.hostname || "");
+    const onOliver = /(^|\.)oliverfr\.com$/i.test(host);
+    if(base === "/agent" && !onOliver){
+      push("https://agent.mefans.workers.dev/agent/api/workflows/outbound/runs");
+      push("https://agent.mefans.workers.dev/api/workflows/outbound/runs");
+    }
+    if(location.protocol === "file:"){
+      push("https://agent.mefans.workers.dev/agent/api/workflows/outbound/runs");
+      push("https://agent.mefans.workers.dev/api/workflows/outbound/runs");
+    }
+  }catch{}
+
+  return out;
+}
+
+async function _requestRuns(method, headers, body){
+  const candidates = _runsUrlCandidates();
+  let last = null;
+
+  for(const u of candidates){
+    try{
+      const res = await fetch(u, { method, headers, body, mode:"cors" });
+
+      // 404 通常表示“路径形态不对”，继续尝试下一个候选
+      if(res.status === 404){
+        last = { url: u, res };
+        continue;
+      }
+
+      // 非 404：认为已“打到正确端点”（即使是 401/403/405 也说明路径命中）
+      state.__runsUrl = u; // 缓存命中的 runs url（非破坏）
+      return { url: u, res };
+    }catch(e){
+      last = { url: u, error: e };
+    }
+  }
+
+  if(last && last.error) throw last.error;
+  return last; // 可能是最后一个 404 的 res
+}
+// ===== [PATCH END] Runs endpoint candidates + fallback =====
+
+
+  function setChip(chipEl, mode, text){
+    chipEl.classList.remove("good","warn","bad","info");
+    chipEl.classList.add(mode);
+    chipEl.querySelector("span:last-child").textContent = text;
+  }
+
+  function showTab(which){
+    tabInspector.classList.toggle("active", which === "inspector");
+    tabRun.classList.toggle("active", which === "run");
+    tabSpec.classList.toggle("active", which === "spec");
+
+    viewInspector.style.display = (which === "inspector") ? "" : "none";
+    viewRun.style.display = (which === "run") ? "" : "none";
+    viewSpec.style.display = (which === "spec") ? "" : "none";
+  }
+
+  function setMobileSection(which){
+    // which: palette | canvas | inspector
+    const isMobile = window.matchMedia("(max-width: 720px)").matches;
+    if(!isMobile) return;
+
+    mTabPalette.classList.toggle("active", which==="palette");
+    mTabCanvas.classList.toggle("active", which==="canvas");
+    mTabInspector.classList.toggle("active", which==="inspector");
+
+    mTabPalette.setAttribute("aria-selected", which==="palette" ? "true":"false");
+    mTabCanvas.setAttribute("aria-selected", which==="canvas" ? "true":"false");
+    mTabInspector.setAttribute("aria-selected", which==="inspector" ? "true":"false");
+
+    panelPalette.style.display   = which==="palette" ? "" : "none";
+    panelCanvas.style.display    = which==="canvas" ? "" : "none";
+    panelInspector.style.display = which==="inspector" ? "" : "none";
+  }
+
+  function applyView(){
+    viewport.style.setProperty("--vx", state.view.x + "px");
+    viewport.style.setProperty("--vy", state.view.y + "px");
+    viewport.style.setProperty("--vz", state.view.z);
+    zoomLabel.textContent = Math.round(state.view.z * 100) + "%";
+    renderWires();
+  }
+
+  function canvasRect(){
+    return canvas.getBoundingClientRect();
+  }
+
+  function worldFromClient(cx, cy){
+    // Convert screen coords to world coords (inverse of view transform)
+    const r = canvasRect();
+    const x = (cx - r.left - state.view.x) / state.view.z;
+    const y = (cy - r.top - state.view.y) / state.view.z;
+    return { x, y };
+  }
+
+  // ===== Graph operations =====
+  function addNode(kind, label){
+    const id = "n_" + uuid();
+    const w = worldFromClient(canvasRect().left + 200, canvasRect().top + 160);
+    const baseX = w.x + (state.nodes.length % 3) * 40;
+    const baseY = w.y + (state.nodes.length % 2) * 40;
+
+    const node = {
+      id,
+      kind,
+      label: label || kind,
+      x: Math.round(baseX),
+      y: Math.round(baseY),
+      config: defaultConfig(kind)
+    };
+    state.nodes.push(node);
+    emptyTip.style.display = state.nodes.length ? "none" : "";
+    render();
+    selectNode(id);
+    return id;
+  }
+
+  function defaultConfig(kind){
+    if(kind === "http"){
+      return { method:"GET", url:"https://example.com", headers:{}, timeout_ms: 8000 };
+    }
+    if(kind === "n8n"){
+      return {
+        intent: "trigger-webhook",
+        note: "Actual trigger is server-controlled (N8N_ENABLED).",
+        payload_hint: { event:"workflow_run", source:"workflow-studio" }
+      };
+    }
+    if(kind === "input"){
+      return { role:"global_input", schema:"freeform_json" };
+    }
+    if(kind === "output"){
+      return { role:"final_output", show:["ok","run_id","trace_id","upstream"] };
+    }
+    if(kind === "doc"){
+      return { start_path:"/workflow/doc/start", recommended:true };
+    }
+    if(kind === "echo"){
+      return { start_path:"/workflow/echo/start", recommended:true };
+    }
+    return {};
+  }
+
+  function removeNode(id){
+    state.nodes = state.nodes.filter(n=>n.id!==id);
+    state.edges = state.edges.filter(e=>e.from!==id && e.to!==id);
+    if(state.selectedId === id) state.selectedId = null;
+    emptyTip.style.display = state.nodes.length ? "none" : "";
+    render();
+    updateInspector();
+  }
+
+  function selectNode(id){
+    state.selectedId = id;
+    render();
+    updateInspector();
+  }
+
+  function addEdge(fromId, toId){
+    if(!fromId || !toId || fromId === toId) return;
+    // prevent duplicates
+    if(state.edges.some(e=>e.from===fromId && e.to===toId)) return;
+    state.edges.push({ from: fromId, to: toId });
+    renderWires();
+  }
+
+  function clearCanvas(){
+    state.nodes = [];
+    state.edges = [];
+    state.selectedId = null;
+    emptyTip.style.display = "";
+    render();
+    updateInspector();
+  }
+
+  function starterGraph(){
+    clearCanvas();
+    const a = addNode("input","Input");
+    const b = addNode("echo","EchoWorkflow");
+    const c = addNode("output","Output");
+
+    // layout
+    const na = state.nodes.find(n=>n.id===a);
+    const nb = state.nodes.find(n=>n.id===b);
+    const nc = state.nodes.find(n=>n.id===c);
+    if(na && nb && nc){
+      na.x = 80;  na.y = 120;
+      nb.x = 380; nb.y = 120;
+      nc.x = 680; nc.y = 120;
+    }
+    addEdge(a,b);
+    addEdge(b,c);
+    render();
+  }
+
+  function compileSpec(){
+    const nodes = state.nodes.map(n=>({
+      id: n.id,
+      kind: n.kind,
+      label: n.label,
+      pos: { x:n.x, y:n.y },
+      config: n.config
+    }));
+    const edges = state.edges.slice();
+
+    // A minimal “contract” wrapper for future versioning
+    return {
+      studio: {
+        name: "workflow-studio",
+        version: "1.0.0",
+        exported_at: nowIso(),
+        route_base: getApiBase()
+      },
+      graph: { nodes, edges }
+    };
+  }
+
+  function pickWorkflowKind(){
+    // Priority: doc > echo; else fallback doc
+    const hasDoc = state.nodes.some(n => n.kind === "doc");
+    if(hasDoc) return "doc";
+    const hasEcho = state.nodes.some(n => n.kind === "echo");
+    if(hasEcho) return "echo";
+    return "doc";
+  }
+
+  // ===== Rendering =====
+  function render(){
+    // nodes
+    viewport.innerHTML = "";
+    state.nodes.forEach(n=>{
+      const el = document.createElement("div");
+      el.className = "node" + (state.selectedId === n.id ? " selected" : "");
+      el.style.left = n.x + "px";
+      el.style.top  = n.y + "px";
+      el.dataset.id = n.id;
+
+      const meta = (n.kind === "doc" || n.kind === "echo")
+        ? (defaultConfig(n.kind).start_path || "")
+        : (n.kind);
+
+      el.innerHTML = `
+        <div class="hdr" data-drag="1">
+          <div class="t">
+            <div class="name">${escapeHtml(n.label)}</div>
+            <div class="meta">${escapeHtml(meta)}</div>
+          </div>
+          <button class="x" type="button" title="Remove">×</button>
+        </div>
+        <div class="body">
+          <div class="kv">
+            <span>id</span><span>${escapeHtml(n.id)}</span>
+          </div>
+          <div class="ports">
+            <div class="port" title="Input">
+              <span class="pin in"></span><span>in</span>
+            </div>
+            <div class="port" title="Output">
+              <span>out</span><span class="pin out"></span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // events
+      el.addEventListener("mousedown", (ev)=>{
+        // select
+        ev.stopPropagation();
+        selectNode(n.id);
+
+        const isX = ev.target && ev.target.classList && ev.target.classList.contains("x");
+        if(isX){
+          removeNode(n.id);
+          return;
+        }
+
+        const dragHdr = ev.target && ev.target.closest && ev.target.closest("[data-drag='1']");
+        if(dragHdr){
+          state.drag.active = true;
+          state.drag.id = n.id;
+          const p = worldFromClient(ev.clientX, ev.clientY);
+          state.drag.ox = p.x - n.x;
+          state.drag.oy = p.y - n.y;
+        }
+      });
+
+      // quick connect by double-click on node: connect selected -> target
+      el.addEventListener("dblclick", (ev)=>{
+        ev.stopPropagation();
+        const sel = state.selectedId;
+        if(sel && sel !== n.id){
+          addEdge(sel, n.id);
+        }
+      });
+
+      viewport.appendChild(el);
+    });
+
+    renderWires();
+    updateInspector();
+  }
+
+  function renderWires(){
+    // Size SVG to canvas
+    const r = canvasRect();
+    wiresSvg.setAttribute("width", r.width);
+    wiresSvg.setAttribute("height", r.height);
+    wiresSvg.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`);
+    wiresSvg.innerHTML = "";
+
+    // helper: center points of node ports (in screen coords then to svg coords)
+    function nodePortPoint(nodeId, which){
+      const n = state.nodes.find(x=>x.id===nodeId);
+      if(!n) return { x:0, y:0 };
+      // node position in world -> to screen in canvas
+      const px = (n.x * state.view.z) + state.view.x;
+      const py = (n.y * state.view.z) + state.view.y;
+      const nodeW = 260 * state.view.z;
+      const hdrH  = 44 * state.view.z;
+      const bodyH = 86 * state.view.z;
+
+      const portY = py + hdrH + (bodyH * 0.66);
+      const inX  = px + 22 * state.view.z;
+      const outX = px + (nodeW - 22 * state.view.z);
+      return which === "out" ? { x: outX, y: portY } : { x: inX, y: portY };
+    }
+
+    function cubicPath(p1, p2){
+      const dx = Math.max(60, Math.abs(p2.x - p1.x) * 0.42);
+      const c1 = { x: p1.x + dx, y: p1.y };
+      const c2 = { x: p2.x - dx, y: p2.y };
+      return `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`;
+    }
+
+    state.edges.forEach(e=>{
+      const p1 = nodePortPoint(e.from, "out");
+      const p2 = nodePortPoint(e.to, "in");
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+      path.setAttribute("d", cubicPath(p1, p2));
+      path.setAttribute("class","wire");
+      wiresSvg.appendChild(path);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s ?? "").replace(/[&<>"']/g, (c)=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  // ===== Inspector =====
+  function updateInspector(){
+    const id = state.selectedId;
+    if(!id){
+      selHelp.textContent = "当前未选中节点。点击 Canvas 中的节点。";
+      nodeForm.style.display = "none";
+      return;
+    }
+    const n = state.nodes.find(x=>x.id===id);
+    if(!n){
+      nodeForm.style.display = "none";
+      return;
+    }
+    selHelp.textContent = `已选中：${n.label}（${n.kind}）`;
+    nodeForm.style.display = "";
+    nodeLabel.value = n.label;
+    nodeKind.value = n.kind;
+    nodeConfig.value = pretty(n.config || {});
+  }
+
+  btnSaveNode.addEventListener("click", ()=>{
+    const id = state.selectedId;
+    if(!id) return;
+    const n = state.nodes.find(x=>x.id===id);
+    if(!n) return;
+
+    n.label = (nodeLabel.value || n.label || n.kind).trim();
+    const cfg = safeJsonParse(nodeConfig.value, null);
+    if(cfg === null){
+      alert("Config JSON 解析失败，请检查格式。");
+      return;
+    }
+    n.config = cfg;
+    render();
+  });
+
+  btnDeleteNode.addEventListener("click", ()=>{
+    const id = state.selectedId;
+    if(!id) return;
+    removeNode(id);
+  });
+
+  // ===== Tab wiring =====
+  tabInspector.addEventListener("click", ()=>showTab("inspector"));
+  tabRun.addEventListener("click", ()=>showTab("run"));
+  tabSpec.addEventListener("click", ()=>{ showTab("spec"); refreshSpec(); });
+
+  // Mobile sections
+  mTabPalette.addEventListener("click", ()=>setMobileSection("palette"));
+  mTabCanvas.addEventListener("click", ()=>setMobileSection("canvas"));
+  mTabInspector.addEventListener("click", ()=>setMobileSection("inspector"));
+
+  window.addEventListener("resize", ()=>{
+    // keep sensible when switching breakpoint
+    const isMobile = window.matchMedia("(max-width: 720px)").matches;
+    if(!isMobile){
+      panelPalette.style.display = "";
+      panelCanvas.style.display = "";
+      panelInspector.style.display = "";
+    }else{
+      setMobileSection("palette");
+    }
+    renderWires();
+  });
+
+  // ===== Palette add buttons =====
+  document.querySelectorAll("[data-add]").forEach(btn=>{
+    btn.addEventListener("click", (ev)=>{
+      const kind = btn.getAttribute("data-add");
+      const labelMap = {
+        doc: "DocWorkflow",
+        echo:"EchoWorkflow",
+        http:"HTTP Call",
+        n8n:"n8n Bridge",
+        input:"Input",
+        output:"Output"
+      };
+      addNode(kind, labelMap[kind] || kind);
+      setMobileSection("canvas");
+    });
+  });
+
+  // ===== Canvas interactions =====
+  canvas.addEventListener("mousedown", (ev)=>{
+    // click on blank -> clear selection
+    if(ev.target === canvas || ev.target === wiresSvg){
+      state.selectedId = null;
+      render();
+    }
+  });
+
+  window.addEventListener("mousemove", (ev)=>{
+    if(!state.drag.active) return;
+    const id = state.drag.id;
+    const n = state.nodes.find(x=>x.id===id);
+    if(!n) return;
+    const p = worldFromClient(ev.clientX, ev.clientY);
+    n.x = Math.round(p.x - state.drag.ox);
+    n.y = Math.round(p.y - state.drag.oy);
+    render();
+  });
+
+  window.addEventListener("mouseup", ()=>{
+    state.drag.active = false;
+    state.drag.id = null;
+  });
+
+  // Keyboard delete
+  window.addEventListener("keydown", (ev)=>{
+    if(ev.key === "Delete" || ev.key === "Backspace"){
+      // avoid when typing in inputs
+      const tag = (ev.target && ev.target.tagName || "").toLowerCase();
+      if(tag === "input" || tag === "textarea") return;
+      if(state.selectedId){
+        removeNode(state.selectedId);
+      }
+    }
+    if((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "e"){
+      ev.preventDefault();
+      showTab("spec");
+      refreshSpec();
+    }
+  });
+
+  // ===== Zoom / Pan (simple) =====
+  btnZoomIn.addEventListener("click", ()=>{
+    state.view.z = clamp(state.view.z + 0.1, 0.7, 1.6);
+    applyView();
+  });
+  btnZoomOut.addEventListener("click", ()=>{
+    state.view.z = clamp(state.view.z - 0.1, 0.7, 1.6);
+    applyView();
+  });
+  btnResetView.addEventListener("click", ()=>{
+    state.view = { x:0, y:0, z:1 };
+    applyView();
+  });
+
+  // Wheel zoom on canvas
+  canvas.addEventListener("wheel", (ev)=>{
+    if(!ev.ctrlKey && !ev.metaKey) return; // require ctrl/cmd to avoid accidental zoom
+    ev.preventDefault();
+    const dz = ev.deltaY > 0 ? -0.08 : 0.08;
+    state.view.z = clamp(state.view.z + dz, 0.7, 1.6);
+    applyView();
+  }, { passive:false });
+
+  // Pan with middle mouse or Space+drag
+  let pan = { active:false, sx:0, sy:0, ox:0, oy:0, space:false };
+  window.addEventListener("keydown",(ev)=>{ if(ev.key === " "){ pan.space=true; }});
+  window.addEventListener("keyup",(ev)=>{ if(ev.key === " "){ pan.space=false; }});
+
+  canvas.addEventListener("mousedown",(ev)=>{
+    const middle = (ev.button === 1);
+    if(middle || pan.space){
+      pan.active=true;
+      pan.sx=ev.clientX; pan.sy=ev.clientY;
+      pan.ox=state.view.x; pan.oy=state.view.y;
+      canvas.style.cursor="grabbing";
+      ev.preventDefault();
+    }
+  });
+  window.addEventListener("mousemove",(ev)=>{
+    if(!pan.active) return;
+    const dx = ev.clientX - pan.sx;
+    const dy = ev.clientY - pan.sy;
+    state.view.x = pan.ox + dx;
+    state.view.y = pan.oy + dy;
+    applyView();
+  });
+  window.addEventListener("mouseup",()=>{
+    if(pan.active){
+      pan.active=false;
+      canvas.style.cursor="";
+    }
+  });
+
+  // ===== Spec export/copy =====
+  function refreshSpec(){
+    const spec = compileSpec();
+    specOut.value = pretty(spec);
+    $("specOut").scrollTop = 0;
+  }
+  btnRefreshSpec.addEventListener("click", refreshSpec);
+  btnCopySpec.addEventListener("click", async ()=>{
+    refreshSpec();
+    try{
+      await navigator.clipboard.writeText(specOut.value);
+      alert("已复制 Spec。");
+    }catch{
+      alert("复制失败：请手动复制。");
+    }
+  });
+
+  btnExport.addEventListener("click", ()=>{
+    showTab("spec");
+    refreshSpec();
+  });
+
+  btnClear.addEventListener("click", ()=>{
+    if(confirm("确认清空 Canvas？")){
+      clearCanvas();
+    }
+  });
+
+  btnAddStarter.addEventListener("click", ()=>{
+    starterGraph();
+    setMobileSection("canvas");
+  });
+
+  // ===== Route test (GET) =====
+async function testRoutes(){
+  const defaultUrl = apiUrl("/api/workflows/outbound/runs");
+  let url = defaultUrl;
+
+  const tp = newTraceparent();
+  const rid = uuid();
+  const headers = {
+    "accept":"application/json",
+    "traceparent": tp,
+    "x-request-id": rid
+  };
+  const token = (authTokenInput.value || "").trim();
+  if(token) headers["authorization"] = "Bearer " + token;
+
+  kApiBase.textContent = getApiBase();
+  setChip(chipWorker, "warn", "Worker: checking…");
+  setChip(chipN8n, "warn", "n8n: checking…");
+
+  try{
+    let res;
+
+    // 无损增强：若存在 _requestRuns，则自动探测并命中正确 runs 端点；否则保持原逻辑
+    if(typeof _requestRuns === "function"){
+      const rr = await _requestRuns("GET", headers);
+      url = (rr && rr.url) ? rr.url : defaultUrl;
+      res = rr && rr.res;
+    }else{
+      url = defaultUrl;
+      res = await fetch(url, { method:"GET", headers, mode:"cors" });
+    }
+
+    if(!res){
+      throw new Error("No response (runs endpoint unresolved).");
+    }
+
+    const txt = await res.text();
+    const js = safeJsonParse(txt, { raw: txt });
+
+    if(res.ok){
+      state.lastContract = js;
+      const c = js.contract || "v1";
+      kContract.textContent = c;
+      setChip(chipWorker, "good", "Worker: OK (" + c + ")");
+      const n8n = js.n8n_enabled;
+      const auth = js.auth_mode || "off";
+
+      if(n8n === true) setChip(chipN8n, "good", "n8n: enabled");
+      else if(n8n === false) setChip(chipN8n, "warn", "n8n: disabled");
+      else setChip(chipN8n, "warn", "n8n: unknown");
+
+      // show a concise note
+      runLog.textContent = pretty({
+        at: nowIso(),
+        ping_url: url,
+        status: res.status,
+        contract: c,
+        auth_mode: auth,
+        n8n_enabled: n8n
+      });
+    }else{
+      setChip(chipWorker, "bad", "Worker: " + res.status);
+      setChip(chipN8n, "warn", "n8n: unknown");
+      runLog.textContent = pretty({
+        at: nowIso(),
+        ping_url: url,
+        status: res.status,
+        body: js
+      });
+    }
+  }catch(e){
+    setChip(chipWorker, "bad", "Worker: network error");
+    setChip(chipN8n, "warn", "n8n: unknown");
+    runLog.textContent = pretty({
+      at: nowIso(),
+      ping_url: url,
+      error: String(e)
+    });
+  }
+}
+
+
+  btnPing.addEventListener("click", ()=>{
+    showTab("run");
+    testRoutes();
+  });
+  btnPing2.addEventListener("click", ()=>{
+    showTab("run");
+    testRoutes();
+  });
+
+  // ===== Run (POST) =====
+async function runWorkflow(){
+  const defaultUrl = apiUrl("/api/workflows/outbound/runs");
+  let url = defaultUrl;
+
+  const tp = newTraceparent();
+  const rid = uuid();
+
+  const token = (authTokenInput.value || "").trim();
+  const headers = {
+    "content-type":"application/json",
+    "accept":"application/json",
+    "traceparent": tp,
+    "x-request-id": rid
+  };
+  if(token) headers["authorization"] = "Bearer " + token;
+
+  // payload
+  const userInput = safeJsonParse(globalInputEl.value, null);
+  if(userInput === null){
+    alert("Global Input JSON 解析失败，请检查格式。");
+    return;
+  }
+
+  const spec = compileSpec();
+  const wfKind = pickWorkflowKind(); // doc / echo
+
+  // 工程级：明确 contract 结构与字段边界
+  const body = {
+    workflow: wfKind,
+    workflow_id: userInput.workflow_id || "studio-run",
+    input: userInput,
+    spec,
+    meta: {
+      studio: "workflow-studio",
+      studio_version: spec.studio.version,
+      client_ts: nowIso(),
+      route_base: getApiBase(),
+      request_id: rid
+    }
+  };
+
+  showTab("run");
+  runLog.textContent = "Running…\n" + pretty({ post_url: url, workflow: wfKind, request_id: rid, traceparent: tp });
+
+  try{
+    const payload = JSON.stringify(body);
+    let res;
+
+    // 无损增强：若存在 _requestRuns，则自动探测并命中正确 runs 端点；否则保持原逻辑
+    if(typeof _requestRuns === "function"){
+      const rr = await _requestRuns("POST", headers, payload);
+      url = (rr && rr.url) ? rr.url : defaultUrl;
+      res = rr && rr.res;
+    }else{
+      url = defaultUrl;
+      res = await fetch(url, { method:"POST", headers, body: payload, mode:"cors" });
+    }
+
+    if(!res){
+      throw new Error("No response (runs endpoint unresolved).");
+    }
+
+    const txt = await res.text();
+    const js = safeJsonParse(txt, { raw: txt });
+
+    // render response
+    const out = {
+      at: nowIso(),
+      status: res.status,
+      ok: res.ok,
+      run_id: js.run_id,
+      trace_id: js.trace_id,
+      traceparent: js.traceparent || tp,
+      x_request_id: js.x_request_id || rid,
+      contract: js.contract,
+      n8n_triggered: js.n8n_triggered,
+      n8n_error: js.n8n_error,
+      upstream: js.upstream
+    };
+
+    runLog.textContent = pretty(out);
+
+    // update chips lightly
+    if(res.ok){
+      setChip(chipWorker, "good", "Worker: OK");
+      if(js.n8n_triggered === true && !js.n8n_error){
+        setChip(chipN8n, "good", "n8n: triggered");
+      }else if(js.n8n_triggered === true && js.n8n_error){
+        setChip(chipN8n, "warn", "n8n: error");
+      }
+    }else{
+      setChip(chipWorker, "bad", "Worker: " + res.status);
+    }
+  }catch(e){
+    setChip(chipWorker, "bad", "Worker: network error");
+    runLog.textContent = pretty({
+      at: nowIso(),
+      post_url: url,
+      error: String(e),
+      request_id: rid,
+      traceparent: tp
+    });
+  }
+}
+
+
+  btnRun.addEventListener("click", runWorkflow);
+  btnRun2.addEventListener("click", runWorkflow);
+  btnRun3.addEventListener("click", runWorkflow);
+
+  // ===== Sync API base UI =====
+  function syncApiBase(){
+    const base = getApiBase();
+    kApiBase.textContent = base;
+  }
+  apiBaseInput.addEventListener("input", syncApiBase);
+
+  // ===== Boot =====
+  function boot(){
+    // default: /agent (matches your screenshot route)
+    syncApiBase();
+    applyView();
+    setMobileSection("palette");
+
+    // Auto ping once (non-blocking)
+    testRoutes();
+  }
+
+  boot();
+
+})();
+</script>
+</body>
+</html>
