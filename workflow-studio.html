@@ -1079,6 +1079,14 @@
   };
 
   // ===== Utils =====
+
+  // ===== [PATCH INSERT: safeBind.v1] (non-breaking) =====
+function on(el, ev, fn, opt){
+  if(!el) return;
+  el.addEventListener(ev, fn, opt);
+}
+// ===== [PATCH END: safeBind.v1] =====
+
   function nowIso(){
     try{ return new Date().toISOString(); } catch{ return ""; }
   }
@@ -1864,7 +1872,8 @@ async function testRoutes(){
     showTab("run");
     testRoutes();
   });
-  btnPing2.addEventListener("click", ()=>{
+ // btnPing2.addEventListener("click", ()=>{
+    on(btnPing2, "click", ()=>{
     showTab("run");
     testRoutes();
   });
@@ -2021,4 +2030,5 @@ async function runWorkflow(){
 </script>
 </body>
 </html>
+
 
