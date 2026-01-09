@@ -12,33 +12,31 @@
     /* Desktop */
     @media (min-width: 769px) {
       .section0-carousel{
-    position: relative;
-    width: 100%;
-    height: 495px; /* 固定高度 */
-    overflow: hidden;
-    margin: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0 10%; /* 两侧留白 */
-        padding-top:12px;/*===没加demo1===*/
+  width: 100%;
+  padding: 0 10%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: #f9f9f9;
+  overflow-x: clip;
+  overflow-y: visible;
+  position: relative;
+  height: 495px;
+  margin-top: 55px; /* 把原本的间距拉近 */
       }
       .section0-track{
-  display: flex; /* 使用 flex 布局 */
-    gap: 15px; /* 图片之间的间隔 */
-    transition: transform 0.5s ease-in-out;
-    justify-content: flex-start; /* 确保图片从左开始排列 */
+  display: flex;
+  gap: 15px; /* 图片之间间隔 15px */
+  transition: transform 0.5s ease-in-out;
+  justify-content: flex-start;
+  will-change: transform;
       }
       .section0-slide{
-     flex: 0 0 auto;
-    width: 100%;
-    position: relative; /* Relative positioning to position the overlay */
-    opacity: 1 !important;
-    transition: opacity 0.3s ease-in-out;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative; /* 若用 ::before 需要父级 position: relative */ /* 原没有触发去阴影 */
+  flex: 0 0 auto;
+  width: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
       }
       .section0-slide img{
   width: 100%; /* Ensure the image adapts to the container's width */
@@ -763,6 +761,7 @@
   </script>
 </body>
 </html>
+
 
 
 
