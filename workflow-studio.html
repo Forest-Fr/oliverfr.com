@@ -12,73 +12,68 @@
     /* Desktop */
     @media (min-width: 769px) {
       .section0-carousel{
-        position: relative;
-        width: 100%;
-        height: 520px;
-        overflow: hidden;
-        margin: 10px auto 30px auto;
-        padding: 0 10%;
-        box-sizing: border-box;
-        touch-action: pan-y; /* 允许上下滚动；横向由脚本识别 */
+       width: 100%;
+  padding: 0 10%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: #f9f9f9;
+  overflow-x: clip;
+  overflow-y: visible;
+  position: relative;
+  height: 520px;
+  margin-top: 55px; /* 把原本的间距拉近 */
       }
       .section0-track{
-        display: flex;
-        gap: 15px;
-        justify-content: flex-start;
-        will-change: transform;
-        transform: translateZ(0);
+         display: flex;
+  gap: 15px; /* 图片之间间隔 15px */
+  transition: transform 0.5s ease-in-out;
+  justify-content: flex-start;
+  will-change: transform;
       }
       .section0-slide{
-        flex: 0 0 auto;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        opacity: 1 !important;
-        transition: opacity .3s ease-in-out;
-        position: relative;
-        border-radius: 10px;
-        overflow: hidden;
-        user-select: none;
+       flex: 0 0 auto;
+  width: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
       }
       .section0-slide img{
-        width: 100%;
-        height: auto;
-        display: block;
-        border-radius: 10px;
-        filter: none !important;
-        opacity: 1 !important;
-        -webkit-user-drag: none;
+       width: 1013px;
+  height: 520px;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  transition: transform 0.4s ease, opacity 0.4s ease;
       }
     }
 
     /* Mobile */
     @media (max-width: 768px) {
       .section0-carousel{
-        width: 100vw;
-        padding-left: calc((100vw - 85vw) / 2);
-        padding-right: calc((100vw - 85vw) / 2);
-        overflow: hidden;
-        margin: 5px auto 27px auto;
-        position: relative;
-        box-sizing: border-box;
-        touch-action: pan-y; /* 上下滚动优先，横向滑动由脚本识别 */
+    width: 100vw;
+    /* 左右内边距 = (100vw - 75vw)/2 */
+    padding-left: calc((100vw - 75vw) / 2);
+    padding-right: calc((100vw - 75vw) / 2);
+    overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
+    margin: 0 auto;
+    position: relative !important;
       }
       .section0-track{
         display: flex;
-        gap: 15px;
-        align-items: center;
-        will-change: transform;
-        transform: translateZ(0);
+    gap: 15px;
+    align-items: center;
+    /* 保留 transform 过渡（若脚本依然用 transform 切换） */
+    transition: transform 0.5s ease-in-out;
       }
       .section0-slide{
-        flex: 0 0 auto;
-        width: 85vw;
-        aspect-ratio: 9 / 16;
-        overflow: hidden;
-        position: relative;
-        border-radius: 10px;
-        user-select: none;
+          flex: 0 0 auto;
+    width: 75vw;
+    max-width: 400px;
+    aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
+    scroll-snap-align: center;
+    overflow: hidden;
+    position: relative;
       }
       .section0-slide img{
         width: 100%;
@@ -765,3 +760,4 @@
   </script>
 </body>
 </html>
+
