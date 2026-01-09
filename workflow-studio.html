@@ -21,16 +21,16 @@
     justify-content: center;
     align-items: center;
     padding: 0 10%; /* 两侧留白 */
-Margin-bottom:10px;
+        padding-top:12px;/*===没加demo1===*/
       }
       .section0-track{
-    display: flex; /* 使用 flex 布局 */
+  display: flex; /* 使用 flex 布局 */
     gap: 15px; /* 图片之间的间隔 */
     transition: transform 0.5s ease-in-out;
     justify-content: flex-start; /* 确保图片从左开始排列 */
       }
       .section0-slide{
-    flex: 0 0 auto;
+     flex: 0 0 auto;
     width: 100%;
     position: relative; /* Relative positioning to position the overlay */
     opacity: 1 !important;
@@ -41,7 +41,7 @@ Margin-bottom:10px;
     position: relative; /* 若用 ::before 需要父级 position: relative */ /* 原没有触发去阴影 */
       }
       .section0-slide img{
-    width: 100%; /* Ensure the image adapts to the container's width */
+  width: 100%; /* Ensure the image adapts to the container's width */
     height: auto; /* Maintain the aspect ratio of the images */
     display: block;
     border-radius: 10px;
@@ -61,7 +61,7 @@ Margin-bottom:10px;
     margin: 0 auto;
   position: relative !important;
       }
-        }
+        
   .section0-carousel::-webkit-scrollbar {
     display: none;
   }
@@ -765,5 +765,6 @@ Margin-bottom:10px;
   </script>
 </body>
 </html>
+
 
 
