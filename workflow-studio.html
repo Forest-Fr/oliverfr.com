@@ -347,6 +347,10 @@
       let slideSpan = 0;
       let centerOffset = 0; // ✅ 保证 Peek Preview 左右对称
 
+      // ===== [PATCH] Mobile symmetry bias (iOS visual viewport / safe-area drift) =====
+let centerBias = 0; // px，手机端用于把“实际屏幕中心”对齐到“容器中心”
+
+
       function getGapPx() {
         const cs = getComputedStyle(track);
         const raw = (cs.gap && cs.gap !== 'normal') ? cs.gap : (cs.columnGap || '0px');
@@ -393,7 +397,9 @@
           : 'none';
 
         // ===== [PATCH] 真正 Peek Preview：始终把当前 slide 居中到可视区域 =====
-        const tx = centerOffset - (currentPos * slideSpan);
+       // const tx = centerOffset - (currentPos * slideSpan);
+        const tx = (centerOffset + centerBias) - (currentPos * slideSpan);
+
 
         // ≥3 位小数：这里用 4 位更稳
         track.style.transform = `translateX(${tx.toFixed(4)}px)`;
@@ -406,6 +412,37 @@
         return Number.isFinite(ri) ? ri : 0;
       }
 
+      // ===== [PATCH] iOS/mobile: enforce perfect symmetric peek by measuring real centers =====
+function applyMobileSymmetryBiasOnce() {
+  if (window.innerWidth > 768) return;          // 仅手机端
+  if (!slides || !slides.length) return;
+  if (!slideSpan || !Number.isFinite(slideSpan)) return;
+
+  const s = slides[currentPos];
+  if (!s) return;
+
+  const cr = container.getBoundingClientRect();
+  const sr = s.getBoundingClientRect();
+
+  const containerCenterX = cr.left + cr.width / 2;
+  const slideCenterX = sr.left + sr.width / 2;
+  const err = containerCenterX - slideCenterX;
+
+  if (!Number.isFinite(err)) return;
+
+  // 小于 0.35px 认为是噪声，避免抖动
+  if (Math.abs(err) < 0.35) return;
+
+  // 防御性夹紧，避免极端情况下 runaway
+  centerBias = Math.max(-2000, Math.min(2000, centerBias + err));
+
+  // 立即无动画重贴一次 transform，锁定左右对称（>=3位小数）
+  track.style.transition = "none";
+  const tx = (centerOffset + centerBias) - (currentPos * slideSpan);
+  track.style.transform = `translateX(${tx.toFixed(4)}px)`;
+}
+
+      
       function updateCenterClasses() {
         slides.forEach(s => s.classList.remove('is-center', 'is-neighbor'));
         const center = slides[currentPos];
@@ -695,6 +732,8 @@
             normalizePositionIfNeeded();
             applyTransform(false);
             updateCenterClasses();
+            applyMobileSymmetryBiasOnce(); // ===== [PATCH] 强制手机端左右漏出对称 =====
+
             return;
           }
           if (tries < 6) requestAnimationFrame(tryMeasure);
@@ -730,9 +769,15 @@
         if (!document.hidden && isPlaying) startProgressCycle();
       });
 
-      window.addEventListener('resize', () => {
+      /*window.addEventListener('resize', () => {
         hardSyncLayout();
-      });
+      });*/
+
+      window.addEventListener('resize', () => {
+  centerBias = 0;  // ===== [PATCH] 布局变化先清零，再让自校准重新收敛 =====
+  hardSyncLayout();
+});
+
 
       // ===== Init: wait images ready (keep your original stability strategy) =====
       function waitImagesReady() {
