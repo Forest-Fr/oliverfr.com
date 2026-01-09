@@ -12,78 +12,89 @@
     /* Desktop */
     @media (min-width: 769px) {
       .section0-carousel{
-  width: 100%;
-  padding: 0 10%;
-  margin: 0 auto;
-  box-sizing: border-box;
-  background: #f9f9f9;
-  overflow-x: clip;
-  overflow-y: visible;
-  position: relative;
-  height: 495px;
-  margin-top: 55px; /* 把原本的间距拉近 */
+        width: 100%;
+        padding: 0 10%;
+        margin: 0 auto;
+        box-sizing: border-box;
+        background: #f9f9f9;
+        overflow-x: clip;
+        overflow-y: visible;
+        position: relative;
+        height: 495px;
+        margin-top: 55px; /* 把原本的间距拉近 */
       }
       .section0-track{
-  display: flex;
-  gap: 15px; /* 图片之间间隔 15px */
-  transition: transform 0.5s ease-in-out;
-  justify-content: flex-start;
-  will-change: transform;
+        display: flex;
+        gap: 15px; /* 图片之间间隔 15px */
+        transition: transform 0.5s ease-in-out;
+        justify-content: flex-start;
+        will-change: transform;
+        transform: translateZ(0);
       }
       .section0-slide{
-  flex: 0 0 auto;
-  width: 100%;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+        flex: 0 0 auto;
+
+        /* ===== [PATCH] 关键：让“gap=15px”成为卡片与卡片之间的真实距离 ===== */
+        width: 1013px;              /* ✅ 与图片卡片同宽（否则图片在 100% 容器中居中会造成“间距漂移”） */
+        height: 495px;              /* ✅ 明确高度，避免布局抖动影响测宽 */
+
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
       }
       .section0-slide img{
-  width: 1013px;
-  height: 495px;
-  object-fit: cover;
-  border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-  transition: transform 0.4s ease, opacity 0.4s ease;
+        width: 1013px;
+        height: 495px;
+        object-fit: cover;
+        border-radius: 16px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        transition: transform 0.4s ease, opacity 0.4s ease;
+        -webkit-user-drag: none;
+        user-select: none;
       }
     }
 
     /* Mobile */
     @media (max-width: 768px) {
       .section0-carousel{
-    width: 100vw;
-    /* 左右内边距 = (100vw - 85vw)/2 */
-    padding-left: calc((100vw - 85vw) / 2);
-    padding-right: calc((100vw - 85vw) / 2);
-    overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
-    margin: 0 auto;
-  position: relative !important;
+        width: 100vw;
+        /* 左右内边距 = (100vw - 85vw)/2 */
+        padding-left: calc((100vw - 85vw) / 2);
+        padding-right: calc((100vw - 85vw) / 2);
+        overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
+        margin: 0 auto;
+        position: relative !important;
       }
-        
 
       .section0-track{
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    /* 保留 transform 过渡（若脚本依然用 transform 切换） */
-    transition: transform 0.5s ease-in-out;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        /* 保留 transform 过渡（若脚本依然用 transform 切换） */
+        transition: transform 0.5s ease-in-out;
+        will-change: transform;
+        transform: translateZ(0);
       }
       .section0-slide{
-    flex: 0 0 auto;
-    width: 85vw;
-    max-width: 400px;
-    aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
-    scroll-snap-align: center;
-    overflow: hidden;
-    position: relative;
+        flex: 0 0 auto;
+        width: 85vw;
+        max-width: 400px;
+        aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
+        scroll-snap-align: center;
+        overflow: hidden;
+        position: relative;
+        border-radius: 16px;
       }
       .section0-slide img{
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    filter: none !important;
-    opacity: 1 !important;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        filter: none !important;
+        opacity: 1 !important;
+        -webkit-user-drag: none;
+        user-select: none;
       }
     }
 
@@ -332,8 +343,9 @@
       // Start at middle copy
       let currentPos = (realCount > 1) ? realCount : 0;
 
-      // ===== Measurements (precision to 3 decimals) =====
+      // ===== Measurements (precision to 4 decimals, >=3 required) =====
       let slideSpan = 0;
+      let centerOffset = 0; // ===== [PATCH] 用于强制“左右 peek 对称” =====
 
       function getGapPx() {
         const cs = getComputedStyle(track);
@@ -344,25 +356,43 @@
 
       function recalcSpan() {
         if (!slides.length) return 0;
+
         const idx = Math.min(Math.max(currentPos, 0), slides.length - 1);
-        const rect = slides[idx].getBoundingClientRect();
-        const w = rect ? rect.width : 0;
-        const span = w + getGapPx();
+        const slideRect = slides[idx].getBoundingClientRect();
+        const slideW = slideRect ? slideRect.width : 0;
+
+        const contRect = container.getBoundingClientRect();
+        const contW = contRect ? contRect.width : 0;
+
+        const gap = getGapPx();
+        const span = slideW + gap;
+
         slideSpan = (Number.isFinite(span) && span > 0) ? span : 0;
+
+        // ===== [PATCH] 关键：把“当前卡片”始终居中，从而左右漏出永远相等 =====
+        // centerOffset = (可视容器宽度 - 当前卡片宽度) / 2
+        centerOffset = (Number.isFinite(contW) && contW > 0 && Number.isFinite(slideW) && slideW > 0)
+          ? (contW - slideW) / 2
+          : 0;
+
         return slideSpan;
       }
 
       function applyTransform(animated) {
         if (!slideSpan) recalcSpan();
-        // 防御：避免 NaN / 0 导致 translateX(-NaNpx) 或全白
+        // 防御：避免 NaN / 0 导致 translateX(NaNpx) 或全白
         if (!slideSpan || !Number.isFinite(slideSpan)) return;
 
         track.style.transition = animated
           ? `transform ${TRANSITION_MS}ms cubic-bezier(.22,.61,.36,1)`
           : 'none';
 
-        const offset = currentPos * slideSpan;
-        track.style.transform = `translateX(-${offset.toFixed(3)}px)`;
+        // ===== [PATCH] 不再只是 -currentPos*span，而是加上 centerOffset 保证对称 =====
+        // tx = centerOffset - currentPos * slideSpan
+        const tx = centerOffset - (currentPos * slideSpan);
+
+        // ≥3 位小数：这里统一 4 位
+        track.style.transform = `translateX(${tx.toFixed(4)}px)`;
       }
 
       function getRealIndex() {
@@ -434,7 +464,6 @@
 
         clearTimeout(chargeTimer);
         chargeTimer = setTimeout(() => {
-          // 释放蓄力：进入“胶囊拉伸”阶段（CSS transition 驱动）
           d.classList.remove('is-charge');
         }, DOT_CHARGE_MS);
       }
@@ -475,7 +504,7 @@
 
           if (p >= 1) {
             stopProgressLoop();
-            next(true);          // 进度满 → 下一张
+            next(true);
             return;
           }
           rafId = requestAnimationFrame(tick);
@@ -494,10 +523,7 @@
         clearTimeout(moveDoneTimer);
         moveDoneTimer = 0;
 
-        // 归一位置（防 transitionend 丢失导致跑飞）
         normalizePositionIfNeeded();
-
-        // 强制重算 + 重贴 transform（后台恢复/布局抖动的根治点）
         hardSyncLayout();
 
         if (isPlaying && !document.hidden) startProgressCycle();
@@ -521,19 +547,13 @@
           return;
         }
 
-        // transitionend 可能丢失：兜底定时结束
         moveDoneTimer = setTimeout(endMoveSafely, TRANSITION_MS + 90);
       }
 
       function next(pop) {
         if (realCount <= 1) return;
         if (isMoving) return;
-
-        // 先做移动
         moveToPos(currentPos + 1, true);
-
-        // 结束时再更新 dot（更贴近 Apple TV：到位后开始“蓄力→推进”）
-        // 这里不立刻 activateDot，避免“还没到位 dot 已经推进”的错觉
       }
 
       function prev(pop) {
@@ -545,12 +565,9 @@
       function goToRealIndex(realIdx) {
         if (realCount <= 1) return;
         if (!Number.isFinite(realIdx)) return;
-
-        // 中间 copy 的同索引
         moveToPos(realCount + realIdx, true);
       }
 
-      // 真正的 transitionend（有就用，没有兜底 timer）
       track.addEventListener('transitionend', (e) => {
         if (e.propertyName !== 'transform') return;
         endMoveSafely();
@@ -581,7 +598,7 @@
         });
       }
 
-      // Dots click（点哪个就去哪个；保持你原逻辑“若在播放则继续播放”）
+      // Dots click
       dotsWrap.addEventListener('click', (e) => {
         const t = e.target;
         if (!t || !t.classList || !t.classList.contains('dot')) return;
@@ -593,9 +610,7 @@
         if (!wasPlaying) pause();
       });
 
-      // Slide click behavior (no link):
-      // - center: play/pause
-      // - neighbor: move left/right and pause
+      // Slide click behavior (no link)
       track.addEventListener('click', (e) => {
         const slide = e.target && e.target.closest ? e.target.closest('.section0-slide') : null;
         if (!slide) return;
@@ -618,7 +633,7 @@
         else next(true);
       });
 
-      // ===== Touch swipe (mobile sensitive, vertical scroll friendly) =====
+      // ===== Touch swipe =====
       let sx = 0, sy = 0, ex = 0, ey = 0;
 
       track.addEventListener('touchstart', (e) => {
@@ -637,7 +652,6 @@
         const dx = ex - sx;
         const dy = ey - sy;
 
-        // 横向明显大于纵向才触发，保证上下滚动丝滑
         if (Math.abs(dx) <= Math.abs(dy)) return;
 
         const thr = (window.innerWidth <= 768) ? SWIPE_PX_MOB : SWIPE_PX_DESK;
@@ -667,7 +681,6 @@
 
       // ===== Hard-fix: background lifecycle / width=0 / transitionend lost =====
       function hardSyncLayout() {
-        // 1) 反复尝试测宽：避免后台/隐藏时测到 0 导致 translateX 跑飞
         let tries = 0;
 
         function tryMeasure() {
@@ -686,7 +699,6 @@
         tryMeasure();
       }
 
-      // 页面从后台回来 / BFCache 恢复：必须强制重贴 transform + 重启进度
       function onVisibleResume() {
         hardSyncLayout();
         if (isPlaying) startProgressCycle();
@@ -694,12 +706,10 @@
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
-          // 不改变用户“想播放”的状态，只停掉实际动画/计时
           stopProgressLoop();
           clearTimeout(moveDoneTimer);
           moveDoneTimer = 0;
         } else {
-          // 回到前台：根治白屏/乱队形
           onVisibleResume();
         }
       });
@@ -711,7 +721,6 @@
       });
 
       window.addEventListener('pageshow', (e) => {
-        // BFCache 恢复也走这里：强制纠正布局与状态机
         hardSyncLayout();
         updatePlayButtonUI();
         if (!document.hidden && isPlaying) startProgressCycle();
@@ -741,18 +750,15 @@
 
         await waitImagesReady();
 
-        // 初始定位 + 归一
         hardSyncLayout();
         applyTransform(false);
         normalizePositionIfNeeded();
         applyTransform(false);
         updateCenterClasses();
 
-        // 初始 dot：从小圆开始，随后“蓄力→拉伸→推进”
         resetAllDots();
         activateDot(getRealIndex());
 
-        // 默认自动播放（无限）
         if (isPlaying) startProgressCycle();
       }
 
@@ -761,9 +767,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
