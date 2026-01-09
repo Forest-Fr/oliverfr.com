@@ -9,92 +9,81 @@
        Carousel layout (Peek Preview)
        ========================= */
 
-    /* Desktop */
+     /* Desktop */
     @media (min-width: 769px) {
       .section0-carousel{
-        width: 100%;
-        padding: 0 10%;
-        margin: 0 auto;
-        box-sizing: border-box;
-        background: #f9f9f9;
-        overflow-x: clip;
-        overflow-y: visible;
-        position: relative;
-        height: 495px;
-        margin-top: 55px; /* 把原本的间距拉近 */
+  width: 100%;
+  padding: 0 10%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: #f9f9f9;
+  overflow-x: clip;
+  overflow-y: visible;
+  position: relative;
+  height: 495px;
+  margin-top: 55px; /* 把原本的间距拉近 */
       }
       .section0-track{
-        display: flex;
-        gap: 15px; /* 图片之间间隔 15px */
-        transition: transform 0.5s ease-in-out;
-        justify-content: flex-start;
-        will-change: transform;
-        transform: translateZ(0);
+  display: flex;
+  gap: 15px; /* 图片之间间隔 15px */
+  transition: transform 0.5s ease-in-out;
+  justify-content: flex-start;
+  will-change: transform;
       }
       .section0-slide{
-        flex: 0 0 auto;
-
-        /* ===== [PATCH] 关键：让“gap=15px”成为卡片与卡片之间的真实距离 ===== */
-        width: 1013px;              /* ✅ 与图片卡片同宽（否则图片在 100% 容器中居中会造成“间距漂移”） */
-        height: 495px;              /* ✅ 明确高度，避免布局抖动影响测宽 */
-
-        position: relative;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+  flex: 0 0 auto;
+  width: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
       }
       .section0-slide img{
-        width: 1013px;
-        height: 495px;
-        object-fit: cover;
-        border-radius: 16px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-        transition: transform 0.4s ease, opacity 0.4s ease;
-        -webkit-user-drag: none;
-        user-select: none;
+  width: 1013px;
+  height: 495px;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  transition: transform 0.4s ease, opacity 0.4s ease;
       }
     }
 
     /* Mobile */
     @media (max-width: 768px) {
       .section0-carousel{
-        width: 100vw;
-        /* 左右内边距 = (100vw - 85vw)/2 */
-        padding-left: calc((100vw - 85vw) / 2);
-        padding-right: calc((100vw - 85vw) / 2);
-        overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
-        margin: 0 auto;
-        position: relative !important;
+    width: 100vw;
+    /* 左右内边距 = (100vw - 85vw)/2 */
+    padding-left: calc((100vw - 85vw) / 2);
+    padding-right: calc((100vw - 85vw) / 2);
+    overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
+    margin: 0 auto;
+  position: relative !important;
       }
+        
 
       .section0-track{
-        display: flex;
-        gap: 15px;
-        align-items: center;
-        /* 保留 transform 过渡（若脚本依然用 transform 切换） */
-        transition: transform 0.5s ease-in-out;
-        will-change: transform;
-        transform: translateZ(0);
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    /* 保留 transform 过渡（若脚本依然用 transform 切换） */
+    transition: transform 0.5s ease-in-out;
       }
       .section0-slide{
-        flex: 0 0 auto;
-        width: 85vw;
-        max-width: 400px;
-        aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
-        scroll-snap-align: center;
-        overflow: hidden;
-        position: relative;
-        border-radius: 16px;
+    flex: 0 0 auto;
+    width: 85vw;
+    max-width: 400px;
+    aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
+    scroll-snap-align: center;
+    overflow: hidden;
+    position: relative;
       }
       .section0-slide img{
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        filter: none !important;
-        opacity: 1 !important;
-        -webkit-user-drag: none;
-        user-select: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: none !important;
+    opacity: 1 !important;
       }
     }
 
@@ -767,3 +756,4 @@
   </script>
 </body>
 </html>
+
