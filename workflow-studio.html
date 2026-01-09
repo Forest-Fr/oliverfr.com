@@ -9,81 +9,93 @@
        Carousel layout (Peek Preview)
        ========================= */
 
-     /* Desktop */
+    /* Desktop */
     @media (min-width: 769px) {
       .section0-carousel{
-  width: 100%;
-  padding: 0 10%;
-  margin: 0 auto;
-  box-sizing: border-box;
-  background: #f9f9f9;
-  overflow-x: clip;
-  overflow-y: visible;
-  position: relative;
-  height: 495px;
-  margin-top: 55px; /* 把原本的间距拉近 */
+        width: 100%;
+        padding: 0 10%;
+        margin: 0 auto;
+        box-sizing: border-box;
+        background: #f9f9f9;
+        overflow-x: clip;
+        overflow-y: visible;
+        position: relative;
+        height: 495px;
+        margin-top: 55px; /* 把原本的间距拉近 */
       }
       .section0-track{
-  display: flex;
-  gap: 15px; /* 图片之间间隔 15px */
-  transition: transform 0.5s ease-in-out;
-  justify-content: flex-start;
-  will-change: transform;
+        display: flex;
+        gap: 15px; /* 图片之间间隔 15px */
+        transition: transform 0.5s ease-in-out;
+        justify-content: flex-start;
+        will-change: transform;
+        transform: translateZ(0);
       }
       .section0-slide{
-  flex: 0 0 auto;
-  width: 100%;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+        flex: 0 0 auto;
+
+        /* ===== [PATCH] 关键：不要 width:100% 撑满，否则“gap=15”不是卡片间距而是容器间距 ===== */
+        width: auto;              /* ✅ 让 slide 按内容（img）自然定宽，真实 gap 永远 15px */
+        height: 495px;
+
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
       }
       .section0-slide img{
-   width: 100%; /* Ensure the image adapts to the container's width */
-    height: auto; /* Maintain the aspect ratio of the images */
-    display: block;
-    border-radius: 10px;
-    filter: none !important;
-    opacity: 1 !important;
+        /* 你原来是固定 1013px；这里仍以 1013 为上限，避免小屏桌面时卡片宽过头 */
+        width: min(1013px, 80vw);
+        height: 495px;
+        object-fit: cover;
+        border-radius: 16px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        transition: transform 0.4s ease, opacity 0.4s ease;
+        -webkit-user-drag: none;
+        user-select: none;
       }
     }
 
     /* Mobile */
     @media (max-width: 768px) {
       .section0-carousel{
-    width: 100vw;
-    /* 左右内边距 = (100vw - 85vw)/2 */
-    padding-left: calc((100vw - 85vw) / 2);
-    padding-right: calc((100vw - 85vw) / 2);
-    overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
-    margin: 0 auto;
-  position: relative !important;
+        width: 100vw;
+        /* 左右内边距 = (100vw - 85vw)/2 */
+        padding-left: calc((100vw - 85vw) / 2);
+        padding-right: calc((100vw - 85vw) / 2);
+        overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
+        margin: 0 auto;
+        position: relative !important;
       }
-        
 
       .section0-track{
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    /* 保留 transform 过渡（若脚本依然用 transform 切换） */
-    transition: transform 0.5s ease-in-out;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        /* 保留 transform 过渡（若脚本依然用 transform 切换） */
+        transition: transform 0.5s ease-in-out;
+        will-change: transform;
+        transform: translateZ(0);
       }
       .section0-slide{
-    flex: 0 0 auto;
-    width: 85vw;
-    max-width: 400px;
-    aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
-    scroll-snap-align: center;
-    overflow: hidden;
-    position: relative;
+        flex: 0 0 auto;
+        width: 85vw;
+        max-width: 400px;
+        aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
+        scroll-snap-align: center;
+        overflow: hidden;
+        position: relative;
+        border-radius: 16px;
       }
       .section0-slide img{
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    filter: none !important;
-    opacity: 1 !important;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        filter: none !important;
+        opacity: 1 !important;
+        -webkit-user-drag: none;
+        user-select: none;
       }
     }
 
@@ -187,7 +199,6 @@
     }
     .dot.is-active::after{
       opacity: 1;
-      /* ✅ 轻微质感，让“推进”更像截图里的物理变化 */
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
     }
 
@@ -210,7 +221,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 10px 22px rgba(0,0,0,.18); /* ✅ 你要求：加阴影 */
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
       transition: transform .18s ease, opacity .18s ease, background-color .18s ease, box-shadow .18s ease;
       user-select: none;
     }
@@ -285,14 +296,14 @@
       const LINK_URL = 'https://oliverfr.com/agent-test.html';
 
       // ===== Motion tuning (slower + friendly) =====
-      const TRANSITION_MS = 720;         // 滑动更柔和
+      const TRANSITION_MS = 720;
       const SWIPE_PX_DESK = 50;
-      const SWIPE_PX_MOB  = 35;          // 手机更灵敏
+      const SWIPE_PX_MOB  = 35;
 
-      // Dot physics: 小圆 → 蓄力停顿 → 拉伸 → 进度推进（无 keyframes）
-      const DOT_CHARGE_MS   = 240;       // 蓄力停顿
-      const DOT_STRETCH_MS  = 320;       // 拉伸完成时间（CSS transition）
-      const DOT_PROGRESS_MS = 4600;      // 胶囊内进度推进时长（截图那种“缓慢推进”）
+      // Dot physics
+      const DOT_CHARGE_MS   = 240;
+      const DOT_STRETCH_MS  = 320;
+      const DOT_PROGRESS_MS = 4600;
 
       // ===== Build triple clones (no edge flash) =====
       let originalSlides = Array.from(track.querySelectorAll('.section0-slide'));
@@ -332,9 +343,9 @@
       // Start at middle copy
       let currentPos = (realCount > 1) ? realCount : 0;
 
-      // ===== Measurements (precision to 4 decimals, >=3 required) =====
+      // ===== Measurements (precision) =====
       let slideSpan = 0;
-      let centerOffset = 0; // ===== [PATCH] 用于强制“左右 peek 对称” =====
+      let centerOffset = 0; // ✅ 保证 Peek Preview 左右对称
 
       function getGapPx() {
         const cs = getComputedStyle(track);
@@ -343,44 +354,48 @@
         return Number.isFinite(g) ? g : 0;
       }
 
+      function getViewportWidthExcludingPadding() {
+        // ===== [PATCH] 关键：容器有 padding，必须扣掉 padding 才是实际可视区域 =====
+        const cs = getComputedStyle(container);
+        const pl = parseFloat(cs.paddingLeft || "0") || 0;
+        const pr = parseFloat(cs.paddingRight || "0") || 0;
+
+        // clientWidth 含 padding，不含滚动条
+        const w = (container.clientWidth || 0) - pl - pr;
+        return (Number.isFinite(w) && w > 0) ? w : 0;
+      }
+
       function recalcSpan() {
         if (!slides.length) return 0;
 
         const idx = Math.min(Math.max(currentPos, 0), slides.length - 1);
-        const slideRect = slides[idx].getBoundingClientRect();
-        const slideW = slideRect ? slideRect.width : 0;
-
-        const contRect = container.getBoundingClientRect();
-        const contW = contRect ? contRect.width : 0;
+        const rect = slides[idx].getBoundingClientRect();
+        const w = rect ? rect.width : 0;
 
         const gap = getGapPx();
-        const span = slideW + gap;
-
+        const span = w + gap;
         slideSpan = (Number.isFinite(span) && span > 0) ? span : 0;
 
-        // ===== [PATCH] 关键：把“当前卡片”始终居中，从而左右漏出永远相等 =====
-        // centerOffset = (可视容器宽度 - 当前卡片宽度) / 2
-        centerOffset = (Number.isFinite(contW) && contW > 0 && Number.isFinite(slideW) && slideW > 0)
-          ? (contW - slideW) / 2
-          : 0;
+        // ===== [PATCH] 用扣掉 padding 的可视宽度算居中偏移，才能左右 peek 始终对称 =====
+        const viewportW = getViewportWidthExcludingPadding();
+        centerOffset = (viewportW && w) ? ((viewportW - w) / 2) : 0;
+        if (!Number.isFinite(centerOffset)) centerOffset = 0;
 
         return slideSpan;
       }
 
       function applyTransform(animated) {
         if (!slideSpan) recalcSpan();
-        // 防御：避免 NaN / 0 导致 translateX(NaNpx) 或全白
         if (!slideSpan || !Number.isFinite(slideSpan)) return;
 
         track.style.transition = animated
           ? `transform ${TRANSITION_MS}ms cubic-bezier(.22,.61,.36,1)`
           : 'none';
 
-        // ===== [PATCH] 不再只是 -currentPos*span，而是加上 centerOffset 保证对称 =====
-        // tx = centerOffset - currentPos * slideSpan
+        // ===== [PATCH] 真正 Peek Preview：始终把当前 slide 居中到可视区域 =====
         const tx = centerOffset - (currentPos * slideSpan);
 
-        // ≥3 位小数：这里统一 4 位
+        // ≥3 位小数：这里用 4 位更稳
         track.style.transform = `translateX(${tx.toFixed(4)}px)`;
       }
 
@@ -651,7 +666,7 @@
         else prev(true);
       }, { passive: true });
 
-      // ===== ButtonRow show/hide (IntersectionObserver) =====
+      // ===== ButtonRow show/hide =====
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           if (!buttonRow) return;
@@ -668,7 +683,7 @@
           : (buttonRow.classList.contains('is-hidden') ? 'translateY(-10px) scale(.96)' : '');
       }, { passive: true });
 
-      // ===== Hard-fix: background lifecycle / width=0 / transitionend lost =====
+      // ===== Hard-fix: lifecycle / width=0 / transitionend lost =====
       function hardSyncLayout() {
         let tries = 0;
 
@@ -709,7 +724,7 @@
         moveDoneTimer = 0;
       });
 
-      window.addEventListener('pageshow', (e) => {
+      window.addEventListener('pageshow', () => {
         hardSyncLayout();
         updatePlayButtonUI();
         if (!document.hidden && isPlaying) startProgressCycle();
@@ -719,7 +734,7 @@
         hardSyncLayout();
       });
 
-      // ===== Init: wait images ready to avoid width=0 =====
+      // ===== Init: wait images ready (keep your original stability strategy) =====
       function waitImagesReady() {
         const imgs = Array.from(track.querySelectorAll('img'));
         const tasks = imgs.map(img => {
@@ -756,5 +771,3 @@
   </script>
 </body>
 </html>
-
-
