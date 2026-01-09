@@ -12,39 +12,41 @@
     /* Desktop */
     @media (min-width: 769px) {
       .section0-carousel{
-       width: 100%;
-  padding: 0 10%;
-  margin: 0 auto;
-  box-sizing: border-box;
-  background: #f9f9f9;
-  overflow-x: clip;
-  overflow-y: visible;
-  position: relative;
-  height: 520px;
-  margin-top: 55px; /* 把原本的间距拉近 */
+    position: relative;
+    width: 100%;
+    height: 495px; /* 固定高度 */
+    overflow: hidden;
+    margin: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 10%; /* 两侧留白 */
+Margin-bottom:10px;
       }
       .section0-track{
-         display: flex;
-  gap: 15px; /* 图片之间间隔 15px */
-  transition: transform 0.5s ease-in-out;
-  justify-content: flex-start;
-  will-change: transform;
+    display: flex; /* 使用 flex 布局 */
+    gap: 15px; /* 图片之间的间隔 */
+    transition: transform 0.5s ease-in-out;
+    justify-content: flex-start; /* 确保图片从左开始排列 */
       }
       .section0-slide{
-       flex: 0 0 auto;
-  width: 100%;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+    flex: 0 0 auto;
+    width: 100%;
+    position: relative; /* Relative positioning to position the overlay */
+    opacity: 1 !important;
+    transition: opacity 0.3s ease-in-out;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative; /* 若用 ::before 需要父级 position: relative */ /* 原没有触发去阴影 */
       }
       .section0-slide img{
-       width: 1013px;
-  height: 520px;
-  object-fit: cover;
-  border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-  transition: transform 0.4s ease, opacity 0.4s ease;
+    width: 100%; /* Ensure the image adapts to the container's width */
+    height: auto; /* Maintain the aspect ratio of the images */
+    display: block;
+    border-radius: 10px;
+    filter: none !important;
+    opacity: 1 !important;
       }
     }
 
@@ -52,23 +54,27 @@
     @media (max-width: 768px) {
       .section0-carousel{
     width: 100vw;
-    /* 左右内边距 = (100vw - 75vw)/2 */
-    padding-left: calc((100vw - 75vw) / 2);
-    padding-right: calc((100vw - 75vw) / 2);
+    /* 左右内边距 = (100vw - 85vw)/2 */
+    padding-left: calc((100vw - 85vw) / 2);
+    padding-right: calc((100vw - 85vw) / 2);
     overflow-x: hidden; /* 避免transform与scroll-snap冲突 */
     margin: 0 auto;
-    position: relative !important;
+  position: relative !important;
       }
+        }
+  .section0-carousel::-webkit-scrollbar {
+    display: none;
+  }
       .section0-track{
-        display: flex;
+    display: flex;
     gap: 15px;
     align-items: center;
     /* 保留 transform 过渡（若脚本依然用 transform 切换） */
     transition: transform 0.5s ease-in-out;
       }
       .section0-slide{
-          flex: 0 0 auto;
-    width: 75vw;
+    flex: 0 0 auto;
+    width: 85vw;
     max-width: 400px;
     aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
     scroll-snap-align: center;
@@ -76,13 +82,12 @@
     position: relative;
       }
       .section0-slide img{
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        filter: none !important;
-        opacity: 1 !important;
-        -webkit-user-drag: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: none !important;
+    opacity: 1 !important;
       }
     }
 
@@ -760,4 +765,5 @@
   </script>
 </body>
 </html>
+
 
