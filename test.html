@@ -1345,13 +1345,20 @@ if (isMoving) return;
       return Number.isFinite(g) ? g : 0;
     }
 
-    function getViewportWidthExcludingPadding() {
-      const cs = getComputedStyle(container);
-      const pl = parseFloat(cs.paddingLeft || "0") || 0;
-      const pr = parseFloat(cs.paddingRight || "0") || 0;
-      const w = (container.clientWidth || 0) - pl - pr;
-      return Number.isFinite(w) && w > 0 ? w : 0;
-    }
+// ===== [PATCH REPLACE: viewport.width.use.rect.to.avoid.rounding] =====
+function getViewportWidthExcludingPadding() {
+  const cs = getComputedStyle(container);
+  const pl = parseFloat(cs.paddingLeft || "0") || 0;
+  const pr = parseFloat(cs.paddingRight || "0") || 0;
+
+  // 用 rect 宽度（含小数）替代 clientWidth（整数），避免左右露出出现 1px 级别不对称
+  const rectW = container.getBoundingClientRect().width || 0;
+  const w = rectW - pl - pr;
+
+  return Number.isFinite(w) && w > 0 ? w : 0;
+}
+// ===== [PATCH END] =====
+
 
     function recalcSpan() {
       slides = Array.from(track.querySelectorAll(".of-s0-slide"));
@@ -1359,7 +1366,10 @@ if (isMoving) return;
 
       const idx = Math.min(Math.max(currentPos, 0), slides.length - 1);
       const el = slides[idx];
-      const w = el ? el.offsetWidth || 0 : 0;
+      //const w = el ? el.offsetWidth || 0 : 0;
+// ===== [PATCH REPLACE: recalcSpan.use.rect.width] =====
+const w = el ? (el.getBoundingClientRect().width || 0) : 0;
+// ===== [PATCH END] =====
 
       const gap = getGapPx();
       slideSpan = w + gap > 0 ? w + gap : 0;
@@ -1392,8 +1402,26 @@ if (isMoving) return;
 track.style.transition = animated ? `transform ${TRANSITION_MS}ms ${DESKTOP_EASE}` : "none";
 // ===== [PATCH END] =====
 
-      const tx = centerOffset + centerBias - currentPos * slideSpan;
-      track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
+     // const tx = centerOffset + centerBias - currentPos * slideSpan;
+      //track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
+
+      // ===== [PATCH REPLACE: desktop.translate.by.offsetLeft.no.accumulate] =====
+// 用“真实 offsetLeft”而不是 currentPos * slideSpan 推算，彻底消灭 gap/取整的累积误差
+const el = slides[currentPos];
+const w = el ? (el.getBoundingClientRect().width || 0) : 0;
+
+// 这里的 viewportW 是“内容区宽度”（已扣 padding），且使用 rect，带小数
+const viewportW = getViewportWidthExcludingPadding();
+const center = (viewportW > 0 && w > 0) ? (viewportW - w) / 2 : 0;
+
+// offsetLeft 来自真实布局（包含 gap 的真实分配），不会累积偏差
+const left = el ? (el.offsetLeft || 0) : (currentPos * slideSpan);
+
+// 保留 3 位小数
+const tx = (center + centerBias - left);
+track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
+// ===== [PATCH END] =====
+
     }
 
     function updateCenterClasses() {
@@ -1452,10 +1480,21 @@ function applyMobilePeekPadding() {
   // 用当前中心卡片作为参考宽度（85vw / max-width 400 的实际像素宽）
   slides = Array.from(track.querySelectorAll(".of-s0-slide"));
   const ref = slides[currentPos] || slides[realCount] || slides[0];
-  const cardW = ref ? ref.getBoundingClientRect().width : 0;
-  const vw = getViewportW();
+  //const cardW = ref ? ref.getBoundingClientRect().width : 0;
+  //const vw = getViewportW();
 
-  let pad = (vw - cardW) / 2;
+ // let pad = (vw - cardW) / 2;
+
+  // ===== [PATCH REPLACE: mobile.pad.use.track.viewport.width] =====
+const cardW = ref ? (ref.getBoundingClientRect().width || 0) : 0;
+
+// 关键：以 scroll 容器 track 的“真实可视宽度”为准，而不是 viewportW
+// 这样 iOS/安卓地址栏、visualViewport 等变化都不会造成左右露出不对称
+const trackW = track ? (track.getBoundingClientRect().width || track.clientWidth || 0) : 0;
+
+let pad = (trackW - cardW) / 2;
+// ===== [PATCH END] =====
+
   if (!Number.isFinite(pad)) pad = 0;
   pad = Math.max(0, pad);
 
@@ -1620,7 +1659,10 @@ function scrollToPos_Snap(pos, behavior) {
   if (!el) return;
 
   const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
-  const targetLeft = Math.max(0, Math.round(left * 1000) / 1000);
+  //const targetLeft = Math.max(0, Math.round(left * 1000) / 1000);
+// ===== [PATCH REPLACE: snap.targetLeft.use.clampScrollLeft] =====
+const targetLeft = clampScrollLeft(left);
+// ===== [PATCH END] =====
 
   // ===== [FIX] “归位/纠偏”必须硬跳，禁止任何平滑动画（防止下一轮方向视觉反转）=====
   const b = (behavior || "smooth").toLowerCase();
