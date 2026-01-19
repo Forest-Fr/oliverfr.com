@@ -712,6 +712,34 @@
   opacity: 0 !important;
 }
 
+/* ===== [PATCH INSERT: s0.mobile.settling.keep.translateX + wrap.skipEnter] ===== */
+/* 关键：移动端 settling 也必须保留 translateX(-50%)，否则会出现“斜向/抖动” */
+@media (max-width: 768px) {
+  .of-s0-track.is-settling .of-s0-title,
+  .of-s0-track.is-settling .of-s0-bottomBox{
+    transform: translateX(-50%) translate3d(0,50px,0) !important;
+  }
+}
+
+/* 首尾 wrap 归位时：仅 1 帧跳过入场过渡，避免 Explore/标题/描述反复“进场抖动” */
+.of-s0-track.is-skipEnter .of-s0-overlay{
+  transition: none !important;
+}
+.of-s0-track.is-skipEnter .of-s0-title,
+.of-s0-track.is-skipEnter .of-s0-bottomBox{
+  transition: none !important;
+  transform: translate3d(0,0,0) !important;
+  opacity: 1 !important;
+}
+@media (max-width: 768px) {
+  .of-s0-track.is-skipEnter .of-s0-title,
+  .of-s0-track.is-skipEnter .of-s0-bottomBox{
+    transform: translateX(-50%) translate3d(0,0,0) !important;
+  }
+}
+/* ===== [PATCH END] ===== */
+
+
 /* 基础文本样式（保持你现有视觉） */
 .of-s0-title,
 .of-s0-desc{
@@ -965,10 +993,15 @@ track.style.opacity = "0";
     const TRANSITION_MS = 1080;//原820
 
     // ===== [PATCH INSERT: snap.smooth.enter.constants] =====
-const SNAP_ANIM_MS = 720;          // 移动端“程序滚动”更慢更优雅（用于自动轮播/点圆点/点邻居）
-const AUTO_START_DELAY_MS = 320;   // 首次对齐 Peek Preview 后再启动进度，避免刷新时回弹
-const FADE_IN_MS = 260;            // 轨道淡入时长
+//const SNAP_ANIM_MS = 720;          // 移动端“程序滚动”更慢更优雅（用于自动轮播/点圆点/点邻居）
+//const AUTO_START_DELAY_MS = 320;   // 首次对齐 Peek Preview 后再启动进度，避免刷新时回弹
+//const FADE_IN_MS = 260;            // 轨道淡入时长
 // ===== [PATCH END] =====
+
+    const SNAP_ANIM_MS = 820;          // 程序切换更慢一点（更优雅）
+const SNAP_SETTLE_MS = 520;        // 手势结束的“优雅收尾”
+const AUTO_START_DELAY_MS = 320;
+const FADE_IN_MS = 420;            // 首次淡入更柔和，避免“猛一下出现”
 
 
     const DOT_CHARGE_MS = 240;
@@ -1049,6 +1082,10 @@ function openUrl(url) {
     // ===== [PATCH INSERT: snap.no_bounce.ready.flag] =====
 let isReady = false;        // Peek Preview 对齐完成后才允许自动轮播（防刷新/归位回弹）
 let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防止来回拉扯）
+// ===== [PATCH END] =====
+
+    // ===== [PATCH INSERT: snap.programmatic.flag] =====
+let snapMoveByCode = false; // 程序触发（auto/dot/click） vs 手势触发（drag）
 // ===== [PATCH END] =====
 
 
@@ -1444,16 +1481,32 @@ function withSnapSuppress(fn) {
 }
 // ===== [PATCH END] =====
 
+    // ===== [PATCH INSERT: snap.clamp.scrollLeft.helpers] =====
+function getMaxScrollLeft() {
+  const max = (track.scrollWidth || 0) - (track.clientWidth || 0);
+  return Math.max(0, Math.round(max * 1000) / 1000);
+}
+function clampScrollLeft(left) {
+  const max = getMaxScrollLeft();
+  if (!Number.isFinite(left)) return 0;
+  return Math.max(0, Math.min(max, Math.round(left * 1000) / 1000));
+}
+// ===== [PATCH END] =====
+
     // ===== [PATCH INSERT: snap.hardjump.and.animate.no_bounce] =====
 function getTargetLeftForPos_Snap(pos) {
   pos = clamp(pos, 0, slides.length - 1);
   const el = slides[pos];
-  if (!el) return track.scrollLeft || 0;
+  if (!el) return clampScrollLeft(track.scrollLeft || 0);
+
   const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
-  return Math.max(0, Math.round(left * 1000) / 1000);
+  return clampScrollLeft(left);
 }
 
+
 function hardJumpScrollLeft(left) {
+
+  left = clampScrollLeft(left); // ===== [PATCH] 防止越界导致“空白/偏移” =====
   const prevSnap = track.style.scrollSnapType;
   const prevBeh = track.style.scrollBehavior;
 
@@ -1488,8 +1541,12 @@ function animateScrollLeftTo(left, duration, onDone) {
     cancelSnapAnim = null;
   }
 
-  const from = track.scrollLeft || 0;
-  const delta = left - from;
+  //const from = track.scrollLeft || 0;
+  //const delta = left - from;
+
+  const from = clampScrollLeft(track.scrollLeft || 0);
+const to = clampScrollLeft(left);
+const delta = to - from;
 
   if (!Number.isFinite(delta) || Math.abs(delta) < 0.5 || duration <= 0) {
     hardJumpScrollLeft(left);
@@ -1509,12 +1566,16 @@ function animateScrollLeftTo(left, duration, onDone) {
   let raf = 0;
   let stopped = false;
 
-  const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic（轻、慢、优雅）
+  //const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic（轻、慢、优雅）
+// 更“慢起步、慢收尾”，解决“猛一下进入”
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
   const step = (now) => {
     if (stopped) return;
     const p = Math.min(1, (now - t0) / duration);
-    track.scrollLeft = from + delta * ease(p);
+   // track.scrollLeft = from + delta * ease(p);
+    track.scrollLeft = clampScrollLeft(from + delta * ease(p));
+
     if (p < 1) {
       raf = requestAnimationFrame(step);
     } else {
@@ -1599,6 +1660,39 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
       return bestI;
     }
 
+    // ===== [PATCH INSERT: snap.edge.normalize.no.blank] =====
+function getSnapStepPx() {
+  if (realCount <= 1) return 0;
+  slides = Array.from(track.querySelectorAll(".of-s0-slide"));
+  const a = slides[realCount];
+  const b = slides[realCount + 1];
+  const step = a && b ? (b.offsetLeft - a.offsetLeft) : 0;
+  return step > 0.5 ? step : 0;
+}
+
+// 手势拖拽接近物理边界时：把 scrollLeft 平移一整轮长度到中段，视觉不变但永不露出空白
+function normalizeEdgeWhileDragging_Snap() {
+  if (!isSnapMode() || realCount <= 1) return;
+  const step = getSnapStepPx();
+  if (!step) return;
+
+  const loopPx = step * realCount;
+  if (!Number.isFinite(loopPx) || loopPx < 1) return;
+
+  const max = getMaxScrollLeft();
+  const sl = track.scrollLeft || 0;
+
+  // 阈值：足够提前，但不干扰正常滑动
+  const edge = Math.max(32, Math.min(loopPx * 0.25, 360));
+
+  if (sl < edge) {
+    withSnapSuppress(() => hardJumpScrollLeft(sl + loopPx));
+  } else if (sl > max - edge) {
+    withSnapSuppress(() => hardJumpScrollLeft(sl - loopPx));
+  }
+}
+// ===== [PATCH END] =====
+
     // ===== Navigation =====
     let moveDoneTimer = 0;
 
@@ -1662,45 +1756,72 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
       moveDoneTimer = setTimeout(endMoveSafely_Transform, TRANSITION_MS + 140);
     }
 
-    function endMoveSafely_Snap() {
-      if (!isMoving) return;
+function endMoveSafely_Snap() {
+  if (!isMoving) return;
+
+  clearTimeout(moveDoneTimer);
+  moveDoneTimer = 0;
+
+  setSettling(true);
+
+  // 判断这次结束是“程序触发”还是“手势触发”
+  const byCode = !!snapMoveByCode;
+  snapMoveByCode = false;
+
+  // 先以当前滚动位置选最近 index
+  const idx = pickClosestIndex_Snap();
+  if (idx !== currentPos) currentPos = idx;
+
+  // wrap 归位到中段（避免下一轮触边）
+  const changed = normalizePositionIfNeeded_Snap();
+
+  // wrap 时：1 帧跳过入场动画，防止 Explore/标题/描述抖动
+  if (changed) {
+    track.classList.add("is-skipEnter");
+    requestAnimationFrame(() => requestAnimationFrame(() => track.classList.remove("is-skipEnter")));
+  }
+
+  // 只在 viewport 真变化时才重算 padding，避免每轮微抖
+  (function applyPadSmart() {
+    if (!isSnapMode()) return;
+    const vw = getViewportW();
+    const prev = parseFloat(track.dataset.ofS0Vw || "NaN");
+    if (Number.isFinite(prev) && Math.abs(prev - vw) < 1) return;
+    track.dataset.ofS0Vw = String(vw);
+    applyMobilePeekPadding();
+  })();
+
+  const tLeft = getTargetLeftForPos_Snap(currentPos);
+
+  const finish = () => {
+    requestAnimationFrame(() => {
+      slides = Array.from(track.querySelectorAll(".of-s0-slide"));
       isMoving = false;
+      setMoving(false);
+      setSettling(false);
+      updateCenterClasses();
+      activateDot(getRealIndex());
 
-      clearTimeout(moveDoneTimer);
-      moveDoneTimer = 0;
+      if (isPlaying && !document.hidden) {
+        setTimeout(() => {
+          if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+        }, 90);
+      }
+    });
+  };
 
-      setSettling(true);
+  // 手势结束：做一次“优雅收尾对齐”，解决“噌一下进入”
+  if (!byCode) {
+    // 保持 moving 状态，避免用户在收尾期间点击触发其它逻辑
+    animateScrollLeftTo(tLeft, SNAP_SETTLE_MS, finish);
+    return;
+  }
 
-      // 先以当前滚动位置选最近 index
-      const idx = pickClosestIndex_Snap();
-      if (idx !== currentPos) currentPos = idx;
-
-      // 再归位到中段（避免“下一轮”时可见回弹）
-      // 再归位到中段（避免“下一轮”时可见回弹）
-      const changed = normalizePositionIfNeeded_Snap();
-      applyMobilePeekPadding();
-
-      // 无论 changed 与否，都做一次无动画对齐（但必须受 suppress 保护）
-     // withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-const tLeft = getTargetLeftForPos_Snap(currentPos);
-withSnapSuppress(() => hardJumpScrollLeft(tLeft));
-
-
-      requestAnimationFrame(() => {
-        slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        setMoving(false);
-        setSettling(false);
-        updateCenterClasses();
-        activateDot(getRealIndex());
-        //if (isPlaying && !document.hidden) startProgressCycle();
-        if (isPlaying && !document.hidden) {
-  setTimeout(() => {
-    if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
-  }, 90);
+  // 程序触发：不做二次动画，直接硬归位（避免叠加动画引发回弹）
+  withSnapSuppress(() => hardJumpScrollLeft(tLeft));
+  finish();
 }
 
-      });
-    }
 
     function moveToPos_Snap(newPos, animated) {
       if (realCount <= 1) return;
@@ -1735,6 +1856,11 @@ withSnapSuppress(() => hardJumpScrollLeft(tLeft));
       //scrollToPos_Snap(currentPos, "smooth");
       //moveDoneTimer = setTimeout(endMoveSafely_Snap, 240);
       const targetLeft = getTargetLeftForPos_Snap(currentPos);
+
+      // ===== [PATCH INSERT: snap.programmatic.flag.set] =====
+snapMoveByCode = true;
+// ===== [PATCH END] =====
+
 animateScrollLeftTo(targetLeft, SNAP_ANIM_MS, endMoveSafely_Snap);
 
 // 兜底：防极端情况下未触发回调导致卡住
@@ -1908,6 +2034,11 @@ function prev() {
         () => {
           if (!isSnapMode()) return;
           if (snapSuppress > 0) return;
+
+          // ===== [PATCH INSERT: snap.edge.normalize.invoke] =====
+normalizeEdgeWhileDragging_Snap();
+// ===== [PATCH END] =====
+
 
           if (!isMoving) {
             isMoving = true;
