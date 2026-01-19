@@ -955,8 +955,21 @@ if (container && container.dataset && container.dataset.ofS0Mounted === OF_S0_VE
     const { track, dotsWrap, rightButton, playIcon } = isolateDom(container, buttonRow, instanceId);
     if (!track || !dotsWrap) return null;
 
+    // ===== [PATCH INSERT: track.hide.until.aligned] =====
+// 初始先隐藏轨道：等 Peek Preview 对齐完成后再淡入，用户不会看到刷新/归位“来回回弹”
+track.style.opacity = "0";
+// ===== [PATCH END] =====
+
+
     // ===== transition tuning（更丝滑但不拖沓）=====
     const TRANSITION_MS = 820;
+
+    // ===== [PATCH INSERT: snap.smooth.enter.constants] =====
+const SNAP_ANIM_MS = 720;          // 移动端“程序滚动”更慢更优雅（用于自动轮播/点圆点/点邻居）
+const AUTO_START_DELAY_MS = 320;   // 首次对齐 Peek Preview 后再启动进度，避免刷新时回弹
+const FADE_IN_MS = 260;            // 轨道淡入时长
+// ===== [PATCH END] =====
+
 
     const DOT_CHARGE_MS = 240;
     const DOT_STRETCH_MS = 320;
@@ -1033,6 +1046,12 @@ function openUrl(url) {
     let isPlaying = true;
     let isMoving = false;
 
+    // ===== [PATCH INSERT: snap.no_bounce.ready.flag] =====
+let isReady = false;        // Peek Preview 对齐完成后才允许自动轮播（防刷新/归位回弹）
+let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防止来回拉扯）
+// ===== [PATCH END] =====
+
+
     let rafId = 0;
     let chargeTimer = 0;
     let cycleToken = 0;
@@ -1103,9 +1122,15 @@ function openUrl(url) {
     }
 
     function startProgressCycle() {
+     // stopProgressLoop();
+      //if (!isPlaying || document.hidden || realCount <= 1) return;
+      //if (isMoving) return;
+
       stopProgressLoop();
-      if (!isPlaying || document.hidden || realCount <= 1) return;
-      if (isMoving) return;
+if (!isReady) return; // ===== [PATCH] Peek Preview 未稳定前不启动进度/不触发 next =====
+if (!isPlaying || document.hidden || realCount <= 1) return;
+if (isMoving) return;
+
 
       const myToken = ++cycleToken;
       const idx = getRealIndex();
@@ -1387,7 +1412,18 @@ function applyMobilePeekPadding() {
   if (!Number.isFinite(pad)) pad = 0;
   pad = Math.max(0, pad);
 
-  track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
+ // track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
+
+  // ===== [PATCH REPLACE: mobile.peek.pad.stabilize.no.micro.jitter] =====
+const prev = parseFloat(track.dataset.ofS0Pad || "NaN");
+if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.5) {
+  // 小于 0.5px 的变化直接忽略，避免每轮“微调”造成回弹观感
+  return;
+}
+track.dataset.ofS0Pad = String(pad);
+track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
+// ===== [PATCH END] =====
+
 }
 // ===== [PATCH END] =====
 
@@ -1408,6 +1444,101 @@ function withSnapSuppress(fn) {
 }
 // ===== [PATCH END] =====
 
+    // ===== [PATCH INSERT: snap.hardjump.and.animate.no_bounce] =====
+function getTargetLeftForPos_Snap(pos) {
+  pos = clamp(pos, 0, slides.length - 1);
+  const el = slides[pos];
+  if (!el) return track.scrollLeft || 0;
+  const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
+  return Math.max(0, Math.round(left * 1000) / 1000);
+}
+
+function hardJumpScrollLeft(left) {
+  const prevSnap = track.style.scrollSnapType;
+  const prevBeh = track.style.scrollBehavior;
+
+  // 关键：禁用 snap + smooth，防止 iOS 在“归位/下一轮”时产生可见回弹
+  track.style.scrollSnapType = "none";
+  track.style.scrollBehavior = "auto";
+
+  track.scrollLeft = left;
+
+  // 强制应用，避免随后 snap 纠偏造成二次位移（肉眼看到来回）
+  track.offsetHeight;
+
+  track.style.scrollSnapType = prevSnap || "";
+  track.style.scrollBehavior = prevBeh || "";
+}
+
+function fadeInTrack() {
+  try {
+    track.animate([{ opacity: 0 }, { opacity: 1 }], {
+      duration: FADE_IN_MS,
+      easing: "ease",
+      fill: "forwards",
+    });
+  } catch (_) {
+    track.style.opacity = "1";
+  }
+}
+
+function animateScrollLeftTo(left, duration, onDone) {
+  if (cancelSnapAnim) {
+    try { cancelSnapAnim(); } catch (_) {}
+    cancelSnapAnim = null;
+  }
+
+  const from = track.scrollLeft || 0;
+  const delta = left - from;
+
+  if (!Number.isFinite(delta) || Math.abs(delta) < 0.5 || duration <= 0) {
+    hardJumpScrollLeft(left);
+    if (onDone) onDone();
+    return;
+  }
+
+  const prevSnap = track.style.scrollSnapType;
+  const prevBeh = track.style.scrollBehavior;
+
+  // 动画期间禁用 snap，避免“动画前进 + 系统 snap 反拉”导致回弹
+  track.style.scrollSnapType = "none";
+  track.style.scrollBehavior = "auto";
+
+  snapSuppress++;
+  const t0 = performance.now();
+  let raf = 0;
+  let stopped = false;
+
+  const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic（轻、慢、优雅）
+
+  const step = (now) => {
+    if (stopped) return;
+    const p = Math.min(1, (now - t0) / duration);
+    track.scrollLeft = from + delta * ease(p);
+    if (p < 1) {
+      raf = requestAnimationFrame(step);
+    } else {
+      track.style.scrollSnapType = prevSnap || "";
+      track.style.scrollBehavior = prevBeh || "";
+      snapSuppress = Math.max(0, snapSuppress - 1);
+      cancelSnapAnim = null;
+      if (onDone) onDone();
+    }
+  };
+
+  raf = requestAnimationFrame(step);
+
+  cancelSnapAnim = () => {
+    if (stopped) return;
+    stopped = true;
+    if (raf) cancelAnimationFrame(raf);
+    track.style.scrollSnapType = prevSnap || "";
+    track.style.scrollBehavior = prevBeh || "";
+    snapSuppress = Math.max(0, snapSuppress - 1);
+  };
+}
+// ===== [PATCH END] =====
+
 
 function scrollToPos_Snap(pos, behavior) {
   pos = clamp(pos, 0, slides.length - 1);
@@ -1421,17 +1552,15 @@ function scrollToPos_Snap(pos, behavior) {
   const b = (behavior || "smooth").toLowerCase();
   const isAuto = b === "auto" || b === "instant" || b === "immediate";
 
-  if (isAuto) {
-    // 同步硬跳：不会触发 smooth，也不会出现“反向滑动”的可见动画
-    track.scrollLeft = targetLeft;
-    return;
-  }
+if (isAuto) {
+  hardJumpScrollLeft(targetLeft);
+  return;
+}
 
-  // smooth：如果距离极小，直接硬跳，避免 sub-pixel 抖动导致方向误判
-  if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
-    track.scrollLeft = targetLeft;
-    return;
-  }
+if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
+  hardJumpScrollLeft(targetLeft);
+  return;
+}
 
   try {
     track.scrollTo({ left: targetLeft, behavior: "smooth" });
@@ -1552,7 +1681,9 @@ function scrollToPos_Snap(pos, behavior) {
       applyMobilePeekPadding();
 
       // 无论 changed 与否，都做一次无动画对齐（但必须受 suppress 保护）
-      withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
+     // withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
+const tLeft = getTargetLeftForPos_Snap(currentPos);
+withSnapSuppress(() => hardJumpScrollLeft(tLeft));
 
 
       requestAnimationFrame(() => {
@@ -1561,7 +1692,13 @@ function scrollToPos_Snap(pos, behavior) {
         setSettling(false);
         updateCenterClasses();
         activateDot(getRealIndex());
-        if (isPlaying && !document.hidden) startProgressCycle();
+        //if (isPlaying && !document.hidden) startProgressCycle();
+        if (isPlaying && !document.hidden) {
+  setTimeout(() => {
+    if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+  }, 90);
+}
+
       });
     }
 
@@ -1595,8 +1732,16 @@ function scrollToPos_Snap(pos, behavior) {
       setMoving(true);
       setSettling(false);
 
-      scrollToPos_Snap(currentPos, "smooth");
-      moveDoneTimer = setTimeout(endMoveSafely_Snap, 240);
+      //scrollToPos_Snap(currentPos, "smooth");
+      //moveDoneTimer = setTimeout(endMoveSafely_Snap, 240);
+      const targetLeft = getTargetLeftForPos_Snap(currentPos);
+animateScrollLeftTo(targetLeft, SNAP_ANIM_MS, endMoveSafely_Snap);
+
+// 兜底：防极端情况下未触发回调导致卡住
+moveDoneTimer = setTimeout(() => {
+  if (isMoving) endMoveSafely_Snap();
+}, SNAP_ANIM_MS + 220);
+
     }
 
     // ===== [PATCH REPLACE: snap.loop.no.bounce.preNormalize] =====
@@ -1789,6 +1934,12 @@ function prev() {
       updatePlayButtonUI();
       await waitImagesReady();
 
+      // ===== [PATCH INSERT: init.hide.until.peek.ready] =====
+isReady = false;
+track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐过程被看见
+// ===== [PATCH END] =====
+
+
       slides = Array.from(track.querySelectorAll(".of-s0-slide"));
 
       setSettling(true);
@@ -1813,8 +1964,20 @@ function prev() {
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
         updateCenterClasses();
         resetAllDots();
+        //activateDot(getRealIndex());
+        //if (isPlaying && !document.hidden) startProgressCycle();
+
         activateDot(getRealIndex());
-        if (isPlaying && !document.hidden) startProgressCycle();
+
+isReady = true;
+fadeInTrack();
+
+if (isPlaying && !document.hidden) {
+  setTimeout(() => {
+    if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+  }, AUTO_START_DELAY_MS);
+}
+
       });
     }
 
