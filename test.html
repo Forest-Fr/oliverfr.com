@@ -477,7 +477,6 @@
     touch-action: pan-x pan-y;
     scrollbar-width: none;
     will-change: scroll-position;
-
     /* ===== [PATCH INSERT: snap.overscroll.behavior] ===== */
 overscroll-behavior-x: contain;
 overscroll-behavior-y: none;
@@ -997,6 +996,11 @@ track.style.opacity = "0";
     // ===== transition tuning（更丝滑但不拖沓）=====
     const TRANSITION_MS = 1080;//原820
 
+    // ===== [PATCH INSERT: desktop.transform.easeInOut.gentle] =====
+const DESKTOP_EASE = "cubic-bezier(0.66,0,0.34,1)"; // 慢起步 + 慢收尾（解决桌面端“噌一下”）
+// ===== [PATCH END] =====
+
+
     // ===== [PATCH INSERT: snap.smooth.enter.constants] =====
 //const SNAP_ANIM_MS = 720;          // 移动端“程序滚动”更慢更优雅（用于自动轮播/点圆点/点邻居）
 //const AUTO_START_DELAY_MS = 320;   // 首次对齐 Peek Preview 后再启动进度，避免刷新时回弹
@@ -1382,7 +1386,12 @@ if (isMoving) return;
       if (!slideSpan) recalcSpan();
       if (!slideSpan) return;
 
-      track.style.transition = animated ? `transform ${TRANSITION_MS}ms cubic-bezier(.22,1,.36,1)` : "none";
+      //track.style.transition = animated ? `transform ${TRANSITION_MS}ms cubic-bezier(.22,1,.36,1)` : "none";
+
+      // ===== [PATCH REPLACE: desktop.transform.transition.ease] =====
+track.style.transition = animated ? `transform ${TRANSITION_MS}ms ${DESKTOP_EASE}` : "none";
+// ===== [PATCH END] =====
+
       const tx = centerOffset + centerBias - currentPos * slideSpan;
       track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
     }
