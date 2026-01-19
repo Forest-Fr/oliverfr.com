@@ -439,7 +439,6 @@
 }
 
 /* Mobile */
-@media (max-width: 768px) {
  /* ===== [PATCH REPLACE: mobile.peek.symmetric.padding.move.to.track] ===== */
 @media (max-width: 768px) {
   .of-s0-carousel{
@@ -1525,13 +1524,13 @@ const targetLeft = Math.max(0, Math.round(left * 1000) / 1000);
       if (idx !== currentPos) currentPos = idx;
 
       // 再归位到中段（避免“下一轮”时可见回弹）
-      const changed = 
-      if (changed) {
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-      } else {
-        // 轻微对齐中心（避免偏移累计）
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-      }
+      // 再归位到中段（避免“下一轮”时可见回弹）
+      const changed = normalizePositionIfNeeded_Snap();
+      applyMobilePeekPadding();
+
+      // 无论 changed 与否，都做一次无动画对齐（但必须受 suppress 保护）
+      withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
+
 
       requestAnimationFrame(() => {
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
