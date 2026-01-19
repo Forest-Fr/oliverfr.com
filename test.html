@@ -57,27 +57,30 @@
     }
 
     /* Mobile */
-    @media (max-width: 768px) {
-      .section0-carousel{
-        width: 100vw;
-        /* 左右内边距 = (100vw - 85vw)/2 */
-        padding-left: calc((100vw - 85vw) / 2);
-        padding-right: calc((100vw - 85vw) / 2);
-        overflow-x: hidden; /* 避免transform与scroll-snap冲突（实际 scroll 在 track 上） */
-        margin: 0 auto;
-        position: relative !important;
-      }
+@media (max-width: 768px) {
+  .section0-carousel{
+    width: 100vw;
+    padding: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    margin: 0 auto;
+    position: relative !important;
+  }
 
-      .section0-track{
-        display: flex;
-        gap: 15px;
-        align-items: center;
+  .section0-track{
+    display: flex;
+    gap: 15px;
+    align-items: center;
 
-        /* 仍保留 transform 相关声明（桌面用），但手机端会被 JS 切换到 scroll-snap 模式 */
-        transition: transform 0.5s ease-in-out;
-        will-change: transform;
-        transform: translateZ(0);
-      }
+    width: 100vw;
+    box-sizing: border-box;
+    padding-left: calc((100vw - 85vw) / 2);
+    padding-right: calc((100vw - 85vw) / 2);
+    scroll-padding-left: calc((100vw - 85vw) / 2);
+    scroll-padding-right: calc((100vw - 85vw) / 2);
+  
+}
+
       .section0-slide{
         flex: 0 0 auto;
         width: 85vw;
