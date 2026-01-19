@@ -440,10 +440,12 @@
 
 /* Mobile */
 @media (max-width: 768px) {
+ /* ===== [PATCH REPLACE: mobile.peek.symmetric.padding.move.to.track] ===== */
+@media (max-width: 768px) {
   .of-s0-carousel{
     width: 100vw;
-    padding-left: calc((100vw - 85vw) / 2);
-    padding-right: calc((100vw - 85vw) / 2);
+    padding: 0;                 /* ✅ 关键：不再让 100vw+padding 变成“超宽盒子” */
+    box-sizing: border-box;     /* ✅ 避免子像素裁剪导致左右不对称 */
     overflow-x: hidden;
     margin: 0 auto;
     position: relative !important;
@@ -453,6 +455,14 @@
     display: flex;
     gap: 15px;
     align-items: center;
+
+    /* ✅ 关键：把“居中留白”从 carousel 挪到 scroll 容器本身 */
+    width: 100vw;
+    box-sizing: border-box;
+    padding-left: var(--of-s0-pad, calc((100vw - 85vw) / 2));
+    padding-right: var(--of-s0-pad, calc((100vw - 85vw) / 2));
+    scroll-padding-left: var(--of-s0-pad, calc((100vw - 85vw) / 2));
+    scroll-padding-right: var(--of-s0-pad, calc((100vw - 85vw) / 2));
 
     /* scroll-snap skin */
     overflow-x: auto;
@@ -465,6 +475,9 @@
     will-change: scroll-position;
   }
   .of-s0-track::-webkit-scrollbar{ display:none; }
+}
+/* ===== [PATCH END] ===== */
+
 
   .of-s0-slide{
     flex: 0 0 auto;
@@ -1334,17 +1347,58 @@ function openUrl(url) {
       track.dataset.ofS0Snap = "1";
     }
 
+    // ===== [PATCH INSERT: mobile.peek.pad.compute.3dp] =====
+function getViewportW() {
+  const vv = window.visualViewport;
+  const w1 = vv && vv.width ? vv.width : 0;
+  const w2 = document.documentElement && document.documentElement.clientWidth ? document.documentElement.clientWidth : 0;
+  const w3 = window.innerWidth || 0;
+  return Math.max(w1, w2, w3);
+}
+
+/**
+ * 计算并设置 scroll 容器 padding，使 peek preview 左右露出严格对称。
+ * 输出 px，保留 3 位小数，消灭 vw 子像素舍入差异。
+ */
+function applyMobilePeekPadding() {
+  if (!track) return;
+
+  if (!isSnapMode()) {
+    track.style.removeProperty("--of-s0-pad");
+    return;
+  }
+
+  // 用当前中心卡片作为参考宽度（85vw / max-width 400 的实际像素宽）
+  slides = Array.from(track.querySelectorAll(".of-s0-slide"));
+  const ref = slides[currentPos] || slides[realCount] || slides[0];
+  const cardW = ref ? ref.getBoundingClientRect().width : 0;
+  const vw = getViewportW();
+
+  let pad = (vw - cardW) / 2;
+  if (!Number.isFinite(pad)) pad = 0;
+  pad = Math.max(0, pad);
+
+  track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
+}
+// ===== [PATCH END] =====
+
+
     let snapSuppress = 0;
-    function withSnapSuppress(fn) {
-      snapSuppress++;
-      try {
-        fn();
-      } finally {
-        requestAnimationFrame(() => {
-          snapSuppress = Math.max(0, snapSuppress - 1);
-        });
-      }
-    }
+// ===== [PATCH REPLACE: withSnapSuppress.hold.two.frames] =====
+function withSnapSuppress(fn) {
+  snapSuppress++;
+  try {
+    fn();
+  } finally {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        snapSuppress = Math.max(0, snapSuppress - 1);
+      });
+    });
+  }
+}
+// ===== [PATCH END] =====
+
 
     function scrollToPos_Snap(pos, behavior) {
       pos = clamp(pos, 0, slides.length - 1);
@@ -1352,7 +1406,11 @@ function openUrl(url) {
       if (!el) return;
 
       const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
-      const targetLeft = Math.max(0, left);
+      //const targetLeft = Math.max(0, left);
+      // ===== [PATCH REPLACE: snap.targetLeft.round.3dp] =====
+const targetLeft = Math.max(0, Math.round(left * 1000) / 1000);
+// ===== [PATCH END] =====
+
 
       try {
         track.scrollTo({ left: targetLeft, behavior: behavior || "smooth" });
@@ -1467,7 +1525,7 @@ function openUrl(url) {
       if (idx !== currentPos) currentPos = idx;
 
       // 再归位到中段（避免“下一轮”时可见回弹）
-      const changed = normalizePositionIfNeeded_Snap();
+      const changed = 
       if (changed) {
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
@@ -1498,7 +1556,7 @@ function openUrl(url) {
         setMoving(false);
         setSettling(true);
 
-        normalizePositionIfNeeded_Snap();
+        
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
 
         requestAnimationFrame(() => {
@@ -1519,16 +1577,52 @@ function openUrl(url) {
       moveDoneTimer = setTimeout(endMoveSafely_Snap, 240);
     }
 
-    function next() {
-      if (isMoving) return;
-      if (isSnapMode()) moveToPos_Snap(currentPos + 1, true);
-      else moveToPos_Transform(currentPos + 1, true);
+    // ===== [PATCH REPLACE: snap.loop.no.bounce.preNormalize] =====
+function next() {
+  if (isMoving) return;
+
+  if (isSnapMode()) {
+    if (realCount > 1) {
+      const midLast = realCount * 2 - 1;
+      // 若正处于“中段最后一张”，先静默跳到 pass0 的同内容（用户不可见），再向前滚一格
+      if (currentPos === midLast) {
+        setSettling(true);
+        currentPos = currentPos - realCount; // pass1 last -> pass0 last（同内容）
+        applyMobilePeekPadding();
+        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
+        requestAnimationFrame(() => setSettling(false));
+      }
     }
-    function prev() {
-      if (isMoving) return;
-      if (isSnapMode()) moveToPos_Snap(currentPos - 1, true);
-      else moveToPos_Transform(currentPos - 1, true);
+    moveToPos_Snap(currentPos + 1, true);
+    return;
+  }
+
+  moveToPos_Transform(currentPos + 1, true);
+}
+
+function prev() {
+  if (isMoving) return;
+
+  if (isSnapMode()) {
+    if (realCount > 1) {
+      const midFirst = realCount;
+      // 若正处于“中段第一张”，先静默跳到 pass2 的同内容（用户不可见），再向后滚一格
+      if (currentPos === midFirst) {
+        setSettling(true);
+        currentPos = currentPos + realCount; // pass1 first -> pass2 first（同内容）
+        applyMobilePeekPadding();
+        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
+        requestAnimationFrame(() => setSettling(false));
+      }
     }
+    moveToPos_Snap(currentPos - 1, true);
+    return;
+  }
+
+  moveToPos_Transform(currentPos - 1, true);
+}
+// ===== [PATCH END] =====
+
 
     function goToRealIndex(realIdx) {
       if (!Number.isFinite(realIdx)) return;
@@ -1628,6 +1722,8 @@ function openUrl(url) {
       if (isSnapMode()) {
         setSnapModeEnabled(true);
         normalizePositionIfNeeded_Snap();
+        applyMobilePeekPadding();
+
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
         track.dataset.ofS0Snap = "";
@@ -1703,6 +1799,8 @@ function openUrl(url) {
         setSnapModeEnabled(true);
         currentPos = realCount > 1 ? realCount : 0;
         normalizePositionIfNeeded_Snap();
+        applyMobilePeekPadding();
+
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
         normalizePositionIfNeeded_Transform();
@@ -1744,6 +1842,8 @@ function openUrl(url) {
         // clamp + normalize
         currentPos = clamp(currentPos, 0, slides.length - 1);
         normalizePositionIfNeeded_Snap();
+        applyMobilePeekPadding();
+
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
         track.dataset.ofS0Snap = "";
