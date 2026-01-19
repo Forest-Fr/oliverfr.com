@@ -48,7 +48,7 @@
         width: min(1013px, 80vw);
         height: 495px;
         object-fit: cover;
-        border-radius: 16px;
+         border-radius:none; /*16px;*/
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
         transition: transform 0.4s ease, opacity 0.4s ease;
         -webkit-user-drag: none;
@@ -89,7 +89,7 @@
         scroll-snap-align: center;
         overflow: hidden;
         position: relative;
-        border-radius: 16px;
+         border-radius:none; /*16px;*/
       }
       .section0-slide img{
         width: 100%;
@@ -435,7 +435,7 @@
     width: min(1013px, 80vw);
     height: 495px;
     object-fit: cover;
-    border-radius: 16px;
+    border-radius:none; /*16px;*/
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
     transition: transform 0.4s ease, opacity 0.4s ease;
     -webkit-user-drag: none;
@@ -492,7 +492,7 @@
     scroll-snap-stop: always;
     overflow: hidden;
     position: relative;
-    border-radius: 16px;
+   border-radius:none; /*16px;*/
 
     contain: layout paint;
     transform: translateZ(0);
@@ -962,7 +962,7 @@ track.style.opacity = "0";
 
 
     // ===== transition tuning（更丝滑但不拖沓）=====
-    const TRANSITION_MS = 980;//原820
+    const TRANSITION_MS = 1080;//原820
 
     // ===== [PATCH INSERT: snap.smooth.enter.constants] =====
 const SNAP_ANIM_MS = 720;          // 移动端“程序滚动”更慢更优雅（用于自动轮播/点圆点/点邻居）
