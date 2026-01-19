@@ -334,8 +334,10 @@
    * 4) 移动端不再用 IO 自动隐藏 buttonRow（避免 iOS 首屏/缓存导致按钮丢失）。
    */
 
-  const KEY = Symbol.for("oliverfr.of_s0_carousel_widget_css_preserve_v4_3");
-  if (window[KEY] && window[KEY].version === "4.3.0") return;
+ // const KEY = Symbol.for("oliverfr.of_s0_carousel_widget_css_preserve_v4_3");
+  //if (window[KEY] && window[KEY].version === "4.3.0") return;
+
+  const OF_S0_VERSION = "4.3.1";
 
   function uid() {
     return `of_s0_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
@@ -939,6 +941,11 @@
   }
 
   function createCarousel(container) {
+
+    // ===== [PATCH INSERT: of_s0.mount.guard.by.container.dataset] =====
+if (container && container.dataset && container.dataset.ofS0Mounted === OF_S0_VERSION) return null;
+// ===== [PATCH END] =====
+
     const buttonRow = closestFollowingButtonRow(container);
     if (!buttonRow) return null;
 
@@ -1402,24 +1409,37 @@ function withSnapSuppress(fn) {
 // ===== [PATCH END] =====
 
 
-    function scrollToPos_Snap(pos, behavior) {
-      pos = clamp(pos, 0, slides.length - 1);
-      const el = slides[pos];
-      if (!el) return;
+function scrollToPos_Snap(pos, behavior) {
+  pos = clamp(pos, 0, slides.length - 1);
+  const el = slides[pos];
+  if (!el) return;
 
-      const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
-      //const targetLeft = Math.max(0, left);
-      // ===== [PATCH REPLACE: snap.targetLeft.round.3dp] =====
-const targetLeft = Math.max(0, Math.round(left * 1000) / 1000);
-// ===== [PATCH END] =====
+  const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
+  const targetLeft = Math.max(0, Math.round(left * 1000) / 1000);
 
+  // ===== [FIX] “归位/纠偏”必须硬跳，禁止任何平滑动画（防止下一轮方向视觉反转）=====
+  const b = (behavior || "smooth").toLowerCase();
+  const isAuto = b === "auto" || b === "instant" || b === "immediate";
 
-      try {
-        track.scrollTo({ left: targetLeft, behavior: behavior || "smooth" });
-      } catch (_) {
-        track.scrollLeft = targetLeft;
-      }
-    }
+  if (isAuto) {
+    // 同步硬跳：不会触发 smooth，也不会出现“反向滑动”的可见动画
+    track.scrollLeft = targetLeft;
+    return;
+  }
+
+  // smooth：如果距离极小，直接硬跳，避免 sub-pixel 抖动导致方向误判
+  if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
+    track.scrollLeft = targetLeft;
+    return;
+  }
+
+  try {
+    track.scrollTo({ left: targetLeft, behavior: "smooth" });
+  } catch (_) {
+    track.scrollLeft = targetLeft;
+  }
+}
+
 
     function normalizePositionIfNeeded_Snap() {
       if (realCount <= 1) return false;
@@ -1584,17 +1604,7 @@ function next() {
   if (isMoving) return;
 
   if (isSnapMode()) {
-    if (realCount > 1) {
-      const midLast = realCount * 2 - 1;
-      // 若正处于“中段最后一张”，先静默跳到 pass0 的同内容（用户不可见），再向前滚一格
-      if (currentPos === midLast) {
-        setSettling(true);
-        currentPos = currentPos - realCount; // pass1 last -> pass0 last（同内容）
-        applyMobilePeekPadding();
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-        requestAnimationFrame(() => setSettling(false));
-      }
-    }
+    // ===== [FIX] 不做任何“反向预跳”，永远 forward，方向永远保持右->左 =====
     moveToPos_Snap(currentPos + 1, true);
     return;
   }
@@ -1606,24 +1616,12 @@ function prev() {
   if (isMoving) return;
 
   if (isSnapMode()) {
-    if (realCount > 1) {
-      const midFirst = realCount;
-      // 若正处于“中段第一张”，先静默跳到 pass2 的同内容（用户不可见），再向后滚一格
-      if (currentPos === midFirst) {
-        setSettling(true);
-        currentPos = currentPos + realCount; // pass1 first -> pass2 first（同内容）
-        applyMobilePeekPadding();
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-        requestAnimationFrame(() => setSettling(false));
-      }
-    }
     moveToPos_Snap(currentPos - 1, true);
     return;
   }
 
   moveToPos_Transform(currentPos - 1, true);
 }
-// ===== [PATCH END] =====
 
 
     function goToRealIndex(realIdx) {
@@ -1935,6 +1933,12 @@ function prev() {
 
     buttonRow.dataset.ofS0Bound = instanceId;
 
+    // ===== [PATCH INSERT: of_s0.mark.mounted] =====
+container.dataset.ofS0Mounted = OF_S0_VERSION;
+buttonRow.dataset.ofS0Mounted = OF_S0_VERSION;
+// ===== [PATCH END] =====
+
+
     return {
       destroy() {
         try { if (io) io.disconnect(); } catch (_) {}
@@ -1959,7 +1963,7 @@ function prev() {
     });
   }
 
-  window[KEY] = { version: "4.3.0", mount };
+ // window[KEY] = { version: "4.3.0", mount };
   mount();
 })();
   </script>
