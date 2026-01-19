@@ -477,6 +477,12 @@
     touch-action: pan-x pan-y;
     scrollbar-width: none;
     will-change: scroll-position;
+
+    /* ===== [PATCH INSERT: snap.overscroll.behavior] ===== */
+overscroll-behavior-x: contain;
+overscroll-behavior-y: none;
+/* ===== [PATCH END] ===== */
+
   }
   .of-s0-track::-webkit-scrollbar{ display:none; }
 
@@ -1461,6 +1467,11 @@ track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
 
 
     let snapSuppress = 0;
+
+    // ===== [PATCH INSERT: snap.user.drag.state] =====
+let isUserDragging = false; // 手势按下期间为 true：禁止中途结算/归位，根治“反方向回弹”
+// ===== [PATCH END] =====
+
 // ===== [PATCH REPLACE: withSnapSuppress.hold.two.frames] =====
 function withSnapSuppress(fn) {
   snapSuppress++;
@@ -1912,14 +1923,45 @@ function prev() {
     });
 
     // 轻触/按下：仅暂停“进度动画”，不改变 isPlaying（手势结束会自动恢复进度）
-    track.addEventListener("pointerdown", () => {
-      if (realCount <= 1) return;
-      stopProgressLoop();
-    }, { passive: true });
-    track.addEventListener("touchstart", () => {
-      if (realCount <= 1) return;
-      stopProgressLoop();
-    }, { passive: true });
+// ===== [PATCH REPLACE: snap.user.drag.start_end.cancel_anim] =====
+function onUserDragStart() {
+  if (realCount <= 1) return;
+
+  isUserDragging = true;
+  stopProgressLoop();
+
+  // 若此刻存在“程序滚动动画”（自动轮播 / 点圆点 / 点邻居），立刻取消，避免动画反拉造成回弹
+  if (isSnapMode() && cancelSnapAnim) {
+    try { cancelSnapAnim(); } catch (_) {}
+    cancelSnapAnim = null;
+  }
+
+  // 拖拽期间禁止旧的 debounce 结算误触发
+  if (snapScrollTimer) { clearTimeout(snapScrollTimer); snapScrollTimer = 0; }
+  if (moveDoneTimer) { clearTimeout(moveDoneTimer); moveDoneTimer = 0; }
+}
+
+function onUserDragEnd() {
+  if (!isUserDragging) return;
+  isUserDragging = false;
+
+  // 若是短拖拽（没有明显惯性 scroll），补一次结算（但仍然让 scroll debounce 优先）
+  if (isSnapMode() && isMoving) {
+    if (snapScrollTimer) clearTimeout(snapScrollTimer);
+    snapScrollTimer = setTimeout(() => {
+      if (!isUserDragging) endMoveSafely_Snap();
+    }, 160);
+  }
+}
+
+track.addEventListener("pointerdown", onUserDragStart, { passive: true });
+track.addEventListener("touchstart", onUserDragStart, { passive: true });
+track.addEventListener("pointerup", onUserDragEnd, { passive: true });
+track.addEventListener("pointercancel", onUserDragEnd, { passive: true });
+track.addEventListener("touchend", onUserDragEnd, { passive: true });
+track.addEventListener("touchcancel", onUserDragEnd, { passive: true });
+// ===== [PATCH END] =====
+
 
     // ===== ButtonRow show/hide =====
     // [FIX] 移动端不启用 IO 自动隐藏，避免 iOS 首屏/缓存导致 buttonRow 消失
@@ -1990,30 +2032,40 @@ function prev() {
     // Mobile snap scroll listener (debounce)
     let snapScrollTimer = 0;
     function bindSnapScroll() {
-      track.addEventListener(
-        "scroll",
-        () => {
-          if (!isSnapMode()) return;
-          if (snapSuppress > 0) return;
+// ===== [PATCH REPLACE: snap.scroll.handler.no_settle_while_dragging] =====
+track.addEventListener(
+  "scroll",
+  () => {
+    if (!isSnapMode()) return;
+    if (snapSuppress > 0) return;
 
-          // ===== [PATCH INSERT: snap.edge.normalize.invoke] =====
-normalizeEdgeWhileDragging_Snap();
+    // 仅在“手指拖拽期间”做边界平移（避免空白）；惯性阶段不做，防止可见反向回弹
+    if (isUserDragging) {
+      normalizeEdgeWhileDragging_Snap();
+    }
+
+    if (!isMoving) {
+      isMoving = true;
+      stopProgressLoop();
+    }
+    setMoving(true);
+
+    // 拖拽期间：绝不触发结算/归位（根治反方向回弹）
+    if (isUserDragging) {
+      if (snapScrollTimer) { clearTimeout(snapScrollTimer); snapScrollTimer = 0; }
+      return;
+    }
+
+    // 非拖拽（惯性/停止）阶段：按原逻辑 debounce 结算
+    if (snapScrollTimer) clearTimeout(snapScrollTimer);
+    snapScrollTimer = setTimeout(() => {
+      if (!isUserDragging) endMoveSafely_Snap();
+    }, 140);
+  },
+  { passive: true }
+);
 // ===== [PATCH END] =====
 
-
-          if (!isMoving) {
-            isMoving = true;
-            stopProgressLoop();
-          }
-          setMoving(true);
-
-          if (snapScrollTimer) clearTimeout(snapScrollTimer);
-          snapScrollTimer = setTimeout(() => {
-            endMoveSafely_Snap();
-          }, 140);
-        },
-        { passive: true }
-      );
     }
     bindSnapScroll();
 
