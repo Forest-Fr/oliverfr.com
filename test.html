@@ -700,6 +700,11 @@ function ensurePreviewEl() {
   v.muted = true;
   v.loop = true;
   v.playsInline = true;
+  // ===== [PATCH INSERT: s0.preview.autoplay.attr.v1] =====
+v.autoplay = true;
+v.setAttribute("autoplay", "");
+// ===== [PATCH END] =====
+
   v.preload = "metadata";
   v.setAttribute("playsinline", "");
   v.setAttribute("webkit-playsinline", "");
@@ -1902,7 +1907,10 @@ track.style.opacity = "0";
 
 
     // ===== transition tuning（更丝滑但不拖沓）=====
-    const TRANSITION_MS = 1080;//原820
+    //const TRANSITION_MS = 1080;//原820
+// ===== [PATCH REPLACE: s0.desktop.transition.more.elegant.v1] =====
+const TRANSITION_MS = 1320; // 更慢更优雅（桌面）
+// ===== [PATCH END] =====
 
     // ===== [PATCH INSERT: desktop.transform.easeInOut.gentle] =====
 const DESKTOP_EASE = "cubic-bezier(0.66,0,0.34,1)"; // 慢起步 + 慢收尾（解决桌面端“噌一下”）
@@ -1915,15 +1923,24 @@ const DESKTOP_EASE = "cubic-bezier(0.66,0,0.34,1)"; // 慢起步 + 慢收尾（�
 //const FADE_IN_MS = 260;            // 轨道淡入时长
 // ===== [PATCH END] =====
 
-    const SNAP_ANIM_MS = 820;          // 程序切换更慢一点（更优雅）
-const SNAP_SETTLE_MS = 520;        // 手势结束的“优雅收尾”
+    //const SNAP_ANIM_MS = 820;          // 程序切换更慢一点（更优雅）
+// SNAP_SETTLE_MS = 520;        // 手势结束的“优雅收尾”
+    // ===== [PATCH REPLACE: s0.mobile.snap.timing.more.elegant.v1] =====
+const SNAP_ANIM_MS = 1100;   // 自动切换更慢（手机）
+const SNAP_SETTLE_MS = 680;  // 手势结束收尾更柔和
+// ===== [PATCH END] =====
+
 const AUTO_START_DELAY_MS = 320;
 const FADE_IN_MS = 420;            // 首次淡入更柔和，避免“猛一下出现”
 
 
     const DOT_CHARGE_MS = 240;
     const DOT_STRETCH_MS = 320;
-    const DOT_PROGRESS_MS = 4600;
+   // const DOT_PROGRESS_MS = 4600;
+    // ===== [PATCH REPLACE: s0.dot.progress.more.relaxed.v1] =====
+const DOT_PROGRESS_MS = 5600; // 节奏更“慢、稳、优雅”
+// ===== [PATCH END] =====
+
 
     const isMobileSnap = () =>
       typeof window !== "undefined" &&
@@ -2307,6 +2324,21 @@ try { AppleFilm.ensurePreviewMedia(slide); } catch (_) {}
           const node = base[i].cloneNode(true);
           node.dataset.realIndex = String(i);
           node.dataset.pass = String(pass);
+          // ===== [PATCH INSERT: cloneTriple.defer.decode.for.non_middle_pass.v1] =====
+const img = node.querySelector("img");
+if (img) {
+  img.decoding = "async";
+  // 中段（pass=1）优先，其他两段尽量别抢资源
+  if (pass !== 1) {
+    img.loading = "lazy";
+    try { img.fetchPriority = "low"; } catch (_) {}
+  } else {
+    img.loading = "eager";
+    try { img.fetchPriority = "high"; } catch (_) {}
+  }
+}
+// ===== [PATCH END] =====
+
           frag.appendChild(node);
         }
       }
@@ -2553,8 +2585,32 @@ if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.5) {
   // 小于 0.5px 的变化直接忽略，避免每轮“微调”造成回弹观感
   return;
 }
+//track.dataset.ofS0Pad = String(pad);
+//track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
+// ===== [PATCH END] =====
+// ===== [PATCH REPLACE: mobile.peek.pad.quantize.and.apply.inline.v1] =====
+// DPR 对齐：消灭 0.5px 级别左右不一致
+pad = quantizePx(pad);
+
+const prev = parseFloat(track.dataset.ofS0Pad || "NaN");
+if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.5) {
+  return; // 小于 0.5px 的变化忽略，避免“微抖”
+}
+
 track.dataset.ofS0Pad = String(pad);
-track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
+
+const px = `${pad.toFixed(3)}px`;
+
+// 1) 变量（给 CSS 用）
+track.style.setProperty("--of-s0-pad", px);
+
+// 2) 直接写入 padding（确保左右严格一致）
+track.style.paddingLeft = px;
+track.style.paddingRight = px;
+
+// 3) 直接写入 scroll-padding（确保 snap 计算也严格一致）
+track.style.setProperty("scroll-padding-left", px);
+track.style.setProperty("scroll-padding-right", px);
 // ===== [PATCH END] =====
 
 }
@@ -2739,6 +2795,47 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
     track.scrollLeft = targetLeft;
   }
 }
+// ===== [PATCH INSERT: s0.init.kickstart.no_preload.v1] =====
+(function kickStartNoPreload() {
+  if (!track || track.dataset.ofS0KickStarted === "1") return;
+  track.dataset.ofS0KickStarted = "1";
+
+  // 不等待任何图片预载/解码：1 帧后直接对齐 + ready + 播放
+  requestAnimationFrame(() => {
+    try {
+      if (isSnapMode()) {
+        // Mobile: snap 模式
+        try { setSnapModeEnabled(true); } catch (_) {}
+        try { applyMobilePeekPadding(); } catch (_) {}
+
+        slides = Array.from(track.querySelectorAll(".of-s0-slide"));
+        // 直接定位到中段 currentPos（避免首尾空白）
+        try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
+
+        // 立刻刷新中心态 + 预览
+        try { updateCenterClasses(); } catch (_) {}
+        try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; }
+
+        // 直接进入 ready（不等预载）
+        try { markReadyOnce(); } catch (_) {}
+      } else {
+        // Desktop: transform 模式
+        try { recalcSpan(); } catch (_) {}
+        try { applyTransform(false); } catch (_) {}
+
+        try { updateCenterClasses(); } catch (_) {}
+        try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; }
+
+        try { markReadyOnce(); } catch (_) {}
+      }
+    } catch (_) {
+      // 兜底：至少别卡在透明
+      try { track.style.opacity = "1"; } catch (_) {}
+      try { markReadyOnce(); } catch (_) {}
+    }
+  });
+})();
+// ===== [PATCH END] =====
 
 
     function normalizePositionIfNeeded_Snap() {
@@ -2769,6 +2866,79 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
       }
       return bestI;
     }
+
+    // ===== [PATCH INSERT: snap.settle.update_center_and_preview.v1] =====
+(function bindSnapSettle() {
+  if (!track || track.dataset.ofS0SnapSettleBound === "1") return;
+  track.dataset.ofS0SnapSettleBound = "1";
+
+  let settleTimer = 0;
+
+  const settle = () => {
+    if (!isSnapMode()) return;
+    if (snapSuppress > 0) return;
+    if (isUserDragging) return;
+
+    // 重新计算对称 padding（3dp）
+    try { applyMobilePeekPadding(); } catch (_) {}
+
+    // moving -> false（允许预览播放）
+    setMoving(false);
+
+    // 选最近中心
+    const idx = pickClosestIndex_Snap();
+    currentPos = idx;
+
+    // 归位到中段（硬跳，彻底避免“反向回弹”）
+    slides = Array.from(track.querySelectorAll(".of-s0-slide"));
+    withSnapSuppress(() => {
+      try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
+    });
+
+    // 刷新中心态 + dot + 预览
+    try { updateCenterClasses(); } catch (_) {}
+    try { activateDot(getRealIndex()); } catch (_) {}
+
+    // iOS：尽量在用户滚动后的链路里补一次 play
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+
+    if (isReady && isPlaying && !document.hidden && isInView) startProgressCycle();
+  };
+
+  const schedule = () => {
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(settle, SNAP_SETTLE_MS);
+  };
+
+  track.addEventListener("scroll", () => {
+    if (!isSnapMode()) return;
+    setMoving(true);
+    schedule();
+  }, { passive: true });
+
+  // 关键：用户手势链路补一枪（iOS autoplay 必须靠手势）
+  const gestureKick = () => {
+    if (!isSnapMode()) return;
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+  };
+  track.addEventListener("touchend", gestureKick, { passive: true });
+  track.addEventListener("pointerup", gestureKick, { passive: true });
+
+  // 旋转/地址栏变化：重新算对称 padding 并回到中心
+  const onResize = () => {
+    if (!isSnapMode()) return;
+    requestAnimationFrame(() => {
+      try { applyMobilePeekPadding(); } catch (_) {}
+      withSnapSuppress(() => {
+        try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
+      });
+    });
+  };
+  window.addEventListener("resize", onResize, { passive: true });
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", onResize, { passive: true });
+})();
+// ===== [PATCH END] =====
+
 
     // ===== [PATCH INSERT: snap.edge.normalize.no.blank] =====
 function getSnapStepPx() {
