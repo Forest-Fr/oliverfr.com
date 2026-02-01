@@ -485,6 +485,65 @@ body.appleFilm-lock{
 
 /* ===== [PATCH END] ===== */
 
+    /* ===== [PATCH INSERT: appleFilm.desktop.twoColumn.layout] ===== */
+@media (min-width: 769px) {
+  /* 弹层：从“底部 sheet”变成桌面端居中卡片 */
+  .appleFilm-sheet{
+    left: 50%;
+    top: 50%;
+    right: auto;
+    bottom: auto;
+
+    width: min(1120px, calc(100vw - 64px));
+    max-height: calc(100vh - 64px);
+
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+
+    border-radius: 28px;
+
+    /* 关闭态（保持你原来的动效节奏） */
+    transform: translate(-50%, -50%) translateY(18px) scale(.985);
+  }
+
+  /* 打开态：仍然保留原先的“上弹”感觉，但以居中为基准 */
+  .appleFilm-modal.is-open .appleFilm-sheet{
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+  }
+
+  /* 左侧视频区：控制最大显示面积，避免视频被过度放大导致“糊” */
+  .appleFilm-player{
+    flex: 0 1 clamp(460px, 58%, 720px);
+    aspect-ratio: 16 / 9;
+    max-height: calc(100vh - 64px);
+
+    background: #000;
+    border-right: 1px solid rgba(255,255,255,.06);
+  }
+
+  /* 桌面端建议用 contain：减少裁切，也降低“被拉糊”的主观感受 */
+  .appleFilm-player video{
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* 右侧文本区：可滚动，避免撑爆弹层 */
+  .appleFilm-content{
+    flex: 1 1 auto;
+    min-width: 340px;
+
+    padding: 22px 24px 24px;
+    overflow: auto;
+  }
+
+  /* 文案在两栏布局下略收敛，观感更“工程化” */
+  .appleFilm-title{ font-size: 30px; }
+  .appleFilm-desc{ font-size: 16px; }
+  .appleFilm-link{ font-size: 16px; }
+}
+/* ===== [PATCH END] ===== */
+
   </style>
 </head>
 
@@ -1541,6 +1600,64 @@ body.appleFilm-lock {
   transform: translateY(-1px);
 }
 
+/* ===== [PATCH END] ===== */
+/* ===== [PATCH INSERT: appleFilm.desktop.twoColumn.layout] ===== */
+@media (min-width: 769px) {
+  /* 弹层：从“底部 sheet”变成桌面端居中卡片 */
+  .appleFilm-sheet{
+    left: 50%;
+    top: 50%;
+    right: auto;
+    bottom: auto;
+
+    width: min(1120px, calc(100vw - 64px));
+    max-height: calc(100vh - 64px);
+
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+
+    border-radius: 28px;
+
+    /* 关闭态（保持你原来的动效节奏） */
+    transform: translate(-50%, -50%) translateY(18px) scale(.985);
+  }
+
+  /* 打开态：仍然保留原先的“上弹”感觉，但以居中为基准 */
+  .appleFilm-modal.is-open .appleFilm-sheet{
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+  }
+
+  /* 左侧视频区：控制最大显示面积，避免视频被过度放大导致“糊” */
+  .appleFilm-player{
+    flex: 0 1 clamp(460px, 58%, 720px);
+    aspect-ratio: 16 / 9;
+    max-height: calc(100vh - 64px);
+
+    background: #000;
+    border-right: 1px solid rgba(255,255,255,.06);
+  }
+
+  /* 桌面端建议用 contain：减少裁切，也降低“被拉糊”的主观感受 */
+  .appleFilm-player video{
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* 右侧文本区：可滚动，避免撑爆弹层 */
+  .appleFilm-content{
+    flex: 1 1 auto;
+    min-width: 340px;
+
+    padding: 22px 24px 24px;
+    overflow: auto;
+  }
+
+  /* 文案在两栏布局下略收敛，观感更“工程化” */
+  .appleFilm-title{ font-size: 30px; }
+  .appleFilm-desc{ font-size: 16px; }
+  .appleFilm-link{ font-size: 16px; }
+}
 /* ===== [PATCH END] ===== */
 
 `.trim();
