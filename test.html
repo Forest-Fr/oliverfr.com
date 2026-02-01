@@ -292,6 +292,28 @@
   }
 }
 
+/* ===== [PATCH INSERT: s0.media.compositor_stability + physical_ease] ===== */
+/* 合成层稳定 + 物理手感 easing（无损：仅影响过渡观感，不改现有逻辑） */
+:root{
+  --of-s0-fade-dur: .22s;
+  /* 更接近“弹性/回弹”的观感（比 ease 更像你上面那段 thinkingPulse 的节奏） */
+  --of-s0-ease-phys: cubic-bezier(.18, .9, .22, 1);
+}
+
+.section0-slide .of-s0-media,
+.of-s0-slide .of-s0-media{
+  /* 避免 poster/video 切换时出现黑底闪一下（非破坏：只是给容器兜底底色） */
+  background: #000;
+  /* 让 opacity 切换更稳定，减少“快闪/抖动/锯齿” */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: paint;
+}
+/* ===== [PATCH END] ===== */
+
+
 /* wrapper 内部：video 与 poster(img) 叠放 */
 .section0-slide .of-s0-media > video.of-s0-previewVideo,
 .of-s0-slide .of-s0-media > video.of-s0-previewVideo{
@@ -302,8 +324,24 @@
   object-fit: cover;
   display: block;
   opacity: 0;
-  transition: opacity .22s ease;
+
+  /* ===== [PATCH REPLACE: s0.previewVideo.opacity_transition.easier_phys] ===== */
+  /* 原：transition: opacity .22s ease; */
+  transition: opacity var(--of-s0-fade-dur) var(--of-s0-ease-phys);
+  /* ===== [PATCH END] ===== */
+
   pointer-events: none; /* 点击仍落在 slide 上，不影响你现有点击逻辑 */
+
+  /* ===== [PATCH INSERT: s0.previewVideo.anti_flicker] ===== */
+  /* 抗闪烁：与上面的合成层策略配套（不改逻辑，只提升稳定性） */
+  will-change: opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* 默认隐藏可减少非中心卡片暂停/首帧黑帧的“瞬间可见”概率 */
+  visibility: hidden;
+  /* ===== [PATCH END] ===== */
 }
 
 .section0-slide .of-s0-media > img.of-s0-poster,
@@ -315,17 +353,38 @@
   object-fit: cover;
   display: block;
   box-shadow: none !important; /* 阴影交给 wrapper，避免双阴影 */
-  transition: opacity .22s ease;
+
+  /* ===== [PATCH REPLACE: s0.poster.opacity_transition.easier_phys] ===== */
+  /* 原：transition: opacity .22s ease; */
+  transition: opacity var(--of-s0-fade-dur) var(--of-s0-ease-phys);
+  /* ===== [PATCH END] ===== */
+
+  /* ===== [PATCH INSERT: s0.poster.anti_flicker] ===== */
+  will-change: opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  visibility: visible;
+  /* ===== [PATCH END] ===== */
 }
 
 /* 视频 ready 后：视频显示、poster 淡出 */
 .section0-slide .of-s0-media.is-video-ready > video.of-s0-previewVideo,
 .of-s0-slide .of-s0-media.is-video-ready > video.of-s0-previewVideo{
   opacity: 1;
+
+  /* ===== [PATCH INSERT: s0.previewVideo.visibility_when_ready] ===== */
+  visibility: visible;
+  /* ===== [PATCH END] ===== */
 }
 .section0-slide .of-s0-media.is-video-ready > img.of-s0-poster,
 .of-s0-slide .of-s0-media.is-video-ready > img.of-s0-poster{
   opacity: 0;
+
+  /* ===== [PATCH INSERT: s0.poster.visibility_when_hidden] ===== */
+  visibility: hidden;
+  /* ===== [PATCH END] ===== */
 }
 
     /* ===== [PATCH INSERT: s0.previewVideo.centerOnly.swap + preventNeighborBlackFrame] ===== */
@@ -333,20 +392,30 @@
 .section0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo,
 .of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
   opacity: 0 !important;
+
+  /* ===== [PATCH INSERT: s0.neighbor.video.force_hidden_visibility] ===== */
+  visibility: hidden !important;
+  /* ===== [PATCH END] ===== */
 }
 .section0-slide:not(.is-center) .of-s0-media > img.of-s0-poster,
 .of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
   opacity: 1 !important;
+
+  /* ===== [PATCH INSERT: s0.neighbor.poster.force_visible_visibility] ===== */
+  visibility: visible !important;
+  /* ===== [PATCH END] ===== */
 }
 
 /* 中心卡片：video ready 后才替换 poster */
 .section0-slide.is-center .of-s0-media.is-video-ready > video.of-s0-previewVideo,
 .of-s0-slide.is-center .of-s0-media.is-video-ready > video.of-s0-previewVideo{
   opacity: 1;
+  visibility: visible;
 }
 .section0-slide.is-center .of-s0-media.is-video-ready > img.of-s0-poster,
 .of-s0-slide.is-center .of-s0-media.is-video-ready > img.of-s0-poster{
   opacity: 0;
+  visibility: hidden;
 }
 
 /* 桌面端：明确禁止任何 filter 叠加到视频上（避免“看起来像糊了一层”） */
@@ -355,6 +424,7 @@
   filter: none !important;
 }
 /* ===== [PATCH END] ===== */
+
 
 
 /* --- 2) Apple 风格 bottom-sheet modal（全局唯一，不影响轮播 CSS 作用域） --- */
@@ -692,6 +762,9 @@ let previewEl = null;      // carousel 预览用（全局唯一）
 let previewWrap = null;    // 当前挂载的 .of-s0-media
 let readyWrap = null;      // 当前 is-video-ready 的 wrapper
 let unlockBound = false;
+// ===== [PATCH INSERT: s0.autoplay.unlocked.flag.v1] =====
+let autoplayUnlocked = false;
+// ===== [PATCH END] =====
 
 function ensurePreviewEl() {
   if (previewEl) return previewEl;
@@ -720,7 +793,14 @@ v.setAttribute("autoplay", "");
 function bindAutoplayUnlockOnce() {
   if (unlockBound) return;
   unlockBound = true;
-  const once = () => { try { syncPreview(lastCtx); } catch (_) {} };
+  //const once = () => { try { syncPreview(lastCtx); } catch (_) {} };
+  // ===== [PATCH REPLACE: s0.autoplay.unlock.once.set_flag.v1] =====
+const once = () => {
+  autoplayUnlocked = true;           // 关键：先记住“已发生用户手势”
+  try { syncPreview(lastCtx); } catch (_) {}
+};
+// ===== [PATCH END] =====
+
   window.addEventListener("pointerdown", once, { once: true, passive: true });
   window.addEventListener("touchstart",  once, { once: true, passive: true });
   window.addEventListener("keydown",     once, { once: true });
@@ -757,33 +837,71 @@ function setReadyWrap(wrap) {
 
   // --- preview media: wrap img into .of-s0-media and insert video ---
 // ===== [PATCH REPLACE: s0.film.ensurePreviewMedia.wrapper_only.v2] =====
+// ===== [PATCH REPLACE: s0.film.ensurePreviewMedia.video_primary.v3] =====
 function ensurePreviewMedia(slide) {
   const filmId = getFilmId(slide);
   if (!filmId) return;
 
-  const img = slide.querySelector("img");
-  if (!img) return;
-
   bindAutoplayUnlockOnce();
 
-  // 1) ensure wrapper
+  // 1) ensure wrapper（不依赖 img）
   let wrap = slide.querySelector(".of-s0-media");
   if (!wrap) {
     wrap = document.createElement("div");
     wrap.className = "of-s0-media";
-    img.parentNode.insertBefore(wrap, img);
-    wrap.appendChild(img);
+
+    const first = slide.firstElementChild;
+    if (first) slide.insertBefore(wrap, first);
+    else slide.appendChild(wrap);
   }
 
-  // 2) mark poster
-  if (!img.classList.contains("of-s0-poster")) img.classList.add("of-s0-poster");
+  // 2) img 只作为兜底 poster：默认隐藏（避免“先图后视频”）
+  const img = slide.querySelector("img");
+  if (img) {
+    if (!img.classList.contains("of-s0-poster")) img.classList.add("of-s0-poster");
+    // 放入 wrapper 内，避免旧布局干扰
+    if (img.parentNode !== wrap) wrap.appendChild(img);
+    // 默认隐藏（CSS 已强制 opacity=0，这里再兜底一次）
+    img.style.opacity = "0";
+    img.setAttribute("aria-hidden", "true");
+  }
 
-  // 3) 清理旧版本/缓存遗留：只允许 singleton video 存在
-  const keep = ensurePreviewEl();
-  wrap.querySelectorAll("video.of-s0-previewVideo").forEach((v) => {
-    if (v !== keep) v.remove();
-  });
+  // 3) 直接布置“每张 slide 自己的 video”
+  const want = getMp4(slide, filmId);
+  if (!want) return;
+
+  let v = wrap.querySelector("video.of-s0-previewVideo");
+  if (!v) {
+    v = document.createElement("video");
+    v.className = "of-s0-previewVideo";
+    v.muted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.autoplay = false;                // 只让中心播放（syncPreview 控制）
+    v.preload = "metadata";            // 移动端更稳；中心卡片会被提升为 auto
+    v.setAttribute("playsinline", "");
+    v.setAttribute("webkit-playsinline", "");
+    v.setAttribute("muted", "");
+    v.setAttribute("aria-hidden", "true");
+    v.tabIndex = -1;
+    v.disablePictureInPicture = true;
+    v.setAttribute("controlslist", "nodownload noplaybackrate noremoteplayback");
+    wrap.insertBefore(v, wrap.firstChild);
+  }
+
+  // 更新 src（避免重复 load）
+  if (v.dataset.src !== want) {
+    try { v.pause(); } catch (_) {}
+    wrap.classList.remove("is-video-ready", "is-video-fallback");
+    v.removeAttribute("src");
+    try { v.load(); } catch (_) {}
+    v.src = want;
+    v.dataset.src = want;
+    try { v.load(); } catch (_) {}
+  }
 }
+// ===== [PATCH END] =====
+
 // ===== [PATCH END] =====
 
 
@@ -806,8 +924,7 @@ function pauseAllPreviews(slides) {
 
 
   // 只播放 center 卡片预览视频
-// ===== [PATCH REPLACE: s0.film.syncPreview.centerVideoBySlideMp4.v2] =====
-// ===== [PATCH REPLACE: s0.film.syncPreview.sharedSingleton.v3] =====
+// ===== [PATCH REPLACE: s0.film.syncPreview.per_slide_center_play.v4] =====
 function syncPreview(ctx) {
   lastCtx = ctx || lastCtx;
   const c = lastCtx;
@@ -815,70 +932,69 @@ function syncPreview(ctx) {
 
   const { slides, currentPos, isMoving, isInView } = c;
 
-  // 不在视口/页面不可见/移动中：停预览
+  // 不在视口/页面不可见/移动中：全部暂停
   if (document.hidden || isMoving || isInView === false) {
-    pauseAllPreviews(slides);
+    slides.forEach((s) => {
+      const w = s && s.querySelector ? s.querySelector(".of-s0-media") : null;
+      const v = w && w.querySelector ? w.querySelector("video.of-s0-previewVideo") : null;
+      if (v) { try { v.pause(); v.currentTime = 0; } catch (_) {} }
+      if (w) w.classList.remove("is-video-ready");
+    });
     return;
   }
 
+  // 先确保所有 slide 都已经“布置视频”（从一开始就是视频布局）
+  slides.forEach((s) => { try { ensurePreviewMedia(s); } catch (_) {} });
+
+  // 暂停所有
+  slides.forEach((s) => {
+    const w = s.querySelector(".of-s0-media");
+    const v = w && w.querySelector("video.of-s0-previewVideo");
+    if (v) {
+      try { v.pause(); } catch (_) {}
+      // 不强制 reset 到 0（某些 iOS reset 会抖），只在中心切换时归零
+    }
+  });
+
+  // 中心播放
   const center = slides[currentPos];
   if (!center) return;
 
-  // 确保 wrapper + poster
-  try { ensurePreviewMedia(center); } catch (_) {}
-
-  const filmId = getFilmId(center);
-  const want = getMp4(center, filmId);
-  if (!want) {
-    pauseAllPreviews(slides);
-    return;
-  }
-
   const wrap = center.querySelector(".of-s0-media");
-  if (!wrap) return;
+  const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
+  if (!wrap || !v) return;
 
-  const v = ensurePreviewEl();
+  // 中心卡片提升加载策略
+  try { v.preload = "auto"; } catch (_) {}
 
-  // 永远只把这一个 video 挂在中心卡片：稳定 + 省资源 + “Flash感”
-  if (previewWrap !== wrap) {
-    detachPreview();
-    wrap.insertBefore(v, wrap.firstChild);
-    previewWrap = wrap;
-  }
-
-  // “进入项目就从头播”
-  const srcChanged = (v.dataset.src !== want);
-  if (srcChanged) {
-    try { v.pause(); } catch (_) {}
-    v.removeAttribute("src");
-    v.load();
-    v.src = want;
-    v.dataset.src = want;
-    v.preload = "auto";
-    v.load();
-  }
-  try { v.currentTime = 0; } catch (_) {}
-
-  // ready -> video 淡入、poster 淡出（你 CSS 已写 is-video-ready）
-  const markReady = () => setReadyWrap(wrap);
-  v.addEventListener("canplay",    markReady, { once: true });
+  // ready 标记：让你未来如果想做“渐入”也有钩子
+  const markReady = () => {
+    wrap.classList.add("is-video-ready");
+    wrap.classList.remove("is-video-fallback");
+  };
+  v.addEventListener("canplay", markReady, { once: true });
   v.addEventListener("loadeddata", markReady, { once: true });
 
+  // 切到中心时从头播
+  try { v.currentTime = 0; } catch (_) {}
+
+  // iOS：必须先 muted + playsInline，再 play
   v.muted = true;
   v.playsInline = true;
-  v.loop = true;
 
+  // 未解锁时也尝试 play；失败则不报错，且可回退显示 poster
   const p = v.play();
   if (p && typeof p.catch === "function") {
     p.catch(() => {
-      // autoplay 被拦：保持 poster，不闪、不报错
-      if (wrap) wrap.classList.remove("is-video-ready");
+      // autoplay 被拦：用兜底 poster（但默认仍不闪图）
+      wrap.classList.add("is-video-fallback");
+      wrap.classList.remove("is-video-ready");
+      // 如果用户已经发生手势（autoplayUnlocked），下一次 sync 会再尝试 play
     });
   }
 }
 // ===== [PATCH END] =====
 
-// ===== [PATCH END] =====
 
 
   // --- modal ---
@@ -1196,6 +1312,150 @@ overscroll-behavior-y: none;
     user-select: none;
   }
 }
+
+@media (max-width: 768px) {
+  .section0-slide .of-s0-media,
+  .of-s0-slide .of-s0-media{
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    border-radius: 0;
+  }
+}
+
+/* ===== [PATCH INSERT: s0.media.compositor_stability + physical_ease] ===== */
+/* 合成层稳定 + 物理手感 easing（无损：仅影响过渡观感，不改现有逻辑） */
+:root{
+  --of-s0-fade-dur: .22s;
+  /* 更接近“弹性/回弹”的观感（比 ease 更像你上面那段 thinkingPulse 的节奏） */
+  --of-s0-ease-phys: cubic-bezier(.18, .9, .22, 1);
+}
+
+.section0-slide .of-s0-media,
+.of-s0-slide .of-s0-media{
+  /* 避免 poster/video 切换时出现黑底闪一下（非破坏：只是给容器兜底底色） */
+  background: #000;
+  /* 让 opacity 切换更稳定，减少“快闪/抖动/锯齿” */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: paint;
+}
+/* ===== [PATCH END] ===== */
+
+
+/* wrapper 内部：video 与 poster(img) 叠放 */
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+
+  /* ===== [PATCH REPLACE: s0.previewVideo.opacity_transition.easier_phys] ===== */
+  /* 原：transition: opacity .22s ease; */
+  transition: opacity var(--of-s0-fade-dur) var(--of-s0-ease-phys);
+  /* ===== [PATCH END] ===== */
+
+  pointer-events: none; /* 点击仍落在 slide 上，不影响你现有点击逻辑 */
+
+  /* ===== [PATCH INSERT: s0.previewVideo.anti_flicker] ===== */
+  /* 抗闪烁：与上面的合成层策略配套（不改逻辑，只提升稳定性） */
+  will-change: opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* 默认隐藏可减少非中心卡片暂停/首帧黑帧的“瞬间可见”概率 */
+  visibility: hidden;
+  /* ===== [PATCH END] ===== */
+}
+
+.section0-slide .of-s0-media > img.of-s0-poster,
+.of-s0-slide .of-s0-media > img.of-s0-poster{
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  display: block;
+  box-shadow: none !important; /* 阴影交给 wrapper，避免双阴影 */
+
+  /* ===== [PATCH REPLACE: s0.poster.opacity_transition.easier_phys] ===== */
+  /* 原：transition: opacity .22s ease; */
+  transition: opacity var(--of-s0-fade-dur) var(--of-s0-ease-phys);
+  /* ===== [PATCH END] ===== */
+
+  /* ===== [PATCH INSERT: s0.poster.anti_flicker] ===== */
+  will-change: opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  visibility: visible;
+  /* ===== [PATCH END] ===== */
+}
+
+/* 视频 ready 后：视频显示、poster 淡出 */
+.section0-slide .of-s0-media.is-video-ready > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media.is-video-ready > video.of-s0-previewVideo{
+  opacity: 1;
+
+  /* ===== [PATCH INSERT: s0.previewVideo.visibility_when_ready] ===== */
+  visibility: visible;
+  /* ===== [PATCH END] ===== */
+}
+.section0-slide .of-s0-media.is-video-ready > img.of-s0-poster,
+.of-s0-slide .of-s0-media.is-video-ready > img.of-s0-poster{
+  opacity: 0;
+
+  /* ===== [PATCH INSERT: s0.poster.visibility_when_hidden] ===== */
+  visibility: hidden;
+  /* ===== [PATCH END] ===== */
+}
+
+    /* ===== [PATCH INSERT: s0.previewVideo.centerOnly.swap + preventNeighborBlackFrame] ===== */
+/* 只在中心卡片展示视频预览；左右邻居永远展示 poster，避免暂停视频露出黑帧/首帧 */
+.section0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
+  opacity: 0 !important;
+
+  /* ===== [PATCH INSERT: s0.neighbor.video.force_hidden_visibility] ===== */
+  visibility: hidden !important;
+  /* ===== [PATCH END] ===== */
+}
+.section0-slide:not(.is-center) .of-s0-media > img.of-s0-poster,
+.of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
+  opacity: 1 !important;
+
+  /* ===== [PATCH INSERT: s0.neighbor.poster.force_visible_visibility] ===== */
+  visibility: visible !important;
+  /* ===== [PATCH END] ===== */
+}
+
+/* 中心卡片：video ready 后才替换 poster */
+.section0-slide.is-center .of-s0-media.is-video-ready > video.of-s0-previewVideo,
+.of-s0-slide.is-center .of-s0-media.is-video-ready > video.of-s0-previewVideo{
+  opacity: 1;
+  visibility: visible;
+}
+.section0-slide.is-center .of-s0-media.is-video-ready > img.of-s0-poster,
+.of-s0-slide.is-center .of-s0-media.is-video-ready > img.of-s0-poster{
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* 桌面端：明确禁止任何 filter 叠加到视频上（避免“看起来像糊了一层”） */
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  filter: none !important;
+}
+/* ===== [PATCH END] ===== */
 
 /* =========================
    Dots + Play (scoped)
@@ -2621,6 +2881,60 @@ track.style.setProperty("scroll-padding-right", px);
 
     // ===== [PATCH INSERT: snap.user.drag.state] =====
 let isUserDragging = false; // 手势按下期间为 true：禁止中途结算/归位，根治“反方向回弹”
+// ===== [PATCH END] =====
+// ===== [PATCH INSERT: s0.mobile.snap.scroll.settle_update_center.v1] =====
+let _snapSettleTimer = 0;
+
+function getNearestPosByScrollCenter() {
+  // 找到与 track 可视中心最近的 slide
+  const trackRect = track.getBoundingClientRect();
+  const cx = trackRect.left + trackRect.width / 2;
+
+  let best = currentPos;
+  let bestD = Infinity;
+
+  for (let i = 0; i < slides.length; i++) {
+    const el = slides[i];
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    const ec = r.left + r.width / 2;
+    const d = Math.abs(ec - cx);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return clamp(best, 0, slides.length - 1);
+}
+
+function settleSnapAfterScroll() {
+  if (!isSnapMode()) return;
+  if (snapSuppress > 0) return;
+
+  clearTimeout(_snapSettleTimer);
+  _snapSettleTimer = setTimeout(() => {
+    if (!isSnapMode()) return;
+    if (isUserDragging) return;
+
+    // 更新中心位置
+    slides = Array.from(track.querySelectorAll(".of-s0-slide"));
+    const nextPos = getNearestPosByScrollCenter();
+    if (nextPos !== currentPos) currentPos = nextPos;
+
+    // 刷新中心态 + 切视频
+    try { updateCenterClasses(); } catch (_) {}
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+
+    // 播放状态下：恢复进度条
+    if (isReady && isPlaying && !document.hidden && isInView) startProgressCycle();
+  }, SNAP_SETTLE_MS);
+}
+
+// 监听滚动（snap 模式专用）
+track.addEventListener("scroll", () => {
+  if (!isSnapMode()) return;
+  // 滚动中：先认为 moving，暂停进度，避免“进度条偷跑”
+  setMoving(true);
+  stopProgressLoop();
+  settleSnapAfterScroll();
+}, { passive: true });
 // ===== [PATCH END] =====
 
 // ===== [PATCH REPLACE: withSnapSuppress.hold.two.frames] =====
