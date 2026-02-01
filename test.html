@@ -907,6 +907,14 @@ function ensurePreviewMedia(slide) {
   if (!want) return;
 
   let v = wrap.querySelector("video.of-s0-previewVideo");
+  // ===== [PATCH INSERT: s0.video.poster_from_img.prevent_black_frame.v1] =====
+try {
+  // 用原图当 video poster，Video-Only 也能“先有画面”，彻底消灭黑屏/首尾延迟
+  const posterSrc = img && (img.currentSrc || img.src) ? (img.currentSrc || img.src) : "";
+  if (posterSrc) v.poster = posterSrc;
+} catch (_) {}
+// ===== [PATCH END] =====
+
   if (!v) {
     v = document.createElement("video");
     v.className = "of-s0-previewVideo";
@@ -1255,13 +1263,13 @@ function onMovingChange(ctx) {
     return best;
   }
 
-  function injectScopedCssOnce() {
-    const STYLE_ID = "of-s0-carousel-style-css-preserve-v4-3";
-    const exists = document.getElementById(STYLE_ID);
-    const style = exists || document.createElement("style");
-    style.id = STYLE_ID;
+function injectScopedCssOnce() {
+  const STYLE_ID = "of-s0-carousel-style-css-preserve-v4-3";
+  const exists = document.getElementById(STYLE_ID);
+  const style = exists || document.createElement("style");
+  style.id = STYLE_ID;
 
-    style.textContent = `
+  style.textContent = `
 /* =========================
    [OF-S0] Scoped CSS (CSS-preserving + overlay enter-motion + anti-jitter)
    ========================= */
@@ -1280,6 +1288,14 @@ function onMovingChange(ctx) {
     height: 495px;
     margin-top: 5px; /* ✅ 与原始保持一致 */
   }
+
+  /* ===== [PATCH INSERT: desktop.overflow_clip.fallback] ===== */
+  /* Safari/旧浏览器对 overflow: clip 支持不完整时，退化为 hidden（无损兜底） */
+  @supports not (overflow: clip) {
+    .of-s0-carousel{ overflow-x: hidden; }
+  }
+  /* ===== [PATCH END] ===== */
+
   .of-s0-track{
     display: flex;
     gap: 15px;
@@ -1305,7 +1321,7 @@ function onMovingChange(ctx) {
     width: min(1013px, 80vw);
     height: 495px;
     object-fit: cover;
-      border-radius: 0; /*  border-radius:none; 16px */
+    border-radius: 0; /*  border-radius:none; 16px */
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
     transition: transform 0.4s ease, opacity 0.4s ease;
     -webkit-user-drag: none;
@@ -1347,16 +1363,15 @@ function onMovingChange(ctx) {
     touch-action: pan-x pan-y;
     scrollbar-width: none;
     will-change: scroll-position;
-    /* ===== [PATCH INSERT: snap.overscroll.behavior] ===== */
-overscroll-behavior-x: contain;
-overscroll-behavior-y: none;
-/* ===== [PATCH END] ===== */
 
+    /* ===== [PATCH INSERT: snap.overscroll.behavior] ===== */
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: none;
+    /* ===== [PATCH END] ===== */
   }
   .of-s0-track::-webkit-scrollbar{ display:none; }
 
-/* ===== [PATCH END] ===== */
-
+  /* ===== [PATCH END] ===== */
 
   .of-s0-slide{
     flex: 0 0 auto;
@@ -1367,7 +1382,7 @@ overscroll-behavior-y: none;
     scroll-snap-stop: always;
     overflow: hidden;
     position: relative;
-      border-radius: 0; /*  border-radius:none; 16px */
+    border-radius: 0; /*  border-radius:none; 16px */
 
     contain: layout paint;
     transform: translateZ(0);
@@ -2139,12 +2154,12 @@ body.appleFilm-lock {
 .of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
   display: none !important;
 }
-
-
 `.trim();
 
-    if (!exists) document.head.appendChild(style);
-  }
+  // 无损：无论是否已存在，都保证 textContent 被刷新；仅首次 append
+  if (!exists) document.head.appendChild(style);
+}
+
 
   function isolateDom(container, buttonRow, instanceId) {
     container.dataset.ofS0Scope = instanceId;
@@ -2435,6 +2450,51 @@ function markReadyOnce() {
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
   if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
 }
+// ===== [PATCH END] =====
+// ===== [PATCH INSERT: s0.video.rehydrate.on_return.v1] =====
+function rehydrateAllPreviewVideos() {
+  try {
+    if (!slides || !slides.length) return;
+    slides.forEach((s) => {
+      const w = s.querySelector(".of-s0-media");
+      const v = w && w.querySelector("video.of-s0-previewVideo");
+      if (!v) return;
+      // 轻量唤醒：不改 currentTime，不强制 play，只让浏览器重新建立解码/缓冲通道
+      try { v.preload = "auto"; v.setAttribute("preload", "auto"); } catch (_) {}
+      try { v.load(); } catch (_) {}
+    });
+  } catch (_) {}
+}
+
+function bindReturnWakeOnce() {
+  if (container.dataset.ofS0ReturnWakeBound) return;
+  container.dataset.ofS0ReturnWakeBound = "1";
+
+  // BFCache 恢复
+  window.addEventListener("pageshow", (e) => {
+    // 恢复时先唤醒资源，再对齐中心播放
+    rehydrateAllPreviewVideos();
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+    // 避免极端情况下 track 仍为 0
+    try { if (track && track.style.opacity === "0") track.style.opacity = "1"; } catch (_) {}
+  });
+
+  // 从后台回来
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      rehydrateAllPreviewVideos();
+      try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+    }
+  });
+
+  // 桌面切回窗口
+  window.addEventListener("focus", () => {
+    rehydrateAllPreviewVideos();
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+  });
+}
+// 在 markReadyOnce 首次 ready 时绑定
+bindReturnWakeOnce();
 // ===== [PATCH END] =====
 
     let rafId = 0;
