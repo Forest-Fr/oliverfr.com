@@ -589,17 +589,6 @@ body.appleFilm-lock{
      data-film-id="lategpt"
      data-film-mp4="LiteGPT.mp4">
 
-<div class="of-s0-media">
-  <!-- 预览 video：不写 src，避免 cloneTriple 后 9 个 video 全都拉资源 -->
-  <video class="of-s0-previewVideo"
-         muted playsinline loop preload="metadata"
-         aria-hidden="true" tabindex="-1"></video>
-
-  <!-- poster：仍然用你原来的图 -->
-  <img class="of-s0-poster" src="slide1.jpg" alt="nature1" />
-</div>
-
-<div class="section0-overlay">
   <img src="slide1.jpg" alt="nature1" />
   <div class="section0-overlay">
     <div class="section0-title">前端UI</div>
@@ -615,21 +604,8 @@ body.appleFilm-lock{
      data-film-id="agent"
      data-film-mp4="Agent.mp4">
 
-
-
-
-    <div class="of-s0-media">
-  <!-- 预览 video：不写 src，避免 cloneTriple 后 9 个 video 全都拉资源 -->
-  <video class="of-s0-previewVideo"
-         muted playsinline loop preload="metadata"
-         aria-hidden="true" tabindex="-1"></video>
-
-  <!-- poster：仍然用你原来的图 -->
-  <img class="of-s0-poster" src="slide2.jpg" alt="nature2" />
-</div>
-
-<div class="section0-overlay">
-
+  <img src="slide2.jpg" alt="nature2" />
+  <div class="section0-overlay">
     <div class="section0-title">Admin Panel</div>
     <div class="section0-desc">网关+Postgres Sql等</div>
     <button class="section0-explore" type="button">Explore</button>
@@ -709,6 +685,82 @@ const AppleFilm = (() => {
   // 保存最近一次 carousel 上下文（用于 modal close 后恢复 center 播放）
   let lastCtx = null;
 
+  // ===== [PATCH INSERT: s0.preview.autoplay_gate_and_lifecycle_guards.v1] =====
+let previewEnabled = false;     // 预览闸门：默认 false，禁止“进页面就播”
+let guardsInstalled = false;
+
+function armPreview() { previewEnabled = true; }
+function disarmPreview() { previewEnabled = false; }
+
+// 强制停机：pause + 断开 src + load() 终止网络/解码，避免 BFCache/缓存恢复时偷偷续播
+function hardStopAllPreviews(slidesMaybe) {
+  const vids = [];
+  try {
+    if (Array.isArray(slidesMaybe) && slidesMaybe.length) {
+      for (const s of slidesMaybe) {
+        const v = s && s.querySelector ? s.querySelector("video.of-s0-previewVideo") : null;
+        if (v) vids.push(v);
+      }
+    }
+  } catch (_) {}
+
+  if (!vids.length) {
+    try {
+      document.querySelectorAll("video.of-s0-previewVideo").forEach(v => vids.push(v));
+    } catch (_) {}
+  }
+
+  for (const v of vids) {
+    try {
+      v.pause();
+      v.currentTime = 0;
+    } catch (_) {}
+
+    try {
+      // 断开 src，终止一切加载/解码；并把 ready 标记清掉，确保永远显示 poster
+      const wrap = v.closest && v.closest(".of-s0-media");
+      if (wrap) wrap.classList.remove("is-video-ready");
+
+      v.removeAttribute("src");
+      if (v.dataset) delete v.dataset.src;
+
+      // 预览默认不预加载（更稳、更省资源）
+      try { v.preload = "none"; } catch (_) {}
+      try { v.load(); } catch (_) {}
+    } catch (_) {}
+  }
+}
+
+// 页面生命周期：离开/回到页面/切后台都硬停机 + 重新上闸门，杜绝“偶发自动播放”
+function installGuards() {
+  if (guardsInstalled) return;
+  guardsInstalled = true;
+
+  const stop = () => {
+    disarmPreview();
+    try { hardStopAllPreviews(lastCtx && lastCtx.slides); } catch (_) {}
+  };
+
+  // 离开页面（包括 BFCache）——必停
+  window.addEventListener("pagehide", stop, { capture: true });
+
+  // 返回页面（BFCache 恢复时最关键）——必停 + 保持闸门关闭
+  window.addEventListener("pageshow", (e) => {
+    // persisted=true 表示 BFCache 恢复；此时很多浏览器会恢复 media state
+    stop();
+  }, { capture: true });
+
+  // 切后台——必停（有些浏览器会在后台继续跑 muted video）
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop();
+  }, { capture: true });
+
+  // 兼容 Page Lifecycle（部分浏览器支持）
+  try { document.addEventListener("freeze", stop, { capture: true }); } catch (_) {}
+}
+// ===== [PATCH END] =====
+
+
   // modal elements
   let modalEl = null, videoEl = null, playBtnEl = null, titleEl = null, descEl = null, learnEl = null, transcriptEl = null;
 
@@ -760,42 +812,35 @@ function ensurePreviewMedia(slide, opts) {
 
   // 2) ensure preview video (壳一定要有，但不一定绑定 src)
   let v = wrap.querySelector("video.of-s0-previewVideo");
-
-  const bindReadyOnce = (video) => {
-    if (!video || (video.dataset && video.dataset.ofS0ReadyBound === "1")) return;
-    if (video.dataset) video.dataset.ofS0ReadyBound = "1";
-
-    const markReady = () => {
-      if (!wrap.classList.contains("is-video-ready")) wrap.classList.add("is-video-ready");
-    };
-
-    video.addEventListener("loadeddata", markReady, { once: true });
-    video.addEventListener("canplay", markReady, { once: true });
-
-    // 兜底：如果已经 readyState 足够，立刻标记
-    try { if (video.readyState >= 2) markReady(); } catch (_) {}
-  };
-
   if (!v) {
     v = document.createElement("video");
     v.className = "of-s0-previewVideo";
+    v.muted = true;
+    v.playsInline = true;
+    v.loop = true;
+    v.preload = "metadata";
+    // ===== [PATCH INSERT: s0.previewVideo.disable_autoplay_pip.v1] =====
+try { v.autoplay = false; } catch (_) {}
+try { v.removeAttribute("autoplay"); } catch (_) {}
+try { v.controls = false; } catch (_) {}
+try { v.disablePictureInPicture = true; } catch (_) {}
+try { v.setAttribute("disablepictureinpicture", ""); } catch (_) {}
+try { v.setAttribute("webkit-playsinline", ""); } catch (_) {} // iOS 兜底
+// ===== [PATCH END] =====
+
+    v.setAttribute("playsinline", "");
+    v.setAttribute("muted", "");
+    v.setAttribute("aria-hidden", "true");
+    v.tabIndex = -1;
     wrap.insertBefore(v, wrap.firstChild);
+
+    // ready -> 标记 is-video-ready（只在真正加载后触发）
+    const markReady = () => {
+      if (!wrap.classList.contains("is-video-ready")) wrap.classList.add("is-video-ready");
+    };
+    v.addEventListener("loadeddata", markReady, { once: true });
+    v.addEventListener("canplay", markReady, { once: true });
   }
-
-  // 不论是“HTML自带”还是“JS创建”，都补齐关键属性
-  v.muted = true;
-  v.playsInline = true;
-  v.loop = true;
-  v.preload = "metadata";
-  v.autoplay = true;
-  v.setAttribute("playsinline", "");
-  v.setAttribute("muted", "");
-  v.setAttribute("autoplay", "");
-  v.setAttribute("aria-hidden", "true");
-  v.tabIndex = -1;
-
-  bindReadyOnce(v);
-//}
 
   // 3) 绑定/解绑 src（关键：非中心卡片不挂 src）
   const mp4 = getMp4(slide, filmId);
@@ -804,6 +849,10 @@ function ensurePreviewMedia(slide, opts) {
     // 非中心：清 src + 清 ready，永远显示 poster，避免黑帧/首帧闪
     try {
       v.pause();
+      // ===== [PATCH INSERT: s0.previewVideo.unbind.preload.none.v1] =====
+try { v.preload = "none"; } catch (_) {}
+// ===== [PATCH END] =====
+
       v.currentTime = 0;
     } catch (_) {}
     if (v.getAttribute("src")) v.removeAttribute("src");
@@ -838,6 +887,7 @@ function ensurePreviewMedia(slide, opts) {
 
   // 只播放 center 卡片预览视频
 // ===== [PATCH REPLACE: s0.film.syncPreview.centerVideoBySlideMp4.v3] =====
+// ===== [PATCH REPLACE: s0.film.syncPreview.centerVideoBySlideMp4.v4_gate] =====
 function syncPreview(ctx) {
   lastCtx = ctx || lastCtx;
   const c = lastCtx;
@@ -845,10 +895,18 @@ function syncPreview(ctx) {
 
   const { slides, currentPos, isMoving, isPlaying } = c;
 
-  // 轮播暂停 / 页面不可见 / 移动中：全部停预览
+  // 关键：未解锁（无用户手势）=> 永远不绑定 src、不播放（彻底根除“进页面偶发自动播”）
+  if (!previewEnabled) {
+    pauseAllPreviews(slides);
+    for (const s of slides) {
+      try { ensurePreviewMedia(s, { bindSrc: false }); } catch (_) {}
+    }
+    return;
+  }
+
+  // 轮播暂停/页面不可见/移动中：全部停 + 解绑
   if (document.hidden || isMoving || isPlaying === false) {
     pauseAllPreviews(slides);
-    // 同时解绑 src，避免后台继续占资源
     for (const s of slides) {
       try { ensurePreviewMedia(s, { bindSrc: false }); } catch (_) {}
     }
@@ -858,7 +916,7 @@ function syncPreview(ctx) {
   const center = slides[currentPos];
   if (!center) return;
 
-  // 中心：确保媒体壳存在 + 绑定 src
+  // 中心：绑定 src（其余全部解绑）
   try { ensurePreviewMedia(center, { bindSrc: true }); } catch (_) {}
 
   for (let i = 0; i < slides.length; i++) {
@@ -869,19 +927,21 @@ function syncPreview(ctx) {
       const v = s.querySelector("video.of-s0-previewVideo");
       if (!v) continue;
 
+      // 尽量只在中心时才允许更积极预载
       try { v.preload = "auto"; } catch (_) {}
       v.muted = true;
       v.playsInline = true;
 
-      // 播放（失败就继续显示 poster，不报错）
-      v.play().catch(() => {});
+      // 播放失败（策略/系统限制）=> 静默失败，poster 仍在（稳定）
+      const p = v.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
     } else {
-      // 非中心：解绑 src + 强制停回 0（CSS 已保证只显示 poster）
       try { ensurePreviewMedia(s, { bindSrc: false }); } catch (_) {}
     }
   }
 }
 // ===== [PATCH END] =====
+
 
 
 
@@ -1016,16 +1076,22 @@ function syncPreview(ctx) {
     else syncPreview(ctx);
   }
 
-  return {
-    ensurePreviewMedia,
-    syncPreview,
-    openFromSlide,
-    close,
-    canOpen,
-    onMovingChange
-  };
-})();
-// ===== [PATCH END] =====
+return {
+  ensurePreviewMedia,
+  syncPreview,
+  openFromSlide,
+  close,
+  canOpen,
+  onMovingChange,
+
+  // ===== [PATCH INSERT: s0.preview.gate.exports.v1] =====
+  armPreview,
+  disarmPreview,
+  hardStopAllPreviews,
+  installGuards
+  // ===== [PATCH END] =====
+};
+
 
 
   function closestFollowingButtonRow(container) {
@@ -1925,6 +1991,12 @@ if (container && container.dataset && container.dataset.ofS0Mounted === OF_S0_VE
     const instanceId = uid();
     injectScopedCssOnce();
 
+    // ===== [PATCH INSERT: s0.preview.init.close_gate.install_guards.v1] =====
+try { AppleFilm.installGuards && AppleFilm.installGuards(); } catch (_) {}
+try { AppleFilm.disarmPreview && AppleFilm.disarmPreview(); } catch (_) {}
+// ===== [PATCH END] =====
+
+
     const { track, dotsWrap, rightButton, playIcon } = isolateDom(container, buttonRow, instanceId);
     if (!track || !dotsWrap) return null;
 
@@ -2029,6 +2101,25 @@ function openUrl(url) {
     let isPlaying = true;
     let isMoving = false;
 
+    // ===== [PATCH INSERT: s0.preview.arm_on_first_gesture.v1] =====
+let previewArmed = false;
+
+function armPreviewFromGesture() {
+  if (previewArmed) return;
+  previewArmed = true;
+  try { AppleFilm.armPreview && AppleFilm.armPreview(); } catch (_) {}
+  // 不在这里强行 play；交给后续 updateCenterClasses/syncPreview 自然接管（更稳）
+}
+
+const _armOpt = { passive: true };
+// 覆盖 PC / iOS / Android：pointer + touch 双保险
+try { container.addEventListener("pointerdown", armPreviewFromGesture, _armOpt); } catch (_) {}
+try { container.addEventListener("touchstart", armPreviewFromGesture, _armOpt); } catch (_) {}
+try { buttonRow.addEventListener("pointerdown", armPreviewFromGesture, _armOpt); } catch (_) {}
+try { buttonRow.addEventListener("touchstart", armPreviewFromGesture, _armOpt); } catch (_) {}
+// ===== [PATCH END] =====
+
+
     // ===== [PATCH INSERT: snap.no_bounce.ready.flag] =====
 let isReady = false;        // Peek Preview 对齐完成后才允许自动轮播（防刷新/归位回弹）
 let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防止来回拉扯）
@@ -2084,6 +2175,12 @@ let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防�
     function play() {
       isPlaying = true;
       updatePlayButtonUI();
+
+      // ===== [PATCH INSERT: s0.preview.arm_on_play_click.v1] =====
+previewArmed = true;
+try { AppleFilm.armPreview && AppleFilm.armPreview(); } catch (_) {}
+// ===== [PATCH END] =====
+
         // 新增：恢复中心预览视频
   //try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isPlaying: true }); } catch (_) {}
@@ -2306,26 +2403,6 @@ if (!slide.dataset.ofS0BoundSlideClick) {
     slides.forEach(ensureOverlay);
 
     let currentPos = realCount > 1 ? realCount : 0;
-
-    // ===== [PATCH INSERT: prewarm.center.preview.video.on.enter] =====
-try {
-  // cloneTriple 后的“首屏中心”就是 currentPos（pass=1, realIndex=0）
-  const firstCenter = slides[currentPos];
-  if (firstCenter) {
-    AppleFilm.ensurePreviewMedia(firstCenter, { bindSrc: true });
-
-    const v = firstCenter.querySelector("video.of-s0-previewVideo");
-    if (v) {
-      try { v.preload = "auto"; } catch (_) {}
-      v.muted = true;
-      v.playsInline = true;
-      // 允许则直接开播（静默失败也没事，poster 继续顶着）
-      v.play().catch(() => {});
-    }
-  }
-} catch (_) {}
-// ===== [PATCH END] =====
-
 
     // ===== Measurements（transform mode）=====
     let slideSpan = 0;
@@ -3155,27 +3232,6 @@ popSkipEnterLater();
       return Promise.all(tasks);
     }
 
-    // ===== [PATCH INSERT: wait.only.center.poster] =====
-function waitCenterPosterReady() {
-  try {
-    const center = slides[currentPos];
-    const img = center ? center.querySelector("img.of-s0-poster, img") : null;
-    if (!img) return Promise.resolve();
-
-    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-    if (img.decode) return img.decode().catch(() => {});
-
-    return new Promise((res) => {
-      img.addEventListener("load", () => res(), { once: true });
-      img.addEventListener("error", () => res(), { once: true });
-    });
-  } catch (_) {
-    return Promise.resolve();
-  }
-}
-// ===== [PATCH END] =====
-
-
     // Mobile snap scroll listener (debounce)
     let snapScrollTimer = 0;
     function bindSnapScroll() {
@@ -3223,10 +3279,7 @@ track.addEventListener(
       didInit = true;
 
       updatePlayButtonUI();
-//await waitImagesReady();
-     await waitCenterPosterReady();
-
-
+      await waitImagesReady();
 
       // ===== [PATCH INSERT: init.hide.until.peek.ready] =====
 isReady = false;
