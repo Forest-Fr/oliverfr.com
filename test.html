@@ -589,6 +589,17 @@ body.appleFilm-lock{
      data-film-id="lategpt"
      data-film-mp4="LiteGPT.mp4">
 
+<div class="of-s0-media">
+  <!-- 预览 video：不写 src，避免 cloneTriple 后 9 个 video 全都拉资源 -->
+  <video class="of-s0-previewVideo"
+         muted playsinline loop preload="metadata"
+         aria-hidden="true" tabindex="-1"></video>
+
+  <!-- poster：仍然用你原来的图 -->
+  <img class="of-s0-poster" src="slide1.jpg" alt="nature1" />
+</div>
+
+<div class="section0-overlay">
   <img src="slide1.jpg" alt="nature1" />
   <div class="section0-overlay">
     <div class="section0-title">前端UI</div>
@@ -604,8 +615,21 @@ body.appleFilm-lock{
      data-film-id="agent"
      data-film-mp4="Agent.mp4">
 
-  <img src="slide2.jpg" alt="nature2" />
-  <div class="section0-overlay">
+
+
+
+    <div class="of-s0-media">
+  <!-- 预览 video：不写 src，避免 cloneTriple 后 9 个 video 全都拉资源 -->
+  <video class="of-s0-previewVideo"
+         muted playsinline loop preload="metadata"
+         aria-hidden="true" tabindex="-1"></video>
+
+  <!-- poster：仍然用你原来的图 -->
+  <img class="of-s0-poster" src="slide2.jpg" alt="nature2" />
+</div>
+
+<div class="section0-overlay">
+
     <div class="section0-title">Admin Panel</div>
     <div class="section0-desc">网关+Postgres Sql等</div>
     <button class="section0-explore" type="button">Explore</button>
@@ -736,26 +760,42 @@ function ensurePreviewMedia(slide, opts) {
 
   // 2) ensure preview video (壳一定要有，但不一定绑定 src)
   let v = wrap.querySelector("video.of-s0-previewVideo");
-  if (!v) {
-    v = document.createElement("video");
-    v.className = "of-s0-previewVideo";
-    v.muted = true;
-    v.playsInline = true;
-    v.loop = true;
-    v.preload = "metadata";
-    v.setAttribute("playsinline", "");
-    v.setAttribute("muted", "");
-    v.setAttribute("aria-hidden", "true");
-    v.tabIndex = -1;
-    wrap.insertBefore(v, wrap.firstChild);
 
-    // ready -> 标记 is-video-ready（只在真正加载后触发）
+  const bindReadyOnce = (video) => {
+    if (!video || (video.dataset && video.dataset.ofS0ReadyBound === "1")) return;
+    if (video.dataset) video.dataset.ofS0ReadyBound = "1";
+
     const markReady = () => {
       if (!wrap.classList.contains("is-video-ready")) wrap.classList.add("is-video-ready");
     };
-    v.addEventListener("loadeddata", markReady, { once: true });
-    v.addEventListener("canplay", markReady, { once: true });
+
+    video.addEventListener("loadeddata", markReady, { once: true });
+    video.addEventListener("canplay", markReady, { once: true });
+
+    // 兜底：如果已经 readyState 足够，立刻标记
+    try { if (video.readyState >= 2) markReady(); } catch (_) {}
+  };
+
+  if (!v) {
+    v = document.createElement("video");
+    v.className = "of-s0-previewVideo";
+    wrap.insertBefore(v, wrap.firstChild);
   }
+
+  // 不论是“HTML自带”还是“JS创建”，都补齐关键属性
+  v.muted = true;
+  v.playsInline = true;
+  v.loop = true;
+  v.preload = "metadata";
+  v.autoplay = true;
+  v.setAttribute("playsinline", "");
+  v.setAttribute("muted", "");
+  v.setAttribute("autoplay", "");
+  v.setAttribute("aria-hidden", "true");
+  v.tabIndex = -1;
+
+  bindReadyOnce(v);
+//}
 
   // 3) 绑定/解绑 src（关键：非中心卡片不挂 src）
   const mp4 = getMp4(slide, filmId);
@@ -2267,6 +2307,26 @@ if (!slide.dataset.ofS0BoundSlideClick) {
 
     let currentPos = realCount > 1 ? realCount : 0;
 
+    // ===== [PATCH INSERT: prewarm.center.preview.video.on.enter] =====
+try {
+  // cloneTriple 后的“首屏中心”就是 currentPos（pass=1, realIndex=0）
+  const firstCenter = slides[currentPos];
+  if (firstCenter) {
+    AppleFilm.ensurePreviewMedia(firstCenter, { bindSrc: true });
+
+    const v = firstCenter.querySelector("video.of-s0-previewVideo");
+    if (v) {
+      try { v.preload = "auto"; } catch (_) {}
+      v.muted = true;
+      v.playsInline = true;
+      // 允许则直接开播（静默失败也没事，poster 继续顶着）
+      v.play().catch(() => {});
+    }
+  }
+} catch (_) {}
+// ===== [PATCH END] =====
+
+
     // ===== Measurements（transform mode）=====
     let slideSpan = 0;
     let centerOffset = 0;
@@ -3095,6 +3155,27 @@ popSkipEnterLater();
       return Promise.all(tasks);
     }
 
+    // ===== [PATCH INSERT: wait.only.center.poster] =====
+function waitCenterPosterReady() {
+  try {
+    const center = slides[currentPos];
+    const img = center ? center.querySelector("img.of-s0-poster, img") : null;
+    if (!img) return Promise.resolve();
+
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    if (img.decode) return img.decode().catch(() => {});
+
+    return new Promise((res) => {
+      img.addEventListener("load", () => res(), { once: true });
+      img.addEventListener("error", () => res(), { once: true });
+    });
+  } catch (_) {
+    return Promise.resolve();
+  }
+}
+// ===== [PATCH END] =====
+
+
     // Mobile snap scroll listener (debounce)
     let snapScrollTimer = 0;
     function bindSnapScroll() {
@@ -3142,7 +3223,10 @@ track.addEventListener(
       didInit = true;
 
       updatePlayButtonUI();
-      await waitImagesReady();
+//await waitImagesReady();
+     await waitCenterPosterReady();
+
+
 
       // ===== [PATCH INSERT: init.hide.until.peek.ready] =====
 isReady = false;
