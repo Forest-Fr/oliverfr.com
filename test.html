@@ -48,7 +48,9 @@
         width: min(1013px, 80vw);
         height: 495px;
         object-fit: cover;
-         border-radius:none; /*16px;*/
+        
+        border-radius: 0; /*  border-radius:none; 16px */
+
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
         transition: transform 0.4s ease, opacity 0.4s ease;
         -webkit-user-drag: none;
@@ -89,7 +91,7 @@
         scroll-snap-align: center;
         overflow: hidden;
         position: relative;
-         border-radius:none; /*16px;*/
+           border-radius: 0; /*  border-radius:none; 16px */
       }
       .section0-slide img{
         width: 100%;
@@ -492,34 +494,36 @@ body.appleFilm-lock{
     <div class="section0-track">
 
       <!-- ✅ 你可按需修改每张的 data-url / data-title / data-desc -->
-      <div class="section0-slide"
-           data-url="https://oliverfr.com/agent-test.html#s0=0"
-           data-title="前端UI"
-           data-desc="后端Python+FastApi+Langgraph等">
-           data-film-id="lategpt"
-           data-film-mp4="LiteGPT.mp4">
-        
-        <img src="slide1.jpg" alt="nature1" />
-        <div class="section0-overlay">
-          <div class="section0-title">前端UI</div>
-          <div class="section0-desc">Dockerfile云端容器+后端Python/FastApi/Langgraph等。</div>
-          <button class="section0-explore" type="button">Explore</button>
-        </div>
-      </div>
+<div class="section0-slide"
+     data-url="https://oliverfr.com/agent-test.html#s0=0"
+     data-title="前端UI"
+     data-desc="后端Python+FastApi+Langgraph等"
+     data-film-id="lategpt"
+     data-film-mp4="LiteGPT.mp4">
 
-      <div class="section0-slide"
-           data-url="https://oliverfr.com/go-agent.html#s0=1"
-           data-title="Admin Panel"
-           data-desc="网关+Postgres Sql等">
-                   data-film-id="agent"
-           data-film-mp4="Agent.mp4">
-        <img src="slide2.jpg" alt="nature2" />
-        <div class="section0-overlay">
-          <div class="section0-title">Admin Panel</div>
-          <div class="section0-desc">网关+Postgres Sql等</div>
-          <button class="section0-explore" type="button">Explore</button>
-        </div>
-      </div>
+  <img src="slide1.jpg" alt="nature1" />
+  <div class="section0-overlay">
+    <div class="section0-title">前端UI</div>
+    <div class="section0-desc">Dockerfile云端容器+后端Python/FastApi/Langgraph等。</div>
+    <button class="section0-explore" type="button">Explore</button>
+  </div>
+</div>
+
+<div class="section0-slide"
+     data-url="https://oliverfr.com/go-agent.html#s0=1"
+     data-title="Admin Panel"
+     data-desc="网关+Postgres Sql等"
+     data-film-id="agent"
+     data-film-mp4="Agent.mp4">
+
+  <img src="slide2.jpg" alt="nature2" />
+  <div class="section0-overlay">
+    <div class="section0-title">Admin Panel</div>
+    <div class="section0-desc">网关+Postgres Sql等</div>
+    <button class="section0-explore" type="button">Explore</button>
+  </div>
+</div>
+
 
 
     </div>
@@ -935,7 +939,7 @@ const AppleFilm = (() => {
     width: min(1013px, 80vw);
     height: 495px;
     object-fit: cover;
-    border-radius:none; /*16px;*/
+      border-radius: 0; /*  border-radius:none; 16px */
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
     transition: transform 0.4s ease, opacity 0.4s ease;
     -webkit-user-drag: none;
@@ -997,7 +1001,7 @@ overscroll-behavior-y: none;
     scroll-snap-stop: always;
     overflow: hidden;
     position: relative;
-   border-radius:none; /*16px;*/
+      border-radius: 0; /*  border-radius:none; 16px */
 
     contain: layout paint;
     transform: translateZ(0);
@@ -1367,6 +1371,178 @@ overscroll-behavior-y: none;
     font-size: 13px;
   }
 }
+
+/* ===== [PATCH ADD: apple-film-modal.styles] ===== */
+
+/* 打开 modal 时锁滚动 */
+html.appleFilm-lock,
+body.appleFilm-lock {
+  overflow: hidden;
+  height: 100%;
+}
+
+/* 背景遮罩 + 轻微模糊（接近 Apple） */
+.appleFilm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+}
+.appleFilm-modal.is-open { display: block; }
+
+.appleFilm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  transition: opacity .22s ease;
+}
+.appleFilm-modal.is-open .appleFilm-backdrop { opacity: 1; }
+
+/* 底部大圆角 sheet */
+.appleFilm-sheet {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  border-radius: 26px;
+  background: rgba(25,25,27,.92);
+  box-shadow: 0 20px 60px rgba(0,0,0,.55);
+  overflow: hidden;
+
+  transform: translateY(18px) scale(.985);
+  opacity: 0;
+  transition: transform .26s cubic-bezier(.2,0,0,1), opacity .22s ease;
+}
+.appleFilm-modal.is-open .appleFilm-sheet {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+/* 右上角关闭按钮 */
+.appleFilm-close {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(255,255,255,.12);
+  color: rgba(255,255,255,.92);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.appleFilm-close:active { transform: scale(.98); }
+
+/* 视频区域 */
+.appleFilm-player {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+  position: relative;
+}
+.appleFilm-player video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 中央播放按钮（截图那种） */
+.appleFilm-playBtn {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.appleFilm-playBtn::before {
+  content: "";
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.appleFilm-playBtn::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 18px solid rgba(255,255,255,.92);
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  transform: translateX(2px);
+}
+
+/* 文案区（可滚动，接近第二张图排版） */
+.appleFilm-content {
+  padding: 18px 18px 20px;
+  color: rgba(255,255,255,.92);
+}
+
+/* Download transcript */
+.appleFilm-transcript {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,.62);
+  text-decoration: none;
+  font-size: 15px;
+  line-height: 1.2;
+  margin: 4px 0 14px;
+}
+.appleFilm-transcript .ico {
+  width: 22px; height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.10);
+  color: rgba(255,255,255,.72);
+}
+
+/* 标题 */
+.appleFilm-title {
+  font-size: 34px;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  margin: 4px 0 10px;
+  font-weight: 700;
+}
+
+/* 描述 */
+.appleFilm-desc {
+  font-size: 18px;
+  line-height: 1.55;
+  color: rgba(255,255,255,.74);
+  margin: 0 0 16px;
+}
+
+/* Learn more */
+.appleFilm-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #4aa3ff;
+  text-decoration: none;
+  font-size: 18px;
+}
+.appleFilm-link::after {
+  content: "›";
+  font-size: 22px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+/* ===== [PATCH END] ===== */
+
 `.trim();
 
     if (!exists) document.head.appendChild(style);
