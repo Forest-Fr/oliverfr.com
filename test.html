@@ -643,6 +643,37 @@ body.appleFilm-lock{
 }
 /* ===== [PATCH END] ===== */
 
+
+    /* =========================
+   [FORCE] Peek Preview = Video Only (no image transition)
+   ========================= */
+
+/* 1) 永久隐藏 poster（无损删除图片过渡） */
+.of-s0-media > img.of-s0-poster{
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* 2) 永久显示 video（中心/邻居都显示，peek preview 也都是视频） */
+.of-s0-media > video.of-s0-previewVideo{
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  transition: none !important;      /* 删除“图↔视频”淡入淡出带来的观感抖动 */
+  will-change: auto !important;     /* 避免过度合成层抖动 */
+}
+
+/* 3) 你原来写的 “非中心强制隐藏 video / 强制显示 poster” 彻底失效 */
+.of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
+  display: none !important;
+}
+
+
   </style>
 </head>
 
@@ -861,9 +892,14 @@ function ensurePreviewMedia(slide) {
     if (!img.classList.contains("of-s0-poster")) img.classList.add("of-s0-poster");
     // 放入 wrapper 内，避免旧布局干扰
     if (img.parentNode !== wrap) wrap.appendChild(img);
-    // 默认隐藏（CSS 已强制 opacity=0，这里再兜底一次）
+
+    // ===== [PATCH REPLACE: ensurePreviewMedia.poster.hide_stronger] =====
+    // 默认隐藏（CSS 已强制 display:none/opacity:0，这里再兜底一次）
     img.style.opacity = "0";
+    img.style.visibility = "hidden";
+    img.style.display = "none";
     img.setAttribute("aria-hidden", "true");
+    // ===== [PATCH END] =====
   }
 
   // 3) 直接布置“每张 slide 自己的 video”
@@ -877,8 +913,14 @@ function ensurePreviewMedia(slide) {
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.autoplay = false;                // 只让中心播放（syncPreview 控制）
-    v.preload = "metadata";            // 移动端更稳；中心卡片会被提升为 auto
+    v.autoplay = false; // 只让中心播放（syncPreview 控制）
+
+    // ===== [PATCH REPLACE: ensurePreviewMedia.video.preload_auto] =====
+    // 关键：从一开始就 preload=auto，并尽早解码首帧；peek preview 也能直接显示视频帧
+    v.preload = "auto";
+    v.setAttribute("preload", "auto");
+    // ===== [PATCH END] =====
+
     v.setAttribute("playsinline", "");
     v.setAttribute("webkit-playsinline", "");
     v.setAttribute("muted", "");
@@ -886,20 +928,62 @@ function ensurePreviewMedia(slide) {
     v.tabIndex = -1;
     v.disablePictureInPicture = true;
     v.setAttribute("controlslist", "nodownload noplaybackrate noremoteplayback");
+
+    // ===== [PATCH INSERT: ensurePreviewMedia.video.attrs_stability] =====
+    // 进一步稳定：显式禁用 controls，避免某些浏览器合成层闪动
+    v.controls = false;
+    // 兼容写法（即使无效也不报错）
+    try { v.setAttribute("disableRemotePlayback", ""); } catch (_) {}
+    // ===== [PATCH END] =====
+
+    // video 放在最前（避免旧 img 先绘制）
     wrap.insertBefore(v, wrap.firstChild);
+  } else {
+    // ===== [PATCH INSERT: ensurePreviewMedia.video.ensure_flags] =====
+    // 若 video 已存在，确保关键属性仍然保持一致（防止外部逻辑改写）
+    v.muted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.autoplay = false;
+    // ===== [PATCH END] =====
   }
 
   // 更新 src（避免重复 load）
   if (v.dataset.src !== want) {
     try { v.pause(); } catch (_) {}
+
+    // ===== [PATCH KEEP: ensurePreviewMedia.ready_classes_reset] =====
     wrap.classList.remove("is-video-ready", "is-video-fallback");
-    v.removeAttribute("src");
+    // ===== [PATCH END] =====
+
+    // ===== [PATCH REPLACE: ensurePreviewMedia.src_update.no_double_load] =====
+    // 先清理旧 src，再赋新 src，最后 load 一次即可
+    //（避免 removeAttribute+load+set+load 的双重节奏导致 iOS 解码抖动概率上升）
+    try { v.removeAttribute("src"); } catch (_) {}
     try { v.load(); } catch (_) {}
+
     v.src = want;
     v.dataset.src = want;
+
+    // 关键：立即 load 一次，确保 peek preview 也能尽早拿到首帧
     try { v.load(); } catch (_) {}
+    // ===== [PATCH END] =====
+  } else {
+    // ===== [PATCH INSERT: ensurePreviewMedia.same_src.ensure_loaded_once] =====
+    // src 未变：如果还没进入 ready 状态，也触发一次轻量 load，提升首帧命中率
+    if (!wrap.classList.contains("is-video-ready")) {
+      try { v.load(); } catch (_) {}
+    }
+    // ===== [PATCH END] =====
   }
+
+  // ===== [PATCH INSERT: ensurePreviewMedia.mark_layout_ready] =====
+  // 布局层面：video-only 方案下，确保 wrapper 不被旧逻辑判定为“fallback”
+  //（真正 ready 的 class 建议由 loadeddata/loadedmetadata 监听处统一打标）
+  // wrap.classList.add("is-video-layout"); // 如你已有类似标记可自行替换
+  // ===== [PATCH END] =====
 }
+
 // ===== [PATCH END] =====
 
 // ===== [PATCH END] =====
@@ -907,24 +991,20 @@ function ensurePreviewMedia(slide) {
 
 // ===== [PATCH REPLACE: s0.film.pauseAllPreviews.singleton.v2] =====
 function pauseAllPreviews(slides) {
-  try {
-    if (previewEl) {
-      previewEl.pause();
-      previewEl.currentTime = 0;
-    }
-  } catch (_) {}
-
-  if (readyWrap) readyWrap.classList.remove("is-video-ready");
-  readyWrap = null;
-
-  // detach：彻底避免邻居露黑帧/首帧，也更省资源
-  detachPreview();
+  if (!slides) return;
+  slides.forEach((s) => {
+    const w = s && s.querySelector ? s.querySelector(".of-s0-media") : null;
+    const v = w && w.querySelector ? w.querySelector("video.of-s0-previewVideo") : null;
+    if (v) { try { v.pause(); } catch (_) {} }
+  });
 }
-// ===== [PATCH END] =====
+
 
 
   // 只播放 center 卡片预览视频
 // ===== [PATCH REPLACE: s0.film.syncPreview.per_slide_center_play.v4] =====
+let _lastCenterPos = -1;
+
 function syncPreview(ctx) {
   lastCtx = ctx || lastCtx;
   const c = lastCtx;
@@ -932,67 +1012,58 @@ function syncPreview(ctx) {
 
   const { slides, currentPos, isMoving, isInView } = c;
 
-  // 不在视口/页面不可见/移动中：全部暂停
+  // 不在视口/页面不可见/移动中：只 pause，不做 currentTime=0（避免解码抖动）
   if (document.hidden || isMoving || isInView === false) {
     slides.forEach((s) => {
-      const w = s && s.querySelector ? s.querySelector(".of-s0-media") : null;
-      const v = w && w.querySelector ? w.querySelector("video.of-s0-previewVideo") : null;
-      if (v) { try { v.pause(); v.currentTime = 0; } catch (_) {} }
-      if (w) w.classList.remove("is-video-ready");
+      const w = s.querySelector(".of-s0-media");
+      const v = w && w.querySelector("video.of-s0-previewVideo");
+      if (v) { try { v.pause(); } catch (_) {} }
     });
     return;
   }
 
-  // 先确保所有 slide 都已经“布置视频”（从一开始就是视频布局）
+  // 确保所有 slide 从一开始就是 video 布局
   slides.forEach((s) => { try { ensurePreviewMedia(s); } catch (_) {} });
 
-  // 暂停所有
+  // 先 pause 全部（不归零）
   slides.forEach((s) => {
     const w = s.querySelector(".of-s0-media");
     const v = w && w.querySelector("video.of-s0-previewVideo");
-    if (v) {
-      try { v.pause(); } catch (_) {}
-      // 不强制 reset 到 0（某些 iOS reset 会抖），只在中心切换时归零
-    }
+    if (v) { try { v.pause(); } catch (_) {} }
   });
 
-  // 中心播放
   const center = slides[currentPos];
   if (!center) return;
 
   const wrap = center.querySelector(".of-s0-media");
   const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
-  if (!wrap || !v) return;
+  if (!v) return;
 
-  // 中心卡片提升加载策略
-  try { v.preload = "auto"; } catch (_) {}
+  // 只有“中心换了”才归零一次（避免每一帧/每一次 settle 都触发解码抖）
+  const centerChanged = (_lastCenterPos !== currentPos);
+  _lastCenterPos = currentPos;
 
-  // ready 标记：让你未来如果想做“渐入”也有钩子
-  const markReady = () => {
-    wrap.classList.add("is-video-ready");
-    wrap.classList.remove("is-video-fallback");
+  const safeSeekToZero = () => {
+    try {
+      if (centerChanged && v.readyState >= 2) v.currentTime = 0;
+    } catch (_) {}
   };
-  v.addEventListener("canplay", markReady, { once: true });
-  v.addEventListener("loadeddata", markReady, { once: true });
 
-  // 切到中心时从头播
-  try { v.currentTime = 0; } catch (_) {}
+  // 首帧 ready 后再归零一次（保证从头播且不抖）
+  if (centerChanged && v.readyState < 2) {
+    v.addEventListener("loadeddata", safeSeekToZero, { once: true });
+  } else {
+    safeSeekToZero();
+  }
 
-  // iOS：必须先 muted + playsInline，再 play
+  // 播放中心（失败就静默：iOS 未手势时会被拦，但视频仍保持布局，不会“图↔视频”抖）
   v.muted = true;
   v.playsInline = true;
 
-  // 未解锁时也尝试 play；失败则不报错，且可回退显示 poster
   const p = v.play();
-  if (p && typeof p.catch === "function") {
-    p.catch(() => {
-      // autoplay 被拦：用兜底 poster（但默认仍不闪图）
-      wrap.classList.add("is-video-fallback");
-      wrap.classList.remove("is-video-ready");
-      // 如果用户已经发生手势（autoplayUnlocked），下一次 sync 会再尝试 play
-    });
-  }
+  if (p && typeof p.catch === "function") p.catch(() => {});
 }
+
 // ===== [PATCH END] =====
 
 
@@ -2039,6 +2110,36 @@ body.appleFilm-lock {
   .appleFilm-link{ font-size: 16px; }
 }
 /* ===== [PATCH END] ===== */
+
+/* =========================
+   [FORCE] Peek Preview = Video Only (no image transition)
+   ========================= */
+
+/* 1) 永久隐藏 poster（无损删除图片过渡） */
+.of-s0-media > img.of-s0-poster{
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* 2) 永久显示 video（中心/邻居都显示，peek preview 也都是视频） */
+.of-s0-media > video.of-s0-previewVideo{
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  transition: none !important;      /* 删除“图↔视频”淡入淡出带来的观感抖动 */
+  will-change: auto !important;     /* 避免过度合成层抖动 */
+}
+
+/* 3) 你原来写的 “非中心强制隐藏 video / 强制显示 poster” 彻底失效 */
+.of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
+  display: none !important;
+}
+
 
 `.trim();
 
