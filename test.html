@@ -2580,11 +2580,11 @@ let pad = (trackW - cardW) / 2;
  // track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
 
   // ===== [PATCH REPLACE: mobile.peek.pad.stabilize.no.micro.jitter] =====
-const prev = parseFloat(track.dataset.ofS0Pad || "NaN");
-if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.5) {
-  // 小于 0.5px 的变化直接忽略，避免每轮“微调”造成回弹观感
-  return;
-}
+// ===== [PATCH REPLACE: mobile.peek.pad.stabilize.no.micro.jitter] =====
+// NOTE: 这段旧逻辑已由下面的 “mobile.peek.pad.quantize.and.apply.inline.v1” 统一接管。
+// 目的：避免重复声明 const prev 导致整段脚本 SyntaxError 崩溃（所有点击/轮播失效）。
+// ===== [PATCH END] =====
+
 //track.dataset.ofS0Pad = String(pad);
 //track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
 // ===== [PATCH END] =====
