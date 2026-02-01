@@ -687,6 +687,55 @@ const AppleFilm = (() => {
 
   // modal elements
   let modalEl = null, videoEl = null, playBtnEl = null, titleEl = null, descEl = null, learnEl = null, transcriptEl = null;
+  // ===== [PATCH INSERT: s0.film.preview.singleton_state.v1] =====
+let previewEl = null;      // carousel 预览用（全局唯一）
+let previewWrap = null;    // 当前挂载的 .of-s0-media
+let readyWrap = null;      // 当前 is-video-ready 的 wrapper
+let unlockBound = false;
+
+function ensurePreviewEl() {
+  if (previewEl) return previewEl;
+  const v = document.createElement("video");
+  v.className = "of-s0-previewVideo";
+  v.muted = true;
+  v.loop = true;
+  v.playsInline = true;
+  v.preload = "metadata";
+  v.setAttribute("playsinline", "");
+  v.setAttribute("webkit-playsinline", "");
+  v.setAttribute("muted", "");
+  v.setAttribute("aria-hidden", "true");
+  v.tabIndex = -1;
+  v.dataset.ofS0Singleton = "1";
+  previewEl = v;
+  return previewEl;
+}
+
+// iOS/部分 Chrome：必须在“首次用户手势”后才允许 autoplay
+function bindAutoplayUnlockOnce() {
+  if (unlockBound) return;
+  unlockBound = true;
+  const once = () => { try { syncPreview(lastCtx); } catch (_) {} };
+  window.addEventListener("pointerdown", once, { once: true, passive: true });
+  window.addEventListener("touchstart",  once, { once: true, passive: true });
+  window.addEventListener("keydown",     once, { once: true });
+}
+
+function detachPreview() {
+  if (previewEl && previewEl.parentNode) {
+    try { previewEl.pause(); } catch (_) {}
+    previewEl.parentNode.removeChild(previewEl);
+  }
+  previewWrap = null;
+}
+
+function setReadyWrap(wrap) {
+  if (readyWrap && readyWrap !== wrap) readyWrap.classList.remove("is-video-ready");
+  readyWrap = wrap || null;
+  if (readyWrap) readyWrap.classList.add("is-video-ready");
+}
+// ===== [PATCH END] =====
+
 
   function getFilmId(slide) {
     return slide && slide.dataset ? String(slide.dataset.filmId || "").trim() : "";
@@ -702,82 +751,67 @@ const AppleFilm = (() => {
   }
 
   // --- preview media: wrap img into .of-s0-media and insert video ---
-  function ensurePreviewMedia(slide) {
-    const filmId = getFilmId(slide);
-    if (!filmId) return;
+// ===== [PATCH REPLACE: s0.film.ensurePreviewMedia.wrapper_only.v2] =====
+function ensurePreviewMedia(slide) {
+  const filmId = getFilmId(slide);
+  if (!filmId) return;
 
-    const img = slide.querySelector("img");
-    if (!img) return;
+  const img = slide.querySelector("img");
+  if (!img) return;
 
-    // 1) ensure wrapper
-    let wrap = slide.querySelector(".of-s0-media");
-    if (!wrap) {
-      wrap = document.createElement("div");
-      wrap.className = "of-s0-media";
-      // 把 img 移进 wrapper
-      img.parentNode.insertBefore(wrap, img);
-      wrap.appendChild(img);
-    }
+  bindAutoplayUnlockOnce();
 
-    // 标记 poster
-    if (!img.classList.contains("of-s0-poster")) img.classList.add("of-s0-poster");
-
-    // 2) ensure preview video
-    let v = wrap.querySelector("video.of-s0-previewVideo");
-    if (!v) {
-      v = document.createElement("video");
-      v.className = "of-s0-previewVideo";
-      v.muted = true;
-      v.playsInline = true;
-      v.loop = true;
-      v.preload = "metadata";
-      v.setAttribute("playsinline", "");
-      v.setAttribute("muted", "");
-      v.setAttribute("aria-hidden", "true");
-      v.tabIndex = -1;
-      wrap.insertBefore(v, wrap.firstChild);
-
-      // video ready -> fade in, poster fade out
-      const markReady = () => {
-        if (!wrap.classList.contains("is-video-ready")) wrap.classList.add("is-video-ready");
-      };
-      v.addEventListener("loadeddata", markReady, { once: true });
-      v.addEventListener("canplay", markReady, { once: true });
-    }
-
-    // 3) set src/poster
-    const mp4 = getMp4(slide, filmId);
-    if (mp4 && v.dataset.src !== mp4) {
-      v.pause();
-      v.removeAttribute("src");
-      v.load();
-      v.src = mp4;
-      v.dataset.src = mp4;
-      // poster 用原 img（不改 src），仅用于加载前视觉
-      v.load();
-    }
+  // 1) ensure wrapper
+  let wrap = slide.querySelector(".of-s0-media");
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.className = "of-s0-media";
+    img.parentNode.insertBefore(wrap, img);
+    wrap.appendChild(img);
   }
 
-  function pauseAllPreviews(slides) {
-    if (!Array.isArray(slides)) return;
-    for (const s of slides) {
-      const v = s && s.querySelector ? s.querySelector("video.of-s0-previewVideo") : null;
-      if (!v) continue;
-      try { v.pause(); v.currentTime = 0; } catch (_) {}
+  // 2) mark poster
+  if (!img.classList.contains("of-s0-poster")) img.classList.add("of-s0-poster");
+
+  // 3) 清理旧版本/缓存遗留：只允许 singleton video 存在
+  const keep = ensurePreviewEl();
+  wrap.querySelectorAll("video.of-s0-previewVideo").forEach((v) => {
+    if (v !== keep) v.remove();
+  });
+}
+// ===== [PATCH END] =====
+
+
+// ===== [PATCH REPLACE: s0.film.pauseAllPreviews.singleton.v2] =====
+function pauseAllPreviews(slides) {
+  try {
+    if (previewEl) {
+      previewEl.pause();
+      previewEl.currentTime = 0;
     }
-  }
+  } catch (_) {}
+
+  if (readyWrap) readyWrap.classList.remove("is-video-ready");
+  readyWrap = null;
+
+  // detach：彻底避免邻居露黑帧/首帧，也更省资源
+  detachPreview();
+}
+// ===== [PATCH END] =====
+
 
   // 只播放 center 卡片预览视频
 // ===== [PATCH REPLACE: s0.film.syncPreview.centerVideoBySlideMp4.v2] =====
+// ===== [PATCH REPLACE: s0.film.syncPreview.sharedSingleton.v3] =====
 function syncPreview(ctx) {
   lastCtx = ctx || lastCtx;
   const c = lastCtx;
   if (!c || !Array.isArray(c.slides)) return;
 
-  const { slides, currentPos, isMoving } = c;
+  const { slides, currentPos, isMoving, isInView } = c;
 
-  // 轮播暂停/页面不可见/移动中：全部停预览（省资源 + 防乱跳）
-  if (document.hidden || isMoving) {
+  // 不在视口/页面不可见/移动中：停预览
+  if (document.hidden || isMoving || isInView === false) {
     pauseAllPreviews(slides);
     return;
   }
@@ -785,41 +819,60 @@ function syncPreview(ctx) {
   const center = slides[currentPos];
   if (!center) return;
 
-  // 关键：中心卡片每次都确保 preview media 与 mp4 绑定正确（尤其三倍克隆时）
+  // 确保 wrapper + poster
   try { ensurePreviewMedia(center); } catch (_) {}
 
-  for (let i = 0; i < slides.length; i++) {
-    const s = slides[i];
-    const v = s && s.querySelector ? s.querySelector("video.of-s0-previewVideo") : null;
-    if (!v) continue;
+  const filmId = getFilmId(center);
+  const want = getMp4(center, filmId);
+  if (!want) {
+    pauseAllPreviews(slides);
+    return;
+  }
 
-    if (s === center) {
-      // 中心：加速加载与解码
-      try { v.preload = "auto"; } catch (_) {}
-      v.muted = true;
-      v.playsInline = true;
+  const wrap = center.querySelector(".of-s0-media");
+  if (!wrap) return;
 
-      // 如果 src 被 clone/状态污染，确保是该 slide 的 mp4
-      const filmId = getFilmId(s);
-      const want = getMp4(s, filmId);
-      if (want && v.dataset.src !== want) {
-        try { v.pause(); } catch (_) {}
-        v.removeAttribute("src");
-        v.load();
-        v.src = want;
-        v.dataset.src = want;
-        v.load();
-      }
+  const v = ensurePreviewEl();
 
-      // 播放（iOS/Chrome 可能需要手势，失败则保持 poster）
-      v.play().catch(() => {});
-    } else {
-      // 非中心：保持 poster（CSS 已强制），视频停掉并回到起点
-      try { v.preload = "metadata"; } catch (_) {}
-      try { v.pause(); v.currentTime = 0; } catch (_) {}
-    }
+  // 永远只把这一个 video 挂在中心卡片：稳定 + 省资源 + “Flash感”
+  if (previewWrap !== wrap) {
+    detachPreview();
+    wrap.insertBefore(v, wrap.firstChild);
+    previewWrap = wrap;
+  }
+
+  // “进入项目就从头播”
+  const srcChanged = (v.dataset.src !== want);
+  if (srcChanged) {
+    try { v.pause(); } catch (_) {}
+    v.removeAttribute("src");
+    v.load();
+    v.src = want;
+    v.dataset.src = want;
+    v.preload = "auto";
+    v.load();
+  }
+  try { v.currentTime = 0; } catch (_) {}
+
+  // ready -> video 淡入、poster 淡出（你 CSS 已写 is-video-ready）
+  const markReady = () => setReadyWrap(wrap);
+  v.addEventListener("canplay",    markReady, { once: true });
+  v.addEventListener("loadeddata", markReady, { once: true });
+
+  v.muted = true;
+  v.playsInline = true;
+  v.loop = true;
+
+  const p = v.play();
+  if (p && typeof p.catch === "function") {
+    p.catch(() => {
+      // autoplay 被拦：保持 poster，不闪、不报错
+      if (wrap) wrap.classList.remove("is-video-ready");
+    });
   }
 }
+// ===== [PATCH END] =====
+
 // ===== [PATCH END] =====
 
 
@@ -947,12 +1000,18 @@ function syncPreview(ctx) {
     return !!getFilmId(slide);
   }
 
-  function onMovingChange(ctx) {
-    // moving => pause all; stopped => resume center
-    if (!ctx || !ctx.slides) return;
-    if (ctx.isMoving) pauseAllPreviews(ctx.slides);
-    else syncPreview(ctx);
+// ===== [PATCH REPLACE: s0.film.onMovingChange.inViewAware.v2] =====
+function onMovingChange(ctx) {
+  if (!ctx || !ctx.slides) return;
+  if (ctx.isInView === false) {
+    pauseAllPreviews(ctx.slides);
+    return;
   }
+  if (ctx.isMoving) pauseAllPreviews(ctx.slides);
+  else syncPreview(ctx);
+}
+// ===== [PATCH END] =====
+
 
   return {
     ensurePreviewMedia,
@@ -1942,6 +2001,63 @@ let isReady = false;        // Peek Preview 对齐完成后才允许自动轮播
 let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防止来回拉扯）
 // ===== [PATCH END] =====
 
+// ===== [PATCH INSERT: s0.video.inview.guard + readyOnce.v1] =====
+let isInView = true;
+let _s0IO = null;
+
+function setInView(v) {
+  const next = !!v;
+  if (isInView === next) return;
+  isInView = next;
+
+  if (!isInView) {
+    stopProgressLoop();
+    try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true,  isInView: false }); } catch (_) {}
+    return;
+  }
+
+  try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView: true }); } catch (_) {}
+  if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+}
+
+function setupInViewObserver() {
+  if (_s0IO) return;
+
+  if (typeof IntersectionObserver === "function") {
+    _s0IO = new IntersectionObserver(
+      (ents) => {
+        const e = ents && ents[0];
+        const ok = !!(e && e.isIntersecting && (e.intersectionRatio || 0) > 0.35);
+        setInView(ok);
+      },
+      { root: null, threshold: [0, 0.2, 0.35, 0.6] }
+    );
+    _s0IO.observe(container);
+  } else {
+    const on = () => {
+      const r = container.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      const ok = r.top < vh * 0.7 && r.bottom > vh * 0.3;
+      setInView(ok);
+    };
+    window.addEventListener("scroll", on, { passive: true });
+    window.addEventListener("resize", on, { passive: true });
+    on();
+  }
+}
+
+function markReadyOnce() {
+  if (isReady) return;
+  isReady = true;
+
+  // 兜底：避免极端情况下 track 一直 opacity=0
+  if (track && track.style && track.style.opacity === "0") track.style.opacity = "1";
+
+  setupInViewObserver();
+  try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+  if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+}
+// ===== [PATCH END] =====
 
     let rafId = 0;
     let chargeTimer = 0;
@@ -1993,7 +2109,12 @@ let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防�
       isPlaying = true;
       updatePlayButtonUI();
         // 新增：恢复中心预览视频
-  try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
+  //try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
+
+      // ===== [PATCH REPLACE: s0.play.syncPreview.pass_inView] =====
+try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+// ===== [PATCH END] =====
+
   startProgressCycle();
     }
 
@@ -2002,7 +2123,12 @@ let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防�
       updatePlayButtonUI();
       stopProgressLoop();
         // 新增：暂停所有预览视频
-  try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true }); } catch (_) {}
+  //try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true }); } catch (_) {}
+
+      // ===== [PATCH REPLACE: s0.pause.stopPreview.pass_inView] =====
+try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true, isInView }); } catch (_) {}
+// ===== [PATCH END] =====
+
 
     }
 
@@ -2027,6 +2153,9 @@ if (!isReady) return; // ===== [PATCH] Peek Preview 未稳定前不启动进度/
 if (!isPlaying || document.hidden || realCount <= 1) return;
 if (isMoving) return;
 
+// ===== [PATCH INSERT: s0.progress.inview.guard] =====
+if (!isInView) return;
+// ===== [PATCH END] =====
 
       const myToken = ++cycleToken;
       const idx = getRealIndex();
@@ -2041,6 +2170,11 @@ if (isMoving) return;
           stopProgressLoop();
           return;
         }
+
+        // ===== [PATCH INSERT: s0.progress.tick.inview.guard] =====
+if (!isInView) { stopProgressLoop(); return; }
+// ===== [PATCH END] =====
+
         if (isMoving) {
           stopProgressLoop();
           return;
@@ -2259,9 +2393,11 @@ const w = el ? (el.getBoundingClientRect().width || 0) : 0;
       if (on) track.classList.add("is-moving");
       else track.classList.remove("is-moving");
       // ===== [PATCH INSERT: s0.film.onMovingChange] =====
-try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on }); } catch (_) {}
+// { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on }); } catch (_) {}
 // ===== [PATCH END] =====
-
+// ===== [PATCH REPLACE: s0.film.onMovingChange.pass_inView] =====
+try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on, isInView }); } catch (_) {}
+// ===== [PATCH END] =====
     }
 // ===== [PATCH INSERT: overlay.skipEnter.helpers] =====
 let skipEnterDepth = 0;
@@ -2316,6 +2452,9 @@ const left = el ? (el.offsetLeft || 0) : (currentPos * slideSpan);
 const rawTx = (center + centerBias - left);
 const tx = quantizePx(rawTx); // 对齐设备像素栅格：解决“糊 & peek不对称”
 track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
+// ===== [PATCH INSERT: s0.readyOnce.after.desktop.applyTransform] =====
+if (!animated) markReadyOnce();
+// ===== [PATCH END] =====
 
     }
 
@@ -2329,8 +2468,14 @@ track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
       if (right) right.classList.add("is-neighbor");
 
           // ===== [PATCH INSERT: s0.film.syncPreview.afterCenterClasses] =====
-try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
+//try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
+      
 // ===== [PATCH END] =====
+
+      // ===== [PATCH REPLACE: s0.film.syncPreview.afterCenterClasses.pass_inView] =====
+try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+// ===== [PATCH END] =====
+
     }
 
 
@@ -2474,7 +2619,11 @@ function hardJumpScrollLeft(left) {
 
   track.style.scrollSnapType = prevSnap || "";
   track.style.scrollBehavior = prevBeh || "";
+  // ===== [PATCH INSERT: s0.readyOnce.after.snap.hardJump] =====
+markReadyOnce();
+// ===== [PATCH END] =====
 }
+
 
 function fadeInTrack() {
   try {
@@ -2485,6 +2634,10 @@ function fadeInTrack() {
     });
   } catch (_) {
     track.style.opacity = "1";
+    // ===== [PATCH INSERT: s0.readyOnce.after.fadeIn] =====
+markReadyOnce();
+// ===== [PATCH END] =====
+
   }
 }
 
@@ -2884,2405 +3037,6 @@ if (idx === currentPos) {
 }
 // ===== [PATCH END] =====
 
-
-      // ===== [FIX] 点邻居只切换，不改变 isPlaying（播放状态会自动续播）=====
-      if (isSnapMode()) {
-        moveToPos_Snap(idx, true);
-      } else {
-        if (idx < currentPos) prev();
-        else next();
-      }
-    });
-
-    // 轻触/按下：仅暂停“进度动画”，不改变 isPlaying（手势结束会自动恢复进度）
-// ===== [PATCH REPLACE: snap.user.drag.start_end.cancel_anim] =====
-function onUserDragStart() {
-  if (realCount <= 1) return;
-
-  isUserDragging = true;
-  stopProgressLoop();
-
-  // 若此刻存在“程序滚动动画”（自动轮播 / 点圆点 / 点邻居），立刻取消，避免动画反拉造成回弹
-  if (isSnapMode() && cancelSnapAnim) {
-    try { cancelSnapAnim(); } catch (_) {}
-    cancelSnapAnim = null;
-  }
-
-  // 拖拽期间禁止旧的 debounce 结算误触发
-  if (snapScrollTimer) { clearTimeout(snapScrollTimer); snapScrollTimer = 0; }
-  if (moveDoneTimer) { clearTimeout(moveDoneTimer); moveDoneTimer = 0; }
-}
-
-function onUserDragEnd() {
-  if (!isUserDragging) return;
-  isUserDragging = false;
-
-  // 若是短拖拽（没有明显惯性 scroll），补一次结算（但仍然让 scroll debounce 优先）
-  if (isSnapMode() && isMoving) {
-    if (snapScrollTimer) clearTimeout(snapScrollTimer);
-    snapScrollTimer = setTimeout(() => {
-      if (!isUserDragging) endMoveSafely_Snap();
-    }, 160);
-  }
-}
-
-track.addEventListener("pointerdown", onUserDragStart, { passive: true });
-track.addEventListener("touchstart", onUserDragStart, { passive: true });
-track.addEventListener("pointerup", onUserDragEnd, { passive: true });
-track.addEventListener("pointercancel", onUserDragEnd, { passive: true });
-track.addEventListener("touchend", onUserDragEnd, { passive: true });
-track.addEventListener("touchcancel", onUserDragEnd, { passive: true });
-// ===== [PATCH END] =====
-
-
-    // ===== ButtonRow show/hide =====
-    // [FIX] 移动端不启用 IO 自动隐藏，避免 iOS 首屏/缓存导致 buttonRow 消失
-    buttonRow.classList.remove("is-hidden");
-    let io = null;
-    if (!isMobileSnap()) {
-      io = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => buttonRow.classList.toggle("is-hidden", !entry.isIntersecting));
-        },
-        { threshold: 0 }
-      );
-      io.observe(container);
-    }
-
-    // lock buttonRow under carousel
-    function onScroll() {
-      buttonRow.style.transform = "";
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-
-    // Resize self-heal
-    const ro = new ResizeObserver(() => {
-    // ===== [PATCH INSERT: ro.skipEnter.begin] =====
-pushSkipEnter();
-// ===== [PATCH END] =====
-
-      centerBias = 0;
-      slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-
-      setSettling(true);
-      setMoving(false);
-      isMoving = false;
-
-      if (isSnapMode()) {
-        setSnapModeEnabled(true);
-        normalizePositionIfNeeded_Snap();
-        applyMobilePeekPadding();
-
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-      } else {
-        track.dataset.ofS0Snap = "";
-        normalizePositionIfNeeded_Transform();
-        recalcSpan();
-        applyTransform(false);
-      }
-
-      requestAnimationFrame(() => {
-        setSettling(false);
-        updateCenterClasses();
-        activateDot(getRealIndex());
-        if (isPlaying && !document.hidden) startProgressCycle();
-    // ===== [PATCH INSERT: ro.skipEnter.end] =====
-popSkipEnterLater();
-// ===== [PATCH END] =====
-
-      });
-    });
-    ro.observe(container);
-
-    function waitImagesReady() {
-      const imgs = Array.from(track.querySelectorAll("img"));
-      const tasks = imgs.map((img) => {
-        if (!img) return Promise.resolve();
-        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-        if (img.decode) return img.decode().catch(() => {});
-        return new Promise((res) => {
-          img.addEventListener("load", () => res(), { once: true });
-          img.addEventListener("error", () => res(), { once: true });
-        });
-      });
-      return Promise.all(tasks);
-    }
-
-    // Mobile snap scroll listener (debounce)
-    let snapScrollTimer = 0;
-    function bindSnapScroll() {
-// ===== [PATCH REPLACE: snap.scroll.handler.no_settle_while_dragging] =====
-track.addEventListener(
-  "scroll",
-  () => {
-    if (!isSnapMode()) return;
-    if (snapSuppress > 0) return;
-
-    // 仅在“手指拖拽期间”做边界平移（避免空白）；惯性阶段不做，防止可见反向回弹
-    if (isUserDragging) {
-      normalizeEdgeWhileDragging_Snap();
-    }
-
-    if (!isMoving) {
-      isMoving = true;
-      stopProgressLoop();
-    }
-    setMoving(true);
-
-    // 拖拽期间：绝不触发结算/归位（根治反方向回弹）
-    if (isUserDragging) {
-      if (snapScrollTimer) { clearTimeout(snapScrollTimer); snapScrollTimer = 0; }
-      return;
-    }
-
-    // 非拖拽（惯性/停止）阶段：按原逻辑 debounce 结算
-    if (snapScrollTimer) clearTimeout(snapScrollTimer);
-    snapScrollTimer = setTimeout(() => {
-      if (!isUserDragging) endMoveSafely_Snap();
-    }, 140);
-  },
-  { passive: true }
-);
-// ===== [PATCH END] =====
-
-    }
-    bindSnapScroll();
-
-    let didInit = false;
-
-    async function init() {
-      if (didInit) return;
-      didInit = true;
-
-      updatePlayButtonUI();
-      await waitImagesReady();
-
-      // ===== [PATCH INSERT: init.hide.until.peek.ready] =====
-isReady = false;
-track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐过程被看见
-// ===== [PATCH END] =====
-
-
-      slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-
-      setSettling(true);
-      setMoving(false);
-      isMoving = false;
-
-      if (isSnapMode()) {
-        setSnapModeEnabled(true);
-        currentPos = realCount > 1 ? realCount : 0;
-        normalizePositionIfNeeded_Snap();
-        applyMobilePeekPadding();
-
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-      } else {
-        normalizePositionIfNeeded_Transform();
-        recalcSpan();
-        applyTransform(false);
-      }
-
-      requestAnimationFrame(() => {
-        setSettling(false);
-        slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        updateCenterClasses();
-        resetAllDots();
-        //activateDot(getRealIndex());
-        //if (isPlaying && !document.hidden) startProgressCycle();
-
-        activateDot(getRealIndex());
-
-isReady = true;
-fadeInTrack();
-// ===== [PATCH INSERT: init.finished.timestamp] =====
-initFinishedAt = Date.now();
-// ===== [PATCH END] =====
-
-if (isPlaying && !document.hidden) {
-  setTimeout(() => {
-    if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
-  }, AUTO_START_DELAY_MS);
-}
-
-      });
-    }
-
-    // ===== [FIX] 统一恢复：避免 BFCache/缓存导致白屏、卡死、控件失控 =====
-    let recoverToken = 0;
-    async function recoverLayout(reason) {
-      const my = ++recoverToken;
-
-      injectScopedCssOnce();
-
-      // 若刚从缓存回来，图片/布局可能未 ready
-      await waitImagesReady().catch(() => {});
-      if (my !== recoverToken) return;
-
-      slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-
-    // ===== [PATCH INSERT: recover.skipEnter.begin] =====
-pushSkipEnter();
-// ===== [PATCH END] =====
-
-
-      setSettling(true);
-      setMoving(false);
-      isMoving = false;
-      clearTimeout(moveDoneTimer);
-      moveDoneTimer = 0;
-
-      if (isSnapMode()) {
-        setSnapModeEnabled(true);
-        // clamp + normalize
-        currentPos = clamp(currentPos, 0, slides.length - 1);
-        normalizePositionIfNeeded_Snap();
-        applyMobilePeekPadding();
-
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-      } else {
-        track.dataset.ofS0Snap = "";
-        normalizePositionIfNeeded_Transform();
-        recalcSpan();
-        applyTransform(false);
-      }
-
-// ===== [PATCH REPLACE: recover.raf.ensure.popSkipEnter] =====
-requestAnimationFrame(() => {
-  if (my !== recoverToken) {
-    popSkipEnterLater();
-    return;
-  }
-  setSettling(false);
-  updateCenterClasses();
-  activateDot(getRealIndex());
-  updatePlayButtonUI();
-  if (!document.hidden && isPlaying) startProgressCycle();
-
-  popSkipEnterLater();
-});
-// ===== [PATCH END] =====
-
-    }
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        stopProgressLoop();
-        clearTimeout(moveDoneTimer);
-        moveDoneTimer = 0;
-      } else {
-        recoverLayout("visibility");
-      }
-    });
-
-    //window.addEventListener("pageshow", () => {
-     // recoverLayout("pageshow");
-    //});
-    // ===== [PATCH REPLACE: pageshow.only.recover.on.bfcache] =====
-window.addEventListener("pageshow", (e) => {
-  // 首次正常进入页面也会 pageshow；只有 BFCache（persisted）才需要 recover
-  if (e && e.persisted) recoverLayout("pageshow");
-});
-// ===== [PATCH END] =====
-
-
-    //window.addEventListener("focus", () => {
-      // 防止某些浏览器回到标签后不触发 visibilitychange
-      //if (!document.hidden) recoverLayout("focus");
-    //});
-
-    // ===== [PATCH REPLACE: focus.recover.with.cooldown] =====
-window.addEventListener("focus", () => {
-  // 防止某些浏览器回到标签后不触发 visibilitychange
-  // 首次加载阶段会有 focus；给一个冷却窗，避免触发二次 settling -> 二次入场抖动
-  const now = Date.now();
-  if (!document.hidden && initFinishedAt && now - initFinishedAt > 800) {
-    recoverLayout("focus");
-  }
-});
-// ===== [PATCH END] =====
-
-
-    window.addEventListener("pagehide", () => {
-      stopProgressLoop();
-      clearTimeout(moveDoneTimer);
-      moveDoneTimer = 0;
-    });
-
-    function reconcileMode() {
-      slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-    // ===== [PATCH INSERT: reconcile.skipEnter.begin] =====
-pushSkipEnter();
-// ===== [PATCH END] =====
-
-      setSettling(true);
-      setMoving(false);
-      isMoving = false;
-
-      const ri = getRealIndex();
-
-      if (isSnapMode()) {
-        setSnapModeEnabled(true);
-        currentPos = realCount + ri;
-        normalizePositionIfNeeded_Snap();
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-      } else {
-        track.dataset.ofS0Snap = "";
-        currentPos = realCount + ri;
-        centerBias = 0;
-        normalizePositionIfNeeded_Transform();
-        recalcSpan();
-        applyTransform(false);
-      }
-
-      requestAnimationFrame(() => {
-        setSettling(false);
-        slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        updateCenterClasses();
-        activateDot(getRealIndex());
-        if (isPlaying && !document.hidden) startProgressCycle();
-    // ===== [PATCH INSERT: reconcile.skipEnter.end] =====
-popSkipEnterLater();
-// ===== [PATCH END] =====
-
-      });
-    }
-
-    window.addEventListener(
-      "resize",
-      () => {
-        requestAnimationFrame(reconcileMode);
-      },
-      { passive: true }
-    );
-
-    if (document.readyState === "complete" || document.readyState === "interactive") init();
-    else document.addEventListener("DOMContentLoaded", init, { once: true });
-
-    window.addEventListener("load", init, { once: true });
-
-    buttonRow.dataset.ofS0Bound = instanceId;
-
-    // ===== [PATCH INSERT: of_s0.mark.mounted] =====
-container.dataset.ofS0Mounted = OF_S0_VERSION;
-buttonRow.dataset.ofS0Mounted = OF_S0_VERSION;
-// ===== [PATCH END] =====
-
-
-    return {
-      destroy() {
-        try { if (io) io.disconnect(); } catch (_) {}
-        try { ro.disconnect(); } catch (_) {}
-        stopProgressLoop();
-        clearTimeout(moveDoneTimer);
-      },
-    };
-  }
-
-  function mount() {
-    const marked = Array.from(document.querySelectorAll("[data-of-s0='1']"));
-    const fallback = document.querySelectorAll(".section0-carousel");
-    const targets = marked.length ? marked : fallback.length === 1 ? [fallback[0]] : [];
-
-    targets.forEach((c) => {
-      try {
-        createCarousel(c);
-      } catch (e) {
-        console.warn("[of-s0] mount error:", e);
-      }
-    });
-  }
-
- // window[KEY] = { version: "4.3.0", mount };
-  mount();
-})();
-  </script>
-</body>
-</html><!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Section0 Carousel</title>
-  <style>
-    /* =========================
-       Carousel layout (Peek Preview)
-       ========================= */
-
-    /* Desktop */
-    @media (min-width: 769px) {
-      .section0-carousel{
-        width: 100%;
-        padding: 0 10%;
-        margin: 0 auto;
-        box-sizing: border-box;
-        background: #f9f9f9;
-        overflow-x: clip;
-        overflow-y: visible;
-        position: relative;
-        height: 495px;
-        margin-top: 5px; /* 把原本的间距拉近 */
-      }
-      .section0-track{
-        display: flex;
-        gap: 15px; /* 图片之间间隔 15px */
-        transition: transform 0.5s ease-in-out;
-        justify-content: flex-start;
-        will-change: transform;
-        transform: translateZ(0);
-      }
-      .section0-slide{
-        flex: 0 0 auto;
-
-        /* ===== [PATCH] 关键：不要 width:100% 撑满，否则“gap=15”不是卡片间距而是容器间距 ===== */
-        width: auto;              /* ✅ 让 slide 按内容（img）自然定宽，真实 gap 永远 15px */
-        height: 495px;
-
-        position: relative;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      .section0-slide img{
-        /* 你原来是固定 1013px；这里仍以 1013 为上限，避免小屏桌面时卡片宽过头 */
-        width: min(1013px, 80vw);
-        height: 495px;
-        object-fit: cover;
-         border-radius:none; /*16px;*/
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-        transition: transform 0.4s ease, opacity 0.4s ease;
-        -webkit-user-drag: none;
-        user-select: none;
-      }
-    }
-
-    /* Mobile */
-@media (max-width: 768px) {
-  .section0-carousel{
-    width: 100vw;
-    padding: 0;
-    box-sizing: border-box;
-    overflow-x: hidden;
-    margin: 0 auto;
-    position: relative !important;
-  }
-
-  .section0-track{
-    display: flex;
-    gap: 15px;
-    align-items: center;
-
-    width: 100vw;
-    box-sizing: border-box;
-    padding-left: calc((100vw - 85vw) / 2);
-    padding-right: calc((100vw - 85vw) / 2);
-    scroll-padding-left: calc((100vw - 85vw) / 2);
-    scroll-padding-right: calc((100vw - 85vw) / 2);
-  
-}
-
-      .section0-slide{
-        flex: 0 0 auto;
-        width: 85vw;
-        max-width: 400px;
-        aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
-        scroll-snap-align: center;
-        overflow: hidden;
-        position: relative;
-         border-radius:none; /*16px;*/
-      }
-      .section0-slide img{
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        filter: none !important;
-        opacity: 1 !important;
-        -webkit-user-drag: none;
-        user-select: none;
-      }
-    }
-
-    /* =========================
-       Apple TV-like dots + play (NO keyframes)
-       ========================= */
-
-    .section0-buttonRow{
-      width: min(920px, 92vw);
-      height: 44px;
-      margin: 15px auto 16px auto;  /* ✅ 与轮播区域下方总间隔 15px */
-      position: relative;
-      z-index: 999;
-      background: transparent;
-      border: none;
-      box-shadow: none;
-    }
-    .section0-buttonRow.is-hidden{
-      opacity: 0;
-      transform: translateY(-10px) scale(.96);
-      pointer-events: none;
-    }
-
-    .btn-container{
-      position: absolute;
-      top: 50%;
-      opacity: 1;
-      pointer-events: auto;
-    }
-    #leftBtnContainer{
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-    #rightBtnContainer{
-      right: 10px;
-      left: auto;
-      transform: translateY(-50%);
-    }
-
-    #section0-leftCapsule{
-      width: auto;
-      height: auto;
-      background: transparent;
-      border: none;
-      border-radius: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .dots{
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 0 14px;
-      user-select: none;
-    }
-
-    /* ✅ 物理进度：外层浅灰 pill + 内层深色 fill（scaleX 缓慢推进） */
-    .dot{
-      --dotS: 6px;      /* 小圆直径 */
-      --pillW: 44px;    /* 胶囊宽 */
-      --pillH: 8px;     /* 胶囊高 */
-      --p: 0;           /* 进度 0..1 */
-
-      width: var(--dotS);
-      height: var(--dotS);
-      border-radius: 999px;
-      background: rgba(0,0,0,.30);
-      opacity: .85;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-      transform: translateZ(0);
-      transition:
-        width .34s cubic-bezier(.22,.61,.36,1),
-        height .34s cubic-bezier(.22,.61,.36,1),
-        background-color .22s ease,
-        opacity .22s ease;
-    }
-    /* 进度 fill */
-    .dot::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      border-radius: 999px;
-      background: rgba(0,0,0,.80);
-      transform-origin: left center;
-      transform: scaleX(var(--p));
-      opacity: 0;
-      transition: opacity .18s ease;
-      box-shadow: inset 0 0 0 0 rgba(0,0,0,0);
-    }
-
-    /* Active pill base track */
-    .dot.is-active{
-      width: var(--pillW);
-      height: var(--pillH);
-      background: rgba(0,0,0,.16);  /* ✅ 浅灰轨道 */
-      opacity: 1;
-    }
-    .dot.is-active::after{
-      opacity: 1;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
-    }
-
-    /* 蓄力阶段：保持小圆（停顿），然后放开进入胶囊拉伸 */
-    .dot.is-active.is-charge{
-      width: var(--dotS);
-      height: var(--dotS);
-      background: rgba(0,0,0,.40);
-      opacity: .95;
-    }
-
-    /* ===== Play/Pause button (with shadow) ===== */
-    #section0-rightButton{
-      width: 34px;
-      height: 34px;
-      border: none;
-      border-radius: 50%;
-      background: rgba(0,0,0,.06);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 10px 22px rgba(0,0,0,.18);
-      transition: transform .18s ease, opacity .18s ease, background-color .18s ease, box-shadow .18s ease;
-      user-select: none;
-    }
-    #section0-rightButton:hover{
-      background: rgba(0,0,0,.08);
-      box-shadow: 0 12px 26px rgba(0,0,0,.20);
-    }
-    #section0-rightButton:active{ transform: scale(.96); }
-
-    #section0-playIcon{
-      font-size: 14px;
-      line-height: 1;
-      color: rgba(0,0,0,.62);
-      letter-spacing: -1px;
-      user-select: none;
-      transform: translateX(1px);
-    }
-
-    /* Click hints（overlay已删除） */
-    .section0-slide.is-center{ cursor: pointer; }
-    .section0-slide.is-neighbor{ cursor: pointer; }
-
-    /* =========================
-       [NEW] Overlay (base classes before isolation)
-       - 真正生效样式在 JS 注入的 of-s0 scoped CSS 内
-       - 这里给一个兜底，避免极短时间内闪烁
-       ========================= */
-    .section0-overlay,
-    .of-s0-overlay{
-      position:absolute;
-      inset:0;
-      pointer-events:none; /* 只有按钮可点 */
-    }
-    .section0-explore,
-    .of-s0-explore{
-      pointer-events:auto;
-    }
-  </style>
-</head>
-
-<body>
- <!-- 轮播容器 -->
-  <div class="section0-carousel" data-of-s0="1">
-    <div class="section0-track">
-
-      <!-- ✅ 你可按需修改每张的 data-url / data-title / data-desc -->
-      <div class="section0-slide"
-           data-url="https://oliverfr.com/agent-test.html#s0=0"
-           data-title="前端UI"
-           data-desc="后端Python+FastApi+Langgraph等">
-        <img src="slide1.jpg" alt="nature1" />
-        <div class="section0-overlay">
-          <div class="section0-title">前端UI</div>
-          <div class="section0-desc">Dockerfile云端容器+后端Python/FastApi/Langgraph等。</div>
-          <button class="section0-explore" type="button">Explore</button>
-        </div>
-      </div>
-
-      <div class="section0-slide"
-           data-url="https://oliverfr.com/go-agent.html#s0=1"
-           data-title="Admin Panel"
-           data-desc="网关+Postgres Sql等">
-        <img src="slide2.jpg" alt="nature2" />
-        <div class="section0-overlay">
-          <div class="section0-title">Admin Panel</div>
-          <div class="section0-desc">网关+Postgres Sql等</div>
-          <button class="section0-explore" type="button">Explore</button>
-        </div>
-      </div>
-
-
-    </div>
-  </div>
-
-  <!-- 按钮行容器 -->
-  <div id="section0-buttonRow" class="section0-buttonRow is-hidden">
-    <div id="leftBtnContainer" class="btn-container">
-      <div id="section0-leftCapsule">
-        <div class="dots" id="section0-dotsWrap">
-          <div class="dot" data-index="0"></div>
-          <div class="dot" data-index="1"></div>
-
-        </div>
-      </div>
-    </div>
-
-    <div id="rightBtnContainer" class="btn-container">
-      <div id="section0-rightButton" aria-label="Play/Pause">
-        <span id="section0-playIcon">❚❚</span>
-      </div>
-    </div>
-  </div>
-
-  <script>
-(function () {
-  "use strict";
-
-  /**
-   * Oliverfr Section0 Carousel (Isolated, CSS-preserving)
-   *
-   * [UPGRADE v4.3.0]
-   * 1) 自动轮播“只由 Play/Pause 控制”：邻居点击/滑动/点 dot 只会暂时停进度，结束后若处于播放状态会自动续播；
-   *    进入新页面（点中心图/Explore）会强制 pause，回到页面保持暂停，必须点 Play 才继续。
-   * 2) BFCache/缓存恢复：pageshow/focus/visibilitychange 统一自愈，避免白屏与进度卡死。
-   * 3) 根除“下一轮开始前快速回弹”：去掉可见的 pre-normalize 路径；改为 moving+settling 下无动画归位，且不在归位间隙闪 overlay。
-   * 4) 移动端不再用 IO 自动隐藏 buttonRow（避免 iOS 首屏/缓存导致按钮丢失）。
-   */
-
- // const KEY = Symbol.for("oliverfr.of_s0_carousel_widget_css_preserve_v4_3");
-  //if (window[KEY] && window[KEY].version === "4.3.0") return;
-
-  const OF_S0_VERSION = "4.3.1";
-
-  function uid() {
-    return `of_s0_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
-  }
-
-  function qsa(root, sel) {
-    return Array.from(root.querySelectorAll(sel));
-  }
-
-  function closestFollowingButtonRow(container) {
-    const parent = container.parentElement || document.body;
-    const rows = Array.from(parent.querySelectorAll(".section0-buttonRow, .of-s0-buttonRow"));
-    let best = null;
-
-    for (const r of rows) {
-      if (!r || r.dataset.ofS0Bound) continue;
-      try {
-        const pos = container.compareDocumentPosition(r);
-        if (pos & Node.DOCUMENT_POSITION_FOLLOWING) {
-          if (!best) best = r;
-          else {
-            const rel = r.compareDocumentPosition(best);
-            if (rel & Node.DOCUMENT_POSITION_PRECEDING) best = r;
-          }
-        }
-      } catch (_) {}
-    }
-
-    if (!best) {
-      let el = container.nextElementSibling;
-      for (let i = 0; i < 32 && el; i++) {
-        if (
-          el.classList &&
-          (el.classList.contains("section0-buttonRow") || el.classList.contains("of-s0-buttonRow")) &&
-          !el.dataset.ofS0Bound
-        ) {
-          best = el;
-          break;
-        }
-        if (el.classList && (el.classList.contains("section0-carousel") || el.classList.contains("of-s0-carousel")))
-          break;
-        el = el.nextElementSibling;
-      }
-    }
-    return best;
-  }
-
-  function injectScopedCssOnce() {
-    const STYLE_ID = "of-s0-carousel-style-css-preserve-v4-3";
-    const exists = document.getElementById(STYLE_ID);
-    const style = exists || document.createElement("style");
-    style.id = STYLE_ID;
-
-    style.textContent = `
-/* =========================
-   [OF-S0] Scoped CSS (CSS-preserving + overlay enter-motion + anti-jitter)
-   ========================= */
-
-/* Desktop */
-@media (min-width: 769px) {
-  .of-s0-carousel{
-    width: 100%;
-    padding: 0 10%;
-    margin: 0 auto;
-    box-sizing: border-box;
-    background: #f9f9f9;
-    overflow-x: clip;
-    overflow-y: visible;
-    position: relative;
-    height: 495px;
-    margin-top: 5px; /* ✅ 与原始保持一致 */
-  }
-  .of-s0-track{
-    display: flex;
-    gap: 15px;
-    transition: transform 0.5s ease-in-out;
-    justify-content: flex-start;
-    will-change: transform;
-    transform: translateZ(0);
-  }
-  .of-s0-slide{
-    flex: 0 0 auto;
-    width: auto;
-    height: 495px;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    /* 关键：降低子像素抖动 */
-    contain: layout paint;
-    transform: translateZ(0);
-  }
-  .of-s0-slide img{
-    width: min(1013px, 80vw);
-    height: 495px;
-    object-fit: cover;
-    border-radius:none; /*16px;*/
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    transition: transform 0.4s ease, opacity 0.4s ease;
-    -webkit-user-drag: none;
-    user-select: none;
-  }
-}
-
-/* Mobile */
- /* ===== [PATCH REPLACE: mobile.peek.symmetric.padding.move.to.track] ===== */
-@media (max-width: 768px) {
-  .of-s0-carousel{
-    width: 100vw;
-    padding: 0;                 /* ✅ 关键：不再让 100vw+padding 变成“超宽盒子” */
-    box-sizing: border-box;     /* ✅ 避免子像素裁剪导致左右不对称 */
-    overflow-x: hidden;
-    margin: 0 auto;
-    position: relative !important;
-  }
-
-  .of-s0-track{
-    display: flex;
-    gap: 15px;
-    align-items: center;
-
-    /* ✅ 关键：把“居中留白”从 carousel 挪到 scroll 容器本身 */
-    width: 100vw;
-    box-sizing: border-box;
-    padding-left: var(--of-s0-pad, calc((100vw - 85vw) / 2));
-    padding-right: var(--of-s0-pad, calc((100vw - 85vw) / 2));
-    scroll-padding-left: var(--of-s0-pad, calc((100vw - 85vw) / 2));
-    scroll-padding-right: var(--of-s0-pad, calc((100vw - 85vw) / 2));
-
-    /* scroll-snap skin */
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    touch-action: pan-x pan-y;
-    scrollbar-width: none;
-    will-change: scroll-position;
-    /* ===== [PATCH INSERT: snap.overscroll.behavior] ===== */
-overscroll-behavior-x: contain;
-overscroll-behavior-y: none;
-/* ===== [PATCH END] ===== */
-
-  }
-  .of-s0-track::-webkit-scrollbar{ display:none; }
-
-/* ===== [PATCH END] ===== */
-
-
-  .of-s0-slide{
-    flex: 0 0 auto;
-    width: 85vw;
-    max-width: 400px;
-    aspect-ratio: 1 / 0.7;
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
-    overflow: hidden;
-    position: relative;
-   border-radius:none; /*16px;*/
-
-    contain: layout paint;
-    transform: translateZ(0);
-  }
-  .of-s0-slide img{
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    filter: none !important;
-    opacity: 1 !important;
-    -webkit-user-drag: none;
-    user-select: none;
-  }
-}
-
-/* =========================
-   Dots + Play (scoped)
-   ========================= */
-
-.of-s0-buttonRow{
-  width: min(920px, 92vw);
-  height: 44px;
-  margin: 15px auto 16px auto;
-  position: relative;
-  z-index: 999;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-.of-s0-buttonRow.is-hidden{
-  opacity: 0;
-  transform: translateY(-10px) scale(.96);
-  pointer-events: none;
-}
-
-.of-s0-btn-container{
-  position: absolute;
-  top: 50%;
-  opacity: 1;
-  pointer-events: auto;
-}
-.of-s0-leftBtnContainer{
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-.of-s0-rightBtnContainer{
-  right: 10px;
-  left: auto;
-  transform: translateY(-50%);
-}
-
-.of-s0-leftCapsule{
-  width: auto;
-  height: auto;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.of-s0-dots{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  user-select: none;
-}
-
-.of-s0-dot{
-  --dotS: 6px;
-  --pillW: 44px;
-  --pillH: 8px;
-  --p: 0;
-
-  width: var(--dotS);
-  height: var(--dotS);
-  border-radius: 999px;
-  background: rgba(0,0,0,.30);
-  opacity: .85;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transform: translateZ(0);
-  transition:
-    width .34s cubic-bezier(.22,.61,.36,1),
-    height .34s cubic-bezier(.22,.61,.36,1),
-    background-color .22s ease,
-    opacity .22s ease;
-}
-
-.of-s0-dot::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius: 999px;
-  background: rgba(0,0,0,.80);
-  transform-origin: left center;
-  transform: scaleX(var(--p));
-  opacity: 0;
-  transition: opacity .18s ease;
-  box-shadow: inset 0 0 0 0 rgba(0,0,0,0);
-}
-
-.of-s0-dot.is-active{
-  width: var(--pillW);
-  height: var(--pillH);
-  background: rgba(0,0,0,.16);
-  opacity: 1;
-}
-.of-s0-dot.is-active::after{
-  opacity: 1;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
-}
-.of-s0-dot.is-active.is-charge{
-  width: var(--dotS);
-  height: var(--dotS);
-  background: rgba(0,0,0,.40);
-  opacity: .95;
-}
-
-.of-s0-rightButton{
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(0,0,0,.06);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 10px 22px rgba(0,0,0,.18);
-  transition: transform .18s ease, opacity .18s ease, background-color .18s ease, box-shadow .18s ease;
-  user-select: none;
-}
-.of-s0-rightButton:hover{
-  background: rgba(0,0,0,.08);
-  box-shadow: 0 12px 26px rgba(0,0,0,.20);
-}
-.of-s0-rightButton:active{ transform: scale(.96); }
-
-.of-s0-playIcon{
-  font-size: 14px;
-  line-height: 1;
-  color: rgba(0,0,0,.62);
-  letter-spacing: -1px;
-  user-select: none;
-  transform: translateX(1px);
-}
-
-/* Click hints */
-.of-s0-slide.is-center{ cursor: pointer; }
-.of-s0-slide.is-neighbor{ cursor: pointer; }
-
-/* =========================
-   Overlay + Enter Motion（按你指定的 translateY(50px)+0.6s）
-   ========================= */
-
-.of-s0-overlay{
-  position: absolute;
-  inset: 0;
-
-  /* 允许按钮可点；同时保持滑动手感 */
-  pointer-events: auto;
-  touch-action: pan-x pan-y;
-  -webkit-tap-highlight-color: transparent;
-
-  z-index: 40;
-
-  opacity: 0;
-  transition: opacity .22s ease;
-  will-change: opacity;
-  backface-visibility: hidden;
-  transform: translate3d(0,0,0);
-}
-
-/* 运动/拖拽/滚动期间：强制隐藏 overlay（灭抖、灭跟随） */
-.of-s0-track.is-moving .of-s0-overlay{
-  opacity: 0 !important;
-}
-
-/* settling 期间：也强制隐藏 overlay，防止归位间隙闪一下 */
-.of-s0-track.is-settling .of-s0-overlay{
-  opacity: 0 !important;
-  transition: none !important;
-}
-
-/* 只有中心卡片允许 overlay 可见 */
-.of-s0-slide.is-center .of-s0-overlay{
-  opacity: 1;
-}
-
-/* ===== 你指定的进入动作：translateY(50px) + 0.6s cubic + opacity 0.6s ===== */
-.of-s0-title,
-.of-s0-bottomBox{
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  transform: translate3d(0,50px,0);
-  opacity: 0;
-  transition: transform 0.6s cubic-bezier(0.22,1,0.36,1), opacity 0.6s ease-in-out;
-}
-
-/* 中心卡片触发“进入” */
-.of-s0-slide.is-center .of-s0-title,
-.of-s0-slide.is-center .of-s0-bottomBox{
-  transform: translate3d(0,0,0);
-  opacity: 1;
-}
-
-/* settling 期间：彻底禁止任何过渡，并统一回到进入前态 */
-.of-s0-track.is-settling .of-s0-title,
-.of-s0-track.is-settling .of-s0-bottomBox{
-  transition: none !important;
-  transform: translate3d(0,50px,0) !important;
-  opacity: 0 !important;
-}
-
-/* ===== [PATCH INSERT: s0.mobile.settling.keep.translateX + wrap.skipEnter] ===== */
-/* 关键：移动端 settling 也必须保留 translateX(-50%)，否则会出现“斜向/抖动” */
-@media (max-width: 768px) {
-  .of-s0-track.is-settling .of-s0-title,
-  .of-s0-track.is-settling .of-s0-bottomBox{
-    transform: translateX(-50%) translate3d(0,50px,0) !important;
-  }
-}
-
-/* 首尾 wrap 归位时：仅 1 帧跳过入场过渡，避免 Explore/标题/描述反复“进场抖动” */
-.of-s0-track.is-skipEnter .of-s0-overlay{
-  transition: none !important;
-}
-.of-s0-track.is-skipEnter .of-s0-title,
-.of-s0-track.is-skipEnter .of-s0-bottomBox{
-  transition: none !important;
-  transform: translate3d(0,0,0) !important;
-  opacity: 1 !important;
-}
-@media (max-width: 768px) {
-  .of-s0-track.is-skipEnter .of-s0-title,
-  .of-s0-track.is-skipEnter .of-s0-bottomBox{
-    transform: translateX(-50%) translate3d(0,0,0) !important;
-  }
-}
-/* ===== [PATCH END] ===== */
-
-/* 基础文本样式（保持你现有视觉） */
-.of-s0-title,
-.of-s0-desc{
-  pointer-events: none;
-  max-width: min(520px, 70%);
-  text-shadow: 0 10px 22px rgba(0,0,0,.25);
-}
-
-.of-s0-explore{
-  pointer-events: auto;
-  touch-action: manipulation;
-  border: none;
-  cursor: pointer;
-  font-weight: 700;
-  letter-spacing: .2px;
-  border-radius: 999px;
-  background: #1f6fff;
-  color: #fff;
-  box-shadow: 0 12px 26px rgba(0,0,0,.18);
-  transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.of-s0-explore:hover{ box-shadow: 0 14px 30px rgba(0,0,0,.22); }
-.of-s0-explore:active{ transform: scale(.97); }
-
-/* Desktop overlay positioning */
-@media (min-width: 769px) {
-  .of-s0-title{
-    position: absolute;
-    left: 80px;
-    top: 30px;
-    font-size: 28px;
-    font-weight: 800;
-    color: #ffffff;
-    max-width: min(720px, 70%);
-  }
-
-  .of-s0-bottomBox{
-    position: absolute;
-    left: 80px;
-    bottom: 30px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 18px;
-    max-width: min(820px, 78%);
-  }
-
-  .of-s0-desc{
-    order: 1;
-    font-size: 16px;
-    line-height: 1.2;
-    color:#1f6fff;
-    margin: 0;
-    max-width: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .of-s0-explore{
-    padding: 12px 18px;
-    font-size: 14px;
-  }
-}
-
-/* Mobile overlay positioning */
-@media (max-width: 768px) {
-  .of-s0-title{
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%) translate3d(0,50px,0);
-    top: 20px;
-    font-size: 16px;
-    font-weight: 800;
-    color: #1f6fff;
-    text-align: center;
-    max-width: min(86%, 360px);
-    text-shadow: none;
-    padding: 0 10px;
-    box-sizing: border-box;
-    opacity: 0;
-    transition: transform 0.6s cubic-bezier(0.22,1,0.36,1), opacity 0.6s ease-in-out;
-  }
-  .of-s0-slide.is-center .of-s0-title{
-    transform: translateX(-50%) translate3d(0,0,0);
-    opacity: 1;
-  }
-
-  .of-s0-bottomBox{
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%) translate3d(0,50px,0);
-    bottom: 30px;
-    width: min(86%, 360px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    text-align: center;
-    opacity: 0;
-    transition: transform 0.6s cubic-bezier(0.22,1,0.36,1), opacity 0.6s ease-in-out;
-  }
-  .of-s0-slide.is-center .of-s0-bottomBox{
-    transform: translateX(-50%) translate3d(0,0,0);
-    opacity: 1;
-  }
-
-  .of-s0-desc{
-    font-size: 12px;
-    line-height: 1.35;
-    color:#1f6fff;
-    text-shadow: 0 10px 22px rgba(0,0,0,.25);
-    white-space: normal;
-    word-break: break-word;
-  }
-
-  .of-s0-explore{
-    padding: 10px 16px;
-    font-size: 13px;
-  }
-}
-`.trim();
-
-    if (!exists) document.head.appendChild(style);
-  }
-
-  function isolateDom(container, buttonRow, instanceId) {
-    container.dataset.ofS0Scope = instanceId;
-    buttonRow.dataset.ofS0Scope = instanceId;
-
-    const idKills = new Set([
-      "section0-buttonRow",
-      "leftBtnContainer",
-      "rightBtnContainer",
-      "section0-leftCapsule",
-      "section0-dotsWrap",
-      "section0-rightButton",
-      "section0-playIcon",
-    ]);
-
-    function stripIds(root) {
-      qsa(root, "[id]").forEach((el) => {
-        const id = el.id || "";
-        if (idKills.has(id) || id.startsWith("section0-")) {
-          el.setAttribute("data-of-s0-old-id", id);
-          el.id = "";
-        }
-      });
-    }
-
-    stripIds(container);
-    stripIds(buttonRow);
-
-    container.classList.remove("section0-carousel");
-    container.classList.add("of-s0-carousel");
-
-    const track = container.querySelector(".section0-track");
-    if (track) {
-      track.classList.remove("section0-track");
-      track.classList.add("of-s0-track");
-    }
-
-    qsa(container, ".section0-slide").forEach((s) => {
-      s.classList.remove("section0-slide");
-      s.classList.add("of-s0-slide");
-    });
-
-    qsa(container, ".section0-overlay").forEach((o) => {
-      o.classList.add("of-s0-overlay");
-    });
-    qsa(container, ".section0-title").forEach((t) => {
-      t.classList.add("of-s0-title");
-    });
-    qsa(container, ".section0-desc").forEach((d) => {
-      d.classList.add("of-s0-desc");
-    });
-    qsa(container, ".section0-explore").forEach((b) => {
-      b.classList.add("of-s0-explore");
-    });
-
-    buttonRow.classList.remove("section0-buttonRow");
-    buttonRow.classList.add("of-s0-buttonRow");
-
-    let leftBtnContainer = buttonRow.querySelector("[data-of-s0-old-id='leftBtnContainer']") || null;
-    let rightBtnContainer = buttonRow.querySelector("[data-of-s0-old-id='rightBtnContainer']") || null;
-
-    if (!leftBtnContainer || !rightBtnContainer) {
-      const btns = Array.from(buttonRow.querySelectorAll(".btn-container"));
-      if (!leftBtnContainer) leftBtnContainer = btns[0] || leftBtnContainer;
-      if (!rightBtnContainer) rightBtnContainer = btns[1] || rightBtnContainer;
-    }
-
-    if (leftBtnContainer) {
-      leftBtnContainer.classList.add("of-s0-btn-container", "of-s0-leftBtnContainer");
-      leftBtnContainer.classList.remove("btn-container");
-    }
-    if (rightBtnContainer) {
-      rightBtnContainer.classList.add("of-s0-btn-container", "of-s0-rightBtnContainer");
-      rightBtnContainer.classList.remove("btn-container");
-    }
-
-    const leftCapsule = buttonRow.querySelector("[data-of-s0-old-id='section0-leftCapsule']") || null;
-    if (leftCapsule) leftCapsule.classList.add("of-s0-leftCapsule");
-
-    const dotsWrap = buttonRow.querySelector("[data-of-s0-old-id='section0-dotsWrap'], .dots") || null;
-    if (dotsWrap) {
-      dotsWrap.classList.add("of-s0-dots");
-      dotsWrap.classList.remove("dots");
-      qsa(dotsWrap, ".dot").forEach((d) => {
-        d.classList.add("of-s0-dot");
-        d.classList.remove("dot");
-      });
-    }
-
-    const rightButton =
-      buttonRow.querySelector("[data-of-s0-old-id='section0-rightButton'], [aria-label='Play/Pause']") || null;
-    if (rightButton) rightButton.classList.add("of-s0-rightButton");
-
-    const playIcon =
-      buttonRow.querySelector("[data-of-s0-old-id='section0-playIcon']") ||
-      (rightButton ? rightButton.querySelector("span") : null);
-    if (playIcon) playIcon.classList.add("of-s0-playIcon");
-
-    return { track, dotsWrap, rightButton, playIcon };
-  }
-
-  function createCarousel(container) {
-
-    // ===== [PATCH INSERT: of_s0.mount.guard.by.container.dataset] =====
-if (container && container.dataset && container.dataset.ofS0Mounted === OF_S0_VERSION) return null;
-// ===== [PATCH END] =====
-
-    const buttonRow = closestFollowingButtonRow(container);
-    if (!buttonRow) return null;
-
-    const instanceId = uid();
-    injectScopedCssOnce();
-
-    const { track, dotsWrap, rightButton, playIcon } = isolateDom(container, buttonRow, instanceId);
-    if (!track || !dotsWrap) return null;
-
-    // ===== [PATCH INSERT: track.hide.until.aligned] =====
-// 初始先隐藏轨道：等 Peek Preview 对齐完成后再淡入，用户不会看到刷新/归位“来回回弹”
-track.style.opacity = "0";
-// ===== [PATCH END] =====
-
-
-    // ===== transition tuning（更丝滑但不拖沓）=====
-    const TRANSITION_MS = 1080;//原820
-
-    // ===== [PATCH INSERT: desktop.transform.easeInOut.gentle] =====
-const DESKTOP_EASE = "cubic-bezier(0.66,0,0.34,1)"; // 慢起步 + 慢收尾（解决桌面端“噌一下”）
-// ===== [PATCH END] =====
-
-
-    // ===== [PATCH INSERT: snap.smooth.enter.constants] =====
-//const SNAP_ANIM_MS = 720;          // 移动端“程序滚动”更慢更优雅（用于自动轮播/点圆点/点邻居）
-//const AUTO_START_DELAY_MS = 320;   // 首次对齐 Peek Preview 后再启动进度，避免刷新时回弹
-//const FADE_IN_MS = 260;            // 轨道淡入时长
-// ===== [PATCH END] =====
-
-    const SNAP_ANIM_MS = 820;          // 程序切换更慢一点（更优雅）
-const SNAP_SETTLE_MS = 520;        // 手势结束的“优雅收尾”
-const AUTO_START_DELAY_MS = 320;
-const FADE_IN_MS = 420;            // 首次淡入更柔和，避免“猛一下出现”
-
-
-    const DOT_CHARGE_MS = 240;
-    const DOT_STRETCH_MS = 320;
-    const DOT_PROGRESS_MS = 4600;
-
-    const isMobileSnap = () =>
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(max-width: 768px)").matches;
-
-    let originalSlides = Array.from(track.querySelectorAll(".of-s0-slide"));
-    const realCount = originalSlides.length;
-    if (!realCount) return null;
-
-    function normalizeUrlMaybe(url) {
-      const u = (url || "").trim();
-      if (!u) return "";
-      return u;
-    }
-
-// ===== [PATCH REPLACE: openUrl.noNavigateCurrentTab] =====
-function openUrl(url) {
-  const u = normalizeUrlMaybe(url);
-  if (!u) return;
-
-  // 关键原则：只允许新开 tab；当前页面永不跳转（不进入 URL）
-  // 用 <a target="_blank"> 方式触发，避免 window.open 返回 null 导致误走 location.href
-  try {
-    const a = document.createElement("a");
-    a.href = u;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.style.position = "fixed";
-    a.style.left = "-9999px";
-    a.style.top = "-9999px";
-    a.style.width = "1px";
-    a.style.height = "1px";
-    a.style.opacity = "0";
-    document.body.appendChild(a);
-
-    // 必须在用户手势 click 链路中触发，浏览器才会允许新开
-    a.click();
-
-    // 清理
-    document.body.removeChild(a);
-  } catch (_) {
-    // 兜底也不允许跳当前页：直接静默失败即可（符合你的要求）
-  }
-}
-// ===== [PATCH END] =====
-
-
-    function getSlideUrl(slide) {
-      if (!slide) return "";
-      const ds = slide.dataset || {};
-      const cand =
-        (ds.url && String(ds.url)) ||
-        (ds.href && String(ds.href)) ||
-        (ds.link && String(ds.link)) ||
-        (ds.to && String(ds.to)) ||
-        "";
-      const url1 = normalizeUrlMaybe(cand);
-      if (url1) return url1;
-
-      const a = slide.querySelector("a[href]");
-      if (a && a.getAttribute) {
-        const href = normalizeUrlMaybe(a.getAttribute("href") || "");
-        if (href) return href;
-      }
-      return "";
-    }
-
-    // ===== Dots progress / Play state =====
-    let isPlaying = true;
-    let isMoving = false;
-
-    // ===== [PATCH INSERT: snap.no_bounce.ready.flag] =====
-let isReady = false;        // Peek Preview 对齐完成后才允许自动轮播（防刷新/归位回弹）
-let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防止来回拉扯）
-// ===== [PATCH END] =====
-
-
-    let rafId = 0;
-    let chargeTimer = 0;
-    let cycleToken = 0;
-    let activeDotIdx = 0;
-
-    function dotsAll() {
-      return Array.from(dotsWrap.querySelectorAll(".of-s0-dot"));
-    }
-
-    function resetAllDots() {
-      dotsAll().forEach((d) => {
-        d.classList.remove("is-active", "is-charge");
-        d.style.setProperty("--p", "0");
-      });
-    }
-
-    function activateDot(idx) {
-      const dots = dotsAll();
-      resetAllDots();
-      const d = dots[idx];
-      if (!d) return;
-
-      activeDotIdx = idx;
-      d.classList.add("is-active", "is-charge");
-      d.style.setProperty("--p", "0");
-
-      clearTimeout(chargeTimer);
-      chargeTimer = setTimeout(() => d.classList.remove("is-charge"), DOT_CHARGE_MS);
-    }
-
-    function setDotProgress(idx, p) {
-      const d = dotsAll()[idx];
-      if (!d) return;
-      d.style.setProperty("--p", String(Math.max(0, Math.min(1, p))));
-    }
-
-    function stopProgressLoop() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = 0;
-    }
-
-    function updatePlayButtonUI() {
-      if (!playIcon) return;
-      playIcon.textContent = isPlaying ? "❚❚" : "►";
-    }
-
-    function play() {
-      isPlaying = true;
-      updatePlayButtonUI();
-      startProgressCycle();
-    }
-
-    function pause() {
-      isPlaying = false;
-      updatePlayButtonUI();
-      stopProgressLoop();
-    }
-
-    function isSnapMode() {
-      return isMobileSnap();
-    }
-
-    function getRealIndex() {
-      if (realCount <= 1) return 0;
-      const el = slides[currentPos];
-      const ri = el ? parseInt(el.dataset.realIndex || "0", 10) : 0;
-      return Number.isFinite(ri) ? ri : 0;
-    }
-
-    function startProgressCycle() {
-     // stopProgressLoop();
-      //if (!isPlaying || document.hidden || realCount <= 1) return;
-      //if (isMoving) return;
-
-      stopProgressLoop();
-if (!isReady) return; // ===== [PATCH] Peek Preview 未稳定前不启动进度/不触发 next =====
-if (!isPlaying || document.hidden || realCount <= 1) return;
-if (isMoving) return;
-
-
-      const myToken = ++cycleToken;
-      const idx = getRealIndex();
-      activateDot(idx);
-
-      const startAt = performance.now();
-      const effectiveStart = startAt + DOT_CHARGE_MS + DOT_STRETCH_MS;
-
-      function tick(now) {
-        if (myToken !== cycleToken) return;
-        if (!isPlaying || document.hidden) {
-          stopProgressLoop();
-          return;
-        }
-        if (isMoving) {
-          stopProgressLoop();
-          return;
-        }
-
-        const t = now - effectiveStart;
-        const p = t <= 0 ? 0 : t / DOT_PROGRESS_MS;
-        setDotProgress(activeDotIdx, p);
-
-        if (p >= 1) {
-          stopProgressLoop();
-          next(); /* 自动下一张 */
-          return;
-        }
-        rafId = requestAnimationFrame(tick);
-      }
-      rafId = requestAnimationFrame(tick);
-    }
-
-    function ensureOverlay(slide) {
-      if (!slide) return;
-
-      let overlay = slide.querySelector(".of-s0-overlay") || slide.querySelector(".section0-overlay");
-      if (!overlay) {
-        overlay = document.createElement("div");
-        overlay.className = "of-s0-overlay";
-        slide.appendChild(overlay);
-      } else {
-        if (!overlay.classList.contains("of-s0-overlay")) overlay.classList.add("of-s0-overlay");
-      }
-
-      let title = overlay.querySelector(".of-s0-title") || overlay.querySelector(".section0-title");
-      let desc = overlay.querySelector(".of-s0-desc") || overlay.querySelector(".section0-desc");
-      let btn = overlay.querySelector(".of-s0-explore") || overlay.querySelector(".section0-explore");
-
-      if (!title) {
-        title = document.createElement("div");
-        title.className = "of-s0-title";
-        overlay.appendChild(title);
-      } else if (!title.classList.contains("of-s0-title")) {
-        title.classList.add("of-s0-title");
-      }
-
-      let bottom = overlay.querySelector(".of-s0-bottomBox");
-      if (!bottom) {
-        bottom = document.createElement("div");
-        bottom.className = "of-s0-bottomBox";
-        overlay.appendChild(bottom);
-      }
-
-      if (!desc) {
-        desc = document.createElement("div");
-        desc.className = "of-s0-desc";
-        bottom.appendChild(desc);
-      } else {
-        if (!desc.classList.contains("of-s0-desc")) desc.classList.add("of-s0-desc");
-        if (desc.parentElement !== bottom) bottom.appendChild(desc);
-      }
-
-      if (!btn) {
-        btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "of-s0-explore";
-        btn.textContent = "Explore";
-        bottom.appendChild(btn);
-      } else {
-        if (!btn.classList.contains("of-s0-explore")) btn.classList.add("of-s0-explore");
-        if (btn.parentElement !== bottom) bottom.appendChild(btn);
-      }
-
-      // 内容来源：优先 data-title / data-desc；否则保留原文字；再否则用 img.alt 兜底
-      const dataTitle = slide.dataset && slide.dataset.title ? String(slide.dataset.title) : "";
-      const dataDesc = slide.dataset && slide.dataset.desc ? String(slide.dataset.desc) : "";
-
-      if (dataTitle) title.textContent = dataTitle;
-      if (dataDesc) desc.textContent = dataDesc;
-
-      if (!title.textContent || !String(title.textContent).trim()) {
-        const img = slide.querySelector("img");
-        const alt = img && img.getAttribute ? String(img.getAttribute("alt") || "").trim() : "";
-        if (alt) title.textContent = alt;
-      }
-
-      const t = slide.dataset && slide.dataset.exploreText ? String(slide.dataset.exploreText).trim() : "";
-      if (t) btn.textContent = t;
-
-      // 避免重复绑定
-      if (!btn.dataset.ofS0BoundExplore) {
-        btn.dataset.ofS0BoundExplore = "1";
-        btn.addEventListener(
-          "click",
-          (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // ===== [FIX] 进入新页面：强制 pause；回到页面保持暂停，必须点 Play 才继续 =====
-            pause();
-            const url = getSlideUrl(slide);
-            if (url) openUrl(url);
-          },
-          { passive: false }
-        );
-      }
-    }
-
-    function syncDotsCount() {
-      const exist = Array.from(dotsWrap.querySelectorAll(".of-s0-dot"));
-      if (exist.length === realCount) return;
-      dotsWrap.innerHTML = "";
-      for (let i = 0; i < realCount; i++) {
-        const d = document.createElement("div");
-        d.className = "of-s0-dot";
-        d.dataset.index = String(i);
-        dotsWrap.appendChild(d);
-      }
-    }
-
-    function cloneTriple() {
-      if (realCount <= 1) return;
-      const base = originalSlides.map((n) => n.cloneNode(true));
-      track.innerHTML = "";
-
-      const frag = document.createDocumentFragment();
-      for (let pass = 0; pass < 3; pass++) {
-        for (let i = 0; i < base.length; i++) {
-          const node = base[i].cloneNode(true);
-          node.dataset.realIndex = String(i);
-          node.dataset.pass = String(pass);
-          frag.appendChild(node);
-        }
-      }
-      track.appendChild(frag);
-    }
-
-    syncDotsCount();
-    originalSlides.forEach(ensureOverlay);
-    cloneTriple();
-
-    let slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-    slides.forEach(ensureOverlay);
-
-    let currentPos = realCount > 1 ? realCount : 0;
-
-    // ===== Measurements（transform mode）=====
-    let slideSpan = 0;
-    let centerOffset = 0;
-    let centerBias = 0;
-
-    function clamp(n, a, b) {
-      return Math.max(a, Math.min(b, n));
-    }
-
-    function getGapPx() {
-      const cs = getComputedStyle(track);
-      const raw = cs.gap && cs.gap !== "normal" ? cs.gap : cs.columnGap || "0px";
-      const g = parseFloat(raw || "0");
-      return Number.isFinite(g) ? g : 0;
-    }
-
-// ===== [PATCH REPLACE: viewport.width.use.rect.to.avoid.rounding] =====
-function getViewportWidthExcludingPadding() {
-  const cs = getComputedStyle(container);
-  const pl = parseFloat(cs.paddingLeft || "0") || 0;
-  const pr = parseFloat(cs.paddingRight || "0") || 0;
-
-  // 用 rect 宽度（含小数）替代 clientWidth（整数），避免左右露出出现 1px 级别不对称
-  const rectW = container.getBoundingClientRect().width || 0;
-  const w = rectW - pl - pr;
-
-  return Number.isFinite(w) && w > 0 ? w : 0;
-}
-// ===== [PATCH END] =====
-
-
-    function recalcSpan() {
-      slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-      if (!slides.length) return 0;
-
-      const idx = Math.min(Math.max(currentPos, 0), slides.length - 1);
-      const el = slides[idx];
-      //const w = el ? el.offsetWidth || 0 : 0;
-// ===== [PATCH REPLACE: recalcSpan.use.rect.width] =====
-const w = el ? (el.getBoundingClientRect().width || 0) : 0;
-// ===== [PATCH END] =====
-
-      const gap = getGapPx();
-      slideSpan = w + gap > 0 ? w + gap : 0;
-
-      const viewportW = getViewportWidthExcludingPadding();
-      centerOffset = viewportW && w ? (viewportW - w) / 2 : 0;
-
-      if (!Number.isFinite(centerOffset)) centerOffset = 0;
-      return slideSpan;
-    }
-
-    function setSettling(on) {
-      if (!track) return;
-      if (on) track.classList.add("is-settling");
-      else track.classList.remove("is-settling");
-    }
-    function setMoving(on) {
-      if (!track) return;
-      if (on) track.classList.add("is-moving");
-      else track.classList.remove("is-moving");
-    }
-// ===== [PATCH INSERT: overlay.skipEnter.helpers] =====
-let skipEnterDepth = 0;
-let initFinishedAt = 0;
-
-function pushSkipEnter() {
-  if (!track) return;
-  skipEnterDepth++;
-  track.classList.add("is-skipEnter");
-}
-
-function popSkipEnterLater() {
-  // 跨 2 帧：覆盖“移除 is-settling / hardJump 对齐”的那一帧，避免触发二次入场
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      skipEnterDepth = Math.max(0, skipEnterDepth - 1);
-      if (skipEnterDepth === 0 && track) track.classList.remove("is-skipEnter");
-    });
-  });
-}
-// ===== [PATCH END] =====
-
-    function applyTransform(animated) {
-      if (!slideSpan) recalcSpan();
-      if (!slideSpan) return;
-
-      //track.style.transition = animated ? `transform ${TRANSITION_MS}ms cubic-bezier(.22,1,.36,1)` : "none";
-
-      // ===== [PATCH REPLACE: desktop.transform.transition.ease] =====
-track.style.transition = animated ? `transform ${TRANSITION_MS}ms ${DESKTOP_EASE}` : "none";
-// ===== [PATCH END] =====
-
-     // const tx = centerOffset + centerBias - currentPos * slideSpan;
-      //track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
-
-      // ===== [PATCH REPLACE: desktop.translate.by.offsetLeft.no.accumulate] =====
-// 用“真实 offsetLeft”而不是 currentPos * slideSpan 推算，彻底消灭 gap/取整的累积误差
-const el = slides[currentPos];
-const w = el ? (el.getBoundingClientRect().width || 0) : 0;
-
-// 这里的 viewportW 是“内容区宽度”（已扣 padding），且使用 rect，带小数
-const viewportW = getViewportWidthExcludingPadding();
-const center = (viewportW > 0 && w > 0) ? (viewportW - w) / 2 : 0;
-
-// offsetLeft 来自真实布局（包含 gap 的真实分配），不会累积偏差
-const left = el ? (el.offsetLeft || 0) : (currentPos * slideSpan);
-
-// 保留 3 位小数
-const tx = (center + centerBias - left);
-track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
-// ===== [PATCH END] =====
-
-    }
-
-    function updateCenterClasses() {
-      slides.forEach((s) => s.classList.remove("is-center", "is-neighbor"));
-      const center = slides[currentPos];
-      const left = slides[currentPos - 1];
-      const right = slides[currentPos + 1];
-      if (center) center.classList.add("is-center");
-      if (left) left.classList.add("is-neighbor");
-      if (right) right.classList.add("is-neighbor");
-    }
-
-    // ===== [FIX] 归位只改 currentPos，不在这里触发任何 transition/DOM 动画 =====
-    function normalizePositionIfNeeded_Transform() {
-      if (realCount <= 1) return false;
-      let changed = false;
-      if (currentPos >= realCount * 2) {
-        currentPos -= realCount;
-        changed = true;
-      } else if (currentPos < realCount) {
-        currentPos += realCount;
-        changed = true;
-      }
-      return changed;
-    }
-
-    // ===== Mobile snap mode =====
-    function setSnapModeEnabled(enabled) {
-      if (!enabled) return;
-      track.style.transition = "none";
-      track.style.transform = "none";
-      track.dataset.ofS0Snap = "1";
-    }
-
-    // ===== [PATCH INSERT: mobile.peek.pad.compute.3dp] =====
-function getViewportW() {
-  const vv = window.visualViewport;
-  const w1 = vv && vv.width ? vv.width : 0;
-  const w2 = document.documentElement && document.documentElement.clientWidth ? document.documentElement.clientWidth : 0;
-  const w3 = window.innerWidth || 0;
-  return Math.max(w1, w2, w3);
-}
-
-/**
- * 计算并设置 scroll 容器 padding，使 peek preview 左右露出严格对称。
- * 输出 px，保留 3 位小数，消灭 vw 子像素舍入差异。
- */
-function applyMobilePeekPadding() {
-  if (!track) return;
-
-  if (!isSnapMode()) {
-    track.style.removeProperty("--of-s0-pad");
-    return;
-  }
-
-  // 用当前中心卡片作为参考宽度（85vw / max-width 400 的实际像素宽）
-  slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-  const ref = slides[currentPos] || slides[realCount] || slides[0];
-  //const cardW = ref ? ref.getBoundingClientRect().width : 0;
-  //const vw = getViewportW();
-
- // let pad = (vw - cardW) / 2;
-
-  // ===== [PATCH REPLACE: mobile.pad.use.track.viewport.width] =====
-const cardW = ref ? (ref.getBoundingClientRect().width || 0) : 0;
-
-// 关键：以 scroll 容器 track 的“真实可视宽度”为准，而不是 viewportW
-// 这样 iOS/安卓地址栏、visualViewport 等变化都不会造成左右露出不对称
-const trackW = track ? (track.getBoundingClientRect().width || track.clientWidth || 0) : 0;
-
-let pad = (trackW - cardW) / 2;
-// ===== [PATCH END] =====
-
-  if (!Number.isFinite(pad)) pad = 0;
-  pad = Math.max(0, pad);
-
- // track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
-
-  // ===== [PATCH REPLACE: mobile.peek.pad.stabilize.no.micro.jitter] =====
-const prev = parseFloat(track.dataset.ofS0Pad || "NaN");
-if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.5) {
-  // 小于 0.5px 的变化直接忽略，避免每轮“微调”造成回弹观感
-  return;
-}
-track.dataset.ofS0Pad = String(pad);
-track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
-// ===== [PATCH END] =====
-
-}
-// ===== [PATCH END] =====
-
-
-    let snapSuppress = 0;
-
-    // ===== [PATCH INSERT: snap.user.drag.state] =====
-let isUserDragging = false; // 手势按下期间为 true：禁止中途结算/归位，根治“反方向回弹”
-// ===== [PATCH END] =====
-
-// ===== [PATCH REPLACE: withSnapSuppress.hold.two.frames] =====
-function withSnapSuppress(fn) {
-  snapSuppress++;
-  try {
-    fn();
-  } finally {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        snapSuppress = Math.max(0, snapSuppress - 1);
-      });
-    });
-  }
-}
-// ===== [PATCH END] =====
-// ===== [PATCH INSERT: snap.clamp.scrollLeft.helpers] =====
-function getMaxScrollLeft() {
-  const max = (track.scrollWidth || 0) - (track.clientWidth || 0);
-  return Math.max(0, Math.round(max * 1000) / 1000);
-}
-function clampScrollLeft(left) {
-  const max = getMaxScrollLeft();
-  if (!Number.isFinite(left)) return 0;
-  return Math.max(0, Math.min(max, Math.round(left * 1000) / 1000));
-}
-// ===== [PATCH END] =====
-
-    // ===== [PATCH INSERT: snap.hardjump.and.animate.no_bounce] =====
-function getTargetLeftForPos_Snap(pos) {
-  pos = clamp(pos, 0, slides.length - 1);
-  const el = slides[pos];
-  if (!el) return clampScrollLeft(track.scrollLeft || 0);
-
-  const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
-  return clampScrollLeft(left);
-}
-
-
-function hardJumpScrollLeft(left) {
-  const prevSnap = track.style.scrollSnapType;
-  const prevBeh = track.style.scrollBehavior;
-
-  // 关键：禁用 snap + smooth，防止 iOS 在“归位/下一轮”时产生可见回弹
-  track.style.scrollSnapType = "none";
-  track.style.scrollBehavior = "auto";
-
-  track.scrollLeft = left;
-
-  // 强制应用，避免随后 snap 纠偏造成二次位移（肉眼看到来回）
-  track.offsetHeight;
-
-  track.style.scrollSnapType = prevSnap || "";
-  track.style.scrollBehavior = prevBeh || "";
-}
-
-function fadeInTrack() {
-  try {
-    track.animate([{ opacity: 0 }, { opacity: 1 }], {
-      duration: FADE_IN_MS,
-      easing: "ease",
-      fill: "forwards",
-    });
-  } catch (_) {
-    track.style.opacity = "1";
-  }
-}
-
-function animateScrollLeftTo(left, duration, onDone) {
-  if (cancelSnapAnim) {
-    try { cancelSnapAnim(); } catch (_) {}
-    cancelSnapAnim = null;
-  }
-
-  //const from = track.scrollLeft || 0;
-  //const delta = left - from;
-
-  const from = clampScrollLeft(track.scrollLeft || 0);
-const to = clampScrollLeft(left);
-const delta = to - from;
-
-
-  if (!Number.isFinite(delta) || Math.abs(delta) < 0.5 || duration <= 0) {
-    hardJumpScrollLeft(left);
-    if (onDone) onDone();
-    return;
-  }
-
-  const prevSnap = track.style.scrollSnapType;
-  const prevBeh = track.style.scrollBehavior;
-
-  // 动画期间禁用 snap，避免“动画前进 + 系统 snap 反拉”导致回弹
-  track.style.scrollSnapType = "none";
-  track.style.scrollBehavior = "auto";
-
-  snapSuppress++;
-  const t0 = performance.now();
-  let raf = 0;
-  let stopped = false;
-
-  //const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic（轻、慢、优雅）
-// 更“慢起步、慢收尾”，解决“猛一下进入”
-const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-  const step = (now) => {
-    if (stopped) return;
-    const p = Math.min(1, (now - t0) / duration);
-    //track.scrollLeft = from + delta * ease(p);
-    track.scrollLeft = clampScrollLeft(from + delta * ease(p));
-
-    if (p < 1) {
-      raf = requestAnimationFrame(step);
-    } else {
-      track.style.scrollSnapType = prevSnap || "";
-      track.style.scrollBehavior = prevBeh || "";
-      snapSuppress = Math.max(0, snapSuppress - 1);
-      cancelSnapAnim = null;
-      if (onDone) onDone();
-    }
-  };
-
-  raf = requestAnimationFrame(step);
-
-  cancelSnapAnim = () => {
-    if (stopped) return;
-    stopped = true;
-    if (raf) cancelAnimationFrame(raf);
-    track.style.scrollSnapType = prevSnap || "";
-    track.style.scrollBehavior = prevBeh || "";
-    snapSuppress = Math.max(0, snapSuppress - 1);
-  };
-}
-// ===== [PATCH END] =====
-
-
-function scrollToPos_Snap(pos, behavior) {
-  pos = clamp(pos, 0, slides.length - 1);
-  const el = slides[pos];
-  if (!el) return;
-
-  const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
-  //const targetLeft = Math.max(0, Math.round(left * 1000) / 1000);
-// ===== [PATCH REPLACE: snap.targetLeft.use.clampScrollLeft] =====
-const targetLeft = clampScrollLeft(left);
-// ===== [PATCH END] =====
-
-  // ===== [FIX] “归位/纠偏”必须硬跳，禁止任何平滑动画（防止下一轮方向视觉反转）=====
-  const b = (behavior || "smooth").toLowerCase();
-  const isAuto = b === "auto" || b === "instant" || b === "immediate";
-
-if (isAuto) {
-  hardJumpScrollLeft(targetLeft);
-  return;
-}
-
-if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
-  hardJumpScrollLeft(targetLeft);
-  return;
-}
-
-  try {
-    track.scrollTo({ left: targetLeft, behavior: "smooth" });
-  } catch (_) {
-    track.scrollLeft = targetLeft;
-  }
-}
-
-
-    function normalizePositionIfNeeded_Snap() {
-      if (realCount <= 1) return false;
-      let changed = false;
-      if (currentPos < realCount) {
-        currentPos += realCount;
-        changed = true;
-      } else if (currentPos >= realCount * 2) {
-        currentPos -= realCount;
-        changed = true;
-      }
-      return changed;
-    }
-
-    function pickClosestIndex_Snap() {
-      const center = track.scrollLeft + track.clientWidth / 2;
-      let bestI = 0;
-      let bestD = Infinity;
-      for (let i = 0; i < slides.length; i++) {
-        const el = slides[i];
-        const c = el.offsetLeft + el.clientWidth / 2;
-        const d = Math.abs(c - center);
-        if (d < bestD) {
-          bestD = d;
-          bestI = i;
-        }
-      }
-      return bestI;
-    }
-
-    // ===== [PATCH INSERT: snap.edge.normalize.no.blank] =====
-function getSnapStepPx() {
-  if (realCount <= 1) return 0;
-  slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-  const a = slides[realCount];
-  const b = slides[realCount + 1];
-  const step = a && b ? (b.offsetLeft - a.offsetLeft) : 0;
-  return step > 0.5 ? step : 0;
-}
-
-// 手势拖拽接近物理边界时：把 scrollLeft 平移一整轮长度到中段，视觉不变但永不露出空白
-function normalizeEdgeWhileDragging_Snap() {
-  if (!isSnapMode() || realCount <= 1) return;
-  const step = getSnapStepPx();
-  if (!step) return;
-
-  const loopPx = step * realCount;
-  if (!Number.isFinite(loopPx) || loopPx < 1) return;
-
-  const max = getMaxScrollLeft();
-  const sl = track.scrollLeft || 0;
-
-  // 阈值：足够提前，但不干扰正常滑动
-  const edge = Math.max(32, Math.min(loopPx * 0.25, 360));
-
-  if (sl < edge) {
-    withSnapSuppress(() => hardJumpScrollLeft(sl + loopPx));
-  } else if (sl > max - edge) {
-    withSnapSuppress(() => hardJumpScrollLeft(sl - loopPx));
-  }
-}
-// ===== [PATCH END] =====
-
-    // ===== Navigation =====
-    let moveDoneTimer = 0;
-
-    function endMoveSafely_Transform() {
-      if (!isMoving) return;
-      isMoving = false;
-
-      clearTimeout(moveDoneTimer);
-      moveDoneTimer = 0;
-
-      // ===== [FIX] 关键顺序：先 settling（保持 is-moving），再做归位，最后下一帧解除 moving/settling =====
-      setSettling(true);
-
-      normalizePositionIfNeeded_Transform();
-      recalcSpan();
-      applyTransform(false);
-
-      requestAnimationFrame(() => {
-        slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        setMoving(false);
-        setSettling(false);
-        updateCenterClasses();
-        activateDot(getRealIndex());
-        if (isPlaying && !document.hidden) startProgressCycle();
-      });
-    }
-
-    function moveToPos_Transform(newPos, animated) {
-      if (realCount <= 1) return;
-
-      stopProgressLoop();
-      clearTimeout(moveDoneTimer);
-
-      currentPos = newPos;
-
-      if (!animated) {
-        isMoving = false;
-        setMoving(false);
-        setSettling(true);
-
-        normalizePositionIfNeeded_Transform();
-        recalcSpan();
-        applyTransform(false);
-
-        requestAnimationFrame(() => {
-          slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-          setSettling(false);
-          updateCenterClasses();
-          activateDot(getRealIndex());
-          if (isPlaying && !document.hidden) startProgressCycle();
-        });
-        return;
-      }
-
-      isMoving = true;
-      setMoving(true);
-      setSettling(false);
-
-      applyTransform(true);
-
-      moveDoneTimer = setTimeout(endMoveSafely_Transform, TRANSITION_MS + 140);
-    }
-
-    function endMoveSafely_Snap() {
-      if (!isMoving) return;
-      isMoving = false;
-
-      clearTimeout(moveDoneTimer);
-      moveDoneTimer = 0;
-
-      setSettling(true);
-
-      // 先以当前滚动位置选最近 index
-      const idx = pickClosestIndex_Snap();
-      if (idx !== currentPos) currentPos = idx;
-
-      // 再归位到中段（避免“下一轮”时可见回弹）
-      // 再归位到中段（避免“下一轮”时可见回弹）
-      const changed = normalizePositionIfNeeded_Snap();
-      applyMobilePeekPadding();
-
-      // 无论 changed 与否，都做一次无动画对齐（但必须受 suppress 保护）
-     // withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-const tLeft = getTargetLeftForPos_Snap(currentPos);
-withSnapSuppress(() => hardJumpScrollLeft(tLeft));
-
-
-      requestAnimationFrame(() => {
-        slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        setMoving(false);
-        setSettling(false);
-        updateCenterClasses();
-        activateDot(getRealIndex());
-        //if (isPlaying && !document.hidden) startProgressCycle();
-        if (isPlaying && !document.hidden) {
-  setTimeout(() => {
-    if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
-  }, 90);
-}
-
-      });
-    }
-
-    function moveToPos_Snap(newPos, animated) {
-      if (realCount <= 1) return;
-
-      stopProgressLoop();
-      clearTimeout(moveDoneTimer);
-
-      currentPos = clamp(newPos, 0, slides.length - 1);
-
-      if (!animated) {
-        isMoving = false;
-        setMoving(false);
-        setSettling(true);
-
-        
-        withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-
-        requestAnimationFrame(() => {
-          slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-          setSettling(false);
-          updateCenterClasses();
-          activateDot(getRealIndex());
-          if (isPlaying && !document.hidden) startProgressCycle();
-        });
-        return;
-      }
-
-      isMoving = true;
-      setMoving(true);
-      setSettling(false);
-
-      //scrollToPos_Snap(currentPos, "smooth");
-      //moveDoneTimer = setTimeout(endMoveSafely_Snap, 240);
-      const targetLeft = getTargetLeftForPos_Snap(currentPos);
-animateScrollLeftTo(targetLeft, SNAP_ANIM_MS, endMoveSafely_Snap);
-
-// 兜底：防极端情况下未触发回调导致卡住
-moveDoneTimer = setTimeout(() => {
-  if (isMoving) endMoveSafely_Snap();
-}, SNAP_ANIM_MS + 220);
-
-    }
-
-    // ===== [PATCH REPLACE: snap.loop.no.bounce.preNormalize] =====
-function next() {
-  if (isMoving) return;
-
-  if (isSnapMode()) {
-    // ===== [FIX] 不做任何“反向预跳”，永远 forward，方向永远保持右->左 =====
-    moveToPos_Snap(currentPos + 1, true);
-    return;
-  }
-
-  moveToPos_Transform(currentPos + 1, true);
-}
-
-function prev() {
-  if (isMoving) return;
-
-  if (isSnapMode()) {
-    moveToPos_Snap(currentPos - 1, true);
-    return;
-  }
-
-  moveToPos_Transform(currentPos - 1, true);
-}
-
-
-    function goToRealIndex(realIdx) {
-      if (!Number.isFinite(realIdx)) return;
-      const target = realCount + realIdx;
-      if (isSnapMode()) moveToPos_Snap(target, true);
-      else moveToPos_Transform(target, true);
-    }
-
-    // transform transitionend（桌面）
-    track.addEventListener("transitionend", (e) => {
-      if (e.propertyName !== "transform") return;
-      if (isSnapMode()) return;
-      endMoveSafely_Transform();
-    });
-
-    // ===== Play/Pause button =====
-    if (rightButton) {
-      rightButton.addEventListener("click", () => (isPlaying ? pause() : play()));
-    }
-
-    // Dots click（不改变 isPlaying，只做切换；播放状态会自动续播）
-    dotsWrap.addEventListener("click", (e) => {
-      const t = e.target;
-      if (!t || !t.classList || !t.classList.contains("of-s0-dot")) return;
-      const idx = parseInt(t.getAttribute("data-index") || "0", 10);
-      if (!Number.isFinite(idx)) return;
-      goToRealIndex(idx);
-    });
-
-    // Slide click behavior
-    track.addEventListener("click", (e) => {
-      if (isMoving) return;
-      const slide = e.target && e.target.closest ? e.target.closest(".of-s0-slide") : null;
-      if (!slide) return;
-
-      slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-      const idx = slides.indexOf(slide);
-      if (idx < 0) return;
-
-      if (idx === currentPos) {
-        // ===== [FIX] 点中心图进入新页面：强制 pause；回到页面保持暂停 =====
-        pause();
-        const url = getSlideUrl(slide);
-        if (url) openUrl(url);
-        return;
-      }
 
       // ===== [FIX] 点邻居只切换，不改变 isPlaying（播放状态会自动续播）=====
       if (isSnapMode()) {
