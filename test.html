@@ -1264,12 +1264,12 @@ function onMovingChange(ctx) {
   }
 
 function injectScopedCssOnce() {
-  const STYLE_ID = "of-s0-carousel-style-css-preserve-v4-3";
-  const exists = document.getElementById(STYLE_ID);
-  const style = exists || document.createElement("style");
-  style.id = STYLE_ID;
+    const STYLE_ID = "of-s0-carousel-style-css-preserve-v4-3";
+    const exists = document.getElementById(STYLE_ID);
+    const style = exists || document.createElement("style");
+    style.id = STYLE_ID;
 
-  style.textContent = `
+    style.textContent = `
 /* =========================
    [OF-S0] Scoped CSS (CSS-preserving + overlay enter-motion + anti-jitter)
    ========================= */
@@ -1288,14 +1288,6 @@ function injectScopedCssOnce() {
     height: 495px;
     margin-top: 5px; /* ✅ 与原始保持一致 */
   }
-
-  /* ===== [PATCH INSERT: desktop.overflow_clip.fallback] ===== */
-  /* Safari/旧浏览器对 overflow: clip 支持不完整时，退化为 hidden（无损兜底） */
-  @supports not (overflow: clip) {
-    .of-s0-carousel{ overflow-x: hidden; }
-  }
-  /* ===== [PATCH END] ===== */
-
   .of-s0-track{
     display: flex;
     gap: 15px;
@@ -1321,7 +1313,7 @@ function injectScopedCssOnce() {
     width: min(1013px, 80vw);
     height: 495px;
     object-fit: cover;
-    border-radius: 0; /*  border-radius:none; 16px */
+      border-radius: 0; /*  border-radius:none; 16px */
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
     transition: transform 0.4s ease, opacity 0.4s ease;
     -webkit-user-drag: none;
@@ -1363,15 +1355,16 @@ function injectScopedCssOnce() {
     touch-action: pan-x pan-y;
     scrollbar-width: none;
     will-change: scroll-position;
-
     /* ===== [PATCH INSERT: snap.overscroll.behavior] ===== */
-    overscroll-behavior-x: contain;
-    overscroll-behavior-y: none;
-    /* ===== [PATCH END] ===== */
+overscroll-behavior-x: contain;
+overscroll-behavior-y: none;
+/* ===== [PATCH END] ===== */
+
   }
   .of-s0-track::-webkit-scrollbar{ display:none; }
 
-  /* ===== [PATCH END] ===== */
+/* ===== [PATCH END] ===== */
+
 
   .of-s0-slide{
     flex: 0 0 auto;
@@ -1382,7 +1375,7 @@ function injectScopedCssOnce() {
     scroll-snap-stop: always;
     overflow: hidden;
     position: relative;
-    border-radius: 0; /*  border-radius:none; 16px */
+      border-radius: 0; /*  border-radius:none; 16px */
 
     contain: layout paint;
     transform: translateZ(0);
@@ -2154,11 +2147,12 @@ body.appleFilm-lock {
 .of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
   display: none !important;
 }
+
+
 `.trim();
 
-  // 无损：无论是否已存在，都保证 textContent 被刷新；仅首次 append
-  if (!exists) document.head.appendChild(style);
-}
+    if (!exists) document.head.appendChild(style);
+  }
 
 
   function isolateDom(container, buttonRow, instanceId) {
