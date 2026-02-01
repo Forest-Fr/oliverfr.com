@@ -702,61 +702,90 @@ const AppleFilm = (() => {
   }
 
   // --- preview media: wrap img into .of-s0-media and insert video ---
-  function ensurePreviewMedia(slide) {
-    const filmId = getFilmId(slide);
-    if (!filmId) return;
+// ===== [PATCH REPLACE: AppleFilm.ensurePreviewMedia.bindSrc.option.v1] =====
+function ensurePreviewMedia(slide, opts) {
+  opts = opts || {};
+  const bindSrc = !!opts.bindSrc;
 
-    const img = slide.querySelector("img");
-    if (!img) return;
+  const filmId = getFilmId(slide);
+  if (!filmId) return;
 
-    // 1) ensure wrapper
-    let wrap = slide.querySelector(".of-s0-media");
-    if (!wrap) {
-      wrap = document.createElement("div");
-      wrap.className = "of-s0-media";
-      // 把 img 移进 wrapper
+  const ds = slide && slide.dataset ? slide.dataset : {};
+
+  // poster: 优先 img，其次允许未来用 data-poster（不破坏现有结构）
+  let img = slide.querySelector("img");
+  // 1) ensure wrapper
+  let wrap = slide.querySelector(".of-s0-media");
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.className = "of-s0-media";
+
+    // 尽量放在最前面，保持你 overlay/布局不变
+    if (img && img.parentNode) {
       img.parentNode.insertBefore(wrap, img);
       wrap.appendChild(img);
-    }
-
-    // 标记 poster
-    if (!img.classList.contains("of-s0-poster")) img.classList.add("of-s0-poster");
-
-    // 2) ensure preview video
-    let v = wrap.querySelector("video.of-s0-previewVideo");
-    if (!v) {
-      v = document.createElement("video");
-      v.className = "of-s0-previewVideo";
-      v.muted = true;
-      v.playsInline = true;
-      v.loop = true;
-      v.preload = "metadata";
-      v.setAttribute("playsinline", "");
-      v.setAttribute("muted", "");
-      v.setAttribute("aria-hidden", "true");
-      v.tabIndex = -1;
-      wrap.insertBefore(v, wrap.firstChild);
-
-      // video ready -> fade in, poster fade out
-      const markReady = () => {
-        if (!wrap.classList.contains("is-video-ready")) wrap.classList.add("is-video-ready");
-      };
-      v.addEventListener("loadeddata", markReady, { once: true });
-      v.addEventListener("canplay", markReady, { once: true });
-    }
-
-    // 3) set src/poster
-    const mp4 = getMp4(slide, filmId);
-    if (mp4 && v.dataset.src !== mp4) {
-      v.pause();
-      v.removeAttribute("src");
-      v.load();
-      v.src = mp4;
-      v.dataset.src = mp4;
-      // poster 用原 img（不改 src），仅用于加载前视觉
-      v.load();
+    } else {
+      slide.insertBefore(wrap, slide.firstChild);
     }
   }
+
+  // 标记 poster（如果存在）
+  if (img) {
+    if (!img.classList.contains("of-s0-poster")) img.classList.add("of-s0-poster");
+  }
+
+  // 2) ensure preview video (壳一定要有，但不一定绑定 src)
+  let v = wrap.querySelector("video.of-s0-previewVideo");
+  if (!v) {
+    v = document.createElement("video");
+    v.className = "of-s0-previewVideo";
+    v.muted = true;
+    v.playsInline = true;
+    v.loop = true;
+    v.preload = "metadata";
+    v.setAttribute("playsinline", "");
+    v.setAttribute("muted", "");
+    v.setAttribute("aria-hidden", "true");
+    v.tabIndex = -1;
+    wrap.insertBefore(v, wrap.firstChild);
+
+    // ready -> 标记 is-video-ready（只在真正加载后触发）
+    const markReady = () => {
+      if (!wrap.classList.contains("is-video-ready")) wrap.classList.add("is-video-ready");
+    };
+    v.addEventListener("loadeddata", markReady, { once: true });
+    v.addEventListener("canplay", markReady, { once: true });
+  }
+
+  // 3) 绑定/解绑 src（关键：非中心卡片不挂 src）
+  const mp4 = getMp4(slide, filmId);
+
+  if (!bindSrc) {
+    // 非中心：清 src + 清 ready，永远显示 poster，避免黑帧/首帧闪
+    try {
+      v.pause();
+      v.currentTime = 0;
+    } catch (_) {}
+    if (v.getAttribute("src")) v.removeAttribute("src");
+    if (v.dataset) delete v.dataset.src;
+    try { v.load(); } catch (_) {}
+    wrap.classList.remove("is-video-ready");
+    return;
+  }
+
+  // 中心：确保挂正确 src
+  if (mp4 && v.dataset.src !== mp4) {
+    try { v.pause(); } catch (_) {}
+    v.removeAttribute("src");
+    try { v.load(); } catch (_) {}
+    v.src = mp4;
+    v.dataset.src = mp4;
+    try { v.load(); } catch (_) {}
+    // is-video-ready 由 loadeddata/canplay 事件来加
+  }
+}
+// ===== [PATCH END] =====
+
 
   function pauseAllPreviews(slides) {
     if (!Array.isArray(slides)) return;
@@ -768,59 +797,52 @@ const AppleFilm = (() => {
   }
 
   // 只播放 center 卡片预览视频
-// ===== [PATCH REPLACE: s0.film.syncPreview.centerVideoBySlideMp4.v2] =====
+// ===== [PATCH REPLACE: s0.film.syncPreview.centerVideoBySlideMp4.v3] =====
 function syncPreview(ctx) {
   lastCtx = ctx || lastCtx;
   const c = lastCtx;
   if (!c || !Array.isArray(c.slides)) return;
 
-  const { slides, currentPos, isMoving } = c;
+  const { slides, currentPos, isMoving, isPlaying } = c;
 
-  // 轮播暂停/页面不可见/移动中：全部停预览（省资源 + 防乱跳）
-  if (document.hidden || isMoving) {
+  // 轮播暂停 / 页面不可见 / 移动中：全部停预览
+  if (document.hidden || isMoving || isPlaying === false) {
     pauseAllPreviews(slides);
+    // 同时解绑 src，避免后台继续占资源
+    for (const s of slides) {
+      try { ensurePreviewMedia(s, { bindSrc: false }); } catch (_) {}
+    }
     return;
   }
 
   const center = slides[currentPos];
   if (!center) return;
 
-  // 关键：中心卡片每次都确保 preview media 与 mp4 绑定正确（尤其三倍克隆时）
-  try { ensurePreviewMedia(center); } catch (_) {}
+  // 中心：确保媒体壳存在 + 绑定 src
+  try { ensurePreviewMedia(center, { bindSrc: true }); } catch (_) {}
 
   for (let i = 0; i < slides.length; i++) {
     const s = slides[i];
-    const v = s && s.querySelector ? s.querySelector("video.of-s0-previewVideo") : null;
-    if (!v) continue;
+    if (!s) continue;
 
     if (s === center) {
-      // 中心：加速加载与解码
+      const v = s.querySelector("video.of-s0-previewVideo");
+      if (!v) continue;
+
       try { v.preload = "auto"; } catch (_) {}
       v.muted = true;
       v.playsInline = true;
 
-      // 如果 src 被 clone/状态污染，确保是该 slide 的 mp4
-      const filmId = getFilmId(s);
-      const want = getMp4(s, filmId);
-      if (want && v.dataset.src !== want) {
-        try { v.pause(); } catch (_) {}
-        v.removeAttribute("src");
-        v.load();
-        v.src = want;
-        v.dataset.src = want;
-        v.load();
-      }
-
-      // 播放（iOS/Chrome 可能需要手势，失败则保持 poster）
+      // 播放（失败就继续显示 poster，不报错）
       v.play().catch(() => {});
     } else {
-      // 非中心：保持 poster（CSS 已强制），视频停掉并回到起点
-      try { v.preload = "metadata"; } catch (_) {}
-      try { v.pause(); v.currentTime = 0; } catch (_) {}
+      // 非中心：解绑 src + 强制停回 0（CSS 已保证只显示 poster）
+      try { ensurePreviewMedia(s, { bindSrc: false }); } catch (_) {}
     }
   }
 }
 // ===== [PATCH END] =====
+
 
 
   // --- modal ---
@@ -1050,16 +1072,32 @@ function syncPreview(ctx) {
     contain: layout paint;
     transform: translateZ(0);
   }
-  .of-s0-slide img{
-    width: min(1013px, 80vw);
-    height: 495px;
-    object-fit: cover;
-      border-radius: 0; /*  border-radius:none; 16px */
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    transition: transform 0.4s ease, opacity 0.4s ease;
-    -webkit-user-drag: none;
-    user-select: none;
-  }
+/* ===== [PATCH REPLACE: of_s0.desktop.media.wrapper.instead_of_img.v1] ===== */
+.of-s0-slide .of-s0-media{
+  width: min(1013px, 80vw);
+  height: 495px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  transform: translateZ(0);
+}
+
+/* video / poster 统一填满 wrapper（不再依赖 img 定宽高） */
+.of-s0-slide .of-s0-media > video,
+.of-s0-slide .of-s0-media > img{
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  display: block;
+  box-shadow: none !important;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* ===== [PATCH END] ===== */
+
 }
 
 /* Mobile */
@@ -1121,16 +1159,30 @@ overscroll-behavior-y: none;
     contain: layout paint;
     transform: translateZ(0);
   }
-  .of-s0-slide img{
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    filter: none !important;
-    opacity: 1 !important;
-    -webkit-user-drag: none;
-    user-select: none;
-  }
+/* ===== [PATCH REPLACE: of_s0.mobile.media.wrapper.instead_of_img.v1] ===== */
+.of-s0-slide .of-s0-media{
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  transform: translateZ(0);
+}
+
+.of-s0-slide .of-s0-media > video,
+.of-s0-slide .of-s0-media > img{
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  display: block;
+  filter: none !important;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* ===== [PATCH END] ===== */
+
 }
 
 /* =========================
@@ -1993,7 +2045,9 @@ let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防�
       isPlaying = true;
       updatePlayButtonUI();
         // 新增：恢复中心预览视频
-  try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
+  //try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
+  try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isPlaying: true }); } catch (_) {}
+    
   startProgressCycle();
     }
 
@@ -2063,9 +2117,10 @@ if (isMoving) return;
     function ensureOverlay(slide) {
       if (!slide) return;
 
-      // ===== [PATCH INSERT: s0.film.ensurePreviewMedia.beforeOverlay] =====
-try { AppleFilm.ensurePreviewMedia(slide); } catch (_) {}
+// ===== [PATCH REPLACE: s0.film.ensurePreviewMedia.beforeOverlay.v2] =====
+try { AppleFilm.ensurePreviewMedia(slide, { bindSrc: false }); } catch (_) {}
 // ===== [PATCH END] =====
+
 
 
       let overlay = slide.querySelector(".of-s0-overlay") || slide.querySelector(".section0-overlay");
@@ -2080,6 +2135,30 @@ try { AppleFilm.ensurePreviewMedia(slide); } catch (_) {}
       let title = overlay.querySelector(".of-s0-title") || overlay.querySelector(".section0-title");
       let desc = overlay.querySelector(".of-s0-desc") || overlay.querySelector(".section0-desc");
       let btn = overlay.querySelector(".of-s0-explore") || overlay.querySelector(".section0-explore");
+
+      // ===== [PATCH INSERT: s0.slide.click.open_film_modal.v1] =====
+if (!slide.dataset.ofS0BoundSlideClick) {
+  slide.dataset.ofS0BoundSlideClick = "1";
+  slide.addEventListener("click", (e) => {
+    // 点 Explore 按钮不走这里
+    const t = e.target;
+    if (t && t.closest && t.closest(".of-s0-explore")) return;
+
+    // “进入视频弹层”也算用户主动操作：强制 pause
+    pause();
+
+    // 有 film-id 就开弹层；否则才走 url
+    if (AppleFilm.canOpen(slide)) {
+      AppleFilm.openFromSlide(slide);
+      return;
+    }
+
+    const url = getSlideUrl(slide);
+    if (url) openUrl(url);
+  }, { passive: true });
+}
+// ===== [PATCH END] =====
+
 
       if (!title) {
         title = document.createElement("div");
@@ -2259,8 +2338,11 @@ const w = el ? (el.getBoundingClientRect().width || 0) : 0;
       if (on) track.classList.add("is-moving");
       else track.classList.remove("is-moving");
       // ===== [PATCH INSERT: s0.film.onMovingChange] =====
-try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on }); } catch (_) {}
+//try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on }); } catch (_) {}
 // ===== [PATCH END] =====
+
+      try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on, isPlaying }); } catch (_) {}
+
 
     }
 // ===== [PATCH INSERT: overlay.skipEnter.helpers] =====
@@ -2329,8 +2411,12 @@ track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
       if (right) right.classList.add("is-neighbor");
 
           // ===== [PATCH INSERT: s0.film.syncPreview.afterCenterClasses] =====
-try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
+//try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
 // ===== [PATCH END] =====
+      // ===== [PATCH REPLACE: s0.film.syncPreview.pass_isPlaying.v1] =====
+try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isPlaying }); } catch (_) {}
+// ===== [PATCH END] =====
+
     }
 
 
