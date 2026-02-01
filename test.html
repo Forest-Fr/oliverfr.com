@@ -305,6 +305,23 @@
   transition: opacity .22s ease;
   pointer-events: none; /* 点击仍落在 slide 上，不影响你现有点击逻辑 */
 }
+/* ===== [PATCH INSERT: s0.previewVideo.desktop.contain.anti_blur] ===== */
+@media (min-width: 769px) {
+  /* 桌面端：优先避免“过度放大导致模糊/拉宽” */
+  .section0-slide .of-s0-media > video.of-s0-previewVideo,
+  .of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+    object-fit: contain;      /* ✅ 关键：减少裁切+过度放大，主观更清晰 */
+    background: #000;         /* ✅ letterbox 背景 */
+    object-position: center;
+
+    /* ✅ 让 GPU 合成更稳定，降低 transform/亚像素引起的糊 */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: opacity;
+  }
+}
+/* 移动端仍保持 cover（沉浸式）不变 */
+/* ===== [PATCH END] ===== */
 
 .section0-slide .of-s0-media > img.of-s0-poster,
 .of-s0-slide .of-s0-media > img.of-s0-poster{
@@ -542,13 +559,6 @@ body.appleFilm-lock{
   .appleFilm-desc{ font-size: 16px; }
   .appleFilm-link{ font-size: 16px; }
 }
-
-    /* 针对桌面端：视频容器使用 `object-fit: contain`，避免拉伸和模糊 */
-.section0-slide .of-s0-media > video.of-s0-previewVideo {
-  object-fit: contain; /* 确保视频不会被拉宽 */
-  background: #000; /* 背景黑色，确保视频无空白区域 */
-}
-
 /* ===== [PATCH END] ===== */
 
   </style>
@@ -680,12 +690,26 @@ const AppleFilm = (() => {
   }
 
   // --- preview media: wrap img into .of-s0-media and insert video ---
-  function ensurePreviewMedia(slide) {
+  /*function ensurePreviewMedia(slide) {
     const filmId = getFilmId(slide);
     if (!filmId) return;
 
     const img = slide.querySelector("img");
-    if (!img) return;
+    if (!img) return;*/
+
+  // ===== [PATCH REPLACE: s0.film.ensurePreviewMedia.allow_mp4_only] =====
+function ensurePreviewMedia(slide) {
+  if (!slide) return;
+
+  const filmId = getFilmId(slide);
+  const img = slide.querySelector("img");
+  if (!img) return;
+
+  // ✅ 只要拿得到 mp4（data-film-mp4 或 filmId 默认推导）就启用预览
+  const mp4 = getMp4(slide, filmId);
+  if (!mp4) return;
+// ===== [PATCH END] =====
+
 
     // 1) ensure wrapper
     let wrap = slide.querySelector(".of-s0-media");
@@ -703,18 +727,51 @@ const AppleFilm = (() => {
     // 2) ensure preview video
     let v = wrap.querySelector("video.of-s0-previewVideo");
     if (!v) {
-      v = document.createElement("video");
-      v.className = "of-s0-previewVideo";
-      v.muted = true;
-      v.playsInline = true;
-      v.loop = true;
-      v.preload = "metadata";
-      v.setAttribute("playsinline", "");
-      v.setAttribute("muted", "");
-      v.setAttribute("aria-hidden", "true");
-      v.tabIndex = -1;
-      wrap.insertBefore(v, wrap.firstChild);
+      //v = document.createElement("video");
+      //v.className = "of-s0-previewVideo";
+      //v.muted = true;
+      //v.playsInline = true;
+      //v.loop = true;
+      //v.preload = "metadata";
+      //v.setAttribute("playsinline", "");
+      //v.setAttribute("muted", "");
+      //v.setAttribute("aria-hidden", "true");
+      //v.tabIndex = -1;
+     // wrap.insertBefore(v, wrap.firstChild);
 
+      // ===== [PATCH REPLACE: s0.previewVideo.attrs.more_robust] =====
+v = document.createElement("video");
+v.className = "of-s0-previewVideo";
+
+// autoplay 前提：muted + inline
+v.muted = true;
+v.playsInline = true;
+v.loop = true;
+
+// 预览：metadata 足够（更省）；真正播放时浏览器会继续拉取
+v.preload = "metadata";
+
+// iOS/Safari 兼容
+v.setAttribute("playsinline", "");
+v.setAttribute("webkit-playsinline", "");
+v.setAttribute("muted", "");
+v.setAttribute("aria-hidden", "true");
+v.tabIndex = -1;
+
+// 禁止画中画/下载（不影响你现有交互）
+v.disablePictureInPicture = true;
+v.setAttribute("disablepictureinpicture", "");
+v.setAttribute("controlslist", "nodownload noplaybackrate noremoteplayback");
+
+// 出错：保持 poster（不闪、不白）
+v.addEventListener("error", () => {
+  try { wrap.classList.remove("is-video-ready"); } catch (_) {}
+}, { passive: true });
+
+wrap.insertBefore(v, wrap.firstChild);
+// ===== [PATCH END] =====
+
+      
       // video ready -> fade in, poster fade out
       const markReady = () => {
         if (!wrap.classList.contains("is-video-ready")) wrap.classList.add("is-video-ready");
@@ -724,16 +781,33 @@ const AppleFilm = (() => {
     }
 
     // 3) set src/poster
-    const mp4 = getMp4(slide, filmId);
-    if (mp4 && v.dataset.src !== mp4) {
-      v.pause();
-      v.removeAttribute("src");
-      v.load();
-      v.src = mp4;
-      v.dataset.src = mp4;
+    //const mp4 = getMp4(slide, filmId);
+    //if (mp4 && v.dataset.src !== mp4) {
+     // v.pause();
+      //v.removeAttribute("src");
+      //v.load();
+      //v.src = mp4;
+      //v.dataset.src = mp4;
       // poster 用原 img（不改 src），仅用于加载前视觉
-      v.load();
-    }
+     // v.load();
+    //}
+
+  // ===== [PATCH REPLACE: s0.previewVideo.set_src.use_precomputed_mp4] =====
+if (mp4 && v.dataset.src !== mp4) {
+  try { v.pause(); } catch (_) {}
+  try {
+    v.removeAttribute("src");
+    v.load();
+  } catch (_) {}
+
+  v.src = mp4;
+  v.dataset.src = mp4;
+
+  // 让 ready 事件更稳定触发（用于淡入）
+  try { v.load(); } catch (_) {}
+}
+// ===== [PATCH END] =====
+
   }
 
   function pauseAllPreviews(slides) {
@@ -747,22 +821,6 @@ const AppleFilm = (() => {
 
   // 只播放 center 卡片预览视频
   function syncPreview(ctx) {
-
-     const { slides, currentPos } = ctx;
-  const center = slides[currentPos];
-  
-  // 暂停所有预览视频
-  pauseAllPreviews(slides);
-
-  // 获取视频
-  const video = center.querySelector("video.of-s0-previewVideo");
-  if (video) {
-    video.muted = true;  // 保持静音
-    video.play().catch(() => {}); // 播放当前视频
-  }
-}
-
-  
     lastCtx = ctx || lastCtx;
     const c = lastCtx;
     if (!c || !Array.isArray(c.slides)) return;
@@ -1682,14 +1740,6 @@ body.appleFilm-lock {
   .appleFilm-link{ font-size: 16px; }
 }
 /* ===== [PATCH END] ===== */
-
-
-/* 针对桌面端：视频容器使用 `object-fit: contain`，避免拉伸和模糊 */
-.section0-slide .of-s0-media > video.of-s0-previewVideo {
-  object-fit: contain; /* 确保视频不会被拉宽 */
-  background: #000; /* 背景黑色，确保视频无空白区域 */
-}
-
 
 `.trim();
 
@@ -3237,37 +3287,6 @@ buttonRow.dataset.ofS0Mounted = OF_S0_VERSION;
     };
   }
 
-   function startPreview() {
-    // 获取中心卡片
-    const centerSlide = slides[currentPos];
-    if (!centerSlide) return;
-
-    // 获取与该卡片相关的视频文件
-    const mp4 = getMp4(centerSlide, getFilmId(centerSlide));
-    if (!mp4) return;
-
-    // 确保视频和预览被正确初始化
-    AppleFilm.ensurePreviewMedia(centerSlide);
-
-    // 自动播放视频
-    const video = centerSlide.querySelector("video.of-s0-previewVideo");
-    if (video) {
-      video.muted = true; // 确保视频静音
-      video.play().catch((e) => console.error("Video autoplay failed:", e));
-    }
-  }
-
-  // 在每次轮播结束时，启动视频预览
-  function onMoveEnd() {
-    startPreview();
-  }
-
-  // 绑定到轮播结束时触发
-  track.addEventListener("transitionend", onMoveEnd);
-
-  // 初始播放第一张的预览视频
-  startPreview();
-}
   function mount() {
     const marked = Array.from(document.querySelectorAll("[data-of-s0='1']"));
     const fallback = document.querySelectorAll(".section0-carousel");
