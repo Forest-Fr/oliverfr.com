@@ -1015,6 +1015,12 @@ function bindPreviewReady(wrap, v) {
   v.addEventListener("loadeddata", setReady, { once: true });
   v.addEventListener("canplay", setReady, { once: true });
   v.addEventListener("canplaythrough", setReady, { once: true });
+
+  // Safari 息屏/最小化后恢复：首帧可能被丢弃，定时兜底再点亮一次
+  setTimeout(() => {
+    if (wrap.classList.contains("is-video-ready")) return;
+    if (v.readyState >= 2) setReady();
+  }, 1200);
 }
 // ===== [PATCH END] =====
 
@@ -2559,12 +2565,12 @@ try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true, isInView })
       return Number.isFinite(ri) ? ri : 0;
     }
 
-    function startProgressCycle() {
-     // stopProgressLoop();
-      //if (!isPlaying || document.hidden || realCount <= 1) return;
-      //if (isMoving) return;
+function startProgressCycle() {
+ // stopProgressLoop();
+  //if (!isPlaying || document.hidden || realCount <= 1) return;
+  //if (isMoving) return;
 
-      stopProgressLoop();
+  stopProgressLoop();
 if (!isReady) return; // ===== [PATCH] Peek Preview 未稳定前不启动进度/不触发 next =====
 if (!isPlaying || document.hidden || realCount <= 1) return;
 if (isMoving) return;
@@ -2573,9 +2579,9 @@ if (isMoving) return;
 // 不再以可见性阻断进度，避免 IO 判定偏差导致自动轮播停滞
 // ===== [PATCH END] =====
 
-      const myToken = ++cycleToken;
-      const idx = getRealIndex();
-      activateDot(idx);
+  const myToken = ++cycleToken;
+  const idx = getRealIndex();
+  activateDot(idx);
 
       const startAt = performance.now();
       const effectiveStart = startAt + DOT_CHARGE_MS + DOT_STRETCH_MS;
@@ -2889,11 +2895,11 @@ if (!animated) markReadyOnce();
 
     }
 
-    function updateCenterClasses() {
-      slides.forEach((s) => s.classList.remove("is-center", "is-neighbor"));
-      const center = slides[currentPos];
-      const left = slides[currentPos - 1];
-      const right = slides[currentPos + 1];
+function updateCenterClasses() {
+  slides.forEach((s) => s.classList.remove("is-center", "is-neighbor"));
+  const center = slides[currentPos];
+  const left = slides[currentPos - 1];
+  const right = slides[currentPos + 1];
       if (center) center.classList.add("is-center");
       if (left) left.classList.add("is-neighbor");
       if (right) right.classList.add("is-neighbor");
@@ -2905,6 +2911,24 @@ if (!animated) markReadyOnce();
 
       // ===== [PATCH REPLACE: s0.film.syncPreview.afterCenterClasses.pass_inView] =====
 try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+
+// 减少首帧模糊：center 切换时若视频已 ready 且暂停，轻推到 0.04s 并 play 一下再停
+if (center) {
+  const w = center.querySelector(".of-s0-media");
+  const v = w && w.querySelector("video.of-s0-previewVideo");
+  if (v && w && w.classList.contains("is-video-ready")) {
+    try {
+      if (v.readyState >= 2 && v.currentTime < 0.04) v.currentTime = 0.04;
+      const p = v.play();
+      if (p && p.catch) p.catch(() => {});
+      // 100ms 后若仍是中心且未播放，则暂停保持清晰首帧
+      setTimeout(() => {
+        const stillCenter = slides[currentPos] === center;
+        if (stillCenter && !isPlaying) { try { v.pause(); } catch (_) {} }
+      }, 100);
+    } catch (_) {}
+  }
+}
 // ===== [PATCH END] =====
 
     }
@@ -2950,10 +2974,10 @@ function getViewportW() {
 function applyMobilePeekPadding() {
   if (!track) return;
 
-  if (!isSnapMode()) {
-    track.style.removeProperty("--of-s0-pad");
-    return;
-  }
+if (!isSnapMode()) {
+  track.style.removeProperty("--of-s0-pad");
+  return;
+}
 
   // 用当前中心卡片作为参考宽度（85vw / max-width 400 的实际像素宽）
   slides = Array.from(track.querySelectorAll(".of-s0-slide"));
@@ -3975,6 +3999,14 @@ window.addEventListener("pageshow", (e) => {
   if (e && e.persisted) recoverLayout("pageshow");
 });
 // ===== [PATCH END] =====
+
+// iOS Safari: 从后台回来但未触发 visibilitychange/pageshow 时，定时自检
+setInterval(() => {
+  if (!document.hidden && isPlaying && !isMoving) {
+    // 若进度已停，强制重启循环，防止无限轮播停滞
+    if (!rafId) startProgressCycle();
+  }
+}, 1500);
 
 
     //window.addEventListener("focus", () => {
