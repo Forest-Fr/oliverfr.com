@@ -1021,6 +1021,13 @@ function bindPreviewReady(wrap, v) {
     if (wrap.classList.contains("is-video-ready")) return;
     if (v.readyState >= 2) setReady();
   }, 1200);
+
+  // iOS 滑动归位后 padding 可能微偏：ready 后再对齐一次
+  setTimeout(() => {
+    try {
+      if (isSnapMode && isSnapMode()) applyMobilePeekPadding();
+    } catch (_) {}
+  }, 180);
 }
 // ===== [PATCH END] =====
 
@@ -1733,6 +1740,12 @@ overscroll-behavior-y: none;
 
 /* settling 期间：也强制隐藏 overlay，防止归位间隙闪一下 */
 .of-s0-track.is-settling .of-s0-overlay{
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+/* 锁定态：归位过程短暂停用 overlay，防止二次闪现 */
+.of-s0-track.of-s0-overlay-lock .of-s0-overlay{
   opacity: 0 !important;
   transition: none !important;
 }
@@ -2824,11 +2837,13 @@ const w = el ? (el.getBoundingClientRect().width || 0) : 0;
       if (!track) return;
       if (on) track.classList.add("is-settling");
       else track.classList.remove("is-settling");
+      updateOverlayLock(on || isMoving);
     }
     function setMoving(on) {
       if (!track) return;
       if (on) track.classList.add("is-moving");
       else track.classList.remove("is-moving");
+      updateOverlayLock(on || track.classList.contains("is-settling"));
       // ===== [PATCH INSERT: s0.film.onMovingChange] =====
 // { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on }); } catch (_) {}
 // ===== [PATCH END] =====
@@ -2856,6 +2871,21 @@ function popSkipEnterLater() {
   });
 }
 // ===== [PATCH END] =====
+
+// 避免归位/归中时 overlay 二次闪现：锁定 overlay，稳定后延迟解锁
+let overlayLockTimer = 0;
+function updateOverlayLock(lock) {
+  if (!track) return;
+  if (lock) {
+    track.classList.add("of-s0-overlay-lock");
+    if (overlayLockTimer) { clearTimeout(overlayLockTimer); overlayLockTimer = 0; }
+  } else {
+    if (overlayLockTimer) clearTimeout(overlayLockTimer);
+    overlayLockTimer = setTimeout(() => {
+      track.classList.remove("of-s0-overlay-lock");
+    }, 80); // 略大于一帧，避免二次入场
+  }
+}
 
     function applyTransform(animated) {
       if (!slideSpan) recalcSpan();
@@ -3020,8 +3050,9 @@ let pad = (trackW - cardW) / 2;
 pad = quantizePx(pad);
 
 const prev = parseFloat(track.dataset.ofS0Pad || "NaN");
-if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.5) {
-  return; // 小于 0.5px 的变化忽略，避免“微抖”
+// 阈值收紧，确保轻微尺寸变化也同步，避免左右不对称
+if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.02) {
+  return;
 }
 
 track.dataset.ofS0Pad = String(pad);
