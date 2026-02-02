@@ -2523,7 +2523,9 @@ function applyMobilePeekPaddingPrecise() {
       const baseW = viewport > 0 ? viewport : fallbackVw;
       if (!baseW) return;
 
-      const pad = Math.max(0, (baseW - w) / 2);
+      // 精确对称：扣除实际 gap，再均分左右露出
+      const gap = getGapPx ? getGapPx() : 0;
+      const pad = Math.max(0, (baseW - w - gap) / 2);
       const px = `${pad.toFixed(3)}px`;
       track.style.setProperty("--of-s0-pad", px);
       track.style.paddingLeft = px;
