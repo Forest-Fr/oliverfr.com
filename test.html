@@ -913,7 +913,7 @@ function ensurePreviewMedia(slide) {
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.autoplay = false; // 只让中心播放（syncPreview 控制）
+    v.autoplay = true; // 提前解码首帧，缩短黑屏
 
     // ===== [PATCH REPLACE: ensurePreviewMedia.video.preload_auto] =====
     // 关键：从一开始就 preload=auto，并尽早解码首帧；peek preview 也能直接显示视频帧
@@ -944,7 +944,7 @@ function ensurePreviewMedia(slide) {
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.autoplay = false;
+    v.autoplay = true;
     // ===== [PATCH END] =====
   }
 
@@ -977,17 +977,42 @@ function ensurePreviewMedia(slide) {
     // ===== [PATCH END] =====
   }
 
-  // ===== [PATCH INSERT: ensurePreviewMedia.mark_layout_ready] =====
-  // 布局层面：video-only 方案下，确保 wrapper 不被旧逻辑判定为“fallback”
-  //（真正 ready 的 class 建议由 loadeddata/loadedmetadata 监听处统一打标）
-  // wrap.classList.add("is-video-layout"); // 如你已有类似标记可自行替换
-  // ===== [PATCH END] =====
+    // ===== [PATCH INSERT: ensurePreviewMedia.mark_layout_ready] =====
+    // 布局层面：video-only 方案下，确保 wrapper 不被旧逻辑判定为“fallback”
+    //（真正 ready 的 class 建议由 loadeddata/loadedmetadata 监听处统一打标）
+    // wrap.classList.add("is-video-layout"); // 如你已有类似标记可自行替换
+    // ===== [PATCH END] =====
+
+    // 关键：绑定 ready，首帧一到立刻点亮，减少黑屏
+    bindPreviewReady(wrap, v);
+  }
+
+// ===== [PATCH END] =====
+
+// ===== [PATCH END] =====
+
+
+// ===== [PATCH INSERT: preview.ready.bind] =====
+function bindPreviewReady(wrap, v) {
+  if (!wrap || !v) return;
+
+  const setReady = () => {
+    wrap.classList.add("is-video-ready");
+    v.style.visibility = "visible";
+    v.style.opacity = "1";
+    // 尝试轻推首帧，避免停在纯黑
+    try {
+      if (v.readyState >= 2 && v.currentTime < 0.04) v.currentTime = 0.04;
+    } catch (_) {}
+  };
+
+  if (v.readyState >= 2) setReady();
+
+  v.addEventListener("loadeddata", setReady, { once: true });
+  v.addEventListener("canplay", setReady, { once: true });
+  v.addEventListener("canplaythrough", setReady, { once: true });
 }
-
 // ===== [PATCH END] =====
-
-// ===== [PATCH END] =====
-
 
 // ===== [PATCH REPLACE: s0.film.pauseAllPreviews.singleton.v2] =====
 function pauseAllPreviews(slides) {
@@ -1038,6 +1063,7 @@ function syncPreview(ctx) {
   const wrap = center.querySelector(".of-s0-media");
   const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
   if (!v) return;
+  bindPreviewReady(wrap, v);
 
   // 只有“中心换了”才归零一次（避免每一帧/每一次 settle 都触发解码抖）
   const centerChanged = (_lastCenterPos !== currentPos);
@@ -3884,6 +3910,17 @@ pushSkipEnter();
         recalcSpan();
         applyTransform(false);
       }
+
+      // 重新点亮已解码的视频首帧，避免返回时短暂黑屏
+      slides.forEach((s) => {
+        const w = s.querySelector(".of-s0-media");
+        const v = w && w.querySelector("video.of-s0-previewVideo");
+        if (v && w) {
+          bindPreviewReady(w, v);
+          if (v.readyState >= 2) w.classList.add("is-video-ready");
+          try { v.play().catch(() => {}); } catch (_) {}
+        }
+      });
 
 // ===== [PATCH REPLACE: recover.raf.ensure.popSkipEnter] =====
 requestAnimationFrame(() => {
