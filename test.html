@@ -1353,274 +1353,120 @@ function onMovingChange(ctx) {
    ========================= */
 
 /* Desktop */
- @media (min-width: 769px) {
-      .section0-carousel{
-        width: 100%;
-        padding: 0 10%;
-        margin: 0 auto;
-        box-sizing: border-box;
-        background: #f9f9f9;
-        overflow-x: clip;
-        overflow-y: visible;
-        position: relative;
-        height: 495px;
-        margin-top: 5px; /* 把原本的间距拉近 */
-      }
-      .section0-track{
-        display: flex;
-        gap: 15px; /* 图片之间间隔 15px */
-        transition: transform 0.5s ease-in-out;
-        justify-content: flex-start;
-        will-change: transform;
-        transform: translateZ(0);
-      }
-      .section0-slide{
-        flex: 0 0 auto;
-
-        /* ===== [PATCH] 关键：不要 width:100% 撑满，否则“gap=15”不是卡片间距而是容器间距 ===== */
-        width: auto;              /* ✅ 让 slide 按内容（img）自然定宽，真实 gap 永远 15px */
-        height: 495px;
-
-        position: relative;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      .section0-slide img{
-        /* 你原来是固定 1013px；这里仍以 1013 为上限，避免小屏桌面时卡片宽过头 */
-        width: min(1013px, 80vw);
-        height: 495px;
-        object-fit: cover;
-        
-        border-radius: 0; /*  border-radius:none; 16px */
-
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-        transition: transform 0.4s ease, opacity 0.4s ease;
-        -webkit-user-drag: none;
-        user-select: none;
-      }
-    }
-
-    /* Mobile */
-@media (max-width: 768px) {
-  .section0-carousel{
-    width: 100vw;
-    padding: 0;
+@media (min-width: 769px) {
+  .of-s0-carousel{
+    width: 100%;
+    padding: 0 10%;
+    margin: 0 auto;
     box-sizing: border-box;
+    background: #f9f9f9;
+    overflow-x: clip;
+    overflow-y: visible;
+    position: relative;
+    height: 495px;
+    margin-top: 5px; /* ✅ 与原始保持一致 */
+  }
+  .of-s0-track{
+    display: flex;
+    gap: 15px;
+    transition: transform 0.5s ease-in-out;
+    justify-content: flex-start;
+    will-change: transform;
+    transform: translateZ(0);
+  }
+  .of-s0-slide{
+    flex: 0 0 auto;
+    width: auto;
+    height: 495px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    /* 关键：降低子像素抖动 */
+    contain: layout paint;
+    transform: translateZ(0);
+  }
+  .of-s0-slide img{
+    width: min(1013px, 80vw);
+    height: 495px;
+    object-fit: cover;
+      border-radius: 0; /*  border-radius:none; 16px */
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    transition: transform 0.4s ease, opacity 0.4s ease;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+}
+
+/* Mobile */
+ /* ===== [PATCH REPLACE: mobile.peek.symmetric.padding.move.to.track] ===== */
+@media (max-width: 768px) {
+  .of-s0-carousel{
+    width: 100vw;
+    padding: 0;                 /* ✅ 关键：不再让 100vw+padding 变成“超宽盒子” */
+    box-sizing: border-box;     /* ✅ 避免子像素裁剪导致左右不对称 */
     overflow-x: hidden;
     margin: 0 auto;
     position: relative !important;
   }
 
-  .section0-track{
+  .of-s0-track{
     display: flex;
     gap: 15px;
     align-items: center;
 
+    /* ✅ 关键：把“居中留白”从 carousel 挪到 scroll 容器本身 */
     width: 100vw;
     box-sizing: border-box;
-    padding-left: calc((100vw - 85vw) / 2);
-    padding-right: calc((100vw - 85vw) / 2);
-    scroll-padding-left: calc((100vw - 85vw) / 2);
-    scroll-padding-right: calc((100vw - 85vw) / 2);
-  
-}
+    padding-left: var(--of-s0-pad, calc((100vw - 85vw) / 2));
+    padding-right: var(--of-s0-pad, calc((100vw - 85vw) / 2));
+    scroll-padding-left: var(--of-s0-pad, calc((100vw - 85vw) / 2));
+    scroll-padding-right: var(--of-s0-pad, calc((100vw - 85vw) / 2));
 
-      .section0-slide{
-        flex: 0 0 auto;
-        width: 85vw;
-        max-width: 400px;
-        aspect-ratio: 1 / 0.7; /* 宽高比例1:0.7 */
-        scroll-snap-align: center;
-        overflow: hidden;
-        position: relative;
-           border-radius: 0; /*  border-radius:none; 16px */
-      }
-      .section0-slide img{
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        filter: none !important;
-        opacity: 1 !important;
-        -webkit-user-drag: none;
-        user-select: none;
-      }
-    }
+    /* scroll-snap skin */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    touch-action: pan-x pan-y;
+    scrollbar-width: none;
+    will-change: scroll-position;
+    /* ===== [PATCH INSERT: snap.overscroll.behavior] ===== */
+overscroll-behavior-x: contain;
+overscroll-behavior-y: none;
+/* ===== [PATCH END] ===== */
 
-    /* =========================
-       Apple TV-like dots + play (NO keyframes)
-       ========================= */
+  }
+  .of-s0-track::-webkit-scrollbar{ display:none; }
 
-    .section0-buttonRow{
-      width: min(920px, 92vw);
-      height: 44px;
-      margin: 15px auto 16px auto;  /* ✅ 与轮播区域下方总间隔 15px */
-      position: relative;
-      z-index: 999;
-      background: transparent;
-      border: none;
-      box-shadow: none;
-    }
-    .section0-buttonRow.is-hidden{
-      opacity: 0;
-      transform: translateY(-10px) scale(.96);
-      pointer-events: none;
-    }
+/* ===== [PATCH END] ===== */
 
-    .btn-container{
-      position: absolute;
-      top: 50%;
-      opacity: 1;
-      pointer-events: auto;
-    }
-    #leftBtnContainer{
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-    #rightBtnContainer{
-      right: 10px;
-      left: auto;
-      transform: translateY(-50%);
-    }
 
-    #section0-leftCapsule{
-      width: auto;
-      height: auto;
-      background: transparent;
-      border: none;
-      border-radius: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .dots{
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 0 14px;
-      user-select: none;
-    }
-
-    /* ✅ 物理进度：外层浅灰 pill + 内层深色 fill（scaleX 缓慢推进） */
-    .dot{
-      --dotS: 6px;      /* 小圆直径 */
-      --pillW: 44px;    /* 胶囊宽 */
-      --pillH: 8px;     /* 胶囊高 */
-      --p: 0;           /* 进度 0..1 */
-
-      width: var(--dotS);
-      height: var(--dotS);
-      border-radius: 999px;
-      background: rgba(0,0,0,.30);
-      opacity: .85;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-      transform: translateZ(0);
-      transition:
-        width .34s cubic-bezier(.22,.61,.36,1),
-        height .34s cubic-bezier(.22,.61,.36,1),
-        background-color .22s ease,
-        opacity .22s ease;
-    }
-    /* 进度 fill */
-    .dot::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      border-radius: 999px;
-      background: rgba(0,0,0,.80);
-      transform-origin: left center;
-      transform: scaleX(var(--p));
-      opacity: 0;
-      transition: opacity .18s ease;
-      box-shadow: inset 0 0 0 0 rgba(0,0,0,0);
-    }
-
-    /* Active pill base track */
-    .dot.is-active{
-      width: var(--pillW);
-      height: var(--pillH);
-      background: rgba(0,0,0,.16);  /* ✅ 浅灰轨道 */
-      opacity: 1;
-    }
-    .dot.is-active::after{
-      opacity: 1;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
-    }
-
-    /* 蓄力阶段：保持小圆（停顿），然后放开进入胶囊拉伸 */
-    .dot.is-active.is-charge{
-      width: var(--dotS);
-      height: var(--dotS);
-      background: rgba(0,0,0,.40);
-      opacity: .95;
-    }
-
-    /* ===== Play/Pause button (with shadow) ===== */
-    #section0-rightButton{
-      width: 34px;
-      height: 34px;
-      border: none;
-      border-radius: 50%;
-      background: rgba(0,0,0,.06);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 10px 22px rgba(0,0,0,.18);
-      transition: transform .18s ease, opacity .18s ease, background-color .18s ease, box-shadow .18s ease;
-      user-select: none;
-    }
-    #section0-rightButton:hover{
-      background: rgba(0,0,0,.08);
-      box-shadow: 0 12px 26px rgba(0,0,0,.20);
-    }
-    #section0-rightButton:active{ transform: scale(.96); }
-
-    #section0-playIcon{
-      font-size: 14px;
-      line-height: 1;
-      color: rgba(0,0,0,.62);
-      letter-spacing: -1px;
-      user-select: none;
-      transform: translateX(1px);
-    }
-
-    /* Click hints（overlay已删除） */
-    .section0-slide.is-center{ cursor: pointer; }
-    .section0-slide.is-neighbor{ cursor: pointer; }
-
-    /* =========================
-       [NEW] Overlay (base classes before isolation)
-       - 真正生效样式在 JS 注入的 of-s0 scoped CSS 内
-       - 这里给一个兜底，避免极短时间内闪烁
-       ========================= */
-    .section0-overlay,
-    .of-s0-overlay{
-      position:absolute;
-      inset:0;
-      pointer-events:none; /* 只有按钮可点 */
-    }
-    .section0-explore,
-    .of-s0-explore{
-      pointer-events:auto;
-    }
-
-    /* ===== [PATCH INSERT: s0.film.previewVideo + appleFilm.modal.css] ===== */
-
-/* --- 1) Slide media wrapper（由 JS 自动创建，不改 HTML 结构） --- */
-@media (min-width: 769px) {
-  .section0-slide .of-s0-media,
-  .of-s0-slide .of-s0-media{
-    width: min(1013px, 80vw);
-    height: 495px;
-    position: relative;
+  .of-s0-slide{
+    flex: 0 0 auto;
+    width: 85vw;
+    max-width: 400px;
+    aspect-ratio: 1 / 0.7;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
     overflow: hidden;
-    border-radius: 0; /* 你原来是 none；这里用 0 等价，未来要 16px 也只改这里 */
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    position: relative;
+      border-radius: 0; /*  border-radius:none; 16px */
+
+    contain: layout paint;
+    transform: translateZ(0);
+  }
+  .of-s0-slide img{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: none !important;
+    opacity: 1 !important;
+    -webkit-user-drag: none;
+    user-select: none;
   }
 }
 
@@ -1731,7 +1577,7 @@ function onMovingChange(ctx) {
 }
 
     /* ===== [PATCH INSERT: s0.previewVideo.centerOnly.swap + preventNeighborBlackFrame] ===== */
-/* 邻居：未 ready 时仍用 poster，ready 后展示视频帧（保持 peek 对称且无黑屏） */
+/* 邻居：未 ready 时用 poster，ready 后展示视频静帧，保证 peek 对称且无黑屏 */
 .section0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo,
 .of-s0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo{
   opacity: 0 !important;
@@ -1742,7 +1588,6 @@ function onMovingChange(ctx) {
   opacity: 1 !important;
   visibility: visible !important;
 }
-/* ready 之后邻居同样显示视频静帧，保证 peek 是对称的视频内容 */
 .section0-slide:not(.is-center) .of-s0-media.is-video-ready > video.of-s0-previewVideo,
 .of-s0-slide:not(.is-center) .of-s0-media.is-video-ready > video.of-s0-previewVideo{
   opacity: 1 !important;
@@ -1773,24 +1618,379 @@ function onMovingChange(ctx) {
 }
 /* ===== [PATCH END] ===== */
 
+/* =========================
+   Dots + Play (scoped)
+   ========================= */
 
+.of-s0-buttonRow{
+  width: min(920px, 92vw);
+  height: 44px;
+  margin: 15px auto 16px auto;
+  position: relative;
+  z-index: 999;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.of-s0-buttonRow.is-hidden{
+  opacity: 0;
+  transform: translateY(-10px) scale(.96);
+  pointer-events: none;
+}
 
-/* --- 2) Apple 风格 bottom-sheet modal（全局唯一，不影响轮播 CSS 作用域） --- */
+.of-s0-btn-container{
+  position: absolute;
+  top: 50%;
+  opacity: 1;
+  pointer-events: auto;
+}
+.of-s0-leftBtnContainer{
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.of-s0-rightBtnContainer{
+  right: 10px;
+  left: auto;
+  transform: translateY(-50%);
+}
+
+.of-s0-leftCapsule{
+  width: auto;
+  height: auto;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.of-s0-dots{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  user-select: none;
+}
+
+.of-s0-dot{
+  --dotS: 6px;
+  --pillW: 44px;
+  --pillH: 8px;
+  --p: 0;
+
+  width: var(--dotS);
+  height: var(--dotS);
+  border-radius: 999px;
+  background: rgba(0,0,0,.30);
+  opacity: .85;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(0);
+  transition:
+    width .34s cubic-bezier(.22,.61,.36,1),
+    height .34s cubic-bezier(.22,.61,.36,1),
+    background-color .22s ease,
+    opacity .22s ease;
+}
+
+.of-s0-dot::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: 999px;
+  background: rgba(0,0,0,.80);
+  transform-origin: left center;
+  transform: scaleX(var(--p));
+  opacity: 0;
+  transition: opacity .18s ease;
+  box-shadow: inset 0 0 0 0 rgba(0,0,0,0);
+}
+
+.of-s0-dot.is-active{
+  width: var(--pillW);
+  height: var(--pillH);
+  background: rgba(0,0,0,.16);
+  opacity: 1;
+}
+.of-s0-dot.is-active::after{
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
+}
+.of-s0-dot.is-active.is-charge{
+  width: var(--dotS);
+  height: var(--dotS);
+  background: rgba(0,0,0,.40);
+  opacity: .95;
+}
+
+.of-s0-rightButton{
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(0,0,0,.18);
+  transition: transform .18s ease, opacity .18s ease, background-color .18s ease, box-shadow .18s ease;
+  user-select: none;
+}
+.of-s0-rightButton:hover{
+  background: rgba(0,0,0,.08);
+  box-shadow: 0 12px 26px rgba(0,0,0,.20);
+}
+.of-s0-rightButton:active{ transform: scale(.96); }
+
+.of-s0-playIcon{
+  font-size: 14px;
+  line-height: 1;
+  color: rgba(0,0,0,.62);
+  letter-spacing: -1px;
+  user-select: none;
+  transform: translateX(1px);
+}
+
+/* Click hints */
+.of-s0-slide.is-center{ cursor: pointer; }
+.of-s0-slide.is-neighbor{ cursor: pointer; }
+
+/* =========================
+   Overlay + Enter Motion（按你指定的 translateY(50px)+0.6s）
+   ========================= */
+
+.of-s0-overlay{
+  position: absolute;
+  inset: 0;
+
+  /* 允许按钮可点；同时保持滑动手感 */
+  pointer-events: auto;
+  touch-action: pan-x pan-y;
+  -webkit-tap-highlight-color: transparent;
+
+  z-index: 40;
+
+  opacity: 0;
+  transition: opacity .22s ease;
+  will-change: opacity;
+  backface-visibility: hidden;
+  transform: translate3d(0,0,0);
+}
+
+/* 运动/拖拽/滚动期间：强制隐藏 overlay（灭抖、灭跟随） */
+.of-s0-track.is-moving .of-s0-overlay{
+  opacity: 0 !important;
+}
+
+/* settling 期间：也强制隐藏 overlay，防止归位间隙闪一下 */
+.of-s0-track.is-settling .of-s0-overlay{
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+/* 只有中心卡片允许 overlay 可见 */
+.of-s0-slide.is-center .of-s0-overlay{
+  opacity: 1;
+}
+
+/* ===== 你指定的进入动作：translateY(50px) + 0.6s cubic + opacity 0.6s ===== */
+.of-s0-title,
+.of-s0-bottomBox{
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translate3d(0,50px,0);
+  opacity: 0;
+  transition: transform 0.6s cubic-bezier(0.22,1,0.36,1), opacity 0.6s ease-in-out;
+}
+
+/* 中心卡片触发“进入” */
+.of-s0-slide.is-center .of-s0-title,
+.of-s0-slide.is-center .of-s0-bottomBox{
+  transform: translate3d(0,0,0);
+  opacity: 1;
+}
+
+/* settling 期间：彻底禁止任何过渡，并统一回到进入前态 */
+.of-s0-track.is-settling .of-s0-title,
+.of-s0-track.is-settling .of-s0-bottomBox{
+  transition: none !important;
+  transform: translate3d(0,50px,0) !important;
+  opacity: 0 !important;
+}
+
+/* ===== [PATCH INSERT: s0.mobile.settling.keep.translateX + wrap.skipEnter] ===== */
+/* 关键：移动端 settling 也必须保留 translateX(-50%)，否则会出现“斜向/抖动” */
+@media (max-width: 768px) {
+  .of-s0-track.is-settling .of-s0-title,
+  .of-s0-track.is-settling .of-s0-bottomBox{
+    transform: translateX(-50%) translate3d(0,50px,0) !important;
+  }
+}
+
+/* 首尾 wrap 归位时：仅 1 帧跳过入场过渡，避免 Explore/标题/描述反复“进场抖动” */
+.of-s0-track.is-skipEnter .of-s0-overlay{
+  transition: none !important;
+}
+.of-s0-track.is-skipEnter .of-s0-title,
+.of-s0-track.is-skipEnter .of-s0-bottomBox{
+  transition: none !important;
+  transform: translate3d(0,0,0) !important;
+  opacity: 1 !important;
+}
+@media (max-width: 768px) {
+  .of-s0-track.is-skipEnter .of-s0-title,
+  .of-s0-track.is-skipEnter .of-s0-bottomBox{
+    transform: translateX(-50%) translate3d(0,0,0) !important;
+  }
+}
+/* ===== [PATCH END] ===== */
+
+/* 基础文本样式（保持你现有视觉） */
+.of-s0-title,
+.of-s0-desc{
+  pointer-events: none;
+  max-width: min(520px, 70%);
+  text-shadow: 0 10px 22px rgba(0,0,0,.25);
+}
+
+.of-s0-explore{
+  pointer-events: auto;
+  touch-action: manipulation;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: .2px;
+  border-radius: 999px;
+  background: #1f6fff;
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(0,0,0,.18);
+  transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.of-s0-explore:hover{ box-shadow: 0 14px 30px rgba(0,0,0,.22); }
+.of-s0-explore:active{ transform: scale(.97); }
+
+/* Desktop overlay positioning */
+@media (min-width: 769px) {
+  .of-s0-title{
+    position: absolute;
+    left: 80px;
+    top: 30px;
+    font-size: 28px;
+    font-weight: 800;
+    color: #ffffff;
+    max-width: min(720px, 70%);
+  }
+
+  .of-s0-bottomBox{
+    position: absolute;
+    left: 80px;
+    bottom: 30px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+    max-width: min(820px, 78%);
+  }
+
+  .of-s0-desc{
+    order: 1;
+    font-size: 16px;
+    line-height: 1.2;
+    color:#1f6fff;
+    margin: 0;
+    max-width: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .of-s0-explore{
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+}
+
+/* Mobile overlay positioning */
+@media (max-width: 768px) {
+  .of-s0-title{
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) translate3d(0,50px,0);
+    top: 20px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #1f6fff;
+    text-align: center;
+    max-width: min(86%, 360px);
+    text-shadow: none;
+    padding: 0 10px;
+    box-sizing: border-box;
+    opacity: 0;
+    transition: transform 0.6s cubic-bezier(0.22,1,0.36,1), opacity 0.6s ease-in-out;
+  }
+  .of-s0-slide.is-center .of-s0-title{
+    transform: translateX(-50%) translate3d(0,0,0);
+    opacity: 1;
+  }
+
+  .of-s0-bottomBox{
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) translate3d(0,50px,0);
+    bottom: 30px;
+    width: min(86%, 360px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    text-align: center;
+    opacity: 0;
+    transition: transform 0.6s cubic-bezier(0.22,1,0.36,1), opacity 0.6s ease-in-out;
+  }
+  .of-s0-slide.is-center .of-s0-bottomBox{
+    transform: translateX(-50%) translate3d(0,0,0);
+    opacity: 1;
+  }
+
+  .of-s0-desc{
+    font-size: 12px;
+    line-height: 1.35;
+    color:#1f6fff;
+    text-shadow: 0 10px 22px rgba(0,0,0,.25);
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .of-s0-explore{
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+/* ===== [PATCH ADD: apple-film-modal.styles] ===== */
+
+/* 打开 modal 时锁滚动 */
 html.appleFilm-lock,
-body.appleFilm-lock{
+body.appleFilm-lock {
   overflow: hidden;
   height: 100%;
 }
 
-.appleFilm-modal{
+/* 背景遮罩 + 轻微模糊（接近 Apple） */
+.appleFilm-modal {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  z-index: 9999;
   display: none;
 }
-.appleFilm-modal.is-open{ display: block; }
+.appleFilm-modal.is-open { display: block; }
 
-.appleFilm-backdrop{
+.appleFilm-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(0,0,0,.45);
@@ -1799,9 +1999,10 @@ body.appleFilm-lock{
   opacity: 0;
   transition: opacity .22s ease;
 }
-.appleFilm-modal.is-open .appleFilm-backdrop{ opacity: 1; }
+.appleFilm-modal.is-open .appleFilm-backdrop { opacity: 1; }
 
-.appleFilm-sheet{
+/* 底部大圆角 sheet */
+.appleFilm-sheet {
   position: absolute;
   left: 12px;
   right: 12px;
@@ -1815,12 +2016,13 @@ body.appleFilm-lock{
   opacity: 0;
   transition: transform .26s cubic-bezier(.2,0,0,1), opacity .22s ease;
 }
-.appleFilm-modal.is-open .appleFilm-sheet{
+.appleFilm-modal.is-open .appleFilm-sheet {
   transform: translateY(0) scale(1);
   opacity: 1;
 }
 
-.appleFilm-close{
+/* 右上角关闭按钮 */
+.appleFilm-close {
   position: absolute;
   right: 14px;
   top: 14px;
@@ -1833,24 +2035,25 @@ body.appleFilm-lock{
   cursor: pointer;
   display: grid;
   place-items: center;
-  z-index: 5;
 }
-.appleFilm-close:active{ transform: scale(.98); }
+.appleFilm-close:active { transform: scale(.98); }
 
-.appleFilm-player{
+/* 视频区域 */
+.appleFilm-player {
   width: 100%;
   aspect-ratio: 16/9;
   background: #000;
   position: relative;
 }
-.appleFilm-player video{
+.appleFilm-player video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.appleFilm-playBtn{
+/* 中央播放按钮（截图那种） */
+.appleFilm-playBtn {
   position: absolute;
   inset: 0;
   display: grid;
@@ -1859,7 +2062,7 @@ body.appleFilm-lock{
   border: 0;
   cursor: pointer;
 }
-.appleFilm-playBtn::before{
+.appleFilm-playBtn::before {
   content: "";
   width: 74px;
   height: 74px;
@@ -1868,22 +2071,25 @@ body.appleFilm-lock{
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
-.appleFilm-playBtn::after{
+.appleFilm-playBtn::after {
   content: "";
   position: absolute;
-  width: 0; height: 0;
+  width: 0;
+  height: 0;
   border-left: 18px solid rgba(255,255,255,.92);
   border-top: 12px solid transparent;
   border-bottom: 12px solid transparent;
   transform: translateX(2px);
 }
 
-.appleFilm-content{
+/* 文案区（可滚动，接近第二张图排版） */
+.appleFilm-content {
   padding: 18px 18px 20px;
   color: rgba(255,255,255,.92);
 }
 
-.appleFilm-transcript{
+/* Download transcript */
+.appleFilm-transcript {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1893,7 +2099,7 @@ body.appleFilm-lock{
   line-height: 1.2;
   margin: 4px 0 14px;
 }
-.appleFilm-transcript .ico{
+.appleFilm-transcript .ico {
   width: 22px; height: 22px;
   border-radius: 999px;
   display: grid;
@@ -1902,20 +2108,25 @@ body.appleFilm-lock{
   color: rgba(255,255,255,.72);
 }
 
-.appleFilm-title{
+/* 标题 */
+.appleFilm-title {
   font-size: 34px;
   line-height: 1.06;
   letter-spacing: -0.02em;
   margin: 4px 0 10px;
   font-weight: 700;
 }
-.appleFilm-desc{
+
+/* 描述 */
+.appleFilm-desc {
   font-size: 18px;
   line-height: 1.55;
   color: rgba(255,255,255,.74);
   margin: 0 0 16px;
 }
-.appleFilm-link{
+
+/* Learn more */
+.appleFilm-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1923,7 +2134,7 @@ body.appleFilm-lock{
   text-decoration: none;
   font-size: 18px;
 }
-.appleFilm-link::after{
+.appleFilm-link::after {
   content: "›";
   font-size: 22px;
   line-height: 1;
@@ -1931,8 +2142,7 @@ body.appleFilm-lock{
 }
 
 /* ===== [PATCH END] ===== */
-
-    /* ===== [PATCH INSERT: appleFilm.desktop.twoColumn.layout] ===== */
+/* ===== [PATCH INSERT: appleFilm.desktop.twoColumn.layout] ===== */
 @media (min-width: 769px) {
   /* 弹层：从“底部 sheet”变成桌面端居中卡片 */
   .appleFilm-sheet{
@@ -1991,17 +2201,14 @@ body.appleFilm-lock{
 }
 /* ===== [PATCH END] ===== */
 
+/* =========================
+   Peek Preview stability：视频 ready 前以 poster 兜底
+   ========================= */
 
-    /* =========================
-       Peek Preview stability：视频首帧就绪前用 poster 兜底
-       ========================= */
-
-/* 基础：容器仍用黑底，避免解码前底色透出 */
 .of-s0-media{
   background: #000;
 }
 
-/* 未 ready：优先展示 poster，视频保持隐藏防止黑屏闪一下 */
 .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo{
   opacity: 0 !important;
   visibility: hidden !important;
@@ -2014,7 +2221,6 @@ body.appleFilm-lock{
   visibility: visible !important;
 }
 
-/* ready：所有 slide（中心 + peek）统一展示视频帧，poster 隐藏 */
 .of-s0-media.is-video-ready > video.of-s0-previewVideo{
   opacity: 1 !important;
   visibility: visible !important;
@@ -2985,11 +3191,21 @@ function fadeInTrack() {
   }
   if (track) track.dataset.ofS0Visible = "1";
   try {
-    track.animate([{ opacity: 0 }, { opacity: 1 }], {
+    const anim = track.animate([{ opacity: 0 }, { opacity: 1 }], {
       duration: FADE_IN_MS,
       easing: "ease",
       fill: "forwards",
     });
+    if (anim && typeof anim.addEventListener === "function") {
+      anim.addEventListener("finish", () => {
+        track.style.opacity = "1";
+        markReadyOnce();
+      }, { once: true });
+    } else {
+      // 兜底：无动画接口时直接标记 ready
+      track.style.opacity = "1";
+      markReadyOnce();
+    }
   } catch (_) {
     track.style.opacity = "1";
     // ===== [PATCH INSERT: s0.readyOnce.after.fadeIn] =====
@@ -3109,8 +3325,8 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
           // 直接定位到中段 currentPos（避免首尾空白）
           try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
 
-          // 预先把首帧解码出来，避免首次露出时黑屏
-          await primePreviewVideos({ centerIdx: currentPos });
+          // 预先把首帧解码出来（异步），避免阻塞首帧露出
+          primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
 
           // 立刻刷新中心态 + 预览
           try { updateCenterClasses(); } catch (_) {}
@@ -3123,8 +3339,8 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
           try { recalcSpan(); } catch (_) {}
           try { applyTransform(false); } catch (_) {}
 
-          // 预先把首帧解码出来，避免首次露出时黑屏
-          await primePreviewVideos({ centerIdx: currentPos });
+          // 预先把首帧解码出来（异步），避免阻塞首帧露出
+          primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
 
           try { updateCenterClasses(); } catch (_) {}
           try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; }
@@ -3716,8 +3932,8 @@ track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐�
         applyTransform(false);
       }
 
-      // 确保首帧已解码再露出轨道，避免进入页面时闪黑
-      await primePreviewVideos({ centerIdx: currentPos });
+      // 预热首帧但不阻塞首屏渲染，避免白屏等待
+      primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
 
       requestAnimationFrame(() => {
         setSettling(false);
@@ -3783,8 +3999,8 @@ pushSkipEnter();
         applyTransform(false);
       }
 
-      // 回到页面先把首帧重新绘制出来，避免黑屏一段时间
-      await primePreviewVideos({ centerIdx: currentPos });
+      // 回到页面异步预热首帧，避免阻塞恢复渲染
+      primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
 
 // ===== [PATCH REPLACE: recover.raf.ensure.popSkipEnter] =====
 requestAnimationFrame(() => {
