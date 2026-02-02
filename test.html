@@ -1014,7 +1014,7 @@ function bindPreviewReady(wrap, v) {
 
     // 移动端 ready 后重新计算 peek padding，确保左右对称
     try {
-      if (isSnapMode && isSnapMode()) applyMobilePeekPadding();
+      if (isSnapMode && isSnapMode()) applyMobilePeekPaddingPrecise();
     } catch (_) {}
   };
 
@@ -1033,7 +1033,7 @@ function bindPreviewReady(wrap, v) {
   // iOS 滑动归位后 padding 可能微偏：ready 后再对齐一次
   setTimeout(() => {
     try {
-      if (isSnapMode && isSnapMode()) applyMobilePeekPadding();
+      if (isSnapMode && isSnapMode()) applyMobilePeekPaddingPrecise();
     } catch (_) {}
   }, 180);
 }
@@ -2519,7 +2519,12 @@ function applyMobilePeekPaddingPrecise() {
       if (!w) return;
 
       const pad = Math.max(0, (vw - w) / 2);
-      track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
+      const px = `${pad.toFixed(3)}px`;
+      track.style.setProperty("--of-s0-pad", px);
+      track.style.paddingLeft = px;
+      track.style.paddingRight = px;
+      track.style.setProperty("scroll-padding-left", px);
+      track.style.setProperty("scroll-padding-right", px);
     } catch (_) {}
   });
 }
@@ -3315,11 +3320,10 @@ try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView, isPlaying,
       const res = normalizeKeepAnchor(currentPos);
       if (!res.changed) return false;
 
-      // 避免跨轮衔接时 overlay/文本二次闪现
-      pushSkipEnter();
+      // wrap 锁定：覆盖归位整个过程，避免首尾衔接瞬显
+      beginWrapLock(140);
       recalcSpan();
       applyTransform(false);
-      popSkipEnterLater();
       return true;
     }
 
@@ -3343,80 +3347,19 @@ function getViewportW() {
 /**
  * 计算并设置 scroll 容器 padding，使 peek preview 左右露出严格对称。
  * 输出 px，保留 3 位小数，消灭 vw 子像素舍入差异。
+ * （现统一委托给 applyMobilePeekPaddingPrecise）
  */
 function applyMobilePeekPadding() {
   if (!track) return;
-
-if (!isSnapMode()) {
-  track.style.removeProperty("--of-s0-pad");
-  return;
-}
-
-  // 用当前中心卡片作为参考宽度（85vw / max-width 400 的实际像素宽）
-  slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-  const ref = slides[currentPos] || slides[realCount] || slides[0];
-  //const cardW = ref ? ref.getBoundingClientRect().width : 0;
-  //const vw = getViewportW();
-
- // let pad = (vw - cardW) / 2;
-
-  // ===== [PATCH REPLACE: mobile.pad.use.track.viewport.width] =====
-let cardW = ref ? (ref.getBoundingClientRect().width || 0) : 0;
-if (!cardW && ref) {
-  // 兜底：有些时刻 rect 仍为 0，改用计算样式宽度
-  cardW = parseFloat(getComputedStyle(ref).width || "0") || 0;
-}
-
-// 以实际 track 宽度为主（与 scroll 逻辑一致），viewport 仅作兜底
-const trackW = track ? (track.getBoundingClientRect().width || track.clientWidth || 0) : 0;
-let baseW = trackW;
-if (!Number.isFinite(baseW) || baseW <= 0) {
-  const vw = getViewportW();
-  baseW = vw;
-}
-let pad = (baseW - cardW) / 2;
-// ===== [PATCH END] =====
-
-  if (!Number.isFinite(pad)) pad = 0;
-  pad = Math.max(0, pad);
-
- // track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
-
-  // ===== [PATCH REPLACE: mobile.peek.pad.stabilize.no.micro.jitter] =====
-// ===== [PATCH REPLACE: mobile.peek.pad.stabilize.no.micro.jitter] =====
-// NOTE: 这段旧逻辑已由下面的 “mobile.peek.pad.quantize.and.apply.inline.v1” 统一接管。
-// 目的：避免重复声明 const prev 导致整段脚本 SyntaxError 崩溃（所有点击/轮播失效）。
-// ===== [PATCH END] =====
-
-//track.dataset.ofS0Pad = String(pad);
-//track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
-// ===== [PATCH END] =====
-// ===== [PATCH REPLACE: mobile.peek.pad.quantize.and.apply.inline.v1] =====
-// DPR 对齐：消灭 0.5px 级别左右不一致
-pad = quantizePx(pad);
-
-const prev = parseFloat(track.dataset.ofS0Pad || "NaN");
-// 阈值收紧，确保轻微尺寸变化也同步，避免左右不对称
-if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.02) {
-  return;
-}
-
-track.dataset.ofS0Pad = String(pad);
-
-const px = `${pad.toFixed(3)}px`;
-
-// 1) 变量（给 CSS 用）
-track.style.setProperty("--of-s0-pad", px);
-
-// 2) 直接写入 padding（确保左右严格一致）
-track.style.paddingLeft = px;
-track.style.paddingRight = px;
-
-// 3) 直接写入 scroll-padding（确保 snap 计算也严格一致）
-track.style.setProperty("scroll-padding-left", px);
-track.style.setProperty("scroll-padding-right", px);
-// ===== [PATCH END] =====
-
+  if (!isSnapMode()) {
+    track.style.removeProperty("--of-s0-pad");
+    track.style.removeProperty("padding-left");
+    track.style.removeProperty("padding-right");
+    track.style.removeProperty("scroll-padding-left");
+    track.style.removeProperty("scroll-padding-right");
+    return;
+  }
+  applyMobilePeekPaddingPrecise();
 }
 // ===== [PATCH END] =====
 
@@ -3664,11 +3607,13 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
       if (isSnapMode()) {
         // Mobile: snap 模式
         try { setSnapModeEnabled(true); } catch (_) {}
-        try { applyMobilePeekPadding(); } catch (_) {}
+        try { applyMobilePeekPaddingPrecise(); } catch (_) {}
 
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        // 直接定位到中段 currentPos（避免首尾空白）
+    // 直接定位到中段 currentPos（避免首尾空白）
+        beginWrapLock(SNAP_SETTLE_MS + 90); // wrap 归位锁
         try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
+        applyMobilePeekPaddingPrecise();
 
         // 立刻刷新中心态 + 预览
         try { updateCenterClasses(); } catch (_) {}
@@ -3711,8 +3656,8 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
       }
 
       if (changed) {
-        // 避免跨轮衔接时 overlay/文本二次闪现
-        pushSkipEnter();
+        // wrap 全程锁，避免衔接时二次抖动/瞬显
+        beginWrapLock(SNAP_SETTLE_MS + 90);
 
         // 同步 scrollLeft 到新的中段位置，保持视觉对称
         const targetLeft = getTargetLeftForPos_Snap(currentPos);
@@ -3720,11 +3665,8 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 
         // 重新计算左右露出，确保对称（forceRepad 可强制执行）
         if (forceRepad || isSnapMode()) {
-          try { applyMobilePeekPadding(); } catch (_) {}
+          try { applyMobilePeekPaddingPrecise(); } catch (_) {}
         }
-
-        // 两帧后解除 skipEnter，保证后续入场动画正常
-        popSkipEnterLater();
       }
 
       return changed;
@@ -3759,7 +3701,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
     if (isUserDragging) return;
 
     // 重新计算对称 padding（3dp）
-    try { applyMobilePeekPadding(); } catch (_) {}
+    try { applyMobilePeekPaddingPrecise(); } catch (_) {}
 
     // moving -> false（允许预览播放）
     setMoving(false);
@@ -3807,7 +3749,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
   const onResize = () => {
     if (!isSnapMode()) return;
     requestAnimationFrame(() => {
-      try { applyMobilePeekPadding(); } catch (_) {}
+      try { applyMobilePeekPaddingPrecise(); } catch (_) {}
       withSnapSuppress(() => {
         try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
       });
@@ -3931,7 +3873,7 @@ function normalizeEdgeWhileDragging_Snap() {
       // 再归位到中段（避免“下一轮”时可见回弹）
       // 再归位到中段（避免“下一轮”时可见回弹）
       const changed = normalizePositionIfNeeded_Snap(true);
-      applyMobilePeekPadding();
+      applyMobilePeekPaddingPrecise();
 
       // 无论 changed 与否，都做一次无动画对齐（但必须受 suppress 保护）
      // withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
@@ -4173,8 +4115,9 @@ pushSkipEnter();
 
       if (isSnapMode()) {
         setSnapModeEnabled(true);
+        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPadding();
+        applyMobilePeekPaddingPrecise();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
@@ -4275,8 +4218,9 @@ track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐�
       if (isSnapMode()) {
         setSnapModeEnabled(true);
         currentPos = realCount > 1 ? realCount : 0;
+        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPadding();
+        applyMobilePeekPaddingPrecise();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
@@ -4338,8 +4282,9 @@ pushSkipEnter();
         setSnapModeEnabled(true);
         // clamp + normalize
         currentPos = clamp(currentPos, 0, slides.length - 1);
+        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPadding();
+        applyMobilePeekPaddingPrecise();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
