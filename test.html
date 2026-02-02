@@ -3667,10 +3667,8 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
         try { applyMobilePeekPadding(); } catch (_) {}
 
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-    // 直接定位到中段 currentPos（避免首尾空白）
-        beginWrapLock(SNAP_SETTLE_MS + 90); // wrap 归位锁
+        // 直接定位到中段 currentPos（避免首尾空白）
         try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
-        applyMobilePeekPaddingPrecise();
 
         // 立刻刷新中心态 + 预览
         try { updateCenterClasses(); } catch (_) {}
@@ -3722,7 +3720,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 
         // 重新计算左右露出，确保对称（forceRepad 可强制执行）
         if (forceRepad || isSnapMode()) {
-          try { applyMobilePeekPaddingPrecise(); } catch (_) {}
+          try { applyMobilePeekPadding(); } catch (_) {}
         }
 
         // 两帧后解除 skipEnter，保证后续入场动画正常
@@ -4175,9 +4173,8 @@ pushSkipEnter();
 
       if (isSnapMode()) {
         setSnapModeEnabled(true);
-        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPaddingPrecise();
+        applyMobilePeekPadding();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
@@ -4278,9 +4275,8 @@ track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐�
       if (isSnapMode()) {
         setSnapModeEnabled(true);
         currentPos = realCount > 1 ? realCount : 0;
-        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPaddingPrecise();
+        applyMobilePeekPadding();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
@@ -4342,9 +4338,8 @@ pushSkipEnter();
         setSnapModeEnabled(true);
         // clamp + normalize
         currentPos = clamp(currentPos, 0, slides.length - 1);
-        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPaddingPrecise();
+        applyMobilePeekPadding();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
