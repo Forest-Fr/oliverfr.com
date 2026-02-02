@@ -303,7 +303,17 @@
 .section0-slide .of-s0-media,
 .of-s0-slide .of-s0-media{
   /* 避免 poster/video 切换时出现黑底闪一下（非破坏：只是给容器兜底底色） */
-  background: #000;
+ /* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
+/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
+background: #f9f9f9;
+/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
+}
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  background: #f9f9f9;
+}
+/* ===== [PATCH END] ===== */
+
   /* 让 opacity 切换更稳定，减少“快闪/抖动/锯齿” */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -492,7 +502,17 @@ body.appleFilm-lock{
 .appleFilm-player{
   width: 100%;
   aspect-ratio: 16/9;
-  background: #000;
+/* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
+/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
+background: #f9f9f9;
+/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
+}
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  background: #f9f9f9;
+}
+/* ===== [PATCH END] ===== */
+
   position: relative;
 }
 .appleFilm-player video{
@@ -616,15 +636,34 @@ body.appleFilm-lock{
     flex: 0 1 clamp(460px, 58%, 720px);
     aspect-ratio: 16 / 9;
     max-height: calc(100vh - 64px);
+/* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
+/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
+background: #f9f9f9;
+/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
+}
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  background: #f9f9f9;
+}
+/* ===== [PATCH END] ===== */
 
-    background: #000;
     border-right: 1px solid rgba(255,255,255,.06);
   }
 
   /* 桌面端建议用 contain：减少裁切，也降低“被拉糊”的主观感受 */
   .appleFilm-player video{
     object-fit: contain;
-    background: #000;
+ /* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
+/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
+background: #f9f9f9;
+/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
+}
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  background: #f9f9f9;
+}
+/* ===== [PATCH END] ===== */
+
   }
 
   /* 右侧文本区：可滚动，避免撑爆弹层 */
@@ -1406,7 +1445,17 @@ overscroll-behavior-y: none;
 .section0-slide .of-s0-media,
 .of-s0-slide .of-s0-media{
   /* 避免 poster/video 切换时出现黑底闪一下（非破坏：只是给容器兜底底色） */
-  background: #000;
+/* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
+/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
+background: #f9f9f9;
+/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
+}
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  background: #f9f9f9;
+}
+/* ===== [PATCH END] ===== */
+
   /* 让 opacity 切换更稳定，减少“快闪/抖动/锯齿” */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -2773,6 +2822,22 @@ const w = el ? (el.getBoundingClientRect().width || 0) : 0;
       centerOffset = viewportW && w ? (viewportW - w) / 2 : 0;
 
       if (!Number.isFinite(centerOffset)) centerOffset = 0;
+
+      // ===== [PATCH INSERT: mobile.peek.pad.precise.to_3dp.v1] =====
+/**
+ * 移动端 Peek Preview 精确对称：
+ * pad = (viewportW - slideW) / 2
+ * 写入 CSS 变量 --of-s0-pad，精确到 0.001px
+ */
+try {
+  if (isSnapMode && typeof isSnapMode === "function" ? isSnapMode() : isMobileSnap()) {
+    const pad = (viewportW && w) ? ((viewportW - w) / 2) : 0;
+    const fixed = (Number.isFinite(pad) ? pad : 0).toFixed(3) + "px";
+    track.style.setProperty("--of-s0-pad", fixed);
+  }
+} catch (_) {}
+// ===== [PATCH END] =====
+
       return slideSpan;
     }
 
