@@ -1187,8 +1187,18 @@ function syncPreview(ctx) {
     learnEl.textContent = conf.learnText || "Learn more";
     learnEl.href = learnHref;
 
-    transcriptEl.querySelector(".txt").textContent = conf.transcriptText || "Download the transcript";
-    transcriptEl.href = "#";
+    //transcriptEl.querySelector(".txt").textContent = conf.transcriptText || "Download the transcript";
+   // transcriptEl.href = "#";
+transcriptEl.querySelector(".txt").textContent = conf.transcriptText || "Download the transcript";
+
+// 按你指定：分别打开对应 mp4 页面
+// lategpt -> https://oliverfr.com/LiteGPT.mp4
+// agent  -> https://oliverfr.com/Agent.mp4
+if (mp4) {
+  transcriptEl.href = `https://oliverfr.com/${mp4}`;
+} else {
+  transcriptEl.href = "#";
+}
 
     // pause preview while modal open（省资源）
     if (lastCtx && lastCtx.slides) pauseAllPreviews(lastCtx.slides);
@@ -1779,12 +1789,12 @@ overscroll-behavior-y: none;
 }
 
 /* settling 期间：彻底禁止任何过渡，并统一回到进入前态 */
-.of-s0-track.is-settling .of-s0-title,
-.of-s0-track.is-settling .of-s0-bottomBox{
+/* settling 期间：彻底隐藏 overlay（不让用户看到归位），但不要篡改入场动画的最终/初始态 */
+.of-s0-track.is-settling .of-s0-overlay{
+  opacity: 0 !important;
   transition: none !important;
-  transform: translate3d(0,0,0) !important;
-  opacity: 1 !important;
 }
+
 
 /* ===== [PATCH INSERT: s0.mobile.settling.keep.translateX + wrap.skipEnter] ===== */
 /* 关键：移动端 settling 也必须保留 translateX(-50%)，否则会出现“斜向/抖动” */
@@ -1805,6 +1815,23 @@ overscroll-behavior-y: none;
   transform: translate3d(0,0,0) !important;
   opacity: 1 !important;
 }
+
+/* ===== [PATCH INSERT: s0.enterKick.force.motion.v1] ===== */
+/* 用于“强制重触发”中心卡片的入场动效（无损，只影响观感） */
+.of-s0-track.of-s0-enterKick .of-s0-slide.is-center .of-s0-title,
+.of-s0-track.of-s0-enterKick .of-s0-slide.is-center .of-s0-bottomBox{
+  transition: none !important;
+  opacity: 0 !important;
+  transform: translate3d(0,50px,0) !important;
+}
+@media (max-width: 768px) {
+  .of-s0-track.of-s0-enterKick .of-s0-slide.is-center .of-s0-title,
+  .of-s0-track.of-s0-enterKick .of-s0-slide.is-center .of-s0-bottomBox{
+    transform: translateX(-50%) translate3d(0,50px,0) !important;
+  }
+}
+/* ===== [PATCH END] ===== */
+
 @media (max-width: 768px) {
   .of-s0-track.is-skipEnter .of-s0-title,
   .of-s0-track.is-skipEnter .of-s0-bottomBox{
@@ -2501,32 +2528,48 @@ function markReadyOnce() {
       return Array.from(dotsWrap.querySelectorAll(".of-s0-dot"));
     }
 
-    function resetAllDots() {
-      dotsAll().forEach((d) => {
-        d.classList.remove("is-active", "is-charge");
-        d.style.setProperty("--p", "0");
-      });
-    }
+function resetAllDots() {
+  // 关键：彻底清空 activeDotIdx，避免“恢复/首入时 idx 相同但 class 被清掉”导致不再拉伸
+  activeDotIdx = -1;
+
+  // 清掉上一轮的 charge 定时器，避免首入被旧 timer 干扰
+  clearTimeout(chargeTimer);
+
+  dotsAll().forEach((d) => {
+    d.classList.remove("is-active", "is-charge");
+    d.style.setProperty("--p", "0");
+  });
+}
+
 
 function activateDot(idx) {
   const dots = dotsAll();
-  if (idx === activeDotIdx && activeDotIdx !== -1) {
-    // 同一个点重复激活时不再二次拉伸，避免“二次伸缩”
+  const d0 = dots[idx];
+
+  // ✅ 只有在“同 idx 且仍然处于 active 状态”才允许早退
+  // 否则（首入/恢复/重建 DOM 后 class 丢了）必须重新拉伸一次
+  if (idx === activeDotIdx && activeDotIdx !== -1 && d0 && d0.classList.contains("is-active")) {
     setDotProgress(idx, 0);
     return;
   }
 
   resetAllDots();
-  const d = dots[idx];
+
+  const d = dotsAll()[idx];
   if (!d) return;
+
+  // ✅ 强制让“初始小圆状态”先落地一帧，再加 active（避免首入时 transition 不触发）
+  // 这里用 reflow 触发一次样式提交（无损，不改功能）
+  void d.offsetWidth;
 
   activeDotIdx = idx;
   d.classList.add("is-active", "is-charge");
   d.style.setProperty("--p", "0");
 
-      clearTimeout(chargeTimer);
-      chargeTimer = setTimeout(() => d.classList.remove("is-charge"), DOT_CHARGE_MS);
-    }
+  clearTimeout(chargeTimer);
+  chargeTimer = setTimeout(() => d.classList.remove("is-charge"), DOT_CHARGE_MS);
+}
+
 
     function setDotProgress(idx, p) {
       const d = dotsAll()[idx];
@@ -2876,6 +2919,30 @@ function popSkipEnterLater() {
 }
 // ===== [PATCH END] =====
 
+    // ===== [PATCH INSERT: s0.enterKick.helper.v1] =====
+function kickCenterEnterMotion() {
+  if (!track) return;
+
+  // moving/settling/skipEnter/overlay-lock 期间不做，避免引入闪烁
+  if (
+    track.classList.contains("is-moving") ||
+    track.classList.contains("is-settling") ||
+    track.classList.contains("is-skipEnter") ||
+    track.classList.contains("of-s0-overlay-lock")
+  ) return;
+
+  track.classList.add("of-s0-enterKick");
+
+  // 跨两帧移除：确保浏览器先提交“初始态”，再走到“中心态”，入场就会稳定慢慢上来
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (track) track.classList.remove("of-s0-enterKick");
+    });
+  });
+}
+// ===== [PATCH END] =====
+
+
 // 避免归位/归中时 overlay 二次闪现：锁定 overlay，稳定后延迟解锁
 let overlayLockTimer = 0;
 function updateOverlayLock(lock) {
@@ -2945,6 +3012,9 @@ function updateCenterClasses() {
 
       // ===== [PATCH REPLACE: s0.film.syncPreview.afterCenterClasses.pass_inView] =====
 try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+
+  kickCenterEnterMotion();
+
 
 // 减少首帧模糊：center 切换时若视频已 ready 且暂停，轻推到 0.04s 并 play 一下再停
 if (center) {
