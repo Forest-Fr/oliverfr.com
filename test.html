@@ -1740,13 +1740,11 @@ overscroll-behavior-y: none;
 
 /* settling 期间：也强制隐藏 overlay，防止归位间隙闪一下 */
 .of-s0-track.is-settling .of-s0-overlay{
-  opacity: 0 !important;
   transition: none !important;
 }
 
 /* 锁定态：归位过程短暂停用 overlay，防止二次闪现 */
 .of-s0-track.of-s0-overlay-lock .of-s0-overlay{
-  opacity: 0 !important;
   transition: none !important;
 }
 
@@ -2510,15 +2508,21 @@ function markReadyOnce() {
       });
     }
 
-    function activateDot(idx) {
-      const dots = dotsAll();
-      resetAllDots();
-      const d = dots[idx];
-      if (!d) return;
+function activateDot(idx) {
+  const dots = dotsAll();
+  if (idx === activeDotIdx) {
+    // 同一个点重复激活时不再二次拉伸，避免“二次伸缩”
+    setDotProgress(idx, 0);
+    return;
+  }
 
-      activeDotIdx = idx;
-      d.classList.add("is-active", "is-charge");
-      d.style.setProperty("--p", "0");
+  resetAllDots();
+  const d = dots[idx];
+  if (!d) return;
+
+  activeDotIdx = idx;
+  d.classList.add("is-active", "is-charge");
+  d.style.setProperty("--p", "0");
 
       clearTimeout(chargeTimer);
       chargeTimer = setTimeout(() => d.classList.remove("is-charge"), DOT_CHARGE_MS);
