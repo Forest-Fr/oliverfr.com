@@ -2481,6 +2481,8 @@ const DOT_PROGRESS_MS = 5600; // 节奏更“慢、稳、优雅”
     let originalSlides = Array.from(track.querySelectorAll(".of-s0-slide"));
     const realCount = originalSlides.length;
 
+    const isSnapMode = isMobileSnap;
+
     // ===== [PATCH INSERT: s0.mobile.peek.pad.from.realWidth.v1] =====
 function applyMobilePeekPadPx() {
   if (!isSnapMode()) return;
@@ -2499,10 +2501,11 @@ function applyMobilePeekPadPx() {
 }
 
 // 让布局完成后再算一次（避免首次测量为 0 或子像素抖动）
-requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx)));
+// 让布局完成后再算一次（避免首次测量为 0 或子像素抖动）
+requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx));
 
 window.addEventListener("resize", () => {
-  requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx)));
+  requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx));
 }, { passive: true });
 
 window.addEventListener("orientationchange", () => {
@@ -2511,9 +2514,10 @@ window.addEventListener("orientationchange", () => {
 
 if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", () => {
-    requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx)));
+    requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx));
   }, { passive: true });
 }
+
 // ===== [PATCH END] =====
 
     if (!realCount) return null;
