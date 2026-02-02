@@ -4002,11 +4002,12 @@ window.addEventListener("pageshow", (e) => {
 
 // iOS Safari: 从后台回来但未触发 visibilitychange/pageshow 时，定时自检
 setInterval(() => {
-  if (!document.hidden && isPlaying && !isMoving) {
-    // 若进度已停，强制重启循环，防止无限轮播停滞
-    if (!rafId) startProgressCycle();
-  }
-}, 1500);
+  if (document.hidden) return;
+  if (!isPlaying) return;
+  if (isMoving) return;
+  // 若进度已停或 dot 未在推进，强制重启循环，防止无限轮播停滞
+  if (!rafId) startProgressCycle();
+}, 1600);
 
 
     //window.addEventListener("focus", () => {
