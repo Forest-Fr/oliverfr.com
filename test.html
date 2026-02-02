@@ -2356,8 +2356,8 @@ if (container && container.dataset && container.dataset.ofS0Mounted === OF_S0_VE
     if (!track || !dotsWrap) return null;
 
     // ===== [PATCH INSERT: track.hide.until.aligned] =====
-// 初始先隐藏轨道：等 Peek Preview 对齐完成后再淡入，用户不会看到刷新/归位“来回回弹”
-track.style.opacity = "0";
+// 初始直接可见，避免首屏因异步预热而整块空白
+track.style.opacity = "1";
 // ===== [PATCH END] =====
 
 
@@ -3189,7 +3189,10 @@ function fadeInTrack() {
     markReadyOnce();
     return;
   }
-  if (track) track.dataset.ofS0Visible = "1";
+  if (track) {
+    track.dataset.ofS0Visible = "1";
+    track.style.opacity = "1"; // 先露出，动画只是锦上添花
+  }
   try {
     const anim = track.animate([{ opacity: 0 }, { opacity: 1 }], {
       duration: FADE_IN_MS,
@@ -3330,7 +3333,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 
           // 立刻刷新中心态 + 预览
           try { updateCenterClasses(); } catch (_) {}
-          try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; }
+          try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; markReadyOnce(); }
 
           // 直接进入 ready（不等预载）
           try { markReadyOnce(); } catch (_) {}
@@ -3343,7 +3346,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
           primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
 
           try { updateCenterClasses(); } catch (_) {}
-          try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; }
+          try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; markReadyOnce(); }
 
           try { markReadyOnce(); } catch (_) {}
         }
@@ -3940,23 +3943,20 @@ track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐�
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
         updateCenterClasses();
         resetAllDots();
-        //activateDot(getRealIndex());
-        //if (isPlaying && !document.hidden) startProgressCycle();
-
         activateDot(getRealIndex());
 
-isReady = true;
-fadeInTrack();
-// ===== [PATCH INSERT: init.finished.timestamp] =====
-initFinishedAt = Date.now();
-// ===== [PATCH END] =====
+        isReady = true;
+        fadeInTrack();
+        initFinishedAt = Date.now();
 
-if (isPlaying && !document.hidden) {
-  setTimeout(() => {
-    if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
-  }, AUTO_START_DELAY_MS);
-}
+        // 兜底：无论如何 200ms 后强制 ready，避免动画未触发导致长时间透明
+        setTimeout(() => { if (!isReady) { isReady = true; markReadyOnce(); track.style.opacity = "1"; } }, 200);
 
+        if (isPlaying && !document.hidden) {
+          setTimeout(() => {
+            if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+          }, AUTO_START_DELAY_MS);
+        }
       });
     }
 
@@ -3999,7 +3999,9 @@ pushSkipEnter();
         applyTransform(false);
       }
 
-      // 回到页面异步预热首帧，避免阻塞恢复渲染
+      // 回到页面异步预热首帧，避免阻塞恢复渲染；并立即保证轨道可见
+      track.style.opacity = "1";
+      markReadyOnce();
       primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
 
 // ===== [PATCH REPLACE: recover.raf.ensure.popSkipEnter] =====
