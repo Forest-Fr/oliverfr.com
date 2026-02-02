@@ -796,6 +796,124 @@ let unlockBound = false;
 // ===== [PATCH INSERT: s0.autoplay.unlocked.flag.v1] =====
 let autoplayUnlocked = false;
 // ===== [PATCH END] =====
+// ===== [PATCH INSERT: s0.preview.holdframe.helpers.v1] =====
+function ensureHoldCanvas(wrap) {
+  if (!wrap) return null;
+  let c = wrap.querySelector("canvas.of-s0-holdFrame");
+  if (!c) {
+    c = document.createElement("canvas");
+    c.className = "of-s0-holdFrame";
+    c.setAttribute("aria-hidden", "true");
+    c.tabIndex = -1;
+    wrap.appendChild(c);
+  }
+  return c;
+}
+
+/**
+ * 抓取“当前显示尺寸”的一帧（按 wrapper 尺寸，而不是 video 原始分辨率）
+ * ——防止 cloneTriple 后每个 clone 都分配超大 canvas 造成内存/GPU 抖动。
+ */
+function snapshotFrame(wrap, v, canvas) {
+  try {
+    if (!wrap || !v || !canvas) return false;
+    if (v.readyState < 2) return false;
+
+    const r = wrap.getBoundingClientRect();
+    const cw = Math.max(1, r.width || 0);
+    const ch = Math.max(1, r.height || 0);
+    if (!cw || !ch) return false;
+
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const w = Math.max(1, Math.round(cw * dpr));
+    const h = Math.max(1, Math.round(ch * dpr));
+
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return false;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(v, 0, 0, w, h);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function holdFrame(wrap, v) {
+  const c = ensureHoldCanvas(wrap);
+  if (!c) return false;
+  const ok = snapshotFrame(wrap, v, c);
+  if (ok) wrap.classList.add("is-holding");
+  return ok;
+}
+
+function releaseHold(wrap) {
+  if (wrap) wrap.classList.remove("is-holding");
+}
+
+function releaseHoldOnNextFrame(wrap, v) {
+  if (!wrap || !v) return;
+  const done = () => releaseHold(wrap);
+
+  if (typeof v.requestVideoFrameCallback === "function") {
+    try { v.requestVideoFrameCallback(() => done()); } catch (_) { done(); }
+    return;
+  }
+  v.addEventListener("playing", done, { once: true });
+  v.addEventListener("timeupdate", done, { once: true });
+  v.addEventListener("loadeddata", done, { once: true });
+}
+
+/** 跳过 0s 首帧黑/空 GOP（常见 mp4） */
+function seekToStartSafe(v) {
+  const eps = 0.051; // 51ms
+  try {
+    const d = Number.isFinite(v.duration) ? v.duration : 0;
+    v.currentTime = d > eps * 2 ? eps : 0;
+  } catch (_) {}
+}
+
+function primeNeighborOnce(v) {
+  // 仅用于“解码出首帧”→暂停；减少邻居 peek 时黑帧概率（需已用户手势解锁）
+  if (!autoplayUnlocked || !v) return;
+  if (v.readyState >= 2) return;
+  try {
+    v.muted = true; v.playsInline = true;
+    const p = v.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+    setTimeout(() => { try { v.pause(); } catch (_) {} }, 160);
+  } catch (_) {}
+}
+
+function primeAroundCenter(ctx) {
+  if (!ctx || !Array.isArray(ctx.slides)) return;
+  const n = ctx.slides.length;
+  const i = ctx.currentPos;
+  const ids = [i - 1, i + 1].map(x => (x + n) % n); // 只 prime 邻居
+  ids.forEach((k) => {
+    const s = ctx.slides[k];
+    const w = s && s.querySelector ? s.querySelector(".of-s0-media") : null;
+    const v = w && w.querySelector ? w.querySelector("video.of-s0-previewVideo") : null;
+    primeNeighborOnce(v);
+  });
+}
+
+function holdAroundCenter(ctx) {
+  if (!ctx || !Array.isArray(ctx.slides)) return;
+  const n = ctx.slides.length;
+  const i = ctx.currentPos;
+  const ids = [i - 1, i, i + 1].map(x => (x + n) % n);
+  ids.forEach((k) => {
+    const s = ctx.slides[k];
+    const w = s && s.querySelector ? s.querySelector(".of-s0-media") : null;
+    const v = w && w.querySelector ? w.querySelector("video.of-s0-previewVideo") : null;
+    if (w && v) holdFrame(w, v);
+  });
+}
+// ===== [PATCH END] =====
 
 function ensurePreviewEl() {
   if (previewEl) return previewEl;
@@ -829,6 +947,10 @@ function bindAutoplayUnlockOnce() {
 const once = () => {
   autoplayUnlocked = true;           // 关键：先记住“已发生用户手势”
   try { syncPreview(lastCtx); } catch (_) {}
+  // ===== [PATCH INSERT: s0.autoplay.unlock.prime_neighbors.v1] =====
+try { primeAroundCenter(lastCtx); } catch (_) {}
+// ===== [PATCH END] =====
+
 };
 // ===== [PATCH END] =====
 
@@ -1013,14 +1135,20 @@ function syncPreview(ctx) {
   const { slides, currentPos, isMoving, isInView } = c;
 
   // 不在视口/页面不可见/移动中：只 pause，不做 currentTime=0（避免解码抖动）
-  if (document.hidden || isMoving || isInView === false) {
-    slides.forEach((s) => {
-      const w = s.querySelector(".of-s0-media");
-      const v = w && w.querySelector("video.of-s0-previewVideo");
-      if (v) { try { v.pause(); } catch (_) {} }
-    });
-    return;
-  }
+// ===== [PATCH REPLACE: s0.syncPreview.hidden_or_moving.hold_around.v1] =====
+if (document.hidden || isMoving || isInView === false) {
+  // 关键：video-only 模式下，先冻结中心/邻居帧，避免 pause/后台恢复时短暂露出黑底
+  try { holdAroundCenter(c); } catch (_) {}
+
+  slides.forEach((s) => {
+    const w = s.querySelector(".of-s0-media");
+    const v = w && w.querySelector("video.of-s0-previewVideo");
+    if (v) { try { v.pause(); } catch (_) {} }
+  });
+  return;
+}
+// ===== [PATCH END] =====
+
 
   // 确保所有 slide 从一开始就是 video 布局
   slides.forEach((s) => { try { ensurePreviewMedia(s); } catch (_) {} });
@@ -1043,25 +1171,34 @@ function syncPreview(ctx) {
   const centerChanged = (_lastCenterPos !== currentPos);
   _lastCenterPos = currentPos;
 
-  const safeSeekToZero = () => {
-    try {
-      if (centerChanged && v.readyState >= 2) v.currentTime = 0;
-    } catch (_) {}
-  };
+// ===== [PATCH REPLACE: s0.syncPreview.seek_and_play.no_black_flash.v1] =====
+// 1) 先 prime 邻居，减少下一次切换时邻居黑帧概率
+try { primeAroundCenter(c); } catch (_) {}
 
-  // 首帧 ready 后再归零一次（保证从头播且不抖）
-  if (centerChanged && v.readyState < 2) {
-    v.addEventListener("loadeddata", safeSeekToZero, { once: true });
-  } else {
-    safeSeekToZero();
-  }
+// 2) 中心切换：先冻结当前可见帧（或上一帧），顶住 seek/load 的空窗
+if (centerChanged) {
+  try { holdFrame(wrap, v); } catch (_) {}
+}
 
-  // 播放中心（失败就静默：iOS 未手势时会被拦，但视频仍保持布局，不会“图↔视频”抖）
-  v.muted = true;
-  v.playsInline = true;
+const doSeekStart = () => { if (centerChanged) seekToStartSafe(v); };
 
-  const p = v.play();
-  if (p && typeof p.catch === "function") p.catch(() => {});
+// 首帧未 ready：等 loadeddata 再 seek，减少“seek->黑一下->出帧”的概率
+if (centerChanged && v.readyState < 2) {
+  v.addEventListener("loadeddata", doSeekStart, { once: true });
+} else {
+  doSeekStart();
+}
+
+v.muted = true;
+v.playsInline = true;
+
+const p = v.play();
+if (p && typeof p.catch === "function") p.catch(() => {});
+
+// 3) 播放后等真正渲染出下一帧，再释放 holding（彻底消灭“一闪黑”）
+releaseHoldOnNextFrame(wrap, v);
+// ===== [PATCH END] =====
+
 }
 
 // ===== [PATCH END] =====
@@ -1199,8 +1336,20 @@ function onMovingChange(ctx) {
     pauseAllPreviews(ctx.slides);
     return;
   }
-  if (ctx.isMoving) pauseAllPreviews(ctx.slides);
-  else syncPreview(ctx);
+ // if (ctx.isMoving) pauseAllPreviews(ctx.slides);
+  //else syncPreview(ctx
+
+  // ===== [PATCH REPLACE: s0.film.onMovingChange.hold_and_prime.v1] =====
+if (ctx.isMoving) {
+  // moving/首尾 wrap 期间：冻结中心/邻居帧，提前 prime 邻居，避免闪黑
+  try { holdAroundCenter(ctx); } catch (_) {}
+  try { primeAroundCenter(ctx); } catch (_) {}
+  pauseAllPreviews(ctx.slides);
+} else {
+  syncPreview(ctx);
+}
+// ===== [PATCH END] =====
+
 }
 // ===== [PATCH END] =====
 
@@ -1211,7 +1360,10 @@ function onMovingChange(ctx) {
     openFromSlide,
     close,
     canOpen,
-    onMovingChange
+    onMovingChange,
+     // ===== [PATCH INSERT: expose.holdAroundCenter.v1] =====
+  holdAroundCenter
+  // ===== [PATCH END] =====
   };
 })();
 // ===== [PATCH END] =====
@@ -1414,6 +1566,24 @@ overscroll-behavior-y: none;
   -webkit-backface-visibility: hidden;
   contain: paint;
 }
+/* ===== [PATCH END] ===== */
+/* ===== [PATCH INSERT: s0.video.holdFrame.overlay.v1] ===== */
+.of-s0-media > canvas.of-s0-holdFrame{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  z-index: 2;
+  pointer-events:none;
+  opacity: 0;
+  transition: opacity .16s linear;
+  transform: translateZ(0);
+}
+
+/* holding 时：canvas 显示，video 临时隐藏，避免黑底被看到 */
+.of-s0-media.is-holding > canvas.of-s0-holdFrame{ opacity: 1 !important; }
+.of-s0-media.is-holding > video.of-s0-previewVideo{ opacity: 0 !important; }
 /* ===== [PATCH END] ===== */
 
 
@@ -2310,6 +2480,42 @@ const DOT_PROGRESS_MS = 5600; // 节奏更“慢、稳、优雅”
 
     let originalSlides = Array.from(track.querySelectorAll(".of-s0-slide"));
     const realCount = originalSlides.length;
+
+    // ===== [PATCH INSERT: s0.mobile.peek.pad.from.realWidth.v1] =====
+function applyMobilePeekPadPx() {
+  if (!isSnapMode()) return;
+
+  const vw = (document.documentElement && document.documentElement.clientWidth) || window.innerWidth || 0;
+  const sample = originalSlides && originalSlides[0];
+  if (!vw || !sample) return;
+
+  // 用真实渲染宽度（包含 max-width 影响）
+  const sw = sample.getBoundingClientRect().width || 0;
+  if (!sw) return;
+
+  const pad = Math.max(0, (vw - sw) / 2);
+  // 精确到 0.001px
+  track.style.setProperty("--of-s0-pad", pad.toFixed(3) + "px");
+}
+
+// 让布局完成后再算一次（避免首次测量为 0 或子像素抖动）
+requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx)));
+
+window.addEventListener("resize", () => {
+  requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx)));
+}, { passive: true });
+
+window.addEventListener("orientationchange", () => {
+  setTimeout(() => applyMobilePeekPadPx(), 60);
+}, { passive: true });
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => {
+    requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx)));
+  }, { passive: true });
+}
+// ===== [PATCH END] =====
+
     if (!realCount) return null;
 
     function normalizeUrlMaybe(url) {
@@ -2434,6 +2640,23 @@ function markReadyOnce() {
   setupInViewObserver();
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
   if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+
+  // ===== [PATCH INSERT: s0.visibility.hold_then_resume.v1] =====
+const onVis = () => {
+  if (document.hidden) {
+    try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true, isInView }); } catch (_) {}
+    try { AppleFilm.holdAroundCenter && AppleFilm.holdAroundCenter({ slides, currentPos }); } catch (_) {}
+    return;
+  }
+  // 回到前台：先保持 holding 顶住一瞬间，再触发 syncPreview 恢复
+  try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+};
+
+document.addEventListener("visibilitychange", onVis, { passive: true });
+window.addEventListener("focus", onVis, { passive: true });
+window.addEventListener("pageshow", onVis, { passive: true });
+// ===== [PATCH END] =====
+
 }
 // ===== [PATCH END] =====
 
