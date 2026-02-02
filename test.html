@@ -2823,20 +2823,7 @@ const w = el ? (el.getBoundingClientRect().width || 0) : 0;
 
       if (!Number.isFinite(centerOffset)) centerOffset = 0;
 
-      // ===== [PATCH INSERT: mobile.peek.pad.precise.to_3dp.v1] =====
-/**
- * 移动端 Peek Preview 精确对称：
- * pad = (viewportW - slideW) / 2
- * 写入 CSS 变量 --of-s0-pad，精确到 0.001px
- */
-try {
-  if (isSnapMode && typeof isSnapMode === "function" ? isSnapMode() : isMobileSnap()) {
-    const pad = (viewportW && w) ? ((viewportW - w) / 2) : 0;
-    const fixed = (Number.isFinite(pad) ? pad : 0).toFixed(3) + "px";
-    track.style.setProperty("--of-s0-pad", fixed);
-  }
-} catch (_) {}
-// ===== [PATCH END] =====
+
 
       return slideSpan;
     }
