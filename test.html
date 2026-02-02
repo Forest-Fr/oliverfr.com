@@ -3304,7 +3304,7 @@ if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.02) {
 
 track.dataset.ofS0Pad = String(pad);
 
-const px = `${pad.toFixed(4)}px`;
+const px = `${pad.toFixed(3)}px`;
 
 // 1) 变量（给 CSS 用）
 track.style.setProperty("--of-s0-pad", px);
@@ -3599,7 +3599,10 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 
     function normalizePositionIfNeeded_Snap() {
       if (realCount <= 1) return false;
+
+      const prevPos = currentPos;
       let changed = false;
+
       if (currentPos < realCount) {
         currentPos += realCount;
         changed = true;
@@ -3607,6 +3610,19 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
         currentPos -= realCount;
         changed = true;
       }
+
+      if (changed) {
+        // 避免跨轮衔接时 overlay/文本二次闪现
+        pushSkipEnter();
+
+        // 同步 scrollLeft 到新的中段位置，保持视觉对称
+        const targetLeft = getTargetLeftForPos_Snap(currentPos);
+        withSnapSuppress(() => hardJumpScrollLeft(targetLeft));
+
+        // 两帧后解除 skipEnter，保证后续入场动画正常
+        popSkipEnterLater();
+      }
+
       return changed;
     }
 
