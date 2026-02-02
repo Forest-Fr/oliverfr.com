@@ -1864,15 +1864,28 @@ overscroll-behavior-y: none;
 }
 
 /* 首尾 wrap 归位时：仅 1 帧跳过入场过渡，避免 Explore/标题/描述反复“进场抖动” */
+/* ===== [PATCH REPLACE: s0.wrap.skipEnter.keep_pre_enter_state.v1] ===== */
+/* wrap 归位时：必须让 overlay 保持“入场前态”（隐藏 + 50px），否则就会“噌一下”瞬显 */
 .of-s0-track.is-skipEnter .of-s0-overlay{
+  opacity: 0 !important;
   transition: none !important;
 }
 .of-s0-track.is-skipEnter .of-s0-title,
 .of-s0-track.is-skipEnter .of-s0-bottomBox{
   transition: none !important;
-  transform: translate3d(0,0,0) !important;
-  opacity: 1 !important;
+  opacity: 0 !important;
+  transform: translate3d(0,50px,0) !important;
 }
+
+/* 移动端入场前态必须保留 translateX(-50%)，否则会出现斜向/抖动 */
+@media (max-width: 768px) {
+  .of-s0-track.is-skipEnter .of-s0-title,
+  .of-s0-track.is-skipEnter .of-s0-bottomBox{
+    transform: translateX(-50%) translate3d(0,50px,0) !important;
+  }
+}
+/* ===== [PATCH END] ===== */
+
 
 /* ===== [PATCH INSERT: s0.enterKick.force.motion.v1] ===== */
 /* 用于“强制重触发”中心卡片的入场动效（无损，只影响观感） */
@@ -2484,6 +2497,38 @@ const DOT_PROGRESS_MS = 5600; // 节奏更“慢、稳、优雅”
       window.matchMedia &&
       window.matchMedia("(max-width: 768px)").matches;
 
+    // ===== [PATCH INSERT: s0.mobile.peekPadding.measure_real_width.v1] =====
+let _peekPadRaf = 0;
+
+/** 用“真实 slide 宽度”计算 padding，固定到 3 位小数，根治左右不对称 */
+function applyMobilePeekPaddingPrecise() {
+  if (!isMobileSnap()) return;
+
+  if (_peekPadRaf) cancelAnimationFrame(_peekPadRaf);
+  _peekPadRaf = requestAnimationFrame(() => {
+    _peekPadRaf = 0;
+    try {
+      const vw = document.documentElement.clientWidth || window.innerWidth || 0;
+      const s =
+        track.querySelector(".of-s0-slide.is-center") ||
+        track.querySelector(".of-s0-slide") ||
+        null;
+      if (!vw || !s) return;
+
+      const w = (s.getBoundingClientRect && s.getBoundingClientRect().width) || s.offsetWidth || 0;
+      if (!w) return;
+
+      const pad = Math.max(0, (vw - w) / 2);
+      track.style.setProperty("--of-s0-pad", `${pad.toFixed(3)}px`);
+    } catch (_) {}
+  });
+}
+
+window.addEventListener("resize", applyMobilePeekPaddingPrecise, { passive: true });
+window.addEventListener("orientationchange", applyMobilePeekPaddingPrecise, { passive: true });
+// ===== [PATCH END] =====
+
+
     let originalSlides = Array.from(track.querySelectorAll(".of-s0-slide"));
     const realCount = originalSlides.length;
     if (!realCount) return null;
@@ -2555,6 +2600,38 @@ let isReady = false;        // Peek Preview 对齐完成后才允许自动轮播
 let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防止来回拉扯）
 // ===== [PATCH END] =====
 
+    // ===== [PATCH INSERT: s0.wrap.enterKick_and_lock_helpers.v1] =====
+let _wrapLockTimer = 0;
+
+/** 两帧 enterKick：确保浏览器先应用“初始态”，再让 .is-center 过渡到最终态 */
+function enterKickOnce() {
+  try { track.classList.add("of-s0-enterKick"); } catch (_) {}
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try { track.classList.remove("of-s0-enterKick"); } catch (_) {}
+    });
+  });
+}
+
+/**
+ * wrap 归位锁：覆盖“克隆位 -> 真位”的那一瞬间
+ * - 强制 overlay 隐藏（is-skipEnter）
+ * - 防止中间 1 帧放开导致二次抖动
+ * - 结束时 enterKickOnce() 统一恢复“慢慢进入”的观感
+ */
+function beginWrapLock(ms) {
+  const dur = Math.max(0, ms | 0);
+  try { track.classList.add("is-skipEnter", "is-settling", "of-s0-overlay-lock"); } catch (_) {}
+
+  if (_wrapLockTimer) clearTimeout(_wrapLockTimer);
+  _wrapLockTimer = setTimeout(() => {
+    try { track.classList.remove("is-skipEnter", "is-settling", "of-s0-overlay-lock"); } catch (_) {}
+    enterKickOnce();
+  }, dur);
+}
+// ===== [PATCH END] =====
+
+    
 // ===== [PATCH INSERT: s0.video.inview.guard + readyOnce.v1] =====
 let isInView = true;
 let _s0IO = null;
@@ -2622,11 +2699,16 @@ function markReadyOnce() {
       const v = wrap && wrap.querySelector ? wrap.querySelector("video.of-s0-previewVideo") : null;
 
       const show = () => {
+          // ===== [PATCH INSERT: s0.mobile.peekPad.on_ready_show.v1] =====
+  try { applyMobilePeekPaddingPrecise(); } catch (_) {}
+  // ===== [PATCH END] =====
         try {
           track.style.transition = `opacity ${FADE_IN_MS}ms ease`;
           track.style.opacity = "1";
         } catch (_) {}
         if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+
+
       };
 
       // 已经有首帧：直接淡入
@@ -3585,8 +3667,10 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
         try { applyMobilePeekPadding(); } catch (_) {}
 
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        // 直接定位到中段 currentPos（避免首尾空白）
+    // 直接定位到中段 currentPos（避免首尾空白）
+        beginWrapLock(SNAP_SETTLE_MS + 90); // wrap 归位锁
         try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
+        applyMobilePeekPaddingPrecise();
 
         // 立刻刷新中心态 + 预览
         try { updateCenterClasses(); } catch (_) {}
@@ -3638,7 +3722,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 
         // 重新计算左右露出，确保对称（forceRepad 可强制执行）
         if (forceRepad || isSnapMode()) {
-          try { applyMobilePeekPadding(); } catch (_) {}
+          try { applyMobilePeekPaddingPrecise(); } catch (_) {}
         }
 
         // 两帧后解除 skipEnter，保证后续入场动画正常
@@ -4091,8 +4175,9 @@ pushSkipEnter();
 
       if (isSnapMode()) {
         setSnapModeEnabled(true);
+        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPadding();
+        applyMobilePeekPaddingPrecise();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
@@ -4193,8 +4278,9 @@ track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐�
       if (isSnapMode()) {
         setSnapModeEnabled(true);
         currentPos = realCount > 1 ? realCount : 0;
+        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPadding();
+        applyMobilePeekPaddingPrecise();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
@@ -4256,8 +4342,9 @@ pushSkipEnter();
         setSnapModeEnabled(true);
         // clamp + normalize
         currentPos = clamp(currentPos, 0, slides.length - 1);
+        beginWrapLock(SNAP_SETTLE_MS + 90);
         normalizePositionIfNeeded_Snap(true);
-        applyMobilePeekPadding();
+        applyMobilePeekPaddingPrecise();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
