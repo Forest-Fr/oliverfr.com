@@ -303,7 +303,17 @@
 .section0-slide .of-s0-media,
 .of-s0-slide .of-s0-media{
   /* 避免 poster/video 切换时出现黑底闪一下（非破坏：只是给容器兜底底色） */
-  background: #000;
+  /* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
+/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
+background: #f9f9f9;
+/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
+}
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  background: #f9f9f9;
+}
+/* ===== [PATCH END] ===== */
+
   /* 让 opacity 切换更稳定，减少“快闪/抖动/锯齿” */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -907,14 +917,6 @@ function ensurePreviewMedia(slide) {
   if (!want) return;
 
   let v = wrap.querySelector("video.of-s0-previewVideo");
-  // ===== [PATCH INSERT: s0.video.poster_from_img.prevent_black_frame.v1] =====
-try {
-  // 用原图当 video poster，Video-Only 也能“先有画面”，彻底消灭黑屏/首尾延迟
-  const posterSrc = img && (img.currentSrc || img.src) ? (img.currentSrc || img.src) : "";
-  if (posterSrc) v.poster = posterSrc;
-} catch (_) {}
-// ===== [PATCH END] =====
-
   if (!v) {
     v = document.createElement("video");
     v.className = "of-s0-previewVideo";
@@ -984,6 +986,33 @@ try {
     }
     // ===== [PATCH END] =====
   }
+
+  // ===== [PATCH INSERT: ensurePreviewMedia.video.first_frame_ready_flag.v1] =====
+/**
+ * video-only 稳定性关键：
+ * - 首次拿到可渲染帧后，给 wrap 打上 is-video-ready
+ * - 这样回到页面时我们只需要“轻量 warm”，不会出现长时间空/黑
+ */
+if (!v.dataset.ofS0BoundReady) {
+  v.dataset.ofS0BoundReady = "1";
+
+  const markReady = () => {
+    try { wrap.classList.add("is-video-ready"); } catch (_) {}
+  };
+
+  // loadeddata: 有首帧可画；canplay: 可播放
+  v.addEventListener("loadeddata", markReady, { passive: true });
+  v.addEventListener("canplay", markReady, { passive: true });
+
+  // 更强：如果浏览器支持 requestVideoFrameCallback，用“真正画出一帧”来标记
+  if (typeof v.requestVideoFrameCallback === "function") {
+    try {
+      v.requestVideoFrameCallback(() => markReady());
+    } catch (_) {}
+  }
+}
+// ===== [PATCH END] =====
+
 
   // ===== [PATCH INSERT: ensurePreviewMedia.mark_layout_ready] =====
   // 布局层面：video-only 方案下，确保 wrapper 不被旧逻辑判定为“fallback”
@@ -1263,7 +1292,7 @@ function onMovingChange(ctx) {
     return best;
   }
 
-function injectScopedCssOnce() {
+  function injectScopedCssOnce() {
     const STYLE_ID = "of-s0-carousel-style-css-preserve-v4-3";
     const exists = document.getElementById(STYLE_ID);
     const style = exists || document.createElement("style");
@@ -1414,7 +1443,17 @@ overscroll-behavior-y: none;
 .section0-slide .of-s0-media,
 .of-s0-slide .of-s0-media{
   /* 避免 poster/video 切换时出现黑底闪一下（非破坏：只是给容器兜底底色） */
-  background: #000;
+/* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
+/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
+background: #f9f9f9;
+/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
+}
+.section0-slide .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
+  background: #f9f9f9;
+}
+/* ===== [PATCH END] ===== */
+
   /* 让 opacity 切换更稳定，减少“快闪/抖动/锯齿” */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -2154,7 +2193,6 @@ body.appleFilm-lock {
     if (!exists) document.head.appendChild(style);
   }
 
-
   function isolateDom(container, buttonRow, instanceId) {
     container.dataset.ofS0Scope = instanceId;
     buttonRow.dataset.ofS0Scope = instanceId;
@@ -2445,50 +2483,58 @@ function markReadyOnce() {
   if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
 }
 // ===== [PATCH END] =====
-// ===== [PATCH INSERT: s0.video.rehydrate.on_return.v1] =====
-function rehydrateAllPreviewVideos() {
+// ===== [PATCH INSERT: s0.pageshow.visibility.warm_resume.no_black.v1] =====
+function warmCenterVideoOnce() {
   try {
-    if (!slides || !slides.length) return;
-    slides.forEach((s) => {
-      const w = s.querySelector(".of-s0-media");
-      const v = w && w.querySelector("video.of-s0-previewVideo");
-      if (!v) return;
-      // 轻量唤醒：不改 currentTime，不强制 play，只让浏览器重新建立解码/缓冲通道
-      try { v.preload = "auto"; v.setAttribute("preload", "auto"); } catch (_) {}
-      try { v.load(); } catch (_) {}
-    });
+    if (!slides || !slides[currentPos]) return;
+    const wrap = slides[currentPos].querySelector(".of-s0-media");
+    const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
+    if (!v) return;
+
+    // 轻量 warm：不 reset currentTime，不清 src，只做一次 load + 尝试 play（失败静默）
+    try { v.load(); } catch (_) {}
+    if (isInView && isPlaying && !document.hidden && !isMoving) {
+      const p = v.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    }
+
+    // 如果首帧还没 ready，等一帧后再把 track 显示出来（避免“回来先看到空/黑”）
+    if (track && track.style) {
+      track.style.visibility = "hidden";
+      const reveal = () => { try { track.style.visibility = "visible"; } catch (_) {} };
+
+      if (typeof v.requestVideoFrameCallback === "function") {
+        try { v.requestVideoFrameCallback(() => reveal()); } catch (_) { requestAnimationFrame(reveal); }
+      } else {
+        v.addEventListener("loadeddata", reveal, { once: true, passive: true });
+        requestAnimationFrame(reveal);
+      }
+    }
   } catch (_) {}
 }
 
-function bindReturnWakeOnce() {
-  if (container.dataset.ofS0ReturnWakeBound) return;
-  container.dataset.ofS0ReturnWakeBound = "1";
-
-  // BFCache 恢复
-  window.addEventListener("pageshow", (e) => {
-    // 恢复时先唤醒资源，再对齐中心播放
-    rehydrateAllPreviewVideos();
-    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
-    // 避免极端情况下 track 仍为 0
-    try { if (track && track.style.opacity === "0") track.style.opacity = "1"; } catch (_) {}
-  });
-
-  // 从后台回来
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) {
-      rehydrateAllPreviewVideos();
-      try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+// BFCache/返回：Safari/Chrome 都靠它自愈
+window.addEventListener("pageshow", (e) => {
+  // persisted=true 代表 BFCache 恢复
+  try {
+    if (track && track.style) {
+      track.style.opacity = "1";
+      track.style.visibility = "visible";
     }
-  });
+    setupInViewObserver();
+    warmCenterVideoOnce();
+    if (isReady && isPlaying && isInView && !document.hidden && !isMoving) startProgressCycle();
+  } catch (_) {}
+}, { passive: true });
 
-  // 桌面切回窗口
-  window.addEventListener("focus", () => {
-    rehydrateAllPreviewVideos();
-    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
-  });
-}
-// 在 markReadyOnce 首次 ready 时绑定
-bindReturnWakeOnce();
+// 前后台切换：恢复首帧
+document.addEventListener("visibilitychange", () => {
+  try {
+    if (!document.hidden) warmCenterVideoOnce();
+  } catch (_) {}
+}, { passive: true });
+
+window.addEventListener("focus", () => { try { warmCenterVideoOnce(); } catch (_) {} }, { passive: true });
 // ===== [PATCH END] =====
 
     let rafId = 0;
@@ -2827,6 +2873,22 @@ const w = el ? (el.getBoundingClientRect().width || 0) : 0;
       centerOffset = viewportW && w ? (viewportW - w) / 2 : 0;
 
       if (!Number.isFinite(centerOffset)) centerOffset = 0;
+
+      // ===== [PATCH INSERT: mobile.peek.pad.precise.to_3dp.v1] =====
+/**
+ * 移动端 Peek Preview 精确对称：
+ * pad = (viewportW - slideW) / 2
+ * 写入 CSS 变量 --of-s0-pad，精确到 0.001px
+ */
+try {
+  if (isSnapMode && typeof isSnapMode === "function" ? isSnapMode() : isMobileSnap()) {
+    const pad = (viewportW && w) ? ((viewportW - w) / 2) : 0;
+    const fixed = (Number.isFinite(pad) ? pad : 0).toFixed(3) + "px";
+    track.style.setProperty("--of-s0-pad", fixed);
+  }
+} catch (_) {}
+// ===== [PATCH END] =====
+
       return slideSpan;
     }
 
@@ -2868,6 +2930,17 @@ function popSkipEnterLater() {
 // ===== [PATCH END] =====
 
     function applyTransform(animated) {
+
+      // ===== [PATCH INSERT: applyTransform.hard_jump.hide_one_frame.v1] =====
+if (!animated && track && track.style) {
+  // hard jump 只遮 1 帧：避免用户看到“瞬移中间态”
+  track.style.visibility = "hidden";
+  requestAnimationFrame(() => {
+    try { track.style.visibility = "visible"; } catch (_) {}
+  });
+}
+// ===== [PATCH END] =====
+
       if (!slideSpan) recalcSpan();
       if (!slideSpan) return;
 
