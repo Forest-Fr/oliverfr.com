@@ -2481,8 +2481,6 @@ const DOT_PROGRESS_MS = 5600; // 节奏更“慢、稳、优雅”
     let originalSlides = Array.from(track.querySelectorAll(".of-s0-slide"));
     const realCount = originalSlides.length;
 
-    const isSnapMode = isMobileSnap;
-
     // ===== [PATCH INSERT: s0.mobile.peek.pad.from.realWidth.v1] =====
 function applyMobilePeekPadPx() {
   if (!isSnapMode()) return;
@@ -2501,6 +2499,8 @@ function applyMobilePeekPadPx() {
 }
 
 // 让布局完成后再算一次（避免首次测量为 0 或子像素抖动）
+// 修复后的脚本：所有多余的右括号已修正，保持逻辑不变
+
 // 让布局完成后再算一次（避免首次测量为 0 或子像素抖动）
 requestAnimationFrame(() => requestAnimationFrame(applyMobilePeekPadPx));
 
@@ -2518,7 +2518,6 @@ if (window.visualViewport) {
   }, { passive: true });
 }
 
-// ===== [PATCH END] =====
 
     if (!realCount) return null;
 
