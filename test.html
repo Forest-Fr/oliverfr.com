@@ -388,27 +388,22 @@
 }
 
     /* ===== [PATCH INSERT: s0.previewVideo.centerOnly.swap + preventNeighborBlackFrame] ===== */
-/* 邻居：未 ready 时仍用 poster，ready 后展示视频帧（保持 peek 对称且无黑屏） */
-.section0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo,
-.of-s0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo{
+/* 只在中心卡片展示视频预览；左右邻居永远展示 poster，避免暂停视频露出黑帧/首帧 */
+.section0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
   opacity: 0 !important;
+
+  /* ===== [PATCH INSERT: s0.neighbor.video.force_hidden_visibility] ===== */
   visibility: hidden !important;
+  /* ===== [PATCH END] ===== */
 }
-.section0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > img.of-s0-poster,
-.of-s0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > img.of-s0-poster{
+.section0-slide:not(.is-center) .of-s0-media > img.of-s0-poster,
+.of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
   opacity: 1 !important;
+
+  /* ===== [PATCH INSERT: s0.neighbor.poster.force_visible_visibility] ===== */
   visibility: visible !important;
-}
-/* ready 之后邻居同样显示视频静帧，保证 peek 是对称的视频内容 */
-.section0-slide:not(.is-center) .of-s0-media.is-video-ready > video.of-s0-previewVideo,
-.of-s0-slide:not(.is-center) .of-s0-media.is-video-ready > video.of-s0-previewVideo{
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-.section0-slide:not(.is-center) .of-s0-media.is-video-ready > img.of-s0-poster,
-.of-s0-slide:not(.is-center) .of-s0-media.is-video-ready > img.of-s0-poster{
-  opacity: 0 !important;
-  visibility: hidden !important;
+  /* ===== [PATCH END] ===== */
 }
 
 /* 中心卡片：video ready 后才替换 poster */
@@ -650,38 +645,31 @@ body.appleFilm-lock{
 
 
     /* =========================
-       Peek Preview stability：视频首帧就绪前用 poster 兜底
-       ========================= */
+   [FORCE] Peek Preview = Video Only (no image transition)
+   ========================= */
 
-/* 基础：容器仍用黑底，避免解码前底色透出 */
-.of-s0-media{
-  background: #000;
-}
-
-/* 未 ready：优先展示 poster，视频保持隐藏防止黑屏闪一下 */
-.of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo{
+/* 1) 永久隐藏 poster（无损删除图片过渡） */
+.of-s0-media > img.of-s0-poster{
+  display: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
-  display: block !important;
-  will-change: opacity;
-}
-.of-s0-media:not(.is-video-ready) > img.of-s0-poster{
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
 }
 
-/* ready：所有 slide（中心 + peek）统一展示视频帧，poster 隐藏 */
-.of-s0-media.is-video-ready > video.of-s0-previewVideo{
+/* 2) 永久显示 video（中心/邻居都显示，peek preview 也都是视频） */
+.of-s0-media > video.of-s0-previewVideo{
   opacity: 1 !important;
   visibility: visible !important;
   display: block !important;
-  transition: opacity var(--of-s0-fade-dur) var(--of-s0-ease-phys);
-  will-change: auto !important;
+  transition: none !important;      /* 删除“图↔视频”淡入淡出带来的观感抖动 */
+  will-change: auto !important;     /* 避免过度合成层抖动 */
 }
-.of-s0-media.is-video-ready > img.of-s0-poster{
-  opacity: 0 !important;
-  visibility: hidden !important;
+
+/* 3) 你原来写的 “非中心强制隐藏 video / 强制显示 poster” 彻底失效 */
+.of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
   display: none !important;
 }
 
@@ -905,12 +893,12 @@ function ensurePreviewMedia(slide) {
     // 放入 wrapper 内，避免旧布局干扰
     if (img.parentNode !== wrap) wrap.appendChild(img);
 
-    // ===== [PATCH REPLACE: ensurePreviewMedia.poster.keep_visible_until_ready] =====
-    // poster 作为首帧兜底，保持可见，由 CSS 控制 ready 前/后显隐
-    img.style.opacity = "";
-    img.style.visibility = "";
-    img.style.display = "";
-    try { img.loading = "eager"; } catch (_) {}
+    // ===== [PATCH REPLACE: ensurePreviewMedia.poster.hide_stronger] =====
+    // 默认隐藏（CSS 已强制 display:none/opacity:0，这里再兜底一次）
+    img.style.opacity = "0";
+    img.style.visibility = "hidden";
+    img.style.display = "none";
+    img.setAttribute("aria-hidden", "true");
     // ===== [PATCH END] =====
   }
 
@@ -966,7 +954,6 @@ function ensurePreviewMedia(slide) {
 
     // ===== [PATCH KEEP: ensurePreviewMedia.ready_classes_reset] =====
     wrap.classList.remove("is-video-ready", "is-video-fallback");
-    delete wrap.dataset.ofS0ReadyBound;
     // ===== [PATCH END] =====
 
     // ===== [PATCH REPLACE: ensurePreviewMedia.src_update.no_double_load] =====
@@ -995,84 +982,12 @@ function ensurePreviewMedia(slide) {
   //（真正 ready 的 class 建议由 loadeddata/loadedmetadata 监听处统一打标）
   // wrap.classList.add("is-video-layout"); // 如你已有类似标记可自行替换
   // ===== [PATCH END] =====
-
-  // 视频 ready 事件绑定：首帧一到立即切换到视频，避免黑屏
-  bindVideoReadyOnce(v, wrap);
 }
 
 // ===== [PATCH END] =====
 
 // ===== [PATCH END] =====
 
-// ===== [PATCH INSERT: s0.preview.firstFrame.prime_helpers] =====
-function paintFirstFrame(v) {
-  if (!v) return;
-  try {
-    // 尽量让浏览器绘制出首帧，哪怕当前是暂停态
-    if (v.readyState >= 2) {
-      const t = v.currentTime;
-      const target = Number.isFinite(t) && t > 0.01 ? t : 0.01;
-      v.currentTime = target;
-    }
-    v.pause();
-  } catch (_) {}
-}
-
-function markVideoReady(wrap, v) {
-  if (!wrap || !v || v.readyState < 2) return;
-  wrap.classList.add("is-video-ready");
-  v.style.visibility = "visible";
-  v.style.opacity = "1";
-  paintFirstFrame(v);
-}
-
-function bindVideoReadyOnce(v, wrap) {
-  if (!v || !wrap) return;
-  if (wrap.dataset.ofS0ReadyBound === "1") {
-    if (v.readyState >= 2) markVideoReady(wrap, v);
-    return;
-  }
-  wrap.dataset.ofS0ReadyBound = "1";
-  const done = () => markVideoReady(wrap, v);
-  v.addEventListener("loadeddata", done, { once: true });
-  v.addEventListener("canplay", done, { once: true });
-  // 兜底：1.2s 内若已 ready 但未触发事件，强制打标，避免一直黑屏
-  setTimeout(() => {
-    if (!wrap.classList.contains("is-video-ready") && v.readyState >= 2) done();
-  }, 1200);
-}
-
-function whenFirstFrameReady(v, wrap) {
-  return new Promise((resolve) => {
-    if (!v || !wrap) { resolve(); return; }
-    const finish = () => { if (v.readyState >= 2) markVideoReady(wrap, v); resolve(); };
-    if (wrap.classList.contains("is-video-ready") || v.readyState >= 2) { finish(); return; }
-    const timer = setTimeout(finish, 1400);
-    const onReady = () => { clearTimeout(timer); finish(); };
-    v.addEventListener("loadeddata", onReady, { once: true });
-    v.addEventListener("canplay", onReady, { once: true });
-  });
-}
-
-async function primePreviewVideos(opts = {}) {
-  if (!track) return;
-  const centerIdx = Number.isFinite(opts.centerIdx) ? opts.centerIdx : currentPos;
-  slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-  const items = slides
-    .map((s, i) => {
-      try { ensurePreviewMedia(s); } catch (_) {}
-      const wrap = s.querySelector(".of-s0-media");
-      const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
-      if (!v) return null;
-      bindVideoReadyOnce(v, wrap);
-      return { idx: i, wrap, v };
-    })
-    .filter(Boolean)
-    .sort((a, b) => Math.abs(a.idx - centerIdx) - Math.abs(b.idx - centerIdx));
-
-  await Promise.all(items.map(({ v, wrap }) => whenFirstFrameReady(v, wrap)));
-}
-// ===== [PATCH END] =====
 
 // ===== [PATCH REPLACE: s0.film.pauseAllPreviews.singleton.v2] =====
 function pauseAllPreviews(slides) {
@@ -1123,7 +1038,6 @@ function syncPreview(ctx) {
   const wrap = center.querySelector(".of-s0-media");
   const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
   if (!v) return;
-  bindVideoReadyOnce(v, wrap);
 
   // 只有“中心换了”才归零一次（避免每一帧/每一次 settle 都触发解码抖）
   const centerChanged = (_lastCenterPos !== currentPos);
@@ -1577,26 +1491,22 @@ overscroll-behavior-y: none;
 }
 
     /* ===== [PATCH INSERT: s0.previewVideo.centerOnly.swap + preventNeighborBlackFrame] ===== */
-/* 邻居：未 ready 时用 poster，ready 后展示视频静帧，保证 peek 对称且无黑屏 */
-.section0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo,
-.of-s0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo{
+/* 只在中心卡片展示视频预览；左右邻居永远展示 poster，避免暂停视频露出黑帧/首帧 */
+.section0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo,
+.of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
   opacity: 0 !important;
+
+  /* ===== [PATCH INSERT: s0.neighbor.video.force_hidden_visibility] ===== */
   visibility: hidden !important;
+  /* ===== [PATCH END] ===== */
 }
-.section0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > img.of-s0-poster,
-.of-s0-slide:not(.is-center) .of-s0-media:not(.is-video-ready) > img.of-s0-poster{
+.section0-slide:not(.is-center) .of-s0-media > img.of-s0-poster,
+.of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
   opacity: 1 !important;
+
+  /* ===== [PATCH INSERT: s0.neighbor.poster.force_visible_visibility] ===== */
   visibility: visible !important;
-}
-.section0-slide:not(.is-center) .of-s0-media.is-video-ready > video.of-s0-previewVideo,
-.of-s0-slide:not(.is-center) .of-s0-media.is-video-ready > video.of-s0-previewVideo{
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-.section0-slide:not(.is-center) .of-s0-media.is-video-ready > img.of-s0-poster,
-.of-s0-slide:not(.is-center) .of-s0-media.is-video-ready > img.of-s0-poster{
-  opacity: 0 !important;
-  visibility: hidden !important;
+  /* ===== [PATCH END] ===== */
 }
 
 /* 中心卡片：video ready 后才替换 poster */
@@ -2202,35 +2112,31 @@ body.appleFilm-lock {
 /* ===== [PATCH END] ===== */
 
 /* =========================
-   Peek Preview stability：视频 ready 前以 poster 兜底
+   [FORCE] Peek Preview = Video Only (no image transition)
    ========================= */
 
-.of-s0-media{
-  background: #000;
-}
-
-.of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo{
+/* 1) 永久隐藏 poster（无损删除图片过渡） */
+.of-s0-media > img.of-s0-poster{
+  display: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
-  display: block !important;
-  will-change: opacity;
-}
-.of-s0-media:not(.is-video-ready) > img.of-s0-poster{
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
 }
 
-.of-s0-media.is-video-ready > video.of-s0-previewVideo{
+/* 2) 永久显示 video（中心/邻居都显示，peek preview 也都是视频） */
+.of-s0-media > video.of-s0-previewVideo{
   opacity: 1 !important;
   visibility: visible !important;
   display: block !important;
-  transition: opacity var(--of-s0-fade-dur) var(--of-s0-ease-phys);
-  will-change: auto !important;
+  transition: none !important;      /* 删除“图↔视频”淡入淡出带来的观感抖动 */
+  will-change: auto !important;     /* 避免过度合成层抖动 */
 }
-.of-s0-media.is-video-ready > img.of-s0-poster{
-  opacity: 0 !important;
-  visibility: hidden !important;
+
+/* 3) 你原来写的 “非中心强制隐藏 video / 强制显示 poster” 彻底失效 */
+.of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.of-s0-slide:not(.is-center) .of-s0-media > img.of-s0-poster{
   display: none !important;
 }
 
@@ -2356,8 +2262,8 @@ if (container && container.dataset && container.dataset.ofS0Mounted === OF_S0_VE
     if (!track || !dotsWrap) return null;
 
     // ===== [PATCH INSERT: track.hide.until.aligned] =====
-// 初始直接可见，避免首屏因异步预热而整块空白
-track.style.opacity = "1";
+// 初始先隐藏轨道：等 Peek Preview 对齐完成后再淡入，用户不会看到刷新/归位“来回回弹”
+track.style.opacity = "0";
 // ===== [PATCH END] =====
 
 
@@ -2783,9 +2689,14 @@ try { AppleFilm.ensurePreviewMedia(slide); } catch (_) {}
 const img = node.querySelector("img");
 if (img) {
   img.decoding = "async";
-  // 所有克隆都提前拉取，避免首尾切换时露出白屏
-  img.loading = "eager";
-  try { img.fetchPriority = pass === 1 ? "high" : "auto"; } catch (_) {}
+  // 中段（pass=1）优先，其他两段尽量别抢资源
+  if (pass !== 1) {
+    img.loading = "lazy";
+    try { img.fetchPriority = "low"; } catch (_) {}
+  } else {
+    img.loading = "eager";
+    try { img.fetchPriority = "high"; } catch (_) {}
+  }
 }
 // ===== [PATCH END] =====
 
@@ -2934,6 +2845,9 @@ const left = el ? (el.offsetLeft || 0) : (currentPos * slideSpan);
 const rawTx = (center + centerBias - left);
 const tx = quantizePx(rawTx); // 对齐设备像素栅格：解决“糊 & peek不对称”
 track.style.transform = `translate3d(${tx.toFixed(3)}px,0,0)`;
+// ===== [PATCH INSERT: s0.readyOnce.after.desktop.applyTransform] =====
+if (!animated) markReadyOnce();
+// ===== [PATCH END] =====
 
     }
 
@@ -3156,12 +3070,8 @@ function getTargetLeftForPos_Snap(pos) {
   const el = slides[pos];
   if (!el) return clampScrollLeft(track.scrollLeft || 0);
 
-  // 用真实几何（含小数）计算，使左右 peek 对称且精确到设备像素
-  const trackRect = track.getBoundingClientRect();
-  const elRect = el.getBoundingClientRect();
-  const left = (elRect.left - trackRect.left) + (track.scrollLeft || 0);
-  const centerOffset = (trackRect.width - elRect.width) / 2;
-  return clampScrollLeft(quantizePx(left - centerOffset));
+  const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
+  return clampScrollLeft(left);
 }
 
 
@@ -3180,35 +3090,19 @@ function hardJumpScrollLeft(left) {
 
   track.style.scrollSnapType = prevSnap || "";
   track.style.scrollBehavior = prevBeh || "";
+  // ===== [PATCH INSERT: s0.readyOnce.after.snap.hardJump] =====
+markReadyOnce();
+// ===== [PATCH END] =====
 }
 
 
 function fadeInTrack() {
-  if (track && track.dataset.ofS0Visible === "1") {
-    track.style.opacity = "1";
-    markReadyOnce();
-    return;
-  }
-  if (track) {
-    track.dataset.ofS0Visible = "1";
-    track.style.opacity = "1"; // 先露出，动画只是锦上添花
-  }
   try {
-    const anim = track.animate([{ opacity: 0 }, { opacity: 1 }], {
+    track.animate([{ opacity: 0 }, { opacity: 1 }], {
       duration: FADE_IN_MS,
       easing: "ease",
       fill: "forwards",
     });
-    if (anim && typeof anim.addEventListener === "function") {
-      anim.addEventListener("finish", () => {
-        track.style.opacity = "1";
-        markReadyOnce();
-      }, { once: true });
-    } else {
-      // 兜底：无动画接口时直接标记 ready
-      track.style.opacity = "1";
-      markReadyOnce();
-    }
   } catch (_) {
     track.style.opacity = "1";
     // ===== [PATCH INSERT: s0.readyOnce.after.fadeIn] =====
@@ -3287,8 +3181,14 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 function scrollToPos_Snap(pos, behavior) {
   pos = clamp(pos, 0, slides.length - 1);
-  const targetLeft = getTargetLeftForPos_Snap(pos);
-  if (!Number.isFinite(targetLeft)) return;
+  const el = slides[pos];
+  if (!el) return;
+
+  const left = el.offsetLeft - (track.clientWidth - el.clientWidth) / 2;
+  //const targetLeft = Math.max(0, Math.round(left * 1000) / 1000);
+// ===== [PATCH REPLACE: snap.targetLeft.use.clampScrollLeft] =====
+const targetLeft = clampScrollLeft(left);
+// ===== [PATCH END] =====
 
   // ===== [FIX] “归位/纠偏”必须硬跳，禁止任何平滑动画（防止下一轮方向视觉反转）=====
   const b = (behavior || "smooth").toLowerCase();
@@ -3317,46 +3217,37 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 
   // 不等待任何图片预载/解码：1 帧后直接对齐 + ready + 播放
   requestAnimationFrame(() => {
-    const align = async () => {
-      try {
-        if (isSnapMode()) {
-          // Mobile: snap 模式
-          try { setSnapModeEnabled(true); } catch (_) {}
-          try { applyMobilePeekPadding(); } catch (_) {}
+    try {
+      if (isSnapMode()) {
+        // Mobile: snap 模式
+        try { setSnapModeEnabled(true); } catch (_) {}
+        try { applyMobilePeekPadding(); } catch (_) {}
 
-          slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-          // 直接定位到中段 currentPos（避免首尾空白）
-          try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
+        slides = Array.from(track.querySelectorAll(".of-s0-slide"));
+        // 直接定位到中段 currentPos（避免首尾空白）
+        try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
 
-          // 预先把首帧解码出来（异步），避免阻塞首帧露出
-          primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
+        // 立刻刷新中心态 + 预览
+        try { updateCenterClasses(); } catch (_) {}
+        try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; }
 
-          // 立刻刷新中心态 + 预览
-          try { updateCenterClasses(); } catch (_) {}
-          try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; markReadyOnce(); }
+        // 直接进入 ready（不等预载）
+        try { markReadyOnce(); } catch (_) {}
+      } else {
+        // Desktop: transform 模式
+        try { recalcSpan(); } catch (_) {}
+        try { applyTransform(false); } catch (_) {}
 
-          // 直接进入 ready（不等预载）
-          try { markReadyOnce(); } catch (_) {}
-        } else {
-          // Desktop: transform 模式
-          try { recalcSpan(); } catch (_) {}
-          try { applyTransform(false); } catch (_) {}
+        try { updateCenterClasses(); } catch (_) {}
+        try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; }
 
-          // 预先把首帧解码出来（异步），避免阻塞首帧露出
-          primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
-
-          try { updateCenterClasses(); } catch (_) {}
-          try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; markReadyOnce(); }
-
-          try { markReadyOnce(); } catch (_) {}
-        }
-      } catch (_) {
-        // 兜底：至少别卡在透明
-        try { track.style.opacity = "1"; } catch (_) {}
         try { markReadyOnce(); } catch (_) {}
       }
-    };
-    align();
+    } catch (_) {
+      // 兜底：至少别卡在透明
+      try { track.style.opacity = "1"; } catch (_) {}
+      try { markReadyOnce(); } catch (_) {}
+    }
   });
 })();
 // ===== [PATCH END] =====
@@ -3376,14 +3267,12 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
     }
 
     function pickClosestIndex_Snap() {
-      const trackRect = track.getBoundingClientRect();
-      const center = trackRect.left + trackRect.width / 2;
+      const center = track.scrollLeft + track.clientWidth / 2;
       let bestI = 0;
       let bestD = Infinity;
       for (let i = 0; i < slides.length; i++) {
         const el = slides[i];
-        const r = el.getBoundingClientRect();
-        const c = r.left + r.width / 2;
+        const c = el.offsetLeft + el.clientWidth / 2;
         const d = Math.abs(c - center);
         if (d < bestD) {
           bestD = d;
@@ -3472,11 +3361,8 @@ function getSnapStepPx() {
   slides = Array.from(track.querySelectorAll(".of-s0-slide"));
   const a = slides[realCount];
   const b = slides[realCount + 1];
-  if (!a || !b) return 0;
-  const ra = a.getBoundingClientRect();
-  const rb = b.getBoundingClientRect();
-  const step = rb.left - ra.left;
-  return Math.abs(step) > 0.25 ? quantizePx(step) : 0;
+  const step = a && b ? (b.offsetLeft - a.offsetLeft) : 0;
+  return step > 0.5 ? step : 0;
 }
 
 // 手势拖拽接近物理边界时：把 scrollLeft 平移一整轮长度到中段，视觉不变但永不露出空白
@@ -3935,28 +3821,28 @@ track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐�
         applyTransform(false);
       }
 
-      // 预热首帧但不阻塞首屏渲染，避免白屏等待
-      primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
-
       requestAnimationFrame(() => {
         setSettling(false);
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
         updateCenterClasses();
         resetAllDots();
+        //activateDot(getRealIndex());
+        //if (isPlaying && !document.hidden) startProgressCycle();
+
         activateDot(getRealIndex());
 
-        isReady = true;
-        fadeInTrack();
-        initFinishedAt = Date.now();
+isReady = true;
+fadeInTrack();
+// ===== [PATCH INSERT: init.finished.timestamp] =====
+initFinishedAt = Date.now();
+// ===== [PATCH END] =====
 
-        // 兜底：无论如何 200ms 后强制 ready，避免动画未触发导致长时间透明
-        setTimeout(() => { if (!isReady) { isReady = true; markReadyOnce(); track.style.opacity = "1"; } }, 200);
+if (isPlaying && !document.hidden) {
+  setTimeout(() => {
+    if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+  }, AUTO_START_DELAY_MS);
+}
 
-        if (isPlaying && !document.hidden) {
-          setTimeout(() => {
-            if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
-          }, AUTO_START_DELAY_MS);
-        }
       });
     }
 
@@ -3998,11 +3884,6 @@ pushSkipEnter();
         recalcSpan();
         applyTransform(false);
       }
-
-      // 回到页面异步预热首帧，避免阻塞恢复渲染；并立即保证轨道可见
-      track.style.opacity = "1";
-      markReadyOnce();
-      primePreviewVideos({ centerIdx: currentPos }).catch(() => {});
 
 // ===== [PATCH REPLACE: recover.raf.ensure.popSkipEnter] =====
 requestAnimationFrame(() => {
