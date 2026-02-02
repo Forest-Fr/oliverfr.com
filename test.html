@@ -3048,7 +3048,11 @@ function popSkipEnterLater() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       skipEnterDepth = Math.max(0, skipEnterDepth - 1);
-      if (skipEnterDepth === 0 && track) track.classList.remove("is-skipEnter");
+      if (skipEnterDepth === 0 && track) {
+        track.classList.remove("is-skipEnter");
+        // 解除后强制刷新中心态，保证入场动画以正常节奏执行
+        try { updateCenterClasses(true); } catch (_) {}
+      }
     });
   });
 }
@@ -3278,11 +3282,13 @@ if (!cardW && ref) {
   cardW = parseFloat(getComputedStyle(ref).width || "0") || 0;
 }
 
-// 以当前 visual viewport 宽度为主，必要时退回 track 宽度
-const vw = getViewportW();
+// 以实际 track 宽度为主（与 scroll 逻辑一致），viewport 仅作兜底
 const trackW = track ? (track.getBoundingClientRect().width || track.clientWidth || 0) : 0;
-let baseW = vw || trackW;
-if (!Number.isFinite(baseW) || baseW <= 0) baseW = trackW;
+let baseW = trackW;
+if (!Number.isFinite(baseW) || baseW <= 0) {
+  const vw = getViewportW();
+  baseW = vw;
+}
 let pad = (baseW - cardW) / 2;
 // ===== [PATCH END] =====
 
