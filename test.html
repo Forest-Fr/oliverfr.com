@@ -1782,8 +1782,8 @@ overscroll-behavior-y: none;
 .of-s0-track.is-settling .of-s0-title,
 .of-s0-track.is-settling .of-s0-bottomBox{
   transition: none !important;
-  transform: translate3d(0,50px,0) !important;
-  opacity: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  opacity: 1 !important;
 }
 
 /* ===== [PATCH INSERT: s0.mobile.settling.keep.translateX + wrap.skipEnter] ===== */
@@ -1791,7 +1791,7 @@ overscroll-behavior-y: none;
 @media (max-width: 768px) {
   .of-s0-track.is-settling .of-s0-title,
   .of-s0-track.is-settling .of-s0-bottomBox{
-    transform: translateX(-50%) translate3d(0,50px,0) !important;
+    transform: translateX(-50%) translate3d(0,0,0) !important;
   }
 }
 
@@ -2495,7 +2495,7 @@ function markReadyOnce() {
     let rafId = 0;
     let chargeTimer = 0;
     let cycleToken = 0;
-    let activeDotIdx = 0;
+    let activeDotIdx = -1;
 
     function dotsAll() {
       return Array.from(dotsWrap.querySelectorAll(".of-s0-dot"));
@@ -2510,7 +2510,7 @@ function markReadyOnce() {
 
 function activateDot(idx) {
   const dots = dotsAll();
-  if (idx === activeDotIdx) {
+  if (idx === activeDotIdx && activeDotIdx !== -1) {
     // 同一个点重复激活时不再二次拉伸，避免“二次伸缩”
     setDotProgress(idx, 0);
     return;
