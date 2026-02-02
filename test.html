@@ -1061,6 +1061,13 @@ function syncPreview(ctx) {
   if (!c || !Array.isArray(c.slides)) return;
 
   const { slides, currentPos, isMoving, isInView } = c;
+  const allowPlay = c && Object.prototype.hasOwnProperty.call(c, "isPlaying") ? !!c.isPlaying : true;
+
+  // 手动暂停时：全暂停预览，不重置 currentTime
+  if (!allowPlay) {
+    pauseAllPreviews(slides);
+    return;
+  }
 
   // 不在视口/页面不可见/移动中：只 pause，不做 currentTime=0（避免解码抖动）
   if (document.hidden || isMoving || isInView === false) {
@@ -1266,6 +1273,11 @@ if (mp4) {
 // ===== [PATCH REPLACE: s0.film.onMovingChange.keep_decoder_warm.v1] =====
 function onMovingChange(ctx) {
   if (!ctx || !ctx.slides) return;
+
+  if (ctx.isPlaying === false) {
+    pauseAllPreviews(ctx.slides);
+    return;
+  }
 
   // 不在视口：直接 pause 省资源
   if (ctx.isInView === false) {
@@ -2554,11 +2566,11 @@ function setInView(v) {
 
   if (!isInView) {
     stopProgressLoop();
-    try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true,  isInView: false }); } catch (_) {}
+try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true,  isInView: false, isPlaying }); } catch (_) {}
     return;
   }
 
-  try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView: true }); } catch (_) {}
+  try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView: true, isPlaying }); } catch (_) {}
   if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
 }
 
@@ -2596,7 +2608,7 @@ function markReadyOnce() {
   setupInViewObserver();
 
   // 先同步一次 preview（会 ensurePreviewMedia + bind ready）
-  try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+  try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView, isPlaying }); } catch (_) {}
 
   // 关键：等“中心视频首帧可用”再淡入轨道，根除短暂黑屏
   (function fadeInAfterFrame() {
@@ -2717,7 +2729,7 @@ function activateDot(idx) {
   //try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
 
       // ===== [PATCH REPLACE: s0.play.syncPreview.pass_inView] =====
-try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView, isPlaying }); } catch (_) {}
 // ===== [PATCH END] =====
 
   startProgressCycle();
@@ -2731,7 +2743,7 @@ try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch
   //try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true }); } catch (_) {}
 
       // ===== [PATCH REPLACE: s0.pause.stopPreview.pass_inView] =====
-try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true, isInView }); } catch (_) {}
+try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true, isInView, isPlaying }); } catch (_) {}
 // ===== [PATCH END] =====
 
 
@@ -3018,7 +3030,7 @@ const w = el ? (el.getBoundingClientRect().width || 0) : 0;
 // { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on }); } catch (_) {}
 // ===== [PATCH END] =====
 // ===== [PATCH REPLACE: s0.film.onMovingChange.pass_inView] =====
-try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on, isInView }); } catch (_) {}
+try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on, isInView, isPlaying }); } catch (_) {}
 // ===== [PATCH END] =====
     }
 // ===== [PATCH INSERT: overlay.skipEnter.helpers] =====
@@ -3152,7 +3164,7 @@ function updateCenterClasses(force = false) {
   }
 
   if (changed) {
-    try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView, isPlaying }); } catch (_) {}
     kickCenterEnterMotion();
 
     // 减少首帧模糊：中心切换时若视频 ready 且暂停，轻推首帧后再停
@@ -3353,7 +3365,7 @@ function settleSnapAfterScroll() {
 
     // 刷新中心态 + 切视频
     try { updateCenterClasses(); } catch (_) {}
-    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView, isPlaying }); } catch (_) {}
 
     // 播放状态下：恢复进度条
     if (isReady && isPlaying && !document.hidden && isInView) startProgressCycle();
@@ -3586,12 +3598,16 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 
 
     function normalizePositionIfNeeded_Snap() {
-      const { changed, delta } = normalizeKeepAnchor(currentPos);
-      if (!changed) return false;
-
-      const nextLeft = clampScrollLeft((track.scrollLeft || 0) + delta);
-      withSnapSuppress(() => hardJumpScrollLeft(nextLeft));
-      return true;
+      if (realCount <= 1) return false;
+      let changed = false;
+      if (currentPos < realCount) {
+        currentPos += realCount;
+        changed = true;
+      } else if (currentPos >= realCount * 2) {
+        currentPos -= realCount;
+        changed = true;
+      }
+      return changed;
     }
 
     function pickClosestIndex_Snap() {
@@ -3643,7 +3659,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
     try { activateDot(getRealIndex()); } catch (_) {}
 
     // iOS：尽量在用户滚动后的链路里补一次 play
-    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView, isPlaying }); } catch (_) {}
 
     if (isReady && isPlaying && !document.hidden && isInView) startProgressCycle();
   };
@@ -3662,7 +3678,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
   // 关键：用户手势链路补一枪（iOS autoplay 必须靠手势）
   const gestureKick = () => {
     if (!isSnapMode()) return;
-    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView, isPlaying }); } catch (_) {}
   };
   track.addEventListener("touchend", gestureKick, { passive: true });
   track.addEventListener("pointerup", gestureKick, { passive: true });
