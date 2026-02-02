@@ -2932,14 +2932,7 @@ function popSkipEnterLater() {
     function applyTransform(animated) {
 
       // ===== [PATCH INSERT: applyTransform.hard_jump.hide_one_frame.v1] =====
-if (!animated && track && track.style) {
-  // hard jump 只遮 1 帧：避免用户看到“瞬移中间态”
-  track.style.visibility = "hidden";
-  requestAnimationFrame(() => {
-    try { track.style.visibility = "visible"; } catch (_) {}
-  });
-}
-// ===== [PATCH END] =====
+
 
       if (!slideSpan) recalcSpan();
       if (!slideSpan) return;
