@@ -2483,35 +2483,8 @@ function markReadyOnce() {
   if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
 }
 // ===== [PATCH END] =====
-// ===== [PATCH INSERT: s0.pageshow.visibility.warm_resume.no_black.v1] =====
-function warmCenterVideoOnce() {
-  try {
-    if (!slides || !slides[currentPos]) return;
-    const wrap = slides[currentPos].querySelector(".of-s0-media");
-    const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
-    if (!v) return;
 
-    // 轻量 warm：不 reset currentTime，不清 src，只做一次 load + 尝试 play（失败静默）
-    try { v.load(); } catch (_) {}
-    if (isInView && isPlaying && !document.hidden && !isMoving) {
-      const p = v.play();
-      if (p && typeof p.catch === "function") p.catch(() => {});
-    }
 
-    // 如果首帧还没 ready，等一帧后再把 track 显示出来（避免“回来先看到空/黑”）
-    if (track && track.style) {
-      track.style.visibility = "hidden";
-      const reveal = () => { try { track.style.visibility = "visible"; } catch (_) {} };
-
-      if (typeof v.requestVideoFrameCallback === "function") {
-        try { v.requestVideoFrameCallback(() => reveal()); } catch (_) { requestAnimationFrame(reveal); }
-      } else {
-        v.addEventListener("loadeddata", reveal, { once: true, passive: true });
-        requestAnimationFrame(reveal);
-      }
-    }
-  } catch (_) {}
-}
 
 // BFCache/返回：Safari/Chrome 都靠它自愈
 window.addEventListener("pageshow", (e) => {
