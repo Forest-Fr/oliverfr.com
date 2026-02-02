@@ -1906,7 +1906,7 @@ overscroll-behavior-y: none;
 @media (max-width: 768px) {
   .of-s0-track.is-skipEnter .of-s0-title,
   .of-s0-track.is-skipEnter .of-s0-bottomBox{
-    transform: translateX(-50%) translate3d(0,0,0) !important;
+    transform: translateX(-50%) translate3d(0,50px,0) !important;
   }
 }
 /* ===== [PATCH END] ===== */
@@ -2508,17 +2508,22 @@ function applyMobilePeekPaddingPrecise() {
   _peekPadRaf = requestAnimationFrame(() => {
     _peekPadRaf = 0;
     try {
-      const vw = document.documentElement.clientWidth || window.innerWidth || 0;
+      const viewport = track ? (track.getBoundingClientRect().width || track.clientWidth || 0) : 0;
+      const fallbackVw = document.documentElement.clientWidth || window.innerWidth || 0;
+
       const s =
         track.querySelector(".of-s0-slide.is-center") ||
         track.querySelector(".of-s0-slide") ||
         null;
-      if (!vw || !s) return;
+      if (!s) return;
 
       const w = (s.getBoundingClientRect && s.getBoundingClientRect().width) || s.offsetWidth || 0;
       if (!w) return;
 
-      const pad = Math.max(0, (vw - w) / 2);
+      const baseW = viewport > 0 ? viewport : fallbackVw;
+      if (!baseW) return;
+
+      const pad = Math.max(0, (baseW - w) / 2);
       const px = `${pad.toFixed(3)}px`;
       track.style.setProperty("--of-s0-pad", px);
       track.style.paddingLeft = px;
