@@ -2633,6 +2633,14 @@ function enterKickOnce() {
  */
 function beginWrapLock(ms) {
   const dur = Math.max(0, ms | 0);
+
+  // 若上一次 wrapLock 仍在计时，先清掉并弹出深度，避免锁计数泄漏
+  if (_wrapLockTimer) {
+    clearTimeout(_wrapLockTimer);
+    _wrapLockTimer = 0;
+    popWrapLock();
+  }
+
   pushWrapLock();
   try { track.classList.add("is-skipEnter", "is-settling", "of-s0-overlay-lock"); } catch (_) {}
 
@@ -2657,13 +2665,18 @@ function setInView(v) {
   isInView = next;
 
   if (!isInView) {
-    stopProgressLoop();
+  stopProgressLoop();
 try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true,  isInView: false, isPlaying }); } catch (_) {}
     return;
   }
 
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView: true, isPlaying }); } catch (_) {}
   if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+
+  // 防止意外残留透明：在可见时若轨道仍为 0，立即亮起
+  if (track && (track.style.opacity === "" || track.style.opacity === "0")) {
+    track.style.opacity = "1";
+  }
 }
 
 function setupInViewObserver() {
@@ -4317,21 +4330,23 @@ pushSkipEnter();
         applyTransform(false);
       }
 
-      // 重新点亮已解码的视频首帧，避免返回时短暂黑屏（不依赖局部私有方法）
-      slides.forEach((s) => {
-        try { AppleFilm.ensurePreviewMedia(s); } catch (_) {}
+  // 重新点亮已解码的视频首帧，避免返回时短暂黑屏（不依赖局部私有方法）
+  slides.forEach((s) => {
+    try { AppleFilm.ensurePreviewMedia(s); } catch (_) {}
 
-        const w = s.querySelector(".of-s0-media");
-        const v = w && w.querySelector("video.of-s0-previewVideo");
+    const w = s.querySelector(".of-s0-media");
+    const v = w && w.querySelector("video.of-s0-previewVideo");
         if (v && w) {
           if (v.readyState >= 2) {
             w.classList.add("is-video-ready");
             v.style.visibility = "visible";
             v.style.opacity = "1";
-          }
-          try { v.play().catch(() => {}); } catch (_) {}
-        }
-      });
+      }
+      try { v.play().catch(() => {}); } catch (_) {}
+    }
+  });
+
+  if (track) track.style.opacity = "1";
 
 // ===== [PATCH REPLACE: recover.raf.ensure.popSkipEnter] =====
 requestAnimationFrame(() => {
