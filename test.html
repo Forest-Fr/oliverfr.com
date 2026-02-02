@@ -3074,9 +3074,9 @@ function kickCenterEnterMotion() {
 
   // 跨两帧移除：确保浏览器先提交“初始态”，再走到“中心态”，入场就会稳定慢慢上来
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       if (track) track.classList.remove("of-s0-enterKick");
-    });
+    }, 32); // 两帧后再移除，避免频繁 add/remove 造成二次闪
   });
 }
 // ===== [PATCH END] =====
@@ -3168,7 +3168,7 @@ function updateCenterClasses(force = false) {
   }
 
   if (changed) {
-try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView, isPlaying }); } catch (_) {}
+try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView, isPlaying, forceRefresh: force }); } catch (_) {}
     kickCenterEnterMotion();
 
     // 减少首帧模糊：中心切换时若视频 ready 且暂停，轻推首帧后再停
@@ -3177,7 +3177,10 @@ try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView, isPlaying 
       const v = w && w.querySelector("video.of-s0-previewVideo");
       if (v && w && w.classList.contains("is-video-ready")) {
         try {
-          if (v.readyState >= 2 && v.currentTime < 0.04) v.currentTime = 0.04;
+          // 若非强制刷新且当前时间已在前 0.04s 以内，不再推前，避免“蹭一下”闪入
+          if (force) {
+            if (v.readyState >= 2 && v.currentTime < 0.04) v.currentTime = 0.04;
+          }
           const p = v.play();
           if (p && p.catch) p.catch(() => {});
           setTimeout(() => {
@@ -3611,7 +3614,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 // ===== [PATCH END] =====
 
 
-    function normalizePositionIfNeeded_Snap() {
+    function normalizePositionIfNeeded_Snap(forceRepad) {
       if (realCount <= 1) return false;
 
       const prevPos = currentPos;
@@ -3633,8 +3636,10 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
         const targetLeft = getTargetLeftForPos_Snap(currentPos);
         withSnapSuppress(() => hardJumpScrollLeft(targetLeft));
 
-        // 重新计算左右露出，确保对称
-        try { applyMobilePeekPadding(); } catch (_) {}
+        // 重新计算左右露出，确保对称（forceRepad 可强制执行）
+        if (forceRepad || isSnapMode()) {
+          try { applyMobilePeekPadding(); } catch (_) {}
+        }
 
         // 两帧后解除 skipEnter，保证后续入场动画正常
         popSkipEnterLater();
@@ -3843,7 +3848,7 @@ function normalizeEdgeWhileDragging_Snap() {
 
       // 再归位到中段（避免“下一轮”时可见回弹）
       // 再归位到中段（避免“下一轮”时可见回弹）
-      const changed = normalizePositionIfNeeded_Snap();
+      const changed = normalizePositionIfNeeded_Snap(true);
       applyMobilePeekPadding();
 
       // 无论 changed 与否，都做一次无动画对齐（但必须受 suppress 保护）
@@ -4086,7 +4091,7 @@ pushSkipEnter();
 
       if (isSnapMode()) {
         setSnapModeEnabled(true);
-        normalizePositionIfNeeded_Snap();
+        normalizePositionIfNeeded_Snap(true);
         applyMobilePeekPadding();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
@@ -4188,7 +4193,7 @@ track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐�
       if (isSnapMode()) {
         setSnapModeEnabled(true);
         currentPos = realCount > 1 ? realCount : 0;
-        normalizePositionIfNeeded_Snap();
+        normalizePositionIfNeeded_Snap(true);
         applyMobilePeekPadding();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
@@ -4251,7 +4256,7 @@ pushSkipEnter();
         setSnapModeEnabled(true);
         // clamp + normalize
         currentPos = clamp(currentPos, 0, slides.length - 1);
-        normalizePositionIfNeeded_Snap();
+        normalizePositionIfNeeded_Snap(true);
         applyMobilePeekPadding();
 
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
@@ -4364,7 +4369,7 @@ pushSkipEnter();
       if (isSnapMode()) {
         setSnapModeEnabled(true);
         currentPos = realCount + ri;
-        normalizePositionIfNeeded_Snap();
+        normalizePositionIfNeeded_Snap(true);
         withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
       } else {
         track.dataset.ofS0Snap = "";
