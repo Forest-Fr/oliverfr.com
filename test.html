@@ -303,17 +303,7 @@
 .section0-slide .of-s0-media,
 .of-s0-slide .of-s0-media{
   /* 避免 poster/video 切换时出现黑底闪一下（非破坏：只是给容器兜底底色） */
-  /* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
-/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
-background: #f9f9f9;
-/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
-}
-.section0-slide .of-s0-media > video.of-s0-previewVideo,
-.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
-  background: #f9f9f9;
-}
-/* ===== [PATCH END] ===== */
-
+  background: #000;
   /* 让 opacity 切换更稳定，减少“快闪/抖动/锯齿” */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -987,33 +977,6 @@ function ensurePreviewMedia(slide) {
     // ===== [PATCH END] =====
   }
 
-  // ===== [PATCH INSERT: ensurePreviewMedia.video.first_frame_ready_flag.v1] =====
-/**
- * video-only 稳定性关键：
- * - 首次拿到可渲染帧后，给 wrap 打上 is-video-ready
- * - 这样回到页面时我们只需要“轻量 warm”，不会出现长时间空/黑
- */
-if (!v.dataset.ofS0BoundReady) {
-  v.dataset.ofS0BoundReady = "1";
-
-  const markReady = () => {
-    try { wrap.classList.add("is-video-ready"); } catch (_) {}
-  };
-
-  // loadeddata: 有首帧可画；canplay: 可播放
-  v.addEventListener("loadeddata", markReady, { passive: true });
-  v.addEventListener("canplay", markReady, { passive: true });
-
-  // 更强：如果浏览器支持 requestVideoFrameCallback，用“真正画出一帧”来标记
-  if (typeof v.requestVideoFrameCallback === "function") {
-    try {
-      v.requestVideoFrameCallback(() => markReady());
-    } catch (_) {}
-  }
-}
-// ===== [PATCH END] =====
-
-
   // ===== [PATCH INSERT: ensurePreviewMedia.mark_layout_ready] =====
   // 布局层面：video-only 方案下，确保 wrapper 不被旧逻辑判定为“fallback”
   //（真正 ready 的 class 建议由 loadeddata/loadedmetadata 监听处统一打标）
@@ -1443,17 +1406,7 @@ overscroll-behavior-y: none;
 .section0-slide .of-s0-media,
 .of-s0-slide .of-s0-media{
   /* 避免 poster/video 切换时出现黑底闪一下（非破坏：只是给容器兜底底色） */
-/* ===== [PATCH REPLACE: s0.media.background.no_black_flash.video_only] ===== */
-/* video-only：兜底背景跟 carousel 一致，避免任何“黑块闪现” */
-background: #f9f9f9;
-/* video 自己也给同色兜底，Safari/Chrome 解码首帧前不会露黑 */
-}
-.section0-slide .of-s0-media > video.of-s0-previewVideo,
-.of-s0-slide .of-s0-media > video.of-s0-previewVideo{
-  background: #f9f9f9;
-}
-/* ===== [PATCH END] ===== */
-
+  background: #000;
   /* 让 opacity 切换更稳定，减少“快闪/抖动/锯齿” */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -2484,32 +2437,6 @@ function markReadyOnce() {
 }
 // ===== [PATCH END] =====
 
-
-
-// BFCache/返回：Safari/Chrome 都靠它自愈
-window.addEventListener("pageshow", (e) => {
-  // persisted=true 代表 BFCache 恢复
-  try {
-    if (track && track.style) {
-      track.style.opacity = "1";
-      track.style.visibility = "visible";
-    }
-    setupInViewObserver();
-    warmCenterVideoOnce();
-    if (isReady && isPlaying && isInView && !document.hidden && !isMoving) startProgressCycle();
-  } catch (_) {}
-}, { passive: true });
-
-// 前后台切换：恢复首帧
-document.addEventListener("visibilitychange", () => {
-  try {
-    if (!document.hidden) warmCenterVideoOnce();
-  } catch (_) {}
-}, { passive: true });
-
-window.addEventListener("focus", () => { try { warmCenterVideoOnce(); } catch (_) {} }, { passive: true });
-// ===== [PATCH END] =====
-
     let rafId = 0;
     let chargeTimer = 0;
     let cycleToken = 0;
@@ -2846,22 +2773,6 @@ const w = el ? (el.getBoundingClientRect().width || 0) : 0;
       centerOffset = viewportW && w ? (viewportW - w) / 2 : 0;
 
       if (!Number.isFinite(centerOffset)) centerOffset = 0;
-
-      // ===== [PATCH INSERT: mobile.peek.pad.precise.to_3dp.v1] =====
-/**
- * 移动端 Peek Preview 精确对称：
- * pad = (viewportW - slideW) / 2
- * 写入 CSS 变量 --of-s0-pad，精确到 0.001px
- */
-try {
-  if (isSnapMode && typeof isSnapMode === "function" ? isSnapMode() : isMobileSnap()) {
-    const pad = (viewportW && w) ? ((viewportW - w) / 2) : 0;
-    const fixed = (Number.isFinite(pad) ? pad : 0).toFixed(3) + "px";
-    track.style.setProperty("--of-s0-pad", fixed);
-  }
-} catch (_) {}
-// ===== [PATCH END] =====
-
       return slideSpan;
     }
 
@@ -2903,10 +2814,6 @@ function popSkipEnterLater() {
 // ===== [PATCH END] =====
 
     function applyTransform(animated) {
-
-      // ===== [PATCH INSERT: applyTransform.hard_jump.hide_one_frame.v1] =====
-
-
       if (!slideSpan) recalcSpan();
       if (!slideSpan) return;
 
