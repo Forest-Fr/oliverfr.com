@@ -2633,11 +2633,14 @@ function enterKickOnce() {
  */
 function beginWrapLock(ms) {
   const dur = Math.max(0, ms | 0);
+  pushWrapLock();
   try { track.classList.add("is-skipEnter", "is-settling", "of-s0-overlay-lock"); } catch (_) {}
 
   if (_wrapLockTimer) clearTimeout(_wrapLockTimer);
   _wrapLockTimer = setTimeout(() => {
     try { track.classList.remove("is-skipEnter", "is-settling", "of-s0-overlay-lock"); } catch (_) {}
+    popWrapLock();
+    try { updateCenterClasses(true); } catch (_) {}
     enterKickOnce();
   }, dur);
 }
@@ -3130,6 +3133,7 @@ try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on, isInView, i
 // ===== [PATCH INSERT: overlay.skipEnter.helpers] =====
 let skipEnterDepth = 0;
 let initFinishedAt = 0;
+let wrapLockDepth = 0;
 
 function pushSkipEnter() {
   if (!track) return;
@@ -3149,6 +3153,16 @@ function popSkipEnterLater() {
       }
     });
   });
+}
+
+function pushWrapLock() {
+  wrapLockDepth++;
+}
+function popWrapLock() {
+  wrapLockDepth = Math.max(0, wrapLockDepth - 1);
+}
+function isWrapLocking() {
+  return wrapLockDepth > 0;
 }
 // ===== [PATCH END] =====
 
@@ -3240,9 +3254,10 @@ function updateCenterClasses(force = false) {
 
   const changed =
     force ||
-    center !== prevCenterSlide ||
-    left !== prevLeftSlide ||
-    right !== prevRightSlide;
+    (!isWrapLocking() &&
+      (center !== prevCenterSlide ||
+       left !== prevLeftSlide ||
+       right !== prevRightSlide)));
 
   if (changed) {
     const flagged = track ? track.querySelectorAll(".is-center, .is-neighbor") : [];
@@ -3622,8 +3637,8 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
         try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
         applyMobilePeekPaddingPrecise();
 
-        // 立刻刷新中心态 + 预览
-        try { updateCenterClasses(); } catch (_) {}
+      // 立刻刷新中心态 + 预览
+        try { updateCenterClasses(true); } catch (_) {}
         try { fadeInTrack(); } catch (_) { track.style.opacity = "1"; }
 
         // 直接进入 ready（不等预载）
@@ -3814,6 +3829,7 @@ function normalizeEdgeWhileDragging_Snap() {
       // ===== [FIX] 关键顺序：先 settling（保持 is-moving），再做归位，最后下一帧解除 moving/settling =====
       setSettling(true);
 
+      beginWrapLock(140);
       normalizePositionIfNeeded_Transform();
       recalcSpan();
       applyTransform(false);
