@@ -1004,6 +1004,10 @@ function bindPreviewReady(wrap, v) {
     try {
       if (v.readyState >= 2 && v.currentTime < 0.04) v.currentTime = 0.04;
     } catch (_) {}
+    // 移动端 ready 后重新计算 peek padding，确保左右对称
+    try {
+      if (isSnapMode && isSnapMode()) applyMobilePeekPadding();
+    } catch (_) {}
   };
 
   if (v.readyState >= 2) setReady();
@@ -1711,7 +1715,7 @@ overscroll-behavior-y: none;
 
   opacity: 0;
   transition: opacity .22s ease;
-  will-change: opacity;
+  will-change: opacity, transform;
   backface-visibility: hidden;
   transform: translate3d(0,0,0);
 }
@@ -1740,6 +1744,14 @@ overscroll-behavior-y: none;
   transform: translate3d(0,50px,0);
   opacity: 0;
   transition: transform 0.6s cubic-bezier(0.22,1,0.36,1), opacity 0.6s ease-in-out;
+}
+
+/* 减少文本抖动：让文字与按钮也稳定在同一合成层 */
+.of-s0-title,
+.of-s0-desc,
+.of-s0-explore{
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 /* 中心卡片触发“进入” */
@@ -2558,7 +2570,7 @@ if (!isPlaying || document.hidden || realCount <= 1) return;
 if (isMoving) return;
 
 // ===== [PATCH INSERT: s0.progress.inview.guard] =====
-if (!isInView) return;
+// 不再以可见性阻断进度，避免 IO 判定偏差导致自动轮播停滞
 // ===== [PATCH END] =====
 
       const myToken = ++cycleToken;
@@ -2576,7 +2588,7 @@ if (!isInView) return;
         }
 
         // ===== [PATCH INSERT: s0.progress.tick.inview.guard] =====
-if (!isInView) { stopProgressLoop(); return; }
+// 允许在 IO 判定边缘继续推进，避免自动轮播意外挂起
 // ===== [PATCH END] =====
 
         if (isMoving) {
@@ -2952,7 +2964,11 @@ function applyMobilePeekPadding() {
  // let pad = (vw - cardW) / 2;
 
   // ===== [PATCH REPLACE: mobile.pad.use.track.viewport.width] =====
-const cardW = ref ? (ref.getBoundingClientRect().width || 0) : 0;
+let cardW = ref ? (ref.getBoundingClientRect().width || 0) : 0;
+if (!cardW && ref) {
+  // 兜底：有些时刻 rect 仍为 0，改用计算样式宽度
+  cardW = parseFloat(getComputedStyle(ref).width || "0") || 0;
+}
 
 // 关键：以 scroll 容器 track 的“真实可视宽度”为准，而不是 viewportW
 // 这样 iOS/安卓地址栏、visualViewport 等变化都不会造成左右露出不对称
@@ -2986,7 +3002,7 @@ if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.5) {
 
 track.dataset.ofS0Pad = String(pad);
 
-const px = `${pad.toFixed(3)}px`;
+const px = `${pad.toFixed(4)}px`;
 
 // 1) 变量（给 CSS 用）
 track.style.setProperty("--of-s0-pad", px);
