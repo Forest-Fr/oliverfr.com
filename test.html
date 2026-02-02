@@ -1083,21 +1083,21 @@ function syncPreview(ctx) {
   bindPreviewReady(wrap, v);
 
   // 只有“中心换了”才归零一次（避免每一帧/每一次 settle 都触发解码抖）
+  // ===== [PATCH REPLACE: s0.preview.no_seek_to_zero.avoid_macroblock.v1] =====
+  // 关键：禁止在切换时 currentTime=0（这是“马赛克/糊”的最大触发器）
+  // 改为：中心切换只“从当前解码状态继续 loop 播放”，不强制 seek。
   const centerChanged = (_lastCenterPos !== currentPos);
   _lastCenterPos = currentPos;
 
-  const safeSeekToZero = () => {
+  // 若确实需要“更接近从头”，只做极小的安全前移（不 seek 到 0）
+  // 注意：不会每次都动，只在刚切到中心且仍处于 very-begin 时轻推一次
+  if (centerChanged) {
     try {
-      if (centerChanged && v.readyState >= 2) v.currentTime = 0;
+      if (v.readyState >= 2 && v.currentTime < 0.02) v.currentTime = 0.06;
     } catch (_) {}
-  };
-
-  // 首帧 ready 后再归零一次（保证从头播且不抖）
-  if (centerChanged && v.readyState < 2) {
-    v.addEventListener("loadeddata", safeSeekToZero, { once: true });
-  } else {
-    safeSeekToZero();
   }
+  // ===== [PATCH END] =====
+
 
   // 播放中心（失败就静默：iOS 未手势时会被拦，但视频仍保持布局，不会“图↔视频”抖）
   v.muted = true;
@@ -1246,15 +1246,41 @@ if (mp4) {
   }
 
 // ===== [PATCH REPLACE: s0.film.onMovingChange.inViewAware.v2] =====
+// ===== [PATCH REPLACE: s0.film.onMovingChange.keep_decoder_warm.v1] =====
 function onMovingChange(ctx) {
   if (!ctx || !ctx.slides) return;
+
+  // 不在视口：直接 pause 省资源
   if (ctx.isInView === false) {
     pauseAllPreviews(ctx.slides);
     return;
   }
-  if (ctx.isMoving) pauseAllPreviews(ctx.slides);
-  else syncPreview(ctx);
+
+  // moving 期间：不要 pause（避免切换前后解码器“冷启动→宏块→糊”）
+  if (ctx.isMoving) {
+    // 若已经发生用户手势解锁 autoplay，则让所有视频维持“解码热身态”
+    // （失败静默，不破坏现有逻辑）
+    ctx.slides.forEach((s) => {
+      const w = s && s.querySelector ? s.querySelector(".of-s0-media") : null;
+      const v = w && w.querySelector ? w.querySelector("video.of-s0-previewVideo") : null;
+      if (!v) return;
+
+      // 维持 muted/loop，尽量不触发 seek
+      try { v.muted = true; v.loop = true; v.playsInline = true; } catch (_) {}
+
+      if (autoplayUnlocked) {
+        const p = v.play();
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      }
+    });
+    return;
+  }
+
+  // settling/静止：回到原策略（只播中心，其它 pause）
+  syncPreview(ctx);
 }
+// ===== [PATCH END] =====
+
 // ===== [PATCH END] =====
 
 
@@ -1465,7 +1491,10 @@ overscroll-behavior-y: none;
   -webkit-transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  contain: paint;
+    /* ===== [PATCH REPLACE: s0.media.contain.paint.off.avoid_lowres_raster.v1] ===== */
+  contain: layout style; /* 禁用 paint containment，避免视频在 transform 时低分辨率栅格化 */
+  /* ===== [PATCH END] ===== */
+
 }
 /* ===== [PATCH END] ===== */
 
@@ -1494,7 +1523,7 @@ overscroll-behavior-y: none;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  
   /* 默认隐藏可减少非中心卡片暂停/首帧黑帧的“瞬间可见”概率 */
   visibility: hidden;
   /* ===== [PATCH END] ===== */
@@ -1520,7 +1549,7 @@ overscroll-behavior-y: none;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  
   visibility: visible;
   /* ===== [PATCH END] ===== */
 }
@@ -2282,6 +2311,42 @@ body.appleFilm-lock {
       b.classList.add("of-s0-explore");
     });
 
+    // ===== [PATCH INSERT: s0.overlay.structure.idempotent.bottomBox.v1] =====
+qsa(container, ".of-s0-slide").forEach((slide) => {
+  if (!slide || !slide.querySelector) return;
+
+  // 幂等：只做一次结构归一化
+  if (slide.dataset.ofS0OverlayBuilt === "1") return;
+  slide.dataset.ofS0OverlayBuilt = "1";
+
+  const overlay = slide.querySelector(".of-s0-overlay");
+  if (!overlay) return;
+
+  // 防御：如果历史运行残留了多个 bottomBox，保留第一个，其余清掉
+  const boxes = Array.from(overlay.querySelectorAll(".of-s0-bottomBox"));
+  if (boxes.length > 1) {
+    for (let i = 1; i < boxes.length; i++) {
+      try { boxes[i].remove(); } catch (_) {}
+    }
+  }
+
+  let bottomBox = overlay.querySelector(".of-s0-bottomBox");
+  if (!bottomBox) {
+    bottomBox = document.createElement("div");
+    bottomBox.className = "of-s0-bottomBox";
+    overlay.appendChild(bottomBox);
+  }
+
+  // 把 desc + explore 统一放进 bottomBox（只移动一次）
+  const desc = overlay.querySelector(".of-s0-desc");
+  const btn  = overlay.querySelector(".of-s0-explore");
+
+  if (desc && desc.parentNode !== bottomBox) bottomBox.appendChild(desc);
+  if (btn  && btn.parentNode  !== bottomBox) bottomBox.appendChild(btn);
+});
+// ===== [PATCH END] =====
+
+
     buttonRow.classList.remove("section0-buttonRow");
     buttonRow.classList.add("of-s0-buttonRow");
 
@@ -2506,18 +2571,59 @@ function setupInViewObserver() {
   }
 }
 
+// ===== [PATCH REPLACE: s0.track.fadein.after_first_frame.v1] =====
 function markReadyOnce() {
   if (isReady) return;
   isReady = true;
 
-  // 兜底：避免极端情况下 track 一直 opacity=0
-  if (track && track.style && track.style.opacity === "0") track.style.opacity = "1";
-
   setupInViewObserver();
+
+  // 先同步一次 preview（会 ensurePreviewMedia + bind ready）
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
-  if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+
+  // 关键：等“中心视频首帧可用”再淡入轨道，根除短暂黑屏
+  (function fadeInAfterFrame() {
+    try {
+      if (!track || !slides || !slides[currentPos]) {
+        track.style.opacity = "1";
+        return;
+      }
+
+      const wrap = slides[currentPos].querySelector(".of-s0-media");
+      const v = wrap && wrap.querySelector ? wrap.querySelector("video.of-s0-previewVideo") : null;
+
+      const show = () => {
+        try {
+          track.style.transition = `opacity ${FADE_IN_MS}ms ease`;
+          track.style.opacity = "1";
+        } catch (_) {}
+        if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+      };
+
+      // 已经有首帧：直接淡入
+      if (v && v.readyState >= 2) { show(); return; }
+
+      // 没有：监听一次 loadeddata/canplay
+      if (v) {
+        const once = () => show();
+        v.addEventListener("loadeddata", once, { once: true });
+        v.addEventListener("canplay", once, { once: true });
+
+        // 兜底：最晚 900ms 必须显示（避免某些设备卡死在 0）
+        setTimeout(() => show(), 900);
+        return;
+      }
+
+      // 没有 video：也别黑着
+      show();
+    } catch (_) {
+      track.style.opacity = "1";
+      if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+    }
+  })();
 }
 // ===== [PATCH END] =====
+
 
     let rafId = 0;
     let chargeTimer = 0;
