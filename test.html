@@ -3224,7 +3224,14 @@ try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView, isPlaying 
     // ===== [FIX] 归位只改 currentPos，不在这里触发任何 transition/DOM 动画 =====
     function normalizePositionIfNeeded_Transform() {
       const res = normalizeKeepAnchor(currentPos);
-      return res.changed;
+      if (!res.changed) return false;
+
+      // 避免跨轮衔接时 overlay/文本二次闪现
+      pushSkipEnter();
+      recalcSpan();
+      applyTransform(false);
+      popSkipEnterLater();
+      return true;
     }
 
     // ===== Mobile snap mode =====
@@ -3271,11 +3278,12 @@ if (!cardW && ref) {
   cardW = parseFloat(getComputedStyle(ref).width || "0") || 0;
 }
 
-// 关键：以 scroll 容器 track 的“真实可视宽度”为准，而不是 viewportW
-// 这样 iOS/安卓地址栏、visualViewport 等变化都不会造成左右露出不对称
+// 以当前 visual viewport 宽度为主，必要时退回 track 宽度
+const vw = getViewportW();
 const trackW = track ? (track.getBoundingClientRect().width || track.clientWidth || 0) : 0;
-
-let pad = (trackW - cardW) / 2;
+let baseW = vw || trackW;
+if (!Number.isFinite(baseW) || baseW <= 0) baseW = trackW;
+let pad = (baseW - cardW) / 2;
 // ===== [PATCH END] =====
 
   if (!Number.isFinite(pad)) pad = 0;
@@ -3618,6 +3626,9 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
         // 同步 scrollLeft 到新的中段位置，保持视觉对称
         const targetLeft = getTargetLeftForPos_Snap(currentPos);
         withSnapSuppress(() => hardJumpScrollLeft(targetLeft));
+
+        // 重新计算左右露出，确保对称
+        try { applyMobilePeekPadding(); } catch (_) {}
 
         // 两帧后解除 skipEnter，保证后续入场动画正常
         popSkipEnterLater();
@@ -4245,13 +4256,18 @@ pushSkipEnter();
         applyTransform(false);
       }
 
-      // 重新点亮已解码的视频首帧，避免返回时短暂黑屏
+      // 重新点亮已解码的视频首帧，避免返回时短暂黑屏（不依赖局部私有方法）
       slides.forEach((s) => {
+        try { AppleFilm.ensurePreviewMedia(s); } catch (_) {}
+
         const w = s.querySelector(".of-s0-media");
         const v = w && w.querySelector("video.of-s0-previewVideo");
         if (v && w) {
-          bindPreviewReady(w, v);
-          if (v.readyState >= 2) w.classList.add("is-video-ready");
+          if (v.readyState >= 2) {
+            w.classList.add("is-video-ready");
+            v.style.visibility = "visible";
+            v.style.opacity = "1";
+          }
           try { v.play().catch(() => {}); } catch (_) {}
         }
       });
