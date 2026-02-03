@@ -1158,7 +1158,13 @@ function syncPreview(ctx) {
     learnEl.href = learnHref;
 
     transcriptEl.querySelector(".txt").textContent = conf.transcriptText || "Download the transcript";
-    transcriptEl.href = "#";
+    // 按影片映射到对应 mp4
+    const tUrl = filmId === "lategpt"
+      ? "http://oliverfr.com/LiteGPT.mp4"
+      : filmId === "agent"
+        ? "http://oliverfr.com/Agent.mp4"
+        : "#";
+    transcriptEl.href = tUrl;
 
     // pause preview while modal open（省资源）
     if (lastCtx && lastCtx.slides) pauseAllPreviews(lastCtx.slides);
