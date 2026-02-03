@@ -1300,8 +1300,12 @@ function onMovingChange(ctx) {
     pauseAllPreviews(ctx.slides);
     return;
   }
-  if (ctx.isMoving) pauseAllPreviews(ctx.slides);
-  else syncPreview(ctx);
+  if (ctx.isMoving) {
+    // 不再全局暂停，交给 syncPreview 在 moving 态维持中心/邻居播放，减少“收尾马赛克”
+    syncPreview(ctx);
+  } else {
+    syncPreview(ctx);
+  }
 }
 // ===== [PATCH END] =====
 
