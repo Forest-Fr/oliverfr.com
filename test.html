@@ -699,9 +699,9 @@ body.appleFilm-lock{
 
       <!-- ✅ 你可按需修改每张的 data-url / data-title / data-desc -->
 <div class="section0-slide"
-     data-url="https://oliverfr.com/agent-test.html#s0=0"
-     data-title="前端UI"
-     data-desc="后端Python+FastApi+Langgraph等"
+     data-url="https://oliverfr.com/streaming-no-voice#s0=0"
+     data-title="LiteGPT"
+     data-desc="边缘计算+Prompt工程&微调"
      data-film-id="lategpt"
      data-film-mp4="LiteGPT.mp4">
 
@@ -714,8 +714,8 @@ body.appleFilm-lock{
 
 <div class="section0-slide"
      data-url="https://oliverfr.com/go-agent.html#s0=1"
-     data-title="Admin Panel"
-     data-desc="网关+Postgres Sql等"
+     data-title="AI Agent"
+     data-desc="GCP+Python+fastAPI+Langgraph"
      data-film-id="agent"
      data-film-mp4="Agent.mp4">
 
@@ -3402,9 +3402,11 @@ let pad = (trackW - cardW) / 2;
 pad = quantizePx(pad);
 
 const prev = parseFloat(track.dataset.ofS0Pad || "NaN");
-if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.02) {
-  return; // 小于 0.02px 直接忽略，保持稳定
+const EPS  = 1 / ((window.devicePixelRatio || 1)); // 1 device pixel
+if (Number.isFinite(prev) && Math.abs(prev - pad) < EPS) {
+  return;
 }
+
 
 track.dataset.ofS0Pad = String(pad);
 
@@ -3528,24 +3530,29 @@ function getTargetLeftForPos_Snap(pos) {
 
 function hardJumpScrollLeft(left) {
   const prevSnap = track.style.scrollSnapType;
-  const prevBeh = track.style.scrollBehavior;
+  const prevBeh  = track.style.scrollBehavior;
 
-  // 关键：禁用 snap + smooth，防止 iOS 在“归位/下一轮”时产生可见回弹
+  const prevProg = isProgrammaticScroll;
+  isProgrammaticScroll = true; // ✅ 硬跳期间也算 programmatic，避免触发多套 scroll-settle
+
+  // 关键：禁用 snap + smooth
   track.style.scrollSnapType = "none";
   track.style.scrollBehavior = "auto";
 
-  track.scrollLeft = left;
+  const to = clampScrollLeft(left);
+  track.scrollLeft = to;
 
-  // 强制应用，避免随后 snap 纠偏造成二次位移（肉眼看到来回）
-  track.offsetHeight;
+  track.offsetHeight; // 强制应用
 
   track.style.scrollSnapType = prevSnap || "";
   track.style.scrollBehavior = prevBeh || "";
-  // ===== [PATCH INSERT: s0.readyOnce.after.snap.hardJump] =====
-//markReadyOnce();
-// ===== [PATCH END] =====
-  markLayoutReady();//再看
+
+  // 下一帧恢复 programmatic 标记（如果外层本来就是 true，则不破坏）
+  requestAnimationFrame(() => { isProgrammaticScroll = prevProg; });
+
+  markLayoutReady();
 }
+
 
 
 function fadeInTrack() {
@@ -3616,6 +3623,10 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
       track.style.scrollBehavior = prevBeh || "";
       snapSuppress = Math.max(0, snapSuppress - 1);
       cancelSnapAnim = null;
+
+      // 在 p >= 1 的 else 分支末尾（调用 onDone 之前）插入：
+try { track.scrollLeft = to; } catch(_) {}   // 确保最后一帧精准落点
+isProgrammaticScroll = false;                // ✅ 关键：正常结束必须清回
       if (onDone) onDone();
     }
   };
@@ -3930,18 +3941,38 @@ function normalizeEdgeWhileDragging_Snap() {
       setSettling(true);
 
       // 先以当前滚动位置选最近 index
-      const idx = pickClosestIndex_Snap();
-      if (idx !== currentPos) currentPos = idx;
+const idx = pickClosestIndex_Snap();
+if (idx !== currentPos) currentPos = idx;
 
-      // 再归位到中段（避免“下一轮”时可见回弹）
-      // 再归位到中段（避免“下一轮”时可见回弹）
-      const changed = normalizePositionIfNeeded_Snap();
-      applyMobilePeekPadding();
+const beforePos  = currentPos;
+const beforeLeft = clampScrollLeft(track.scrollLeft || 0);
 
-      // 无论 changed 与否，都做一次无动画对齐（但必须受 suppress 保护）
-     // withSnapSuppress(() => scrollToPos_Snap(currentPos, "auto"));
-const tLeft = getTargetLeftForPos_Snap(currentPos);
-withSnapSuppress(() => hardJumpScrollLeft(tLeft));
+const changed = normalizePositionIfNeeded_Snap();
+
+// padding 仍可算，但下面补丁 E 会让它不再微抖
+applyMobilePeekPadding();
+
+let targetLeft;
+
+if (changed) {
+  // ✅ 跨段归位：用 “scrollLeft ± loopPx” 保留小数部分，彻底消灭视频 0.5~1px 抖动
+  const step = getSnapStepPx();
+  const loopPx = step ? step * realCount : 0;
+  const dir = (currentPos > beforePos) ? 1 : -1;  // +realCount 表示从左段回中段
+  targetLeft = clampScrollLeft(beforeLeft + dir * loopPx);
+} else {
+  // ✅ 不跨段：只有明显偏离才纠正，避免每轮都 hardJump 造成抖动
+  targetLeft = getTargetLeftForPos_Snap(currentPos);
+  const EPS = 1 / ((window.devicePixelRatio || 1)); // 1 个设备像素
+  if (Math.abs((track.scrollLeft || 0) - targetLeft) <= EPS) {
+    targetLeft = null; // 足够准，不动
+  }
+}
+
+if (targetLeft != null) {
+  withSnapSuppress(() => hardJumpScrollLeft(targetLeft));
+}
+
 
 
       requestAnimationFrame(() => {
@@ -4111,6 +4142,12 @@ if (idx === currentPos) {
 // ===== [PATCH REPLACE: snap.user.drag.start_end.cancel_anim] =====
 function onUserDragStart() {
   if (realCount <= 1) return;
+// ✅ 防止 isProgrammaticScroll 因异常/早退遗留为 true，导致后续边界自愈全部失效
+isProgrammaticScroll = false;
+
+// 保险：把可能遗留的 inline snap/behavior 还原回 CSS 控制
+track.style.scrollSnapType = "";
+track.style.scrollBehavior = "";
 
   isUserDragging = true;
   stopProgressLoop();
