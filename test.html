@@ -1746,19 +1746,19 @@ overscroll-behavior-y: none;
 
 /* 归位/对齐保护：强制隐藏 overlay 内容，防止两次显隐 */
 .of-s0-track.of-s0-overlay-gate .of-s0-overlay{
-  opacity: 0 !important;
-  transition: none !important;
+  opacity: 1 !important;
+  transition: opacity 0.28s ease;
 }
 .of-s0-track.of-s0-overlay-gate .of-s0-title,
 .of-s0-track.of-s0-overlay-gate .of-s0-bottomBox{
   opacity: 0 !important;
-  transform: translate3d(0,50px,0) !important;
-  transition: none !important;
+  transform: translate3d(0,18px,0) !important;
+  transition: transform 0.28s ease, opacity 0.28s ease;
 }
 @media (max-width: 768px) {
   .of-s0-track.of-s0-overlay-gate .of-s0-title,
   .of-s0-track.of-s0-overlay-gate .of-s0-bottomBox{
-    transform: translateX(-50%) translate3d(0,50px,0) !important;
+    transform: translateX(-50%) translate3d(0,18px,0) !important;
   }
 }
 
@@ -2832,6 +2832,12 @@ let skipEnterDepth = 0;
 let initFinishedAt = 0;
 let skipEnterTimer = 0;
 let overlayGateDepth = 0;
+let overlayGateTimer = 0;
+function clearOverlayGate() {
+  overlayGateDepth = 0;
+  if (overlayGateTimer) { clearTimeout(overlayGateTimer); overlayGateTimer = 0; }
+  if (track) track.classList.remove("of-s0-overlay-gate");
+}
 
 function pushSkipEnter() {
   if (!track) return;
@@ -2842,17 +2848,15 @@ function pushSkipEnter() {
 
 function pushOverlayGate() {
   overlayGateDepth++;
+  if (overlayGateTimer) { clearTimeout(overlayGateTimer); overlayGateTimer = 0; }
   if (track) track.classList.add("of-s0-overlay-gate");
 }
 function popOverlayGateLater(ms = 60) {
-  if (ms <= 0) {
+  if (ms <= 0) ms = 0;
+  overlayGateTimer = setTimeout(() => {
     overlayGateDepth = Math.max(0, overlayGateDepth - 1);
     if (overlayGateDepth === 0 && track) track.classList.remove("of-s0-overlay-gate");
-    return;
-  }
-  setTimeout(() => {
-    overlayGateDepth = Math.max(0, overlayGateDepth - 1);
-    if (overlayGateDepth === 0 && track) track.classList.remove("of-s0-overlay-gate");
+    overlayGateTimer = 0;
   }, ms);
 }
 
@@ -2909,6 +2913,7 @@ if (!animated) markReadyOnce();
     }
 
     function updateCenterClasses() {
+      clearOverlayGate();
       slides.forEach((s) => s.classList.remove("is-center", "is-neighbor"));
       const center = slides[currentPos];
       const left = slides[currentPos - 1];
