@@ -1069,12 +1069,119 @@ function pauseAllPreviews(slides) {
   });
 }
 
+  // ===== [PATCH INSERT: s0.wrap_restart.prime_helpers.no_jitter.v1] =====
+function _s0_isMobileNow() {
+  try {
+    return !!(window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
+  } catch (_) {
+    return false;
+  }
+}
+
+function _s0_nextFrame() {
+  return new Promise((r) => requestAnimationFrame(() => r()));
+}
+
+function _s0_waitPaintedFrame(v, timeoutMs) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(true); } };
+    const t = setTimeout(() => { if (!done) { done = true; resolve(false); } }, timeoutMs || 140);
+
+    try {
+      if (typeof v.requestVideoFrameCallback === "function") {
+        v.requestVideoFrameCallback(() => { clearTimeout(t); finish(); });
+        return;
+      }
+    } catch (_) {}
+
+    // fallback：等两帧，尽量保证 compositor 已经刷过
+    _s0_nextFrame().then(() => _s0_nextFrame()).then(() => { clearTimeout(t); finish(); });
+  });
+}
+
+function _s0_seekZeroStable(v, timeoutMs) {
+  return new Promise((resolve) => {
+    let ok = false;
+    const done = () => resolve(ok);
+
+    let t = setTimeout(() => done(), timeoutMs || 220);
+    const onSeeked = () => {
+      ok = true;
+      clearTimeout(t);
+      done();
+    };
+
+    try {
+      v.addEventListener("seeked", onSeeked, { once: true });
+    } catch (_) {}
+
+    try {
+      // iOS 上 fastSeek(0) 往往比 currentTime=0 更“干净”
+      if (typeof v.fastSeek === "function") v.fastSeek(0);
+      else v.currentTime = 0;
+    } catch (_) {
+      clearTimeout(t);
+      done();
+    }
+  });
+}
+
+/**
+ * wrap 重启专用：等 settle → 短暂 paint-lock → seek0 → 等首帧 paint → 再 play
+ * 只用于“最后->第一 / 第一->最后”的 wrap 场景，避免影响普通切换手感
+ */
+function _s0_wrapRestartPrimeAndPlay(v, wrap, playFn, stillValid) {
+  const myToken = ++_wrapPrimeToken;
+
+  const alive = () =>
+    myToken === _wrapPrimeToken &&
+    typeof stillValid === "function" ? !!stillValid() : true;
+
+  (async () => {
+    if (!v || !wrap || !alive()) return;
+
+    // 1) 先等 2 帧，让 scroll-snap 完全 settle（根除边界帧抖）
+    await _s0_nextFrame();
+    await _s0_nextFrame();
+    if (!alive()) return;
+
+    // 2) 暂停（保持静帧），避免 seek 时同时在跑解码
+    try { v.pause(); } catch (_) {}
+
+    // 3) paint-lock：用 inline !important 盖住“seek 导致的那一下画面跳变”
+    try { v.style.setProperty("visibility", "hidden", "important"); } catch (_) {}
+
+    // 4) seek 到 0（稳定版）
+    await _s0_seekZeroStable(v, 240);
+    if (!alive()) return;
+
+    // 5) 等 time=0 的首帧真正 paint 出来，再解除 lock
+    await _s0_waitPaintedFrame(v, 160);
+    if (!alive()) return;
+
+    try { v.style.removeProperty("visibility"); } catch (_) {}
+
+    // 6) 再等 1 帧让 compositor 稳住，然后播放
+    await _s0_nextFrame();
+    if (!alive()) return;
+
+    try { if (typeof playFn === "function") playFn(); } catch (_) {}
+  })();
+}
+// ===== [PATCH END] =====
+
+
 
 
   // 只播放 center 卡片预览视频
 // ===== [PATCH REPLACE: s0.film.syncPreview.per_slide_center_play.v4] =====
 let _lastCenterPos = -1;
 let _lastCenterVideo = null;
+  // ===== [PATCH INSERT: s0.wrap_restart.prime_token.v1] =====
+let _wrapPrimeToken = 0; // 用于取消过期的 wrap prime（防止快速滑动/自动轮播导致旧任务落地）
+// ===== [PATCH END] =====
+
 
 function syncPreview(ctx) {
   lastCtx = ctx || lastCtx;
@@ -1119,6 +1226,10 @@ function syncPreview(ctx) {
   if (!v) return;
 
   const centerChanged = (_lastCenterPos !== currentPos);
+  // ===== [PATCH INSERT: s0.wrap_restart.capture_prev_pos.v1] =====
+const prevPos = _lastCenterPos; // 必须在 _lastCenterPos 被更新前保存，用于识别 wrap 重启
+// ===== [PATCH END] =====
+
 
   // 旧中心延时暂停：避免退出瞬间断帧出现马赛克
   if (_lastCenterVideo && _lastCenterVideo !== v) {
@@ -1140,23 +1251,45 @@ function syncPreview(ctx) {
   });
 
   // 新中心：保证从头开始（就绪后 seek0）
+// ===== [PATCH REPLACE: s0.wrap_restart.no_jitter_play.v1] =====
+
+// 播放中心（失败静默）；等首帧 ready 再播
+const playCenter = () => ensureMutedPlay(v);
+const playWhenReady = () => {
+  if (isPreviewReady(wrap, v)) {
+    playCenter();
+  } else {
+    waitPreviewReady(wrap, v, () => {
+      if (_lastCenterVideo === v && slides[currentPos] === center) playCenter();
+    });
+  }
+};
+
+// 识别“wrap 重启”：最后->第一 或 第一->最后（移动端最容易抖）
+const isWrapRestart =
+  !!centerChanged &&
+  ((prevPos === slides.length - 1 && currentPos === 0) ||
+   (prevPos === 0 && currentPos === slides.length - 1));
+
+if (centerChanged && isWrapRestart && _s0_isMobileNow()) {
+  // ✅ wrap 专用：等 settle → paint-lock → seek0 → 等首帧 paint → 再 play（根除抖）
+  _s0_wrapRestartPrimeAndPlay(
+    v,
+    wrap,
+    playWhenReady,
+    () => (_lastCenterVideo === v && slides[currentPos] === center)
+  );
+} else {
+  // 非 wrap：保持你原逻辑（从头开始），不扩大影响面
   if (centerChanged) {
     const seekZero = () => { try { v.currentTime = 0; } catch (_) {} };
     if (v.readyState >= 1) seekZero();
     else v.addEventListener("loadeddata", seekZero, { once: true });
   }
+  playWhenReady();
+}
+// ===== [PATCH END] =====
 
-  // 播放中心（失败静默）；等首帧 ready 再播，避免“未解码的模糊闪一下”
-  const playCenter = () => ensureMutedPlay(v);
-
-  if (isPreviewReady(wrap, v)) {
-    playCenter();
-  } else {
-    waitPreviewReady(wrap, v, () => {
-      // 中心未变才继续（防止落在旧中心）
-      if (_lastCenterVideo === v && slides[currentPos] === center) playCenter();
-    });
-  }
 }
 
 // ===== [PATCH END] =====
