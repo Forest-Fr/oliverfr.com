@@ -1756,18 +1756,18 @@ overscroll-behavior-y: none;
 /* 首尾 wrap 归位时：仅 1 帧跳过入场过渡，避免 Explore/标题/描述反复“进场抖动” */
 .of-s0-track.is-skipEnter .of-s0-overlay{
   transition: none !important;
-  opacity: 0 !important;
+  opacity: 1 !important;
 }
 .of-s0-track.is-skipEnter .of-s0-title,
 .of-s0-track.is-skipEnter .of-s0-bottomBox{
   transition: none !important;
-  transform: translate3d(0,50px,0) !important;
-  opacity: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  opacity: 1 !important;
 }
 @media (max-width: 768px) {
   .of-s0-track.is-skipEnter .of-s0-title,
   .of-s0-track.is-skipEnter .of-s0-bottomBox{
-    transform: translateX(-50%) translate3d(0,50px,0) !important;
+    transform: translateX(-50%) translate3d(0,0,0) !important;
   }
 }
 /* ===== [PATCH END] ===== */
@@ -2818,7 +2818,7 @@ function pushSkipEnter() {
   if (!track) return;
   if (skipEnterTimer) { clearTimeout(skipEnterTimer); skipEnterTimer = 0; }
   skipEnterDepth++;
-  track.classList.add("is-skipEnter");
+  track.classList.add("is-skipEnter", "of-s0-overlay-gate");
 }
 
 function popSkipEnterLater() {
@@ -2826,7 +2826,7 @@ function popSkipEnterLater() {
   skipEnterTimer = setTimeout(() => {
     skipEnterDepth = Math.max(0, skipEnterDepth - 1);
     if (skipEnterDepth === 0 && track) {
-      track.classList.remove("is-skipEnter");
+      track.classList.remove("is-skipEnter", "of-s0-overlay-gate");
       try { updateCenterClasses(true); } catch (_) {}
       try { kickCenterEnterMotion(); } catch (_) {}
     }
