@@ -1054,13 +1054,13 @@ function syncPreview(ctx) {
   const centerChanged = (_lastCenterPos !== currentPos);
   _lastCenterPos = currentPos;
 
-  // 非中心全部暂停并复位，避免偷跑
+  // 非中心全部暂停，保留已解码帧（避免退出时马赛克）
   slides.forEach((s, i) => {
     if (i === currentPos) return;
     const w2 = s.querySelector(".of-s0-media");
     const v2 = w2 && w2.querySelector("video.of-s0-previewVideo");
     if (!v2) return;
-    try { v2.pause(); v2.currentTime = 0; } catch (_) {}
+    try { v2.pause(); } catch (_) {}
   });
 
   // 新中心：保证从头开始（就绪后 seek0）
