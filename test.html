@@ -3042,9 +3042,7 @@ function getViewportWidthExcludingPadding() {
 
     function recalcSpan() {
       slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-      // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+
 
       if (!slides.length) return 0;
 
@@ -3220,9 +3218,7 @@ function applyMobilePeekPadding() {
 
   // 用当前中心卡片作为参考宽度（85vw / max-width 400 的实际像素宽）
   slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-  // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+
 
   const ref = slides[currentPos] || slides[realCount] || slides[0];
   //const cardW = ref ? ref.getBoundingClientRect().width : 0;
@@ -3320,9 +3316,7 @@ function settleSnapAfterScroll() {
 
     // 更新中心位置
     slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-    // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+ 
 
     const nextPos = getNearestPosByScrollCenter();
     if (nextPos !== currentPos) currentPos = nextPos;
@@ -3542,9 +3536,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
         try { applyMobilePeekPadding(); } catch (_) {}
 
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+   
 
         // 直接定位到中段 currentPos（避免首尾空白）
         try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
@@ -3628,9 +3620,7 @@ bindLifecycleOnce();//再看
 
     // 归位到中段（硬跳，彻底避免“反向回弹”）
     slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-    // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+ 
 
     withSnapSuppress(() => {
       try { hardJumpScrollLeft(getTargetLeftForPos_Snap(currentPos)); } catch (_) {}
@@ -3686,9 +3676,7 @@ bindLifecycleOnce();//再看
 function getSnapStepPx() {
   if (realCount <= 1) return 0;
   slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-  // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+
 
   const a = slides[realCount];
   const b = slides[realCount + 1];
@@ -3765,9 +3753,7 @@ function normalizeEdgeWhileDragging_Snap() {
 
         requestAnimationFrame(() => {
           slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-          // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+        
 
           setSettling(false);
           updateCenterClasses();
@@ -3812,9 +3798,7 @@ withSnapSuppress(() => hardJumpScrollLeft(tLeft));
 
       requestAnimationFrame(() => {
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+ 
 
         setMoving(false);
         setSettling(false);
@@ -3848,9 +3832,7 @@ bindLifecycleOnce();//再看
 
         requestAnimationFrame(() => {
           slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-          // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+       
 
           setSettling(false);
           updateCenterClasses();
@@ -3936,9 +3918,7 @@ function prev() {
       if (!slide) return;
 
       slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-      // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+      
 
       const idx = slides.indexOf(slide);
       if (idx < 0) return;
@@ -4049,9 +4029,7 @@ pushSkipEnter();
 
       centerBias = 0;
       slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-      // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+      
 
 
       setSettling(true);
@@ -4176,9 +4154,7 @@ track.style.opacity = "0"; // 刷新/初次进入时，先隐藏，避免对齐�
       requestAnimationFrame(() => {
         setSettling(false);
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+       
 
         updateCenterClasses();
         resetAllDots();
@@ -4219,9 +4195,7 @@ injectVideoReadyGateCssOnce();//是否是Video Only 的“先显示 video 再等
       if (my !== recoverToken) return;
 
       slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-      // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+     
 
 
     // ===== [PATCH INSERT: recover.skipEnter.begin] =====
@@ -4314,9 +4288,7 @@ window.addEventListener("focus", () => {
 
     function reconcileMode() {
       slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-      // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+     
 
     // ===== [PATCH INSERT: reconcile.skipEnter.begin] =====
 pushSkipEnter();
@@ -4345,9 +4317,7 @@ pushSkipEnter();
       requestAnimationFrame(() => {
         setSettling(false);
         slides = Array.from(track.querySelectorAll(".of-s0-slide"));
-        // ===== [PATCH INSERT: s0.lifecycle.bind.after.slides_ready.v1] =====
-bindLifecycleOnce();//再看
-// ===== [PATCH END] =====
+       
 
         updateCenterClasses();
         activateDot(getRealIndex());
