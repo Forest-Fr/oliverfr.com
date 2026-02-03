@@ -983,25 +983,53 @@ function ensurePreviewMedia(slide) {
 
   // ===== [PATCH INSERT: ensurePreviewMedia.mark_layout_ready] =====
 // ===== [PATCH REPLACE: ensurePreviewMedia.markReady.waitFirstDecodedFrame.v1] =====
+// ===== [PATCH REPLACE: ensurePreviewMedia.markReady.waitFirstDecodedFrame.v2] =====
 const markReady = () => {
   if (!wrap || wrap.classList.contains("is-video-ready")) return;
 
-  const apply = () => {
-    // 只标记 wrapper，CSS 决定显示（避免内联样式干扰）
+  let applied = false;
+  const applyOnce = () => {
+    if (applied) return;
+    applied = true;
     wrap.classList.add("is-video-ready");
   };
 
-  // 等“首帧已渲染/可回调”为准：更稳地消灭块状糊
+  // 先用“可播放/有尺寸”作为 ready 基线（不依赖播放状态）
+  const baselineOk = () => (v.readyState >= 2 && v.videoWidth > 0);
+
+  // 若已经满足基线，直接 ready（避免回调不触发导致卡死）
+  if (baselineOk()) {
+    applyOnce();
+  }
+
+  // 支持帧回调的话：再“等一帧 paint”增强稳定性，但绝不作为唯一门槛
   if (typeof v.requestVideoFrameCallback === "function") {
+    let t = 0;
     try {
-      v.requestVideoFrameCallback(() => apply());
+      t = setTimeout(() => applyOnce(), 120); // 兜底：120ms 内没回调也放行
+      v.requestVideoFrameCallback(() => {
+        clearTimeout(t);
+        applyOnce();
+      });
     } catch (_) {
-      apply();
+      applyOnce();
     }
   } else {
-    apply();
+    // 无帧回调：loadeddata/canplay 到了就放行
+    applyOnce();
   }
 };
+
+// 事件兜底：任何一个到就再尝试 markReady
+const hook = () => markReady();
+v.addEventListener("loadeddata", hook, { once: true });
+v.addEventListener("canplay", hook, { once: true });
+v.addEventListener("canplaythrough", hook, { once: true });
+
+// 同步再跑一次（避免事件已过）
+markReady();
+// ===== [PATCH END] =====
+
 
 // readyState>=2 且 videoWidth>0 才认为可 ready（更严格）
 if (v.readyState >= 2 && v.videoWidth > 0) {
@@ -2202,6 +2230,30 @@ body.appleFilm-lock {
     if (!exists) document.head.appendChild(style);
   }
 
+  // ===== [PATCH INSERT: s0.videoOnly.ready_gate_css.override.v1] =====
+function injectVideoReadyGateCssOnce() {
+  const ID = "of-s0-video-ready-gate-v1";
+  if (document.getElementById(ID)) return;
+  const st = document.createElement("style");
+  st.id = ID;
+
+  // 关键：未 ready 不展示 video（避免黑帧/马赛克被看到）
+  st.textContent = `
+.of-s0-media > video.of-s0-previewVideo{
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+.of-s0-media.is-video-ready > video.of-s0-previewVideo{
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+`.trim();
+
+  document.head.appendChild(st);
+}
+// ===== [PATCH END] =====
+
+
   function isolateDom(container, buttonRow, instanceId) {
     container.dataset.ofS0Scope = instanceId;
     buttonRow.dataset.ofS0Scope = instanceId;
@@ -2314,14 +2366,24 @@ if (container && container.dataset && container.dataset.ofS0Mounted === OF_S0_VE
     const instanceId = uid();
     injectScopedCssOnce();
 
+    // ===== [PATCH INSERT: s0.videoOnly.ready_gate_css.call.v1] =====
+injectVideoReadyGateCssOnce();
+// ===== [PATCH END] =====
+
+
     const { track, dotsWrap, rightButton, playIcon } = isolateDom(container, buttonRow, instanceId);
     if (!track || !dotsWrap) return null;
 
     // ===== [PATCH INSERT: track.hide.until.aligned] =====
 // 初始先隐藏轨道：等 Peek Preview 对齐完成后再淡入，用户不会看到刷新/归位“来回回弹”
-track.style.opacity = "0";
+//track.style.opacity = "0";
 // ===== [PATCH END] =====
 
+// ===== [PATCH REPLACE: track.hide.until.aligned.add_pointer_guard.v1] =====
+// 初始先隐藏轨道：等 Peek Preview + 视频首帧 ready 后再淡入；并禁止交互（避免未 ready 被滑动/点）
+track.style.opacity = "0";
+track.style.pointerEvents = "none";
+// ===== [PATCH END] =====
 
     // ===== transition tuning（更丝滑但不拖沓）=====
     //const TRANSITION_MS = 1080;//原820
@@ -2367,6 +2429,48 @@ const DOT_PROGRESS_MS = 5600; // 节奏更“慢、稳、优雅”
     let originalSlides = Array.from(track.querySelectorAll(".of-s0-slide"));
     const realCount = originalSlides.length;
     if (!realCount) return null;
+// ===== [PATCH INSERT: s0.media.prepare_before_start.v1] =====
+const VIDEO_BOOT_TIMEOUT_MS = 4200;
+
+function waitVideoReadyBasic(v, timeoutMs) {
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve(false), timeoutMs || 1600);
+    const done = (ok) => { clearTimeout(t); resolve(!!ok); };
+    const check = () => {
+      if (v.readyState >= 2 && v.videoWidth > 0) done(true);
+    };
+    v.addEventListener("loadeddata", check, { once: true });
+    v.addEventListener("canplay", check, { once: true });
+    v.addEventListener("error", () => done(false), { once: true });
+    check();
+  });
+}
+
+async function prepareVideosBeforeStart(realSlides) {
+  const list = Array.isArray(realSlides) ? realSlides : [];
+  if (!list.length) return;
+
+  // 先把每个 slide 的 video DOM 建出来并 load
+  list.forEach((s) => { try { AppleFilm.ensurePreviewMedia(s); } catch (_) {} });
+
+  const vids = list
+    .map((s) => s.querySelector(".of-s0-media video.of-s0-previewVideo"))
+    .filter(Boolean);
+
+  // 全局兜底：绝不无限等待
+  await Promise.race([
+    Promise.all(vids.map((v) => waitVideoReadyBasic(v, 1600))),
+    new Promise((r) => setTimeout(r, VIDEO_BOOT_TIMEOUT_MS)),
+  ]);
+}
+
+// 启动准备（完成后标记 mediaReady）
+prepareVideosBeforeStart(originalSlides)
+  .catch(() => {})
+  .finally(() => markMediaReady());
+// ===== [PATCH END] =====
+
+    
 
     function normalizeUrlMaybe(url) {
       const u = (url || "").trim();
@@ -2435,6 +2539,38 @@ let isReady = false;        // Peek Preview 对齐完成后才允许自动轮播
 let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防止来回拉扯）
 // ===== [PATCH END] =====
 
+    // ===== [PATCH INSERT: s0.ready.double_gate.layout_media.v1] =====
+let layoutReady = false;   // Peek Preview 对齐完成
+let mediaReady  = false;   // 轮播视频首帧 ready
+let _readyKick  = 0;
+
+function markLayoutReady() {
+  layoutReady = true;
+  tryStartWhenAllReady();
+}
+function markMediaReady() {
+  mediaReady = true;
+  tryStartWhenAllReady();
+}
+
+function tryStartWhenAllReady() {
+  if (isReady) return;
+  if (!layoutReady || !mediaReady) return;
+  if (_readyKick) return;
+  _readyKick = 1;
+
+  // 双 rAF：确保布局与样式已 commit（防止“刚 ready 就抖一下/黑一下”）
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      _readyKick = 0;
+     // markReadyOnce();
+      markLayoutReady();//再看
+    });
+  });
+}
+// ===== [PATCH END] =====
+
+
     // ===== [PATCH INSERT: snap.programmaticScroll.guard.v1] =====
 let isProgrammaticScroll = false; // animateScrollLeftTo 期间为 true：避免多路 scroll-settle 叠加触发
 // ===== [PATCH END] =====
@@ -2492,9 +2628,93 @@ function markReadyOnce() {
   // 兜底：避免极端情况下 track 一直 opacity=0
   if (track && track.style && track.style.opacity === "0") track.style.opacity = "1";
 
+  // ===== [PATCH INSERT: track.pointerEvents.restore.on_ready.v1] =====
+track.style.pointerEvents = "auto";//让交互恢复??
+// ===== [PATCH END] =====
+
+
   setupInViewObserver();
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
   if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+}
+// ===== [PATCH END] =====
+// ===== [PATCH INSERT: s0.lifecycle.resume_no_black_no_pause.v1] =====
+let _lifeBound = false;
+
+function waitVideoPaint(v, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), timeoutMs || 900);
+    const ok = () => { clearTimeout(t); resolve(true); };
+
+    if (v.readyState >= 2 && v.videoWidth > 0) {
+      if (typeof v.requestVideoFrameCallback === "function") {
+        try { v.requestVideoFrameCallback(() => ok()); return; } catch (_) {}
+      }
+      ok(); return;
+    }
+
+    const on = () => {
+      if (v.readyState >= 2 && v.videoWidth > 0) ok();
+    };
+    v.addEventListener("loadeddata", on, { once: true });
+    v.addEventListener("canplay", on, { once: true });
+    v.addEventListener("error", () => { clearTimeout(t); reject(new Error("error")); }, { once: true });
+  });
+}
+
+// 只 rearm 可见的几个，避免全量抢资源
+function rearmVisibleVideos() {
+  if (!slides || !slides.length) return;
+  const idxs = new Set([currentPos, currentPos - 1, currentPos + 1]);
+
+  slides.forEach((s, i) => {
+    if (!idxs.has(i)) return;
+    const wrap = s.querySelector(".of-s0-media");
+    const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
+    if (!v || !wrap) return;
+
+    const need = (v.readyState < 2 || v.videoWidth === 0);
+    if (need) wrap.classList.remove("is-video-ready");
+
+    try { if (need) v.load(); } catch (_) {}
+
+    waitVideoPaint(v, 900)
+      .then(() => wrap.classList.add("is-video-ready"))
+      .catch(() => wrap.classList.add("is-video-ready")); // 兜底不阻塞
+  });
+}
+
+function bindLifecycleOnce() {
+  if (_lifeBound) return;
+  _lifeBound = true;
+
+  const suspend = () => {
+    stopProgressLoop();
+    try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: true, isInView: false }); } catch (_) {}
+  };
+
+  const resume = () => {
+    if (document.hidden) return;
+
+    // 回来先 rearm（避免黑帧）
+    try { rearmVisibleVideos(); } catch (_) {}
+
+    // 尊重 isPlaying：你没 pause 就恢复播放/进度
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+    if (isPlaying) startProgressCycle();
+  };
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) suspend();
+    else resume();
+  });
+
+  // BFCache / back-forward 恢复
+  window.addEventListener("pageshow", () => resume(), { passive: true });
+  window.addEventListener("pagehide", () => suspend(), { passive: true });
+
+  // tab 切换回来（某些浏览器 focus 比 visibilitychange 更可靠）
+  window.addEventListener("focus", () => resume(), { passive: true });
 }
 // ===== [PATCH END] =====
 
@@ -3167,8 +3387,9 @@ function hardJumpScrollLeft(left) {
   track.style.scrollSnapType = prevSnap || "";
   track.style.scrollBehavior = prevBeh || "";
   // ===== [PATCH INSERT: s0.readyOnce.after.snap.hardJump] =====
-markReadyOnce();
+//markReadyOnce();
 // ===== [PATCH END] =====
+  markLayoutReady();//再看
 }
 
 
@@ -3182,9 +3403,9 @@ function fadeInTrack() {
   } catch (_) {
     track.style.opacity = "1";
     // ===== [PATCH INSERT: s0.readyOnce.after.fadeIn] =====
-markReadyOnce();
+//markReadyOnce();
 // ===== [PATCH END] =====
-
+markLayoutReady();//再看
   }
 }
 
@@ -3938,6 +4159,11 @@ if (isPlaying && !document.hidden) {
       const my = ++recoverToken;
 
       injectScopedCssOnce();
+
+      // ===== [PATCH INSERT: s0.videoOnly.ready_gate_css.call.v1] =====
+injectVideoReadyGateCssOnce();//是否是Video Only 的“先显示 video 再等 ready”会露黑帧??
+// ===== [PATCH END] =====
+
 
       // 若刚从缓存回来，图片/布局可能未 ready
       await waitImagesReady().catch(() => {});
