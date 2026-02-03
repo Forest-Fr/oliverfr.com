@@ -2469,16 +2469,19 @@ function markReadyOnce() {
 
     function activateDot(idx) {
       const dots = dotsAll();
-      resetAllDots();
+      const same = idx === activeDotIdx;
+      if (!same) resetAllDots();
       const d = dots[idx];
       if (!d) return;
 
       activeDotIdx = idx;
-      d.classList.add("is-active", "is-charge");
-      d.style.setProperty("--p", "0");
-
-      clearTimeout(chargeTimer);
-      chargeTimer = setTimeout(() => d.classList.remove("is-charge"), DOT_CHARGE_MS);
+      d.classList.add("is-active");
+      if (!same) {
+        d.classList.add("is-charge");
+        d.style.setProperty("--p", "0");
+        clearTimeout(chargeTimer);
+        chargeTimer = setTimeout(() => d.classList.remove("is-charge"), DOT_CHARGE_MS);
+      }
     }
 
     function setDotProgress(idx, p) {
@@ -2809,25 +2812,26 @@ try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on, isInView })
 // ===== [PATCH INSERT: overlay.skipEnter.helpers] =====
 let skipEnterDepth = 0;
 let initFinishedAt = 0;
+let skipEnterTimer = 0;
 
 function pushSkipEnter() {
   if (!track) return;
+  if (skipEnterTimer) { clearTimeout(skipEnterTimer); skipEnterTimer = 0; }
   skipEnterDepth++;
   track.classList.add("is-skipEnter");
 }
 
 function popSkipEnterLater() {
-  // 跨 2 帧：覆盖“移除 is-settling / hardJump 对齐”的那一帧，避免触发二次入场
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      skipEnterDepth = Math.max(0, skipEnterDepth - 1);
-      if (skipEnterDepth === 0 && track) {
-        track.classList.remove("is-skipEnter");
-        try { updateCenterClasses(true); } catch (_) {}
-        try { kickCenterEnterMotion(); } catch (_) {}
-      }
-    });
-  });
+  if (skipEnterTimer) clearTimeout(skipEnterTimer);
+  skipEnterTimer = setTimeout(() => {
+    skipEnterDepth = Math.max(0, skipEnterDepth - 1);
+    if (skipEnterDepth === 0 && track) {
+      track.classList.remove("is-skipEnter");
+      try { updateCenterClasses(true); } catch (_) {}
+      try { kickCenterEnterMotion(); } catch (_) {}
+    }
+    skipEnterTimer = 0;
+  }, 34); // 覆盖 2 帧左右，避免多次解锁造成二次闪
 }
 // ===== [PATCH END] =====
 
@@ -2944,10 +2948,9 @@ function applyMobilePeekPadding() {
  // let pad = (vw - cardW) / 2;
 
   // ===== [PATCH REPLACE: mobile.pad.use.track.viewport.width] =====
-const cardW = ref ? (ref.getBoundingClientRect().width || 0) : 0;
+const cardW = ref ? (ref.getBoundingClientRect().width || ref.offsetWidth || 0) : 0;
 
-// 关键：以 scroll 容器 track 的“真实可视宽度”为准，而不是 viewportW
-// 这样 iOS/安卓地址栏、visualViewport 等变化都不会造成左右露出不对称
+// 以 track 实际可视宽度为准，保证与 scroll 匹配
 const trackW = track ? (track.getBoundingClientRect().width || track.clientWidth || 0) : 0;
 
 let pad = (trackW - cardW) / 2;
@@ -2972,8 +2975,8 @@ let pad = (trackW - cardW) / 2;
 pad = quantizePx(pad);
 
 const prev = parseFloat(track.dataset.ofS0Pad || "NaN");
-if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.5) {
-  return; // 小于 0.5px 的变化忽略，避免“微抖”
+if (Number.isFinite(prev) && Math.abs(prev - pad) < 0.02) {
+  return; // 小于 0.02px 直接忽略，保持稳定
 }
 
 track.dataset.ofS0Pad = String(pad);
