@@ -1014,6 +1014,7 @@ function pauseAllPreviews(slides) {
   // 只播放 center 卡片预览视频
 // ===== [PATCH REPLACE: s0.film.syncPreview.per_slide_center_play.v4] =====
 let _lastCenterPos = -1;
+let _lastCenterVideo = null;
 
 function syncPreview(ctx) {
   lastCtx = ctx || lastCtx;
@@ -1035,15 +1036,6 @@ function syncPreview(ctx) {
   // 确保所有 slide 从一开始就是 video 布局
   slides.forEach((s) => { try { ensurePreviewMedia(s); } catch (_) {} });
 
-  // 非中心轻暂停，中心保持/恢复播放；这样保持帧缓冲，避免切换黑屏
-  slides.forEach((s, i) => {
-    const w = s.querySelector(".of-s0-media");
-    const v = w && w.querySelector("video.of-s0-previewVideo");
-    if (!v) return;
-    if (i === currentPos) return;
-    try { v.pause(); } catch (_) {}
-  });
-
   const center = slides[currentPos];
   if (!center) return;
 
@@ -1052,6 +1044,15 @@ function syncPreview(ctx) {
   if (!v) return;
 
   const centerChanged = (_lastCenterPos !== currentPos);
+
+  // 旧中心延时暂停：避免退出瞬间断帧出现马赛克
+  if (_lastCenterVideo && _lastCenterVideo !== v) {
+    const oldV = _lastCenterVideo;
+    setTimeout(() => {
+      try { oldV.pause(); } catch (_) {}
+    }, 260);
+  }
+  _lastCenterVideo = v;
   _lastCenterPos = currentPos;
 
   // 非中心全部暂停，保留已解码帧（避免退出时马赛克）
