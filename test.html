@@ -679,6 +679,12 @@ body.appleFilm-lock{
   display: none !important;
 }
 
+/* 视频未就绪时彻底隐藏，防止首帧/解码前的“马赛克”闪帧 */
+.of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo{
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 
   </style>
 </head>
@@ -1120,11 +1126,22 @@ function syncPreview(ctx) {
     else v.addEventListener("loadeddata", seekZero, { once: true });
   }
 
-  // 播放中心（失败静默）
-  v.muted = true;
-  v.playsInline = true;
-  const p = v.play();
-  if (p && typeof p.catch === "function") p.catch(() => {});
+  // 播放中心（失败静默）；等首帧 ready 再播，避免“未解码的模糊闪一下”
+  const playCenter = () => {
+    v.muted = true;
+    v.playsInline = true;
+    const p = v.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  };
+
+  if (isPreviewReady(wrap, v)) {
+    playCenter();
+  } else {
+    waitPreviewReady(wrap, v, () => {
+      // 中心未变才继续（防止落在旧中心）
+      if (_lastCenterVideo === v && slides[currentPos] === center) playCenter();
+    });
+  }
 }
 
 // ===== [PATCH END] =====
@@ -2564,8 +2581,8 @@ function tryStartWhenAllReady() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       _readyKick = 0;
-     // markReadyOnce();
-      markLayoutReady();//再看
+      // 只有当布局+媒体都 ready 后才真正解锁交互/显隐
+      markReadyOnce();
     });
   });
 }
@@ -2637,6 +2654,53 @@ track.style.pointerEvents = "auto";//让交互恢复??
   setupInViewObserver();
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving: false, isInView }); } catch (_) {}
   if (isInView && isPlaying && !document.hidden && !isMoving) startProgressCycle();
+}
+// ===== [PATCH END] =====
+
+// ===== 辅助：中心视频 ready 判定与等待（保证“先解码再轮播/播放”）=====
+function getCenterPreview() {
+  const center = slides && slides[currentPos];
+  const wrap = center && center.querySelector ? center.querySelector(".of-s0-media") : null;
+  const video = wrap && wrap.querySelector ? wrap.querySelector("video.of-s0-previewVideo") : null;
+  return { center, wrap, video };
+}
+
+function isPreviewReady(wrap, video) {
+  if (!wrap || !video) return true;
+  if (wrap.classList && wrap.classList.contains("is-video-ready")) return true;
+  if (video.readyState >= 2 && video.videoWidth > 0) {
+    try { wrap.classList.add("is-video-ready"); } catch (_) {}
+    return true;
+  }
+  return false;
+}
+
+let previewReadyToken = 0;
+function waitPreviewReady(wrap, video, cb) {
+  if (!wrap || !video) { if (cb) cb(); return; }
+  if (isPreviewReady(wrap, video)) { if (cb) cb(); return; }
+
+  const token = ++previewReadyToken;
+  let settled = false;
+  const finish = () => {
+    if (settled || token !== previewReadyToken) return;
+    settled = true;
+    clearTimeout(timer);
+    try { wrap.classList.add("is-video-ready"); } catch (_) {}
+    if (cb) cb();
+  };
+  const timer = setTimeout(finish, 900);
+  const hook = () => finish();
+
+  try {
+    video.addEventListener("loadeddata", hook, { once: true });
+    video.addEventListener("canplay", hook, { once: true });
+    video.addEventListener("canplaythrough", hook, { once: true });
+  } catch (_) {}
+
+  if (typeof video.requestVideoFrameCallback === "function") {
+    try { video.requestVideoFrameCallback(() => finish()); } catch (_) {}
+  }
 }
 // ===== [PATCH END] =====
 // ===== [PATCH INSERT: s0.lifecycle.resume_no_black_no_pause.v1] =====
@@ -2819,6 +2883,15 @@ if (isMoving) return;
 // ===== [PATCH INSERT: s0.progress.inview.guard] =====
 if (!isInView) return;
 // ===== [PATCH END] =====
+
+      // 关键：确保中心视频已解码首帧后再启动进度，避免“未播先切/马赛克”
+      const { wrap: centerWrap, video: centerVideo } = getCenterPreview();
+      if (!isPreviewReady(centerWrap, centerVideo)) {
+        waitPreviewReady(centerWrap, centerVideo, () => {
+          if (isReady && isPlaying && !document.hidden && !isMoving && isInView) startProgressCycle();
+        });
+        return;
+      }
 
       const myToken = ++cycleToken;
       const idx = getRealIndex();
