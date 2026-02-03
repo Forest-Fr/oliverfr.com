@@ -982,16 +982,37 @@ function ensurePreviewMedia(slide) {
   }
 
   // ===== [PATCH INSERT: ensurePreviewMedia.mark_layout_ready] =====
-  const markReady = () => {
+// ===== [PATCH REPLACE: ensurePreviewMedia.markReady.waitFirstDecodedFrame.v1] =====
+const markReady = () => {
+  if (!wrap || wrap.classList.contains("is-video-ready")) return;
+
+  const apply = () => {
+    // 只标记 wrapper，CSS 决定显示（避免内联样式干扰）
     wrap.classList.add("is-video-ready");
-    v.style.visibility = "visible";
-    v.style.opacity = "1";
   };
-  if (v.readyState >= 2) markReady();
+
+  // 等“首帧已渲染/可回调”为准：更稳地消灭块状糊
+  if (typeof v.requestVideoFrameCallback === "function") {
+    try {
+      v.requestVideoFrameCallback(() => apply());
+    } catch (_) {
+      apply();
+    }
+  } else {
+    apply();
+  }
+};
+
+// readyState>=2 且 videoWidth>0 才认为可 ready（更严格）
+if (v.readyState >= 2 && v.videoWidth > 0) {
+  markReady();
+} else {
   v.addEventListener("loadeddata", markReady, { once: true });
   v.addEventListener("canplay", markReady, { once: true });
   v.addEventListener("canplaythrough", markReady, { once: true });
-  // ===== [PATCH END] =====
+}
+// ===== [PATCH END] =====
+
 }
 
 // ===== [PATCH END] =====
@@ -2150,7 +2171,21 @@ body.appleFilm-lock {
   display: block !important;
   transition: none !important;      /* 删除“图↔视频”淡入淡出带来的观感抖动 */
   will-change: auto !important;     /* 避免过度合成层抖动 */
+
+   /* 未 ready 期间用黑底兜住，视觉稳定 */
+  background: #000;
 }
+
+/* 3) 只有 ready 后才显示视频（全局无损消除马赛克） */
+.of-s0-media.is-video-ready > video.of-s0-previewVideo{
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* 4) ⚠️ 不要再全局隐藏所有 img（会误伤未来 slide 内其它图标）
+      你原来的：
+      .section0-slide img, .of-s0-slide img{ display:none !important; }
+      建议删掉/注释掉；poster 已由 .of-s0-poster 精准隐藏。 */
 
 /* 3) 你原来写的 “非中心强制隐藏 video / 强制显示 poster” 彻底失效 */
 .of-s0-slide:not(.is-center) .of-s0-media > video.of-s0-previewVideo{
@@ -2399,6 +2434,11 @@ function openUrl(url) {
 let isReady = false;        // Peek Preview 对齐完成后才允许自动轮播（防刷新/归位回弹）
 let cancelSnapAnim = null;  // 取消进行中的“程序滚动”动画（防止来回拉扯）
 // ===== [PATCH END] =====
+
+    // ===== [PATCH INSERT: snap.programmaticScroll.guard.v1] =====
+let isProgrammaticScroll = false; // animateScrollLeftTo 期间为 true：避免多路 scroll-settle 叠加触发
+// ===== [PATCH END] =====
+
 
 // ===== [PATCH INSERT: s0.video.inview.guard + readyOnce.v1] =====
 let isInView = true;
@@ -2880,25 +2920,32 @@ if (!animated) markReadyOnce();
 
     }
 
-    function updateCenterClasses() {
-      slides.forEach((s) => s.classList.remove("is-center", "is-neighbor"));
-      const center = slides[currentPos];
-      const left = slides[currentPos - 1];
-      const right = slides[currentPos + 1];
-      if (center) center.classList.add("is-center");
-      if (left) left.classList.add("is-neighbor");
-      if (right) right.classList.add("is-neighbor");
+// ===== [PATCH REPLACE: updateCenterClasses.idempotent.force.v1] =====
+function updateCenterClasses(force = false) {
+  const center = slides[currentPos];
+  const left = slides[currentPos - 1];
+  const right = slides[currentPos + 1];
 
-          // ===== [PATCH INSERT: s0.film.syncPreview.afterCenterClasses] =====
-//try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
-      
+  // 幂等：中心/邻居状态已正确时，直接返回，避免 overlay 进场动画被重复触发
+  if (!force && center &&
+      center.classList.contains("is-center") &&
+      (!left || left.classList.contains("is-neighbor")) &&
+      (!right || right.classList.contains("is-neighbor"))) {
+
+    // 仍然同步一次预览（不破坏视频逻辑）
+    try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+    return;
+  }
+
+  slides.forEach((s) => s.classList.remove("is-center", "is-neighbor"));
+  if (center) center.classList.add("is-center");
+  if (left) left.classList.add("is-neighbor");
+  if (right) right.classList.add("is-neighbor");
+
+  try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+}
 // ===== [PATCH END] =====
 
-      // ===== [PATCH REPLACE: s0.film.syncPreview.afterCenterClasses.pass_inView] =====
-try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
-// ===== [PATCH END] =====
-
-    }
 
 
 
@@ -3058,6 +3105,7 @@ function settleSnapAfterScroll() {
 
 // 监听滚动（snap 模式专用）
 track.addEventListener("scroll", () => {
+   if (isProgrammaticScroll) return; // ===== [PATCH] 防二次结算导致二次闪现 =====
   if (!isSnapMode()) return;
   // 滚动中：先认为 moving，暂停进度，避免“进度条偷跑”
   setMoving(true);
@@ -3166,6 +3214,9 @@ const delta = to - from;
   // 动画期间禁用 snap，避免“动画前进 + 系统 snap 反拉”导致回弹
   track.style.scrollSnapType = "none";
   track.style.scrollBehavior = "auto";
+// ===== [PATCH INSERT: animateScrollLeftTo.setProgrammatic.v1] =====
+isProgrammaticScroll = true;
+// ===== [PATCH END] =====
 
   snapSuppress++;
   const t0 = performance.now();
@@ -3201,6 +3252,11 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
     if (raf) cancelAnimationFrame(raf);
     track.style.scrollSnapType = prevSnap || "";
     track.style.scrollBehavior = prevBeh || "";
+
+    // ===== [PATCH INSERT: animateScrollLeftTo.clearProgrammatic.onCancel.v1] =====
+isProgrammaticScroll = false;
+// ===== [PATCH END] =====
+
     snapSuppress = Math.max(0, snapSuppress - 1);
   };
 }
@@ -3354,6 +3410,7 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
   };
 
   track.addEventListener("scroll", () => {
+     if (isProgrammaticScroll) return; // ===== [PATCH] 防二次结算导致二次闪现 =====
     if (!isSnapMode()) return;
     setMoving(true);
     schedule();
@@ -3782,6 +3839,7 @@ popSkipEnterLater();
 track.addEventListener(
   "scroll",
   () => {
+     if (isProgrammaticScroll) return; // ===== [PATCH] 防二次结算导致二次闪现 =====
     if (!isSnapMode()) return;
     if (snapSuppress > 0) return;
 
