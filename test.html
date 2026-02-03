@@ -917,7 +917,7 @@ function ensurePreviewMedia(slide) {
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.autoplay = false; // 只让中心播放（syncPreview 控制）
+    v.autoplay = true; // 提前解码首帧，避免切换时黑屏
 
     // ===== [PATCH REPLACE: ensurePreviewMedia.video.preload_auto] =====
     // 关键：从一开始就 preload=auto，并尽早解码首帧；peek preview 也能直接显示视频帧
@@ -982,9 +982,18 @@ function ensurePreviewMedia(slide) {
   }
 
   // ===== [PATCH INSERT: ensurePreviewMedia.mark_layout_ready] =====
-  // 布局层面：video-only 方案下，确保 wrapper 不被旧逻辑判定为“fallback”
-  //（真正 ready 的 class 建议由 loadeddata/loadedmetadata 监听处统一打标）
-  // wrap.classList.add("is-video-layout"); // 如你已有类似标记可自行替换
+  const markReady = () => {
+    wrap.classList.add("is-video-ready");
+    v.style.visibility = "visible";
+    v.style.opacity = "1";
+    try {
+      if (v.readyState >= 2 && v.currentTime < 0.04) v.currentTime = 0.04;
+    } catch (_) {}
+  };
+  if (v.readyState >= 2) markReady();
+  v.addEventListener("loadeddata", markReady, { once: true });
+  v.addEventListener("canplay", markReady, { once: true });
+  v.addEventListener("canplaythrough", markReady, { once: true });
   // ===== [PATCH END] =====
 }
 
@@ -1029,11 +1038,13 @@ function syncPreview(ctx) {
   // 确保所有 slide 从一开始就是 video 布局
   slides.forEach((s) => { try { ensurePreviewMedia(s); } catch (_) {} });
 
-  // 先 pause 全部（不归零）
-  slides.forEach((s) => {
+  // 非中心轻暂停，中心保持/恢复播放；这样保持帧缓冲，避免切换黑屏
+  slides.forEach((s, i) => {
     const w = s.querySelector(".of-s0-media");
     const v = w && w.querySelector("video.of-s0-previewVideo");
-    if (v) { try { v.pause(); } catch (_) {} }
+    if (!v) return;
+    if (i === currentPos) return;
+    try { v.pause(); } catch (_) {}
   });
 
   const center = slides[currentPos];
@@ -1043,22 +1054,7 @@ function syncPreview(ctx) {
   const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
   if (!v) return;
 
-  // 只有“中心换了”才归零一次（避免每一帧/每一次 settle 都触发解码抖）
-  const centerChanged = (_lastCenterPos !== currentPos);
   _lastCenterPos = currentPos;
-
-  const safeSeekToZero = () => {
-    try {
-      if (centerChanged && v.readyState >= 2) v.currentTime = 0;
-    } catch (_) {}
-  };
-
-  // 首帧 ready 后再归零一次（保证从头播且不抖）
-  if (centerChanged && v.readyState < 2) {
-    v.addEventListener("loadeddata", safeSeekToZero, { once: true });
-  } else {
-    safeSeekToZero();
-  }
 
   // 播放中心（失败就静默：iOS 未手势时会被拦，但视频仍保持布局，不会“图↔视频”抖）
   v.muted = true;
