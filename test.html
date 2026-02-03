@@ -923,7 +923,8 @@ function ensurePreviewMedia(slide) {
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.autoplay = false; // 预加载但不提前播放，切到中心时再播
+    v.autoplay = true; // 预加载且允许浏览器自行开始播放（中心时更易无感切换）
+    v.setAttribute("autoplay", "");
 
     // ===== [PATCH REPLACE: ensurePreviewMedia.video.preload_auto] =====
     // 关键：从一开始就 preload=auto，并尽早解码首帧；peek preview 也能直接显示视频帧
@@ -954,7 +955,8 @@ function ensurePreviewMedia(slide) {
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.autoplay = false;
+    v.autoplay = true;
+    v.setAttribute("autoplay", "");
     // ===== [PATCH END] =====
   }
 
@@ -1127,12 +1129,7 @@ function syncPreview(ctx) {
   }
 
   // 播放中心（失败静默）；等首帧 ready 再播，避免“未解码的模糊闪一下”
-  const playCenter = () => {
-    v.muted = true;
-    v.playsInline = true;
-    const p = v.play();
-    if (p && typeof p.catch === "function") p.catch(() => {});
-  };
+  const playCenter = () => ensureMutedPlay(v);
 
   if (isPreviewReady(wrap, v)) {
     playCenter();
@@ -2610,6 +2607,11 @@ function setInView(v) {
   }
 
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView: true }); } catch (_) {}
+  // 视口重新可见时立刻尝试让中心视频进入播放态
+  try {
+    const { video } = getCenterPreview();
+    ensureMutedPlay(video);
+  } catch (_) {}
   if (isReady && isPlaying && !document.hidden && !isMoving) startProgressCycle();
 }
 
@@ -2703,6 +2705,23 @@ function waitPreviewReady(wrap, video, cb) {
   }
 }
 // ===== [PATCH END] =====
+
+// 强力播放兜底：多次尝试，确保在静音条件下也能启动
+function ensureMutedPlay(video) {
+  if (!video) return;
+  video.muted = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  const tryPlay = () => {
+    try {
+      const p = video.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch (_) {}
+  };
+  tryPlay();
+  if (video.paused) setTimeout(tryPlay, 80);
+  if (video.paused) setTimeout(tryPlay, 220);
+}
 // ===== [PATCH INSERT: s0.lifecycle.resume_no_black_no_pause.v1] =====
 let _lifeBound = false;
 
@@ -2832,18 +2851,24 @@ function bindLifecycleOnce() {
       playIcon.textContent = isPlaying ? "❚❚" : "►";
     }
 
-    function play() {
-      isPlaying = true;
-      updatePlayButtonUI();
-        // 新增：恢复中心预览视频
-  //try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
+function play() {
+  isPlaying = true;
+  updatePlayButtonUI();
+    // 新增：恢复中心预览视频
+//try { AppleFilm.syncPreview({ slides, currentPos, isMoving }); } catch (_) {}
 
       // ===== [PATCH REPLACE: s0.play.syncPreview.pass_inView] =====
 try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
 // ===== [PATCH END] =====
 
+  // 立刻尝试播放中心视频，避免等待下一轮 tick
+  try {
+    const { video } = getCenterPreview();
+    ensureMutedPlay(video);
+  } catch (_) {}
+
   startProgressCycle();
-    }
+}
 
     function pause() {
       isPlaying = false;
@@ -2893,6 +2918,9 @@ if (!isInView) return;
         return;
       }
 
+      // 再保证中心视频处于播放态（即便前一次被系统/手势暂停）
+      ensureMutedPlay(centerVideo);
+
       const myToken = ++cycleToken;
       const idx = getRealIndex();
       activateDot(idx);
@@ -2908,7 +2936,7 @@ if (!isInView) return;
         }
 
         // ===== [PATCH INSERT: s0.progress.tick.inview.guard] =====
-if (!isInView) { stopProgressLoop(); return; }
+      if (!isInView) { stopProgressLoop(); return; }
 // ===== [PATCH END] =====
 
         if (isMoving) {
