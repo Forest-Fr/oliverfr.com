@@ -917,7 +917,7 @@ function ensurePreviewMedia(slide) {
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.autoplay = true; // 提前解码首帧，避免切换时黑屏
+    v.autoplay = false; // 预加载但不提前播放，切到中心时再播
 
     // ===== [PATCH REPLACE: ensurePreviewMedia.video.preload_auto] =====
     // 关键：从一开始就 preload=auto，并尽早解码首帧；peek preview 也能直接显示视频帧
@@ -986,9 +986,6 @@ function ensurePreviewMedia(slide) {
     wrap.classList.add("is-video-ready");
     v.style.visibility = "visible";
     v.style.opacity = "1";
-    try {
-      if (v.readyState >= 2 && v.currentTime < 0.04) v.currentTime = 0.04;
-    } catch (_) {}
   };
   if (v.readyState >= 2) markReady();
   v.addEventListener("loadeddata", markReady, { once: true });
@@ -1054,12 +1051,28 @@ function syncPreview(ctx) {
   const v = wrap && wrap.querySelector("video.of-s0-previewVideo");
   if (!v) return;
 
+  const centerChanged = (_lastCenterPos !== currentPos);
   _lastCenterPos = currentPos;
 
-  // 播放中心（失败就静默：iOS 未手势时会被拦，但视频仍保持布局，不会“图↔视频”抖）
+  // 非中心全部暂停并复位，避免偷跑
+  slides.forEach((s, i) => {
+    if (i === currentPos) return;
+    const w2 = s.querySelector(".of-s0-media");
+    const v2 = w2 && w2.querySelector("video.of-s0-previewVideo");
+    if (!v2) return;
+    try { v2.pause(); v2.currentTime = 0; } catch (_) {}
+  });
+
+  // 新中心：保证从头开始（就绪后 seek0）
+  if (centerChanged) {
+    const seekZero = () => { try { v.currentTime = 0; } catch (_) {} };
+    if (v.readyState >= 1) seekZero();
+    else v.addEventListener("loadeddata", seekZero, { once: true });
+  }
+
+  // 播放中心（失败静默）
   v.muted = true;
   v.playsInline = true;
-
   const p = v.play();
   if (p && typeof p.catch === "function") p.catch(() => {});
 }
