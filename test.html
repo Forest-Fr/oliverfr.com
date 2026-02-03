@@ -1744,6 +1744,24 @@ overscroll-behavior-y: none;
   opacity: 0 !important;
 }
 
+/* 归位/对齐保护：强制隐藏 overlay 内容，防止两次显隐 */
+.of-s0-track.of-s0-overlay-gate .of-s0-overlay{
+  opacity: 0 !important;
+  transition: none !important;
+}
+.of-s0-track.of-s0-overlay-gate .of-s0-title,
+.of-s0-track.of-s0-overlay-gate .of-s0-bottomBox{
+  opacity: 0 !important;
+  transform: translate3d(0,50px,0) !important;
+  transition: none !important;
+}
+@media (max-width: 768px) {
+  .of-s0-track.of-s0-overlay-gate .of-s0-title,
+  .of-s0-track.of-s0-overlay-gate .of-s0-bottomBox{
+    transform: translateX(-50%) translate3d(0,50px,0) !important;
+  }
+}
+
 /* ===== [PATCH INSERT: s0.mobile.settling.keep.translateX + wrap.skipEnter] ===== */
 /* 关键：移动端 settling 也必须保留 translateX(-50%)，否则会出现“斜向/抖动” */
 @media (max-width: 768px) {
@@ -2813,12 +2831,29 @@ try { AppleFilm.onMovingChange({ slides, currentPos, isMoving: !!on, isInView })
 let skipEnterDepth = 0;
 let initFinishedAt = 0;
 let skipEnterTimer = 0;
+let overlayGateDepth = 0;
 
 function pushSkipEnter() {
   if (!track) return;
   if (skipEnterTimer) { clearTimeout(skipEnterTimer); skipEnterTimer = 0; }
   skipEnterDepth++;
   track.classList.add("is-skipEnter");
+}
+
+function pushOverlayGate() {
+  overlayGateDepth++;
+  if (track) track.classList.add("of-s0-overlay-gate");
+}
+function popOverlayGateLater(ms = 60) {
+  if (ms <= 0) {
+    overlayGateDepth = Math.max(0, overlayGateDepth - 1);
+    if (overlayGateDepth === 0 && track) track.classList.remove("of-s0-overlay-gate");
+    return;
+  }
+  setTimeout(() => {
+    overlayGateDepth = Math.max(0, overlayGateDepth - 1);
+    if (overlayGateDepth === 0 && track) track.classList.remove("of-s0-overlay-gate");
+  }, ms);
 }
 
 function popSkipEnterLater() {
@@ -2906,6 +2941,14 @@ try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch
       } else if (currentPos < realCount) {
         currentPos += realCount;
         changed = true;
+      }
+      if (changed) {
+        pushOverlayGate();
+        pushSkipEnter();
+        recalcSpan();
+        applyTransform(false);
+        popSkipEnterLater();
+        popOverlayGateLater(80);
       }
       return changed;
     }
@@ -3276,6 +3319,8 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
 
     function normalizePositionIfNeeded_Snap() {
       if (realCount <= 1) return false;
+      pushOverlayGate();
+      pushSkipEnter();
       let changed = false;
       if (currentPos < realCount) {
         currentPos += realCount;
@@ -3284,6 +3329,8 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
         currentPos -= realCount;
         changed = true;
       }
+      if (changed) popOverlayGateLater(80); else popOverlayGateLater(0);
+      popSkipEnterLater();
       return changed;
     }
 
