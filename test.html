@@ -341,6 +341,9 @@
   -webkit-backface-visibility: hidden;
   /* 默认隐藏可减少非中心卡片暂停/首帧黑帧的“瞬间可见”概率 */
   visibility: hidden;
+  /* 提升缩放清晰度，减弱放大时的“马赛克”感 */
+  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
   /* ===== [PATCH END] ===== */
 }
 
@@ -1081,11 +1084,26 @@ function syncPreview(ctx) {
   const { slides, currentPos, isMoving, isInView } = c;
 
   // 不在视口/页面不可见/移动中：只 pause，不做 currentTime=0（避免解码抖动）
-  if (document.hidden || isMoving || isInView === false) {
+  if (document.hidden || isInView === false) {
     slides.forEach((s) => {
       const w = s.querySelector(".of-s0-media");
       const v = w && w.querySelector("video.of-s0-previewVideo");
       if (v) { try { v.pause(); } catch (_) {} }
+    });
+    return;
+  }
+
+  // 移动中：保持当前中心（及临近目标）继续播放，避免“收尾停帧马赛克”
+  if (isMoving) {
+    slides.forEach((s, i) => {
+      const w = s.querySelector(".of-s0-media");
+      const v = w && w.querySelector("video.of-s0-previewVideo");
+      if (!v) return;
+      if (i === currentPos || i === currentPos + 1 || i === currentPos - 1) {
+        ensureMutedPlay(v);
+      } else {
+        try { v.pause(); } catch (_) {}
+      }
     });
     return;
   }
@@ -1527,6 +1545,9 @@ overscroll-behavior-y: none;
   -webkit-backface-visibility: hidden;
   /* 默认隐藏可减少非中心卡片暂停/首帧黑帧的“瞬间可见”概率 */
   visibility: hidden;
+  /* 提升缩放清晰度，减弱放大时的“马赛克”感（仅作用于视频像素采样） */
+  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
   /* ===== [PATCH END] ===== */
 }
 
@@ -1571,6 +1592,13 @@ overscroll-behavior-y: none;
   /* ===== [PATCH INSERT: s0.poster.visibility_when_hidden] ===== */
   visibility: hidden;
   /* ===== [PATCH END] ===== */
+}
+
+/* 视频未 ready 时彻底隐藏视频层，杜绝“解码中马赛克” */
+.section0-slide .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo,
+.of-s0-slide .of-s0-media:not(.is-video-ready) > video.of-s0-previewVideo{
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
     /* ===== [PATCH INSERT: s0.previewVideo.centerOnly.swap + preventNeighborBlackFrame] ===== */
@@ -2722,6 +2750,20 @@ function ensureMutedPlay(video) {
   if (video.paused) setTimeout(tryPlay, 80);
   if (video.paused) setTimeout(tryPlay, 220);
 }
+
+// 预热当前与邻居视频：提前解码首帧，降低切换时的模糊/马赛克
+function prewarmAround(idx) {
+  const targets = [idx, idx - 1, idx + 1];
+  targets.forEach((i) => {
+    const s = slides && slides[i];
+    if (!s) return;
+    try { ensurePreviewMedia(s); } catch (_) {}
+    const wrap = s.querySelector && s.querySelector(".of-s0-media");
+    const v = wrap && wrap.querySelector && wrap.querySelector("video.of-s0-previewVideo");
+    if (!wrap || !v) return;
+    waitPreviewReady(wrap, v, () => {});
+  });
+}
 // ===== [PATCH INSERT: s0.lifecycle.resume_no_black_no_pause.v1] =====
 let _lifeBound = false;
 
@@ -3267,6 +3309,7 @@ function updateCenterClasses(force = false) {
   if (right) right.classList.add("is-neighbor");
 
   try { AppleFilm.syncPreview({ slides, currentPos, isMoving, isInView }); } catch (_) {}
+  try { prewarmAround(currentPos); } catch (_) {}
 }
 // ===== [PATCH END] =====
 
