@@ -769,7 +769,6 @@ body.appleFilm-lock{
   //if (window[KEY] && window[KEY].version === "4.3.0") return;
 
   const OF_S0_VERSION = "4.3.1";
-
   // ===== [PATCH INSERT: s0.programmatic_guard.v1] =====
 let _s0_isProgrammatic = false;
 let _s0_progTok = 0;
@@ -1425,10 +1424,10 @@ if (centerChanged) {
 
 
 //if (centerChanged && isWrapRestart && _s0_isMobileNow()) {
-  // ===== [PATCH REPLACE: s0.wrap_restart.enable_desktop_too.v1] =====
+ // ===== [PATCH REPLACE: s0.wrap_restart.enable_desktop_too.v1] =====
 if (centerChanged && isWrapRestart) {
 // ===== [PATCH END] =====
-
+ 
   // ✅ wrap 专用：等 settle → paint-lock → seek0 → 等首帧 paint → 再 play（根除抖）
   _s0_wrapRestartPrimeAndPlay(
     v,
@@ -3830,10 +3829,7 @@ function clampScrollLeft(left) {
 // ===== [PATCH END] =====
 
     // ===== [PATCH INSERT: snap.hardjump.and.animate.no_bounce] =====
-function getTargetLeftForPos_Snap(pos) 
-
-    
-
+function getTargetLeftForPos_Snap(pos) {
   pos = clamp(pos, 0, slides.length - 1);
   const el = slides[pos];
   if (!el) return clampScrollLeft(track.scrollLeft || 0);
@@ -3855,13 +3851,6 @@ function hardJumpScrollLeft(left) {
   track.style.scrollBehavior = "auto";
 
   const to = clampScrollLeft(left);
-
-    // ===== [PATCH INSERT: s0.hardjump.programmatic_window_and_warn.v1] =====
-  // hardJump 一定会触发 scroll 事件：窗口期内必须忽略 scroll-settle，避免二次结算/二次闪现
-  try { s0MarkProgrammatic(S0_PROG_WINDOW_MS); } catch(_) {}
-  try { s0MaybeWarnHardJump("hardJumpScrollLeft", to); } catch(_) {}
-  // ===== [PATCH END] =====
-
   track.scrollLeft = to;
 
   track.offsetHeight; // 强制应用
@@ -3923,11 +3912,6 @@ const delta = to - from;
 isProgrammaticScroll = true;
 // ===== [PATCH END] =====
 
-  // ===== [PATCH INSERT: s0.animate.programmatic_window.begin.v1] =====
-try { s0MarkProgrammatic(Math.min(900, Math.max(S0_PROG_WINDOW_MS, duration + 120))); } catch(_) {}
-// ===== [PATCH END] =====
-
-
   snapSuppress++;
   const t0 = performance.now();
   let raf = 0;
@@ -3953,11 +3937,6 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
       // 在 p >= 1 的 else 分支末尾（调用 onDone 之前）插入：
 try { track.scrollLeft = to; } catch(_) {}   // 确保最后一帧精准落点
-
-      // ===== [PATCH INSERT: s0.animate.programmatic_window.tail.v1] =====
-try { s0MarkProgrammatic(S0_PROG_WINDOW_MS); } catch(_) {}  // 吸收 snap 恢复后的尾随 scroll
-// ===== [PATCH END] =====
-
 isProgrammaticScroll = false;                // ✅ 关键：正常结束必须清回
       if (onDone) onDone();
     }
@@ -3971,11 +3950,6 @@ isProgrammaticScroll = false;                // ✅ 关键：正常结束必须�
     if (raf) cancelAnimationFrame(raf);
     track.style.scrollSnapType = prevSnap || "";
     track.style.scrollBehavior = prevBeh || "";
-
-    // ===== [PATCH INSERT: s0.animate.programmatic_window.onCancel.v1] =====
-try { s0MarkProgrammatic(S0_PROG_WINDOW_MS); } catch(_) {}
-// ===== [PATCH END] =====
-
 
     // ===== [PATCH INSERT: animateScrollLeftTo.clearProgrammatic.onCancel.v1] =====
 isProgrammaticScroll = false;
