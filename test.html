@@ -769,59 +769,6 @@ body.appleFilm-lock{
   //if (window[KEY] && window[KEY].version === "4.3.0") return;
 
   const OF_S0_VERSION = "4.3.1";
-  // ===== [PATCH INSERT: s0.programmatic_guard.v1] =====
-let _s0_isProgrammatic = false;
-let _s0_progTok = 0;
-
-/**
- * 标记“程序性归位/跳转”窗口：
- * - 期间所有 scroll/transition/center 计算入口必须直接 return；
- * - 结束后延后 2 帧再放行，确保 compositor 真正 settle，彻底灭“抖一下”。
- */
-function _s0_beginProgrammatic(track) {
-  _s0_isProgrammatic = true;
-  const tok = ++_s0_progTok;
-
-  // 关键：把 smooth/transition 暂时关掉，避免“归位”被动画化成肉眼可见的抖动
-  try {
-    if (track && track.style) {
-      // mobile: scroll container
-      if ("scrollBehavior" in track.style) {
-        track.dataset._s0PrevScrollBehavior = track.style.scrollBehavior || "";
-        track.style.scrollBehavior = "auto";
-      }
-      // desktop: transform track
-      track.dataset._s0PrevTransition = track.style.transition || "";
-      track.style.transition = "none";
-    }
-  } catch (_) {}
-
-  return tok;
-}
-
-function _s0_endProgrammatic(track, tok) {
-  // 延后两帧恢复（非常关键：不然你会“看起来恢复了但仍抖一下”）
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    if (tok && tok !== _s0_progTok) return;
-
-    try {
-      if (track && track.style && track.dataset) {
-        if (track.dataset._s0PrevTransition != null) {
-          track.style.transition = track.dataset._s0PrevTransition;
-          delete track.dataset._s0PrevTransition;
-        }
-        if (track.dataset._s0PrevScrollBehavior != null) {
-          track.style.scrollBehavior = track.dataset._s0PrevScrollBehavior;
-          delete track.dataset._s0PrevScrollBehavior;
-        }
-      }
-    } catch (_) {}
-
-    _s0_isProgrammatic = false;
-  }));
-}
-// ===== [PATCH END] =====
-
 
   function uid() {
     return `of_s0_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
@@ -1320,28 +1267,8 @@ function _s0_bindRecoverHooksOnce(){
 // ===== [PATCH REPLACE: s0.film.syncPreview.per_slide_center_play.v4] =====
 let _lastCenterPos = -1;
 let _lastCenterVideo = null;
-let _lastCenterRealIndex = -1;
   // ===== [PATCH INSERT: s0.wrap_restart.prime_token.v1] =====
 let _wrapPrimeToken = 0; // 用于取消过期的 wrap prime（防止快速滑动/自动轮播导致旧任务落地）
-// ===== [PATCH END] =====
-
-// ===== [PATCH INSERT: s0.wrap_restart.detect_by_real_index.v1] =====
-function _s0_getSlideRealIndex(slide){
-  if (!slide) return -1;
-  const ds = slide.dataset || {};
-  const v = ds.realIndex || ds.realindex || slide.getAttribute("data-real-index") || "";
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : -1;
-}
-function _s0_getRealCountFromSlides(slides){
-  if (!Array.isArray(slides) || !slides.length) return 0;
-  let max = -1;
-  for (let i = 0; i < slides.length; i++) {
-    const ri = _s0_getSlideRealIndex(slides[i]);
-    if (ri > max) max = ri;
-  }
-  return max >= 0 ? (max + 1) : 0;
-}
 // ===== [PATCH END] =====
 
 
@@ -1391,11 +1318,6 @@ function syncPreview(ctx) {
   // ===== [PATCH INSERT: s0.wrap_restart.capture_prev_pos.v1] =====
 const prevPos = _lastCenterPos; // 必须在 _lastCenterPos 被更新前保存，用于识别 wrap 重启
 // ===== [PATCH END] =====
-// ===== [PATCH INSERT: s0.wrap_restart.capture_prev_real.v1] =====
-const prevReal = _lastCenterRealIndex;
-const currReal = _s0_getSlideRealIndex(center);
-const realCount = _s0_getRealCountFromSlides(slides);
-// ===== [PATCH END] =====
 
 
   // 旧中心延时暂停：避免退出瞬间断帧出现马赛克
@@ -1407,7 +1329,6 @@ const realCount = _s0_getRealCountFromSlides(slides);
   }
   _lastCenterVideo = v;
   _lastCenterPos = currentPos;
-  if (currReal >= 0) _lastCenterRealIndex = currReal;
 
   // 非中心全部暂停，保留已解码帧（避免退出时马赛克）
   slides.forEach((s, i) => {
@@ -1434,25 +1355,10 @@ const playWhenReady = () => {
 };
 
 // 识别“wrap 重启”：最后->第一 或 第一->最后（移动端最容易抖）
-let isWrapRestart = false;
-if (centerChanged) {
-  const hasReal =
-    realCount > 1 &&
-    prevReal >= 0 && prevReal < realCount &&
-    currReal >= 0 && currReal < realCount;
-
-  // 优先按 realIndex 识别（适配三段克隆的“无感循环”）
-  if (hasReal) {
-    isWrapRestart =
-      (prevReal === realCount - 1 && currReal === 0) ||
-      (prevReal === 0 && currReal === realCount - 1);
-  } else {
-    // 兜底：仍保留原来的数组端点判断，防止缺失 data-real-index 时失效
-    isWrapRestart =
-      (prevPos === slides.length - 1 && currentPos === 0) ||
-      (prevPos === 0 && currentPos === slides.length - 1);
-  }
-}
+const isWrapRestart =
+  !!centerChanged &&
+  ((prevPos === slides.length - 1 && currentPos === 0) ||
+   (prevPos === 0 && currentPos === slides.length - 1));
 
   // ===== [PATCH INSERT: s0.overlay.enter.always_consistent.v1] =====
 if (centerChanged) {
@@ -1464,11 +1370,7 @@ if (centerChanged) {
 // ===== [PATCH END] =====
 
 
-//if (centerChanged && isWrapRestart && _s0_isMobileNow()) {
- // ===== [PATCH REPLACE: s0.wrap_restart.enable_desktop_too.v1] =====
-if (centerChanged && isWrapRestart) {
-// ===== [PATCH END] =====
- 
+if (centerChanged && isWrapRestart && _s0_isMobileNow()) {
   // ✅ wrap 专用：等 settle → paint-lock → seek0 → 等首帧 paint → 再 play（根除抖）
   _s0_wrapRestartPrimeAndPlay(
     v,
@@ -3830,10 +3732,6 @@ function settleSnapAfterScroll() {
 
 // 监听滚动（snap 模式专用）
 track.addEventListener("scroll", () => {
-  // ===== [PATCH INSERT: s0.scroll_handler.ignore_programmatic.v1] =====
-if (_s0_isProgrammatic) return;
-// ===== [PATCH END] =====
-
    if (isProgrammaticScroll) return; // ===== [PATCH] 防二次结算导致二次闪现 =====
   if (!isSnapMode()) return;
   // 滚动中：先认为 moving，暂停进度，避免“进度条偷跑”
@@ -4153,10 +4051,6 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
   };
 
   track.addEventListener("scroll", () => {
-    // ===== [PATCH INSERT: s0.scroll_handler.ignore_programmatic.v1] =====
-if (_s0_isProgrammatic) return;
-// ===== [PATCH END] =====
-
      if (isProgrammaticScroll) return; // ===== [PATCH] 防二次结算导致二次闪现 =====
     if (!isSnapMode()) return;
     setMoving(true);
@@ -4427,10 +4321,6 @@ function prev() {
 
     // transform transitionend（桌面）
     track.addEventListener("transitionend", (e) => {
-      // ===== [PATCH INSERT: s0.transitionend.ignore_programmatic.v1] =====
-if (_s0_isProgrammatic) return;
-// ===== [PATCH END] =====
-
       if (e.propertyName !== "transform") return;
       if (isSnapMode()) return;
       endMoveSafely_Transform();
