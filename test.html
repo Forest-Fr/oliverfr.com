@@ -770,6 +770,60 @@ body.appleFilm-lock{
 
   const OF_S0_VERSION = "4.3.1";
 
+  // ===== [PATCH INSERT: s0.programmatic_guard.v1] =====
+let _s0_isProgrammatic = false;
+let _s0_progTok = 0;
+
+/**
+ * 标记“程序性归位/跳转”窗口：
+ * - 期间所有 scroll/transition/center 计算入口必须直接 return；
+ * - 结束后延后 2 帧再放行，确保 compositor 真正 settle，彻底灭“抖一下”。
+ */
+function _s0_beginProgrammatic(track) {
+  _s0_isProgrammatic = true;
+  const tok = ++_s0_progTok;
+
+  // 关键：把 smooth/transition 暂时关掉，避免“归位”被动画化成肉眼可见的抖动
+  try {
+    if (track && track.style) {
+      // mobile: scroll container
+      if ("scrollBehavior" in track.style) {
+        track.dataset._s0PrevScrollBehavior = track.style.scrollBehavior || "";
+        track.style.scrollBehavior = "auto";
+      }
+      // desktop: transform track
+      track.dataset._s0PrevTransition = track.style.transition || "";
+      track.style.transition = "none";
+    }
+  } catch (_) {}
+
+  return tok;
+}
+
+function _s0_endProgrammatic(track, tok) {
+  // 延后两帧恢复（非常关键：不然你会“看起来恢复了但仍抖一下”）
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (tok && tok !== _s0_progTok) return;
+
+    try {
+      if (track && track.style && track.dataset) {
+        if (track.dataset._s0PrevTransition != null) {
+          track.style.transition = track.dataset._s0PrevTransition;
+          delete track.dataset._s0PrevTransition;
+        }
+        if (track.dataset._s0PrevScrollBehavior != null) {
+          track.style.scrollBehavior = track.dataset._s0PrevScrollBehavior;
+          delete track.dataset._s0PrevScrollBehavior;
+        }
+      }
+    } catch (_) {}
+
+    _s0_isProgrammatic = false;
+  }));
+}
+// ===== [PATCH END] =====
+
+
   function uid() {
     return `of_s0_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
   }
@@ -1370,7 +1424,11 @@ if (centerChanged) {
 // ===== [PATCH END] =====
 
 
-if (centerChanged && isWrapRestart && _s0_isMobileNow()) {
+//if (centerChanged && isWrapRestart && _s0_isMobileNow()) {
+  // ===== [PATCH REPLACE: s0.wrap_restart.enable_desktop_too.v1] =====
+if (centerChanged && isWrapRestart) {
+// ===== [PATCH END] =====
+
   // ✅ wrap 专用：等 settle → paint-lock → seek0 → 等首帧 paint → 再 play（根除抖）
   _s0_wrapRestartPrimeAndPlay(
     v,
@@ -3732,6 +3790,10 @@ function settleSnapAfterScroll() {
 
 // 监听滚动（snap 模式专用）
 track.addEventListener("scroll", () => {
+  // ===== [PATCH INSERT: s0.scroll_handler.ignore_programmatic.v1] =====
+if (_s0_isProgrammatic) return;
+// ===== [PATCH END] =====
+
    if (isProgrammaticScroll) return; // ===== [PATCH] 防二次结算导致二次闪现 =====
   if (!isSnapMode()) return;
   // 滚动中：先认为 moving，暂停进度，避免“进度条偷跑”
@@ -3768,7 +3830,50 @@ function clampScrollLeft(left) {
 // ===== [PATCH END] =====
 
     // ===== [PATCH INSERT: snap.hardjump.and.animate.no_bounce] =====
-function getTargetLeftForPos_Snap(pos) {
+function getTargetLeftForPos_Snap(pos) 
+
+    // ===== [PATCH INSERT: s0.programmatic_window_and_jump_warn.v1] =====
+let _s0_isProgrammatic = false;    // 给 scroll handler 用（你下面已在用这个变量）
+let _s0_progUntil = 0;
+let _s0_progTimer = 0;
+
+let _s0_jumpTimes = [];            // Jump 报警用（debug）
+const S0_PROG_WINDOW_MS = 140;     // programmatic 窗口（吸收 1~2 帧 + 预检 scroll）
+const S0_JUMP_WARN_N = 6;          // N 次以内不报警
+const S0_JUMP_WARN_WINDOW_MS = 1200;
+
+function s0MarkProgrammatic(ms) {
+  const now = performance.now();
+  const dur = Number.isFinite(ms) && ms > 0 ? ms : S0_PROG_WINDOW_MS;
+
+  _s0_isProgrammatic = true;
+  _s0_progUntil = Math.max(_s0_progUntil, now + dur);
+
+  if (_s0_progTimer) clearTimeout(_s0_progTimer);
+  _s0_progTimer = setTimeout(() => {
+    _s0_isProgrammatic = false;
+    _s0_progUntil = 0;
+    _s0_progTimer = 0;
+  }, Math.max(0, _s0_progUntil - performance.now()) + 8);
+}
+
+function s0MaybeWarnHardJump(tag, left) {
+  // 纯 debug：不会影响逻辑，只用于发现 “jump storm”
+  const now = performance.now();
+  _s0_jumpTimes.push(now);
+
+  const cut = now - S0_JUMP_WARN_WINDOW_MS;
+  while (_s0_jumpTimes.length && _s0_jumpTimes[0] < cut) _s0_jumpTimes.shift();
+
+  if (_s0_jumpTimes.length >= S0_JUMP_WARN_N) {
+    try {
+      console.warn(`[S0_JUMP_WARN] ${tag || "hardJump"} x${_s0_jumpTimes.length}/${S0_JUMP_WARN_WINDOW_MS}ms`, { left });
+    } catch (_) {}
+    _s0_jumpTimes.length = 0; // 防刷屏
+  }
+}
+// ===== [PATCH END] =====
+
   pos = clamp(pos, 0, slides.length - 1);
   const el = slides[pos];
   if (!el) return clampScrollLeft(track.scrollLeft || 0);
@@ -3790,6 +3895,13 @@ function hardJumpScrollLeft(left) {
   track.style.scrollBehavior = "auto";
 
   const to = clampScrollLeft(left);
+
+    // ===== [PATCH INSERT: s0.hardjump.programmatic_window_and_warn.v1] =====
+  // hardJump 一定会触发 scroll 事件：窗口期内必须忽略 scroll-settle，避免二次结算/二次闪现
+  try { s0MarkProgrammatic(S0_PROG_WINDOW_MS); } catch(_) {}
+  try { s0MaybeWarnHardJump("hardJumpScrollLeft", to); } catch(_) {}
+  // ===== [PATCH END] =====
+
   track.scrollLeft = to;
 
   track.offsetHeight; // 强制应用
@@ -3851,6 +3963,11 @@ const delta = to - from;
 isProgrammaticScroll = true;
 // ===== [PATCH END] =====
 
+  // ===== [PATCH INSERT: s0.animate.programmatic_window.begin.v1] =====
+try { s0MarkProgrammatic(Math.min(900, Math.max(S0_PROG_WINDOW_MS, duration + 120))); } catch(_) {}
+// ===== [PATCH END] =====
+
+
   snapSuppress++;
   const t0 = performance.now();
   let raf = 0;
@@ -3876,6 +3993,11 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
       // 在 p >= 1 的 else 分支末尾（调用 onDone 之前）插入：
 try { track.scrollLeft = to; } catch(_) {}   // 确保最后一帧精准落点
+
+      // ===== [PATCH INSERT: s0.animate.programmatic_window.tail.v1] =====
+try { s0MarkProgrammatic(S0_PROG_WINDOW_MS); } catch(_) {}  // 吸收 snap 恢复后的尾随 scroll
+// ===== [PATCH END] =====
+
 isProgrammaticScroll = false;                // ✅ 关键：正常结束必须清回
       if (onDone) onDone();
     }
@@ -3889,6 +4011,11 @@ isProgrammaticScroll = false;                // ✅ 关键：正常结束必须�
     if (raf) cancelAnimationFrame(raf);
     track.style.scrollSnapType = prevSnap || "";
     track.style.scrollBehavior = prevBeh || "";
+
+    // ===== [PATCH INSERT: s0.animate.programmatic_window.onCancel.v1] =====
+try { s0MarkProgrammatic(S0_PROG_WINDOW_MS); } catch(_) {}
+// ===== [PATCH END] =====
+
 
     // ===== [PATCH INSERT: animateScrollLeftTo.clearProgrammatic.onCancel.v1] =====
 isProgrammaticScroll = false;
@@ -4051,6 +4178,10 @@ if (Math.abs((track.scrollLeft || 0) - targetLeft) < 0.5) {
   };
 
   track.addEventListener("scroll", () => {
+    // ===== [PATCH INSERT: s0.scroll_handler.ignore_programmatic.v1] =====
+if (_s0_isProgrammatic) return;
+// ===== [PATCH END] =====
+
      if (isProgrammaticScroll) return; // ===== [PATCH] 防二次结算导致二次闪现 =====
     if (!isSnapMode()) return;
     setMoving(true);
@@ -4321,6 +4452,10 @@ function prev() {
 
     // transform transitionend（桌面）
     track.addEventListener("transitionend", (e) => {
+      // ===== [PATCH INSERT: s0.transitionend.ignore_programmatic.v1] =====
+if (_s0_isProgrammatic) return;
+// ===== [PATCH END] =====
+
       if (e.propertyName !== "transform") return;
       if (isSnapMode()) return;
       endMoveSafely_Transform();
