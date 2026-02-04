@@ -888,6 +888,11 @@ function ensurePreviewMedia(slide) {
 
   bindAutoplayUnlockOnce();
 
+  // ===== [PATCH INSERT: s0.recover_hooks.bind_once.v1] =====
+_s0_bindRecoverHooksOnce();
+// ===== [PATCH END] =====
+
+
   // 1) ensure wrapper（不依赖 img）
   let wrap = slide.querySelector(".of-s0-media");
   if (!wrap) {
@@ -1096,7 +1101,14 @@ function _s0_waitPaintedFrame(v, timeoutMs) {
     } catch (_) {}
 
     // fallback：等两帧，尽量保证 compositor 已经刷过
-    _s0_nextFrame().then(() => _s0_nextFrame()).then(() => { clearTimeout(t); finish(); });
+   // _s0_nextFrame().then(() => _s0_nextFrame()).then(() => { clearTimeout(t); finish(); });
+    // fallback：等四帧（iOS scroll-snap + video 解码更稳）
+_s0_nextFrame()
+  .then(() => _s0_nextFrame())
+  .then(() => _s0_nextFrame())
+  .then(() => _s0_nextFrame())
+  .then(() => { clearTimeout(t); finish(); });
+
   });
 }
 
@@ -1131,43 +1143,120 @@ function _s0_seekZeroStable(v, timeoutMs) {
  * wrap 重启专用：等 settle → 短暂 paint-lock → seek0 → 等首帧 paint → 再 play
  * 只用于“最后->第一 / 第一->最后”的 wrap 场景，避免影响普通切换手感
  */
+// ===== [PATCH REPLACE: s0.wrap_restart.prime_and_play.with_track_wrapPrime.v2] =====
 function _s0_wrapRestartPrimeAndPlay(v, wrap, playFn, stillValid) {
   const myToken = ++_wrapPrimeToken;
+  const track = (wrap && wrap.closest) ? wrap.closest(".of-s0-track") : null;
 
   const alive = () =>
     myToken === _wrapPrimeToken &&
-    typeof stillValid === "function" ? !!stillValid() : true;
+    (typeof stillValid === "function" ? !!stillValid() : true);
 
   (async () => {
     if (!v || !wrap || !alive()) return;
 
-    // 1) 先等 2 帧，让 scroll-snap 完全 settle（根除边界帧抖）
-    await _s0_nextFrame();
-    await _s0_nextFrame();
-    if (!alive()) return;
+    // 0) 先把画面锁住：遮掉“归位/seek/首帧解码”期间的一切抖动
+    try { track && track.classList.add("is-wrapPrime"); } catch (_) {}
 
-    // 2) 暂停（保持静帧），避免 seek 时同时在跑解码
+    // 1) 多等一帧（比 2 帧更稳，iOS 常见需要多一帧才能完全 settle）
+    await _s0_nextFrame();
+    await _s0_nextFrame();
+    await _s0_nextFrame();
+    if (!alive()) { try { track && track.classList.remove("is-wrapPrime"); } catch(_){}; return; }
+
+    // 2) 暂停，避免 seek 时解码并发导致抖
     try { v.pause(); } catch (_) {}
 
-    // 3) paint-lock：用 inline !important 盖住“seek 导致的那一下画面跳变”
-    try { v.style.setProperty("visibility", "hidden", "important"); } catch (_) {}
+    // 3) seek 到 0（稳定版）
+    await _s0_seekZeroStable(v, 260);
+    if (!alive()) { try { track && track.classList.remove("is-wrapPrime"); } catch(_){}; return; }
 
-    // 4) seek 到 0（稳定版）
-    await _s0_seekZeroStable(v, 240);
-    if (!alive()) return;
+    // 4) 等 time=0 首帧真正 paint（rVFC 或 4 帧兜底）
+    await _s0_waitPaintedFrame(v, 180);
+    if (!alive()) { try { track && track.classList.remove("is-wrapPrime"); } catch(_){}; return; }
 
-    // 5) 等 time=0 的首帧真正 paint 出来，再解除 lock
-    await _s0_waitPaintedFrame(v, 160);
-    if (!alive()) return;
+    // 5) 解除画面锁（不要同帧 play，避免合成抖）
+    try { track && track.classList.remove("is-wrapPrime"); } catch (_) {}
 
-    try { v.style.removeProperty("visibility"); } catch (_) {}
-
-    // 6) 再等 1 帧让 compositor 稳住，然后播放
     await _s0_nextFrame();
     if (!alive()) return;
 
-    try { if (typeof playFn === "function") playFn(); } catch (_) {}
+    // 6) 播放（失败静默）
+    try { typeof playFn === "function" && playFn(); } catch (_) {}
   })();
+}
+// ===== [PATCH END] =====
+
+// ===== [PATCH INSERT: s0.overlay_enter.selfheal_on_restore.v1] =====
+let _recoverBound = false;
+
+function _s0_getTrackFromSlides(slides){
+  const s = slides && slides[0];
+  return (s && s.closest) ? s.closest(".of-s0-track") : null;
+}
+
+function _s0_healTrackFlags(slides){
+  const t = _s0_getTrackFromSlides(slides);
+  if (!t) return;
+  // 返回页面/缓存恢复最常见的残留：清掉即可（无损）
+  t.classList.remove("is-moving", "is-settling", "is-skipEnter", "is-wrapPrime");
+}
+
+function _s0_syncTrackMovingFlag(ctx){
+  const t = _s0_getTrackFromSlides(ctx && ctx.slides);
+  if (!t) return;
+  // 只以 ctx.isMoving 对齐 moving 状态，避免 overlay “焊住跟着走”
+  t.classList.toggle("is-moving", !!ctx.isMoving);
+}
+
+function _s0_forceOverlayEnter(slide){
+  if (!slide) return;
+
+  const isM = _s0_isMobileNow();
+  const from = isM
+    ? "translateX(-50%) translate3d(0,50px,0)"
+    : "translate3d(0,50px,0)";
+
+  const els = [
+    slide.querySelector(".of-s0-title"),
+    slide.querySelector(".of-s0-bottomBox"),
+  ].filter(Boolean);
+
+  // 先强制回到“入场前态”（无 transition）
+  els.forEach((el) => {
+    try{
+      el.style.setProperty("transition", "none", "important");
+      el.style.setProperty("transform", from, "important");
+      el.style.setProperty("opacity", "0", "important");
+    }catch(_){}
+  });
+
+  // 下一帧释放，让 CSS 自己跑 0.6s 入场（始终一致）
+  requestAnimationFrame(() => {
+    els.forEach((el) => {
+      try{
+        el.style.removeProperty("transition");
+        el.style.removeProperty("transform");
+        el.style.removeProperty("opacity");
+      }catch(_){}
+    });
+  });
+}
+
+function _s0_bindRecoverHooksOnce(){
+  if (_recoverBound) return;
+  _recoverBound = true;
+
+  const kick = () => {
+    if (!lastCtx || !lastCtx.slides) return;
+    _s0_healTrackFlags(lastCtx.slides);
+    // 下一帧再 sync：保证 DOM/scroll 已 settle，再触发一致入场
+    requestAnimationFrame(() => { try { syncPreview(lastCtx); } catch (_) {} });
+  };
+
+  window.addEventListener("pageshow", kick, { passive: true });
+  window.addEventListener("focus", kick, { passive: true });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) kick(); }, { passive: true });
 }
 // ===== [PATCH END] =====
 
@@ -1270,6 +1359,16 @@ const isWrapRestart =
   !!centerChanged &&
   ((prevPos === slides.length - 1 && currentPos === 0) ||
    (prevPos === 0 && currentPos === slides.length - 1));
+
+  // ===== [PATCH INSERT: s0.overlay.enter.always_consistent.v1] =====
+if (centerChanged) {
+  // 防止残留状态把 overlay 焊死在视频上
+  const t = (center && center.closest) ? center.closest(".of-s0-track") : null;
+  try { t && t.classList.remove("is-skipEnter"); } catch (_) {}
+  _s0_forceOverlayEnter(center);
+}
+// ===== [PATCH END] =====
+
 
 if (centerChanged && isWrapRestart && _s0_isMobileNow()) {
   // ✅ wrap 专用：等 settle → paint-lock → seek0 → 等首帧 paint → 再 play（根除抖）
@@ -1429,6 +1528,10 @@ if (centerChanged && isWrapRestart && _s0_isMobileNow()) {
 // ===== [PATCH REPLACE: s0.film.onMovingChange.inViewAware.v2] =====
 function onMovingChange(ctx) {
   if (!ctx || !ctx.slides) return;
+  // ===== [PATCH INSERT: s0.moving_flag.selfheal.v1] =====
+_s0_syncTrackMovingFlag(ctx);
+// ===== [PATCH END] =====
+
   if (ctx.isInView === false) {
     pauseAllPreviews(ctx.slides);
     return;
@@ -2006,6 +2109,20 @@ overscroll-behavior-y: none;
   }
 }
 /* ===== [PATCH END] ===== */
+
+/* ===== [PATCH INSERT: s0.wrapPrime.paintlock_css.v1] ===== */
+/* wrap 归位/seek 期间：强制把“视频层”和“overlay层”都锁住（遮掉那一下抖动） */
+.of-s0-track.is-wrapPrime .of-s0-media > video.of-s0-previewVideo{
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+}
+.of-s0-track.is-wrapPrime .of-s0-overlay{
+  opacity: 0 !important;
+  transition: none !important;
+}
+/* ===== [PATCH END] ===== */
+
 
 /* 基础文本样式（保持你现有视觉） */
 .of-s0-title,
