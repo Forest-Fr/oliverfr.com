@@ -1320,8 +1320,28 @@ function _s0_bindRecoverHooksOnce(){
 // ===== [PATCH REPLACE: s0.film.syncPreview.per_slide_center_play.v4] =====
 let _lastCenterPos = -1;
 let _lastCenterVideo = null;
+let _lastCenterRealIndex = -1;
   // ===== [PATCH INSERT: s0.wrap_restart.prime_token.v1] =====
 let _wrapPrimeToken = 0; // 用于取消过期的 wrap prime（防止快速滑动/自动轮播导致旧任务落地）
+// ===== [PATCH END] =====
+
+// ===== [PATCH INSERT: s0.wrap_restart.detect_by_real_index.v1] =====
+function _s0_getSlideRealIndex(slide){
+  if (!slide) return -1;
+  const ds = slide.dataset || {};
+  const v = ds.realIndex || ds.realindex || slide.getAttribute("data-real-index") || "";
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : -1;
+}
+function _s0_getRealCountFromSlides(slides){
+  if (!Array.isArray(slides) || !slides.length) return 0;
+  let max = -1;
+  for (let i = 0; i < slides.length; i++) {
+    const ri = _s0_getSlideRealIndex(slides[i]);
+    if (ri > max) max = ri;
+  }
+  return max >= 0 ? (max + 1) : 0;
+}
 // ===== [PATCH END] =====
 
 
@@ -1371,6 +1391,11 @@ function syncPreview(ctx) {
   // ===== [PATCH INSERT: s0.wrap_restart.capture_prev_pos.v1] =====
 const prevPos = _lastCenterPos; // 必须在 _lastCenterPos 被更新前保存，用于识别 wrap 重启
 // ===== [PATCH END] =====
+// ===== [PATCH INSERT: s0.wrap_restart.capture_prev_real.v1] =====
+const prevReal = _lastCenterRealIndex;
+const currReal = _s0_getSlideRealIndex(center);
+const realCount = _s0_getRealCountFromSlides(slides);
+// ===== [PATCH END] =====
 
 
   // 旧中心延时暂停：避免退出瞬间断帧出现马赛克
@@ -1382,6 +1407,7 @@ const prevPos = _lastCenterPos; // 必须在 _lastCenterPos 被更新前保存�
   }
   _lastCenterVideo = v;
   _lastCenterPos = currentPos;
+  if (currReal >= 0) _lastCenterRealIndex = currReal;
 
   // 非中心全部暂停，保留已解码帧（避免退出时马赛克）
   slides.forEach((s, i) => {
@@ -1408,10 +1434,25 @@ const playWhenReady = () => {
 };
 
 // 识别“wrap 重启”：最后->第一 或 第一->最后（移动端最容易抖）
-const isWrapRestart =
-  !!centerChanged &&
-  ((prevPos === slides.length - 1 && currentPos === 0) ||
-   (prevPos === 0 && currentPos === slides.length - 1));
+let isWrapRestart = false;
+if (centerChanged) {
+  const hasReal =
+    realCount > 1 &&
+    prevReal >= 0 && prevReal < realCount &&
+    currReal >= 0 && currReal < realCount;
+
+  // 优先按 realIndex 识别（适配三段克隆的“无感循环”）
+  if (hasReal) {
+    isWrapRestart =
+      (prevReal === realCount - 1 && currReal === 0) ||
+      (prevReal === 0 && currReal === realCount - 1);
+  } else {
+    // 兜底：仍保留原来的数组端点判断，防止缺失 data-real-index 时失效
+    isWrapRestart =
+      (prevPos === slides.length - 1 && currentPos === 0) ||
+      (prevPos === 0 && currentPos === slides.length - 1);
+  }
+}
 
   // ===== [PATCH INSERT: s0.overlay.enter.always_consistent.v1] =====
 if (centerChanged) {
