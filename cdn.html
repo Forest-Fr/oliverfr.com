@@ -180,10 +180,18 @@
         const bootstrapUrl = buildBootstrapUrl();
         try {
           const resp = await fetch(bootstrapUrl, { method: "GET", cache: "no-store", credentials: "omit", mode: "cors" });
+          const raw = await resp.text();
+          const data = raw ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
           if (!resp.ok) {
-            return { ok: false, status: resp.status, error: "bootstrap_http_" + resp.status, url: bootstrapUrl };
+            return {
+              ok: false,
+              status: resp.status,
+              error: (data && data.error) ? String(data.error) : ("bootstrap_http_" + resp.status),
+              detail: data || null,
+              url: bootstrapUrl
+            };
           }
-          const cfg = await resp.json().catch(() => null);
+          const cfg = data && typeof data === "object" ? data : null;
           if (!cfg || typeof cfg.bundle !== "string") {
             return { ok: false, status: 200, error: "bootstrap_invalid_json", url: bootstrapUrl };
           }
@@ -319,9 +327,22 @@
         if (bootstrapProbe.ok && bootstrapProbe.cfg) {
           expectedBundle = bootstrapProbe.cfg.bundle || expectedBundle;
           expectedVersion = String(bootstrapProbe.cfg.version || expectedVersion || "");
+          if (bootstrapProbe.cfg.kv_source) {
+            log(`[probe] kv_source=${bootstrapProbe.cfg.kv_source}`);
+          }
+          if (bootstrapProbe.cfg.req_origin) {
+            log(`[probe] req_origin=${bootstrapProbe.cfg.req_origin}`);
+          }
         } else {
           log(`[probe] bootstrap not readable in-page: ${bootstrapProbe.error || "unknown_error"} (${bootstrapProbe.status || 0})`);
           log(`[probe] allow_origins 必须写 origin（协议+域名），不能写页面 URL。示例允许值：${location.origin}`);
+          if (bootstrapProbe && bootstrapProbe.detail) {
+            const d = bootstrapProbe.detail;
+            if (d.req_origin) log(`[probe] req_origin=${d.req_origin}`);
+            if (Array.isArray(d.checked_kv)) log(`[probe] checked_kv=${d.checked_kv.join(",")}`);
+            if (d.kv_source) log(`[probe] kv_source=${d.kv_source}`);
+            if (d.error) log(`[probe] edge_error=${d.error}`);
+          }
         }
 
         // 云端 v1.js 当前对 bundle 设置了 crossOrigin=anonymous。
