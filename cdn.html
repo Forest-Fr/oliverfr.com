@@ -32,7 +32,7 @@
         目标：DevTools Network 必须出现 3 段链路：<br/>
         1) <code>https://cdn.oliverfr.com/sdk/v1.js</code><br/>
         2) <code>https://edge.oliverfr.com/sdk/bootstrap?...</code><br/>
-        3) <code>https://cdn.oliverfr.com/sdk/assets/main.&lt;hash&gt;.js</code>（由 bootstrap 决定 INIT/CANARY）<br/>
+        3) <code>https://cdn.oliverfr.com/sdk/assets/main.&lt;hash&gt;.js</code>（由 bootstrap 决定 INIT2/CANARY）<br/>
       </div>
       <div class="row" style="margin-top:12px">
         <button id="btnRun">运行验收（自动判定）</button>
@@ -190,6 +190,30 @@
         return seenErrors.some(m => /multiple values '\*, \*'|Access-Control-Allow-Origin/i.test(m));
       }
 
+      function getSdkErr() {
+        const e = window.OliverFRError || {};
+        return {
+          code: String(e.code || ""),
+          detail: String(e.detail || ""),
+        };
+      }
+
+      function maybeBootstrapDeniedIssue() {
+        const sdk = getSdkErr();
+        const hay = (seenErrors.join(" | ") + " | " + sdk.detail).toLowerCase();
+        if (!hay) return false;
+        if (hay.includes("bundle_load_failed")) return false;
+        return (
+          hay.includes("/sdk/bootstrap") &&
+          (
+            hay.includes("failed to fetch") ||
+            hay.includes("403") ||
+            hay.includes("access-control-allow-origin") ||
+            hay.includes("origin_not_allowed")
+          )
+        );
+      }
+
       async function tryCompatFallbackIfNeeded(ok1, ok2, ok3) {
         if (ok3) return false;
         const sdkErr = window.OliverFRError && String(window.OliverFRError.code || "");
@@ -244,19 +268,28 @@
 
         const mainHit = findFirstByPrefix(MUST.mainPrefix);
         const hasCorsDup = maybeCORSMultiValueIssue();
+        const bootstrapDenied = maybeBootstrapDeniedIssue();
+        const sdkErr = getSdkErr();
         if (!expectedBundle && ok2) {
           const bootHit = findFirstByPrefix(MUST.bootstrapPrefix);
           if (bootHit) {
             try {
               const u = new URL(bootHit);
               const rel = u.searchParams.get("release") || "stable";
-              expectedVersion = rel === "canary" ? "CANARY?" : "INIT?";
+              expectedVersion = rel === "canary" ? "CANARY?" : "INIT2?";
             } catch {}
           }
         }
 
         setK("k1", ok1, ok1 ? "已捕获 v1.js 请求 ✅" : "未捕获 v1.js 请求 ❌（看 Network / Console / CSP）");
-        setK("k2", ok2, ok2 ? "已捕获 edge bootstrap 请求 ✅" : "未捕获 bootstrap ❌（通常是 v1.js 未执行 / CSP 拦截 / 运行报错）");
+        const k2Ok = ok2 && !bootstrapDenied;
+        setK(
+          "k2",
+          k2Ok,
+          k2Ok
+            ? "已捕获 edge bootstrap 请求 ✅"
+            : `bootstrap 被白名单/CORS 拦截 ❌（请把 ${location.origin} 加入 allow_origins）`
+        );
         const k3Ok = ok3 && !hasCorsDup;
         setK(
           "k3",
@@ -271,17 +304,21 @@
         );
 
         log("");
-        log(`[result] v1.js=${ok1} bootstrap=${ok2} mainBundle=${ok3}`);
+        log(`[result] v1.js=${ok1} bootstrap=${k2Ok} mainBundle=${k3Ok}`);
         if (expectedBundle) {
           log(`[info] expected bundle from bootstrap: ${expectedBundle}`);
         } else if (expectedVersion) {
           log(`[info] bootstrap release hint: ${expectedVersion}`);
         }
+        if (sdkErr.code) {
+          log(`[sdk-error] code=${sdkErr.code} detail=${sdkErr.detail || "-"}`);
+        }
         if (seenErrors.length) {
           log(`[console-error] ${seenErrors.join(" | ")}`);
         }
-        if (!(ok1 && ok2 && k3Ok)) {
+        if (!(ok1 && k2Ok && k3Ok)) {
           log("[next] 打开 DevTools：Network 勾选 Preserve log + Disable cache，Hard Reload 后再看三条链路是否齐全。");
+          log(`[next] 若当前页面用于验收，请确认 ${location.origin} 已在 version.allow_origins 白名单里。`);
           log("[next] 如看到 ACAO multiple values '* , *'，需在 CDN 端确保只返回一个 Access-Control-Allow-Origin。");
           log("[next] 当前页已内置 no-cors fallback，仅用于测试页验收，不替代线上 v1.js 修复。");
         } else {
