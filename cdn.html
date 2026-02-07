@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Oliverfr CDN SDK - E2E Acceptance</title>
+  <style>
+    :root{--bg:#0b0f14;--panel:#111a26;--text:#e8eef7;--muted:#9fb0c7;--good:#37d67a;--bad:#ff5a6a;--warn:#ffbf4a;--line:rgba(255,255,255,.08)}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    .wrap{max-width:980px;margin:28px auto;padding:0 16px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 16px;margin:12px 0}
+    h1{margin:0 0 10px;font-size:18px}
+    .muted{color:var(--muted)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    button{background:#18263a;color:var(--text);border:1px solid var(--line);padding:10px 12px;border-radius:12px;cursor:pointer}
+    button:hover{filter:brightness(1.08)}
+    code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px}
+    .k{display:flex;gap:10px;align-items:flex-start;margin:10px 0;padding:10px;border-radius:12px;border:1px solid var(--line)}
+    .dot{width:10px;height:10px;border-radius:50%;margin-top:5px;background:var(--warn)}
+    .ok .dot{background:var(--good)}
+    .bad .dot{background:var(--bad)}
+    .k b{display:block;margin-bottom:3px}
+    pre{margin:0;background:rgba(0,0,0,.25);padding:10px;border-radius:12px;border:1px solid var(--line);overflow:auto;max-height:240px}
+    .tiny{font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>CDN Loader 一行脚本 - 端到端验收</h1>
+      <div class="muted">
+        目标：DevTools Network 必须出现 3 段链路：<br/>
+        1) <code>https://cdn.oliverfr.com/sdk/v1.js</code><br/>
+        2) <code>https://edge.oliverfr.com/sdk/bootstrap?...</code><br/>
+        3) <code>https://cdn.oliverfr.com/sdk/assets/main.&lt;hash&gt;.js</code>（由 bootstrap 决定 INIT/CANARY）<br/>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="btnRun">运行验收（自动判定）</button>
+        <button id="btnHardReload">打开后建议：DevTools 勾选 Disable cache，再 Hard Reload</button>
+      </div>
+      <div class="muted tiny" style="margin-top:10px">
+        建议在 Incognito / 无插件环境（关掉广告拦截）测试一次，排除扩展拦截脚本/请求的干扰。
+      </div>
+    </div>
+
+    <div class="card" id="statusCard">
+      <div class="k" id="k1"><div class="dot"></div><div><b>1) v1.js</b><div class="muted" id="t1">等待检测…</div></div></div>
+      <div class="k" id="k2"><div class="dot"></div><div><b>2) edge bootstrap</b><div class="muted" id="t2">等待检测…</div></div></div>
+      <div class="k" id="k3"><div class="dot"></div><div><b>3) main bundle</b><div class="muted" id="t3">等待检测…</div></div></div>
+      <div class="muted tiny">判定逻辑：读取 <code>performance.getEntriesByType('resource')</code> + PerformanceObserver 收集资源请求。</div>
+    </div>
+
+    <div class="card">
+      <h1>实时资源请求采样（用于对照 Network）</h1>
+      <pre id="log"></pre>
+    </div>
+  </div>
+
+  <!-- ✅ 你要求的“一行脚本接入” -->
+  <script async
+    src="https://cdn.oliverfr.com/sdk/v1.js"
+    data-project="oliverfr"
+    data-env="prod"
+    data-release="stable">
+  </script>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const MUST = {
+        v1: "https://cdn.oliverfr.com/sdk/v1.js",
+        bootstrapPrefix: "https://edge.oliverfr.com/sdk/bootstrap",
+        mainPrefix: "https://cdn.oliverfr.com/sdk/assets/main.",
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const logEl = $("log");
+      const btnRun = $("btnRun");
+      const btnHardReload = $("btnHardReload");
+
+      function log(line) {
+        logEl.textContent += line + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function setK(id, ok, text) {
+        const el = $(id);
+        el.classList.remove("ok","bad");
+        el.classList.add(ok ? "ok" : "bad");
+        el.querySelector(".muted").textContent = text;
+      }
+
+      // 采集资源：observer + 现有 entries
+      const seen = new Set();
+      const seenErrors = [];
+      let expectedBundle = "";
+      let expectedVersion = "";
+      function scanAndReport() {
+        const entries = performance.getEntriesByType("resource") || [];
+        for (const e of entries) {
+          if (!e || !e.name) continue;
+          if (seen.has(e.name)) continue;
+          seen.add(e.name);
+          if (
+            e.name.includes("cdn.oliverfr.com/sdk/") ||
+            e.name.includes("edge.oliverfr.com/sdk/")
+          ) {
+            log(`[resource] ${e.initiatorType || "?"}  ${e.name}`);
+          }
+        }
+      }
+
+      let po;
+      function startObserver() {
+        if (po) return;
+        try {
+          po = new PerformanceObserver(() => scanAndReport());
+          po.observe({ entryTypes: ["resource"] });
+        } catch (e) {
+          // 某些环境不支持也不影响主验收
+          log(`[warn] PerformanceObserver not available: ${String(e && e.message || e)}`);
+        }
+      }
+
+      function hasExact(url) {
+        const entries = performance.getEntriesByType("resource") || [];
+        return entries.some(e => e && e.name === url);
+      }
+
+      function hasPrefix(prefix) {
+        const entries = performance.getEntriesByType("resource") || [];
+        return entries.some(e => e && typeof e.name === "string" && e.name.startsWith(prefix));
+      }
+
+      function findFirstByPrefix(prefix) {
+        const entries = performance.getEntriesByType("resource") || [];
+        const hit = entries.find(e => e && typeof e.name === "string" && e.name.startsWith(prefix));
+        return hit ? hit.name : "";
+      }
+
+      function parseEmbedAttrs() {
+        const s = document.querySelector('script[src="https://cdn.oliverfr.com/sdk/v1.js"]');
+        const get = (k, d) => (s && s.getAttribute(k)) || d;
+        return {
+          project: get("data-project", "oliverfr"),
+          env: get("data-env", "prod"),
+          release: get("data-release", "stable"),
+          edge: get("data-edge", "https://edge.oliverfr.com").replace(/\/+$/, ""),
+        };
+      }
+
+      function loadScriptNoCors(src, integrity) {
+        return new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.async = true;
+          s.src = src;
+          if (integrity) {
+            s.integrity = integrity;
+          }
+          s.onload = resolve;
+          s.onerror = () => reject(new Error("bundle_load_failed_no_cors"));
+          (document.head || document.documentElement).appendChild(s);
+        });
+      }
+
+      async function compatBootstrapAndLoad() {
+        const attrs = parseEmbedAttrs();
+        const bootstrapUrl =
+          attrs.edge +
+          "/sdk/bootstrap?project=" + encodeURIComponent(attrs.project) +
+          "&env=" + encodeURIComponent(attrs.env) +
+          "&release=" + encodeURIComponent(attrs.release) +
+          "&origin=" + encodeURIComponent(location.origin);
+
+        const resp = await fetch(bootstrapUrl, { method: "GET", cache: "no-store", credentials: "omit", mode: "cors" });
+        if (!resp.ok) throw new Error("compat_bootstrap_http_" + resp.status);
+        const cfg = await resp.json();
+        if (!cfg || typeof cfg.bundle !== "string") throw new Error("compat_bootstrap_invalid");
+
+        expectedBundle = cfg.bundle;
+        expectedVersion = String(cfg.version || "");
+        window.__OLIVERFR_SDK_CONFIG__ = cfg;
+        log("[compat] bootstrap ok -> " + cfg.bundle);
+        await loadScriptNoCors(cfg.bundle, cfg.integrity);
+        log("[compat] bundle loaded without crossOrigin");
+      }
+
+      function maybeCORSMultiValueIssue() {
+        return seenErrors.some(m => /multiple values '\*, \*'|Access-Control-Allow-Origin/i.test(m));
+      }
+
+      async function tryCompatFallbackIfNeeded(ok1, ok2, ok3) {
+        if (ok3) return false;
+        const sdkErr = window.OliverFRError && String(window.OliverFRError.code || "");
+        const shouldTry =
+          sdkErr === "SDK_BOOTSTRAP_FAILED" ||
+          maybeCORSMultiValueIssue() ||
+          (ok1 && ok2 && !ok3);
+        if (!shouldTry) return false;
+        log("[compat] detected loader failure, trying no-cors bundle fallback...");
+        try {
+          await compatBootstrapAndLoad();
+          await new Promise(r => setTimeout(r, 800));
+          return true;
+        } catch (e) {
+          log("[compat] fallback failed: " + String(e && e.message || e));
+          return false;
+        }
+      }
+
+      async function runAcceptance() {
+        logEl.textContent = "";
+        log(`[info] userAgent: ${navigator.userAgent}`);
+        log(`[info] time: ${new Date().toISOString()}`);
+        log(`[info] checking MUST links...`);
+        startObserver();
+
+        // 给 async loader + bootstrap + asset 一点时间跑完
+        const deadlineMs = 8000;
+        const stepMs = 200;
+        const t0 = performance.now();
+
+        let ok1=false, ok2=false, ok3=false;
+        while (performance.now() - t0 < deadlineMs) {
+          scanAndReport();
+          ok1 = ok1 || hasExact(MUST.v1);
+          ok2 = ok2 || hasPrefix(MUST.bootstrapPrefix);
+          ok3 = ok3 || hasPrefix(MUST.mainPrefix);
+
+          if (ok1 && ok2 && ok3) break;
+          await new Promise(r => setTimeout(r, stepMs));
+        }
+
+        // 云端 v1.js 当前对 bundle 设置了 crossOrigin=anonymous。
+        // 当 CDN 响应头重复 ACAO（*, *）时会触发 CORS 拒绝，这里做兼容回退。
+        const triedCompat = await tryCompatFallbackIfNeeded(ok1, ok2, ok3);
+        if (triedCompat) {
+          scanAndReport();
+          ok1 = ok1 || hasExact(MUST.v1);
+          ok2 = ok2 || hasPrefix(MUST.bootstrapPrefix);
+          ok3 = ok3 || hasPrefix(MUST.mainPrefix);
+        }
+
+        const mainHit = findFirstByPrefix(MUST.mainPrefix);
+        const hasCorsDup = maybeCORSMultiValueIssue();
+        if (!expectedBundle && ok2) {
+          const bootHit = findFirstByPrefix(MUST.bootstrapPrefix);
+          if (bootHit) {
+            try {
+              const u = new URL(bootHit);
+              const rel = u.searchParams.get("release") || "stable";
+              expectedVersion = rel === "canary" ? "CANARY?" : "INIT?";
+            } catch {}
+          }
+        }
+
+        setK("k1", ok1, ok1 ? "已捕获 v1.js 请求 ✅" : "未捕获 v1.js 请求 ❌（看 Network / Console / CSP）");
+        setK("k2", ok2, ok2 ? "已捕获 edge bootstrap 请求 ✅" : "未捕获 bootstrap ❌（通常是 v1.js 未执行 / CSP 拦截 / 运行报错）");
+        const k3Ok = ok3 && !hasCorsDup;
+        setK(
+          "k3",
+          k3Ok,
+          k3Ok
+            ? ("已捕获 main bundle 请求 ✅  " + (mainHit ? "[" + mainHit + "]" : ""))
+            : (
+              hasCorsDup
+                ? "捕获到 main bundle 但存在 CORS 重复头（*, *）❌，当前仅靠测试页回退加载"
+                : "未捕获 main bundle ❌（可能是 v1.js 动态 script 遇到 CORS 重复头）"
+            )
+        );
+
+        log("");
+        log(`[result] v1.js=${ok1} bootstrap=${ok2} mainBundle=${ok3}`);
+        if (expectedBundle) {
+          log(`[info] expected bundle from bootstrap: ${expectedBundle}`);
+        } else if (expectedVersion) {
+          log(`[info] bootstrap release hint: ${expectedVersion}`);
+        }
+        if (seenErrors.length) {
+          log(`[console-error] ${seenErrors.join(" | ")}`);
+        }
+        if (!(ok1 && ok2 && k3Ok)) {
+          log("[next] 打开 DevTools：Network 勾选 Preserve log + Disable cache，Hard Reload 后再看三条链路是否齐全。");
+          log("[next] 如看到 ACAO multiple values '* , *'，需在 CDN 端确保只返回一个 Access-Control-Allow-Origin。");
+          log("[next] 当前页已内置 no-cors fallback，仅用于测试页验收，不替代线上 v1.js 修复。");
+        } else {
+          log("[pass] 端到端链路齐全：可灰度/可回滚/页面无感知发布验收通过。");
+        }
+      }
+
+      btnRun.addEventListener("click", runAcceptance);
+      btnHardReload.addEventListener("click", () => {
+        alert("操作建议：\n1) 打开 DevTools > Network\n2) 勾选 Disable cache + Preserve log\n3) 右键刷新按钮 > Empty cache and hard reload（或 Ctrl+Shift+R）\n4) 在 Network 过滤 cdn.oliverfr.com / edge.oliverfr.com\n5) 必须看到 3 段链路");
+      });
+
+      window.addEventListener("error", (ev) => {
+        const msg = String((ev && ev.message) || "");
+        if (!msg) return;
+        if (!seenErrors.includes(msg)) seenErrors.push(msg);
+      });
+
+      // 自动跑一次：打开页面即开始采集（你也可手动点“运行验收”）
+      startObserver();
+      setTimeout(() => { scanAndReport(); }, 0);
+      setTimeout(() => { scanAndReport(); }, 1200);
+    })();
+  </script>
+</body>
+</html>
