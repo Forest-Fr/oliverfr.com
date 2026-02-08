@@ -629,26 +629,97 @@
   <script>
     (function(){
       const $ = (s) => document.querySelector(s);
+      const sdkMountSelector = "#oliverfr-sdk-mount";
+      const sdkHealth = document.getElementById("sdkHealth");
+
+      const setSdkHealth = (state, text) => {
+        if (!sdkHealth) return;
+        sdkHealth.setAttribute("data-state", state);
+        sdkHealth.textContent = text;
+      };
+
       const scrollToId = (id) => {
         const el = document.getElementById(id);
         if (!el) return;
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       };
 
-      $("#btnScrollDemo")?.addEventListener("click", () => scrollToId("demo"));
-      $("#btnStart")?.addEventListener("click", () => scrollToId("demo"));
-      $("#btnUseCases")?.addEventListener("click", () => scrollToId("how"));
-      $("#btnPricing")?.addEventListener("click", () => scrollToId("security"));
+      const getSdkHost = () => document.querySelector(
+        `${sdkMountSelector} [data-oliverfr-sdk-host='1'], ${sdkMountSelector} oliverfr-sdk-root`
+      );
 
-      // 这些示例按钮不调用 SDK 内部接口（避免耦合）。
-      // 业务上：你可以让用户复制这段话到 Copilot UI；或让 SDK 自己从 DOM 读取 data-* 字段作为上下文。
+      const hasInteractiveHost = () => {
+        const host = getSdkHost();
+        if (!host || !host.shadowRoot) return false;
+        return !!host.shadowRoot.querySelector("[data-action]");
+      };
+
+      const getSdkApi = () => {
+        const api = window.OliverFR;
+        if (!api || typeof api !== "object" && typeof api !== "function") return null;
+        return api;
+      };
+
+      const refreshSdkHealth = () => {
+        const api = getSdkApi();
+        const err = window.OliverFRError && String(window.OliverFRError.code || "");
+        if (api && typeof api.health === "function") {
+          try {
+            const h = api.health() || {};
+            const mounts = Number(h.mounted || 0);
+            const interactive = Number(h.interactive || 0);
+            if (mounts > 0 && interactive > 0) {
+              setSdkHealth("ok", `SDK 状态：挂载成功且可交互（mounts=${mounts}）`);
+              return true;
+            }
+            if (mounts > 0) {
+              setSdkHealth("warn", "SDK 状态：已挂载但交互未就绪，请等待主包渲染完成。");
+              return false;
+            }
+          } catch (_) {}
+        }
+
+        if (hasInteractiveHost()) {
+          setSdkHealth("ok", "SDK 状态：挂载成功且可交互（DOM 检测）");
+          return true;
+        }
+
+        if (err) {
+          setSdkHealth("bad", `SDK 状态：加载失败（${err}），请检查 bootstrap 与白名单策略。`);
+          return false;
+        }
+
+        setSdkHealth("warn", "SDK 状态：等待挂载中...");
+        return false;
+      };
+
+      const invokeSdkAction = async (action, payload) => {
+        const api = getSdkApi();
+        if (!api || typeof api.run !== "function") {
+          setSdkHealth("warn", "SDK 状态：API 未就绪（run 不可用）");
+          return { ok: false, error: "sdk_api_not_ready" };
+        }
+        try {
+          const res = await api.run(action, payload || {});
+          if (res && res.ok === false) {
+            setSdkHealth("warn", `SDK 状态：动作已触发但链路有告警（${action}: ${String(res.error || "action_failed")}）`);
+            return res;
+          }
+          setSdkHealth("ok", `SDK 状态：动作执行成功（${action}）`);
+          return res || { ok: true };
+        } catch (e) {
+          const msg = String(e && e.message || e || "action_failed");
+          setSdkHealth("bad", `SDK 状态：动作执行异常（${action}: ${msg}）`);
+          return { ok: false, error: msg };
+        }
+      };
+
       const setDemoContext = (reason, shipping, extraText) => {
         const reasonEl = document.querySelector("[data-refund-reason]");
         const shipEl = document.querySelector("[data-shipping-status]");
         if (reasonEl) reasonEl.setAttribute("data-refund-reason", reason);
         if (shipEl) shipEl.setAttribute("data-shipping-status", shipping);
 
-        // 在页面上给用户一个“可复制的提问”，不依赖 SDK
         const boxId = "demoPromptBox";
         let box = document.getElementById(boxId);
         if (!box) {
@@ -664,162 +735,51 @@
         scrollToId("demo");
       };
 
-      const runSdkAction = async (action, payload) => {
-        const api = window.OliverFR;
-        if (!api || typeof api.run !== "function") {
-          return { ok: false, error: "sdk_api_not_ready" };
-        }
-        try {
-          return await api.run(action, payload || {});
-        } catch (e) {
-          return { ok: false, error: String(e && e.message || e) };
-        }
-      };
+      $("#btnScrollDemo")?.addEventListener("click", () => scrollToId("demo"));
+      $("#btnStart")?.addEventListener("click", () => scrollToId("demo"));
+      $("#btnUseCases")?.addEventListener("click", () => scrollToId("how"));
+      $("#btnPricing")?.addEventListener("click", () => scrollToId("security"));
 
       $("#btnPrompt1")?.addEventListener("click", () => {
         const prompt = "客户申请退款：未收到货。\n请给出：1）处理策略（是否同意/部分退款/拒绝/升级）；2）需要的证据清单；3）一段可直接发送给客户的英文回复模板（带订单号变量）。";
-        setDemoContext(
-          "not_received",
-          "in_transit",
-          prompt
-        );
-        runSdkAction("plan", { context: { prompt } });
+        setDemoContext("not_received", "in_transit", prompt);
+        invokeSdkAction("plan", { context: { prompt } });
       });
+
       $("#btnPrompt2")?.addEventListener("click", () => {
         const prompt = "客户申请退款：声称未收到，但物流显示已签收。\n请给出：1）风险判断与建议动作；2）如何礼貌且坚定地回复；3）如需升级纠纷，应打包哪些证据。";
-        setDemoContext(
-          "delivered_dispute",
-          "delivered",
-          prompt
-        );
-        runSdkAction("plan", { context: { prompt } });
+        setDemoContext("delivered_dispute", "delivered", prompt);
+        invokeSdkAction("plan", { context: { prompt } });
       });
+
       $("#btnPrompt3")?.addEventListener("click", () => {
         const prompt = "客户申请退款：商品损坏。\n请给出：1）需要客户补充的材料（照片/视频/外箱）；2）退款/换货策略建议；3）中文+英文双语回复模板。";
-        setDemoContext(
-          "damaged_item",
-          "delivered",
-          prompt
-        );
-        runSdkAction("reply", { context: { prompt } });
+        setDemoContext("damaged_item", "delivered", prompt);
+        invokeSdkAction("reply", { context: { prompt } });
       });
 
-      // SDK 挂载自愈：当 Loader 静默失败（缓存/发布通道/域策略）时，页面侧做一次兼容 fallback。
-      const sdkHealth = document.getElementById("sdkHealth");
-      const sdkMountSelector = "#oliverfr-sdk-mount";
-      const sdkLoader = document.getElementById("oliverfr-sdk-loader");
-
-      const setSdkHealth = (state, text) => {
-        if (!sdkHealth) return;
-        sdkHealth.setAttribute("data-state", state);
-        sdkHealth.textContent = text;
-      };
-
-      const getSdkHost = () => document.querySelector(
-        `${sdkMountSelector} [data-oliverfr-sdk-host='1'], ${sdkMountSelector} oliverfr-sdk-root`
-      );
-
-      const hasSdkHost = () => !!getSdkHost();
-
-      const hasInteractiveSdk = () => {
-        const host = getSdkHost();
-        if (!host || !host.shadowRoot) return false;
-        return !!host.shadowRoot.querySelector("[data-action='track']");
-      };
-
-      const loadScriptNoCors = (src, integrity) => new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.async = true;
-        s.src = src;
-        if (integrity) s.integrity = integrity;
-        s.onload = () => resolve(true);
-        s.onerror = () => reject(new Error("sdk_bundle_load_failed"));
-        (document.head || document.documentElement).appendChild(s);
-      });
-
-      const runSdkFallback = async () => {
-        const get = (k, d) => (sdkLoader && sdkLoader.getAttribute(k)) || d;
-        const edge = String(get("data-edge", "https://edge.oliverfr.com")).replace(/\/+$/, "");
-        const params = new URLSearchParams({
-          project: get("data-project", "oliverfr"),
-          env: get("data-env", "prod"),
-          release: get("data-release", "stable"),
-          origin: location.origin,
-          mount: get("data-mount", sdkMountSelector),
-          mode: get("data-mode", "ui"),
-          theme: get("data-theme", "auto"),
-        });
-        const assetRev = get("data-asset-rev", get("data-bundle-rev", ""));
-        if (assetRev) params.set("asset_rev", assetRev);
-
-        const bootUrl = `${edge}/sdk/bootstrap?${params.toString()}`;
-        const resp = await fetch(bootUrl, { method: "GET", mode: "cors", cache: "no-store", credentials: "omit" });
-        const text = await resp.text();
-        const cfg = text ? JSON.parse(text) : {};
-        if (!resp.ok) throw new Error((cfg && cfg.error) ? String(cfg.error) : `bootstrap_http_${resp.status}`);
-
-        const bundle = String((cfg && (cfg.asset_url || cfg.bundle)) || "").trim();
-        if (!bundle) throw new Error("bootstrap_bundle_missing");
-
-        window.__OLIVERFR_SDK_CONFIG__ = Object.assign({}, cfg, {
-          bundle,
-          asset_url: cfg.asset_url || bundle,
-          mount: get("data-mount", sdkMountSelector),
-          mode: get("data-mode", "ui"),
-          theme: get("data-theme", "auto"),
-        });
-
-        await loadScriptNoCors(bundle, cfg.integrity || "");
-      };
-
-      window.addEventListener("oliverfr:sdk:ready", (e) => {
-        const d = (e && e.detail) || {};
-        const mounts = Number(d.mounted || d.mounts || 0);
-        const interactive = Number(d.interactive || 0);
-        if (mounts > 0 && (interactive > 0 || hasInteractiveSdk())) {
-          setSdkHealth("ok", `SDK 状态：挂载成功且可交互（mounts=${mounts}）`);
-        } else if (mounts > 0) {
-          setSdkHealth("warn", "SDK 状态：已挂载但交互能力未就绪，正在等待...");
-        }
+      window.addEventListener("oliverfr:sdk:ready", () => {
+        refreshSdkHealth();
       });
 
       window.addEventListener("oliverfr:sdk:action", (e) => {
         const d = (e && e.detail) || {};
-        const action = String(d.action || "");
+        const action = String(d.action || "unknown");
         if (d.ok) {
-          setSdkHealth("ok", `SDK 状态：动作执行成功（${action || "unknown"}）`);
+          setSdkHealth("ok", `SDK 状态：动作执行成功（${action}）`);
         } else {
-          const err = String(d.error || "action_failed");
-          setSdkHealth("warn", `SDK 状态：动作已触发但链路有告警（${action || "unknown"}: ${err}）`);
+          setSdkHealth("warn", `SDK 状态：动作已触发但链路有告警（${action}: ${String(d.error || "action_failed")}）`);
         }
       });
 
       window.addEventListener("load", () => {
-        setTimeout(async () => {
-          if (hasInteractiveSdk()) {
-            setSdkHealth("ok", "SDK 状态：挂载成功且可交互（primary path）");
-            return;
-          }
-
-          const sdkErr = window.OliverFRError && String(window.OliverFRError.code || "");
-          setSdkHealth("warn", `SDK 状态：主路径未就绪，尝试 fallback${sdkErr ? `（${sdkErr}）` : ""}...`);
-
-          try {
-            await runSdkFallback();
-            await new Promise((r) => setTimeout(r, 800));
-            if (hasInteractiveSdk()) {
-              setSdkHealth("ok", "SDK 状态：挂载成功且可交互（fallback path）");
-              return;
-            }
-            if (hasSdkHost()) {
-              setSdkHealth("warn", "SDK 状态：fallback 已挂载，但交互节点未就绪。请检查 main bundle 版本是否已刷新。");
-              return;
-            }
-            setSdkHealth("bad", "SDK 状态：fallback 已执行，但挂载仍未出现。请切换 data-release=canary 或检查 allow_origins。");
-          } catch (e) {
-            setSdkHealth("bad", `SDK 状态：fallback 失败（${String(e && e.message || e)}）`);
-          }
-        }, 2600);
+        setSdkHealth("warn", "SDK 状态：加载中...");
+        let attempts = 0;
+        const timer = setInterval(() => {
+          attempts += 1;
+          const ready = refreshSdkHealth();
+          if (ready || attempts >= 20) clearInterval(timer);
+        }, 500);
       }, { once: true });
     })();
   </script>
