@@ -242,6 +242,30 @@
       white-space: nowrap;
     }
     .small{ font-size: 12px; color: var(--muted); }
+    .sdk-health{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .sdk-health[data-state="ok"]{
+      color: rgba(55,215,122,.95);
+      border-color: rgba(55,215,122,.24);
+      background: rgba(55,215,122,.08);
+    }
+    .sdk-health[data-state="warn"]{
+      color: rgba(255,191,74,.95);
+      border-color: rgba(255,191,74,.24);
+      background: rgba(255,191,74,.08);
+    }
+    .sdk-health[data-state="bad"]{
+      color: rgba(255,90,106,.95);
+      border-color: rgba(255,90,106,.24);
+      background: rgba(255,90,106,.08);
+    }
     .footer{
       padding: 20px 0 34px;
       border-top: 1px solid var(--line);
@@ -501,19 +525,20 @@
             </div>
 
             <!-- ====== 你的 SDK 挂载点（按你要求）====== -->
-            <div data-oliverfr-root></div>
+            <div id="oliverfr-sdk-mount" data-oliverfr-root></div>
 
             <div class="small" style="margin-top:10px; color: rgba(255,255,255,.70);">
               如果此处暂未显示 UI：通常是网络/域名策略/发布通道未命中。你可先切换 data-release 为 canary 做对比灰度验证。
             </div>
+            <div id="sdkHealth" class="sdk-health" data-state="warn">SDK 状态：加载中...</div>
           </div>
 
           <!-- ====== 你的 CDN Loader（按你要求，原样）====== -->
-<script defer src="https://cdn.oliverfr.com/sdk/v1.js"
-  data-project="oliverfr" data-env="prod" data-release="stable"
-  data-mount="[data-oliverfr-root]"
-  data-mode="ui" data-theme="auto"></script>
-
+          <script id="oliverfr-sdk-loader" async src="https://cdn.oliverfr.com/sdk/v1.js"
+            data-project="oliverfr" data-env="prod" data-release="stable"
+            data-mount="#oliverfr-sdk-mount"
+            data-asset-rev="resolve-20260208-01"
+            data-mode="ui" data-theme="auto"></script>
         </div>
       </div>
     </section>
@@ -658,6 +683,90 @@
           "客户申请退款：商品损坏。\n请给出：1）需要客户补充的材料（照片/视频/外箱）；2）退款/换货策略建议；3）中文+英文双语回复模板。"
         );
       });
+
+      // SDK 挂载自愈：当 Loader 静默失败（缓存/发布通道/域策略）时，页面侧做一次兼容 fallback。
+      const sdkHealth = document.getElementById("sdkHealth");
+      const sdkMountSelector = "#oliverfr-sdk-mount";
+      const sdkLoader = document.getElementById("oliverfr-sdk-loader");
+
+      const setSdkHealth = (state, text) => {
+        if (!sdkHealth) return;
+        sdkHealth.setAttribute("data-state", state);
+        sdkHealth.textContent = text;
+      };
+
+      const hasSdkHost = () => !!document.querySelector(
+        `${sdkMountSelector} [data-oliverfr-sdk-host='1'], ${sdkMountSelector} oliverfr-sdk-root`
+      );
+
+      const loadScriptNoCors = (src, integrity) => new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.async = true;
+        s.src = src;
+        if (integrity) s.integrity = integrity;
+        s.onload = () => resolve(true);
+        s.onerror = () => reject(new Error("sdk_bundle_load_failed"));
+        (document.head || document.documentElement).appendChild(s);
+      });
+
+      const runSdkFallback = async () => {
+        const get = (k, d) => (sdkLoader && sdkLoader.getAttribute(k)) || d;
+        const edge = String(get("data-edge", "https://edge.oliverfr.com")).replace(/\/+$/, "");
+        const params = new URLSearchParams({
+          project: get("data-project", "oliverfr"),
+          env: get("data-env", "prod"),
+          release: get("data-release", "stable"),
+          origin: location.origin,
+          mount: get("data-mount", sdkMountSelector),
+          mode: get("data-mode", "ui"),
+          theme: get("data-theme", "auto"),
+        });
+        const assetRev = get("data-asset-rev", get("data-bundle-rev", ""));
+        if (assetRev) params.set("asset_rev", assetRev);
+
+        const bootUrl = `${edge}/sdk/bootstrap?${params.toString()}`;
+        const resp = await fetch(bootUrl, { method: "GET", mode: "cors", cache: "no-store", credentials: "omit" });
+        const text = await resp.text();
+        const cfg = text ? JSON.parse(text) : {};
+        if (!resp.ok) throw new Error((cfg && cfg.error) ? String(cfg.error) : `bootstrap_http_${resp.status}`);
+
+        const bundle = String((cfg && (cfg.asset_url || cfg.bundle)) || "").trim();
+        if (!bundle) throw new Error("bootstrap_bundle_missing");
+
+        window.__OLIVERFR_SDK_CONFIG__ = Object.assign({}, cfg, {
+          bundle,
+          asset_url: cfg.asset_url || bundle,
+          mount: get("data-mount", sdkMountSelector),
+          mode: get("data-mode", "ui"),
+          theme: get("data-theme", "auto"),
+        });
+
+        await loadScriptNoCors(bundle, cfg.integrity || "");
+      };
+
+      window.addEventListener("load", () => {
+        setTimeout(async () => {
+          if (hasSdkHost()) {
+            setSdkHealth("ok", "SDK 状态：挂载成功（primary path）");
+            return;
+          }
+
+          const sdkErr = window.OliverFRError && String(window.OliverFRError.code || "");
+          setSdkHealth("warn", `SDK 状态：主路径未挂载，尝试 fallback${sdkErr ? `（${sdkErr}）` : ""}...`);
+
+          try {
+            await runSdkFallback();
+            await new Promise((r) => setTimeout(r, 800));
+            if (hasSdkHost()) {
+              setSdkHealth("ok", "SDK 状态：挂载成功（fallback path）");
+              return;
+            }
+            setSdkHealth("bad", "SDK 状态：fallback 已执行，但挂载仍未出现。请切换 data-release=canary 或检查 allow_origins。");
+          } catch (e) {
+            setSdkHealth("bad", `SDK 状态：fallback 失败（${String(e && e.message || e)}）`);
+          }
+        }, 2600);
+      }, { once: true });
     })();
   </script>
 </body>
