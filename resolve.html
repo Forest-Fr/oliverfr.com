@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Oliverfr Copilot · 售后退款闭环助手</title>
+  <meta name="description" content="把退款/售后处理从对话变成可审批、可追踪、可执行的业务动作：生成处理策略、客户回复、工单分派、证据打包与复盘。" />
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#101824;
+      --panel2:#0f1520;
+      --text:#e8eef7;
+      --muted:#9fb0c7;
+      --line:rgba(255,255,255,.10);
+      --brand:#5aa2ff;
+      --good:#37d67a;
+      --warn:#ffbf4a;
+      --bad:#ff5a6a;
+      --radius:16px;
+      --shadow: 0 14px 50px rgba(0,0,0,.45);
+      --max: 1100px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(1200px 600px at 10% 0%, rgba(90,162,255,.20), transparent 60%),
+                  radial-gradient(900px 500px at 90% 10%, rgba(55,215,122,.14), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+      line-height:1.55;
+    }
+    a{ color:inherit; text-decoration:none; }
+    .wrap{ max-width: var(--max); margin:0 auto; padding: 0 18px; }
+    .topbar{
+      position: sticky; top:0; z-index: 40;
+      backdrop-filter: blur(12px);
+      background: rgba(11,15,20,.65);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar-inner{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 12px 0;
+      gap: 12px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      font-weight:700; letter-spacing:.3px;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:50%;
+      background: var(--brand);
+      box-shadow: 0 0 0 6px rgba(90,162,255,.12);
+    }
+    .nav{
+      display:flex; gap: 14px; color: var(--muted);
+      font-size: 14px;
+    }
+    .nav a{ padding: 8px 10px; border-radius: 10px; }
+    .nav a:hover{ background: rgba(255,255,255,.06); color: var(--text); }
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:10px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-weight: 600;
+      cursor:pointer;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.22); }
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(90,162,255,.95), rgba(90,162,255,.55));
+      border-color: rgba(90,162,255,.45);
+    }
+    .btn.primary:hover{ background: linear-gradient(135deg, rgba(90,162,255,1), rgba(90,162,255,.60)); }
+    .btn.ghost{
+      background: transparent;
+      border-color: rgba(255,255,255,.12);
+      color: var(--muted);
+    }
+    .hero{
+      padding: 42px 0 18px;
+    }
+    .hero-grid{
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.035));
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .hero-left{ padding: 22px; }
+    .kicker{
+      display:inline-flex; align-items:center; gap:8px;
+      color: rgba(55,215,122,.95);
+      font-weight:700;
+      font-size: 13px;
+      letter-spacing:.3px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(55,215,122,.25);
+      background: rgba(55,215,122,.06);
+    }
+    h1{
+      margin: 14px 0 10px;
+      font-size: 34px;
+      line-height: 1.12;
+      letter-spacing: .2px;
+    }
+    .sub{
+      color: var(--muted);
+      font-size: 16px;
+      margin: 0 0 18px;
+      max-width: 62ch;
+    }
+    .pillrow{ display:flex; flex-wrap:wrap; gap:10px; margin: 10px 0 18px; }
+    .pill{
+      display:inline-flex; gap:8px; align-items:center;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 7px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+    }
+    .grid3{
+      display:grid; gap: 12px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .mini{
+      padding: 12px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,14,18,.35);
+    }
+    .mini b{ display:block; margin-bottom:6px; }
+    .mini p{ margin:0; color: var(--muted); font-size: 13px; }
+    .hero-right{ padding: 18px; }
+    .stat{
+      display:flex; justify-content:space-between; gap:10px;
+      padding: 12px; border-radius: 14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,14,18,.35);
+      margin-bottom: 10px;
+    }
+    .stat .k{ color: var(--muted); font-size: 13px; }
+    .stat .v{ font-weight: 800; letter-spacing:.2px; }
+    .hint{
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      border:1px dashed rgba(255,255,255,.16);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .section{ padding: 18px 0; }
+    .section h2{
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+    .section .desc{ margin:0 0 14px; color: var(--muted); }
+    .two{
+      display:grid; gap: 14px;
+      grid-template-columns: 1fr 1fr;
+      align-items: stretch;
+    }
+    .list{
+      margin:0; padding:0; list-style:none;
+      display:grid; gap: 10px;
+    }
+    .li{
+      padding: 12px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,14,18,.35);
+    }
+    .li .t{ font-weight: 700; margin-bottom:4px; }
+    .li .d{ color: var(--muted); font-size: 13px; }
+    .callout{
+      padding: 16px;
+      border-radius: var(--radius);
+      border:1px solid rgba(90,162,255,.22);
+      background: radial-gradient(800px 420px at 0% 0%, rgba(90,162,255,.16), transparent 60%),
+                  rgba(255,255,255,.04);
+    }
+    .actions{
+      display:flex; flex-wrap:wrap; gap:10px; margin-top: 12px;
+    }
+    .demo{
+      display:grid; gap: 14px;
+      grid-template-columns: 1fr .95fr;
+      align-items: stretch;
+    }
+    .demo-left{ padding: 18px; }
+    .demo-right{ padding: 18px; position: relative; }
+    .steps{
+      display:grid; gap:10px;
+    }
+    .step{
+      display:flex; gap:10px; align-items:flex-start;
+      padding: 12px; border-radius: 14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,14,18,.35);
+    }
+    .num{
+      width: 26px; height: 26px; border-radius: 8px;
+      display:flex; align-items:center; justify-content:center;
+      background: rgba(90,162,255,.18);
+      border:1px solid rgba(90,162,255,.25);
+      color: rgba(90,162,255,.95);
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+    .step b{ display:block; margin-bottom: 4px; }
+    .step span{ color: var(--muted); font-size: 13px; display:block; }
+    .mount{
+      border-radius: var(--radius);
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,14,18,.35);
+      padding: 14px;
+      min-height: 220px;
+    }
+    .mount-head{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px; margin-bottom: 10px;
+    }
+    .badge{
+      font-size: 12px; color: rgba(55,215,122,.95);
+      padding: 5px 10px; border-radius: 999px;
+      border:1px solid rgba(55,215,122,.25);
+      background: rgba(55,215,122,.06);
+      white-space: nowrap;
+    }
+    .small{ font-size: 12px; color: var(--muted); }
+    .footer{
+      padding: 20px 0 34px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 14px;
+    }
+    .faq{
+      display:grid; gap:10px;
+    }
+    details{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,14,18,.35);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    summary{ cursor:pointer; font-weight:700; }
+    details p{ margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    @media (max-width: 960px){
+      .hero-grid, .demo{ grid-template-columns: 1fr; }
+      .grid3{ grid-template-columns: 1fr; }
+      .two{ grid-template-columns: 1fr; }
+      h1{ font-size: 30px; }
+    }
+  </style>
+</head>
+
+<body
+  data-product="refund-copilot"
+  data-scenario="after-sales"
+  data-page-context="marketing"
+>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand">
+        <span class="dot" aria-hidden="true"></span>
+        <span>Oliverfr Copilot</span>
+      </div>
+      <nav class="nav" aria-label="导航">
+        <a href="#value">业务价值</a>
+        <a href="#how">闭环流程</a>
+        <a href="#demo">在线体验</a>
+        <a href="#security">合规安全</a>
+      </nav>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button class="btn ghost" id="btnScrollDemo" type="button">体验 Demo</button>
+        <a class="btn primary" href="#demo">立即接入</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- HERO -->
+    <section class="hero" id="top">
+      <div class="hero-grid">
+        <div class="card hero-left">
+          <div class="kicker">售后退款 · 闭环 Copilot</div>
+          <h1>把“退款处理”从对话变成可执行业务动作</h1>
+          <p class="sub">
+            不是聊天玩具：直接输出<strong>处理策略</strong>、<strong>客户回复</strong>、<strong>工单分派</strong>、<strong>证据清单</strong>与<strong>复盘记录</strong>。
+            一行脚本嵌入你的后台系统，支持稳定/灰度发布。
+          </p>
+
+          <div class="pillrow">
+            <span class="pill">✅ 可审批：不越权执行</span>
+            <span class="pill">✅ 可追踪：全链路审计</span>
+            <span class="pill">✅ 可灰度：stable/canary</span>
+            <span class="pill">✅ 可度量：效率与成本看板</span>
+          </div>
+
+          <div class="grid3">
+            <div class="mini">
+              <b>降噪</b>
+              <p>把“重复问答”压缩为结构化结论，减少客服来回沟通。</p>
+            </div>
+            <div class="mini">
+              <b>提效</b>
+              <p>一键生成多语言回复模板 + 变量替换，减少手工编辑。</p>
+            </div>
+            <div class="mini">
+              <b>控风险</b>
+              <p>对异常退款/拒付风险给出证据链与升级路径。</p>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="btnStart" type="button">开始体验闭环</button>
+            <button class="btn" id="btnUseCases" type="button">查看典型场景</button>
+            <button class="btn ghost" id="btnPricing" type="button">查看交付形态</button>
+          </div>
+        </div>
+
+        <aside class="card hero-right" aria-label="关键指标预期">
+          <div class="stat">
+            <div class="k">首响时间（FRT）</div>
+            <div class="v">↓ 30–60%</div>
+          </div>
+          <div class="stat">
+            <div class="k">关闭周期（TTR）</div>
+            <div class="v">↓ 20–45%</div>
+          </div>
+          <div class="stat">
+            <div class="k">升级率（Escalation）</div>
+            <div class="v">↓ 10–25%</div>
+          </div>
+          <div class="stat">
+            <div class="k">人均处理量</div>
+            <div class="v">↑ 25–80%</div>
+          </div>
+
+          <div class="hint">
+            <div style="margin-bottom:6px; color: var(--text); font-weight:700;">为什么用 CDN 封装更“产品化”？</div>
+            <div>发布、灰度、回滚由 <code>data-release</code> 控制；多系统嵌入由 <code>data-mount</code> 控制；客户无需安装 SDK 依赖，页面级即插即用。</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- VALUE -->
+    <section class="section" id="value">
+      <h2>业务价值：Copilot 不是“回答”，而是“推进处理”</h2>
+      <p class="desc">你的 CDN Loader 的效用，要在产品页上体现为：可落地的动作闭环与可度量的业务指标。</p>
+
+      <div class="two">
+        <div class="card callout">
+          <h3 style="margin:0 0 10px;">输出结构（给人用，也给系统用）</h3>
+          <ul class="list">
+            <li class="li">
+              <div class="t">处理策略</div>
+              <div class="d">分类、风险分、推荐动作、证据清单、SLA 建议。</div>
+            </li>
+            <li class="li">
+              <div class="t">客户回复</div>
+              <div class="d">多语言模板 + 可替换变量（订单号/物流单号/政策条款）。</div>
+            </li>
+            <li class="li">
+              <div class="t">动作按钮</div>
+              <div class="d">创建工单、升级纠纷、导出复盘摘要（全部可审计）。</div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card callout">
+          <h3 style="margin:0 0 10px;">为什么必须走 CDN（而不是散落脚本）</h3>
+          <ul class="list">
+            <li class="li">
+              <div class="t">稳定发布</div>
+              <div class="d">stable/canary 分流，线上故障可快速回滚，不影响业务页代码。</div>
+            </li>
+            <li class="li">
+              <div class="t">多系统覆盖</div>
+              <div class="d">同一份脚本插入订单页/退款页/工单页，能力一致，体验一致。</div>
+            </li>
+            <li class="li">
+              <div class="t">治理与合规</div>
+              <div class="d">把权限、审计、策略集中在 SDK/后端，而不是散落在每个页面。</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW -->
+    <section class="section" id="how">
+      <h2>闭环流程：从“识别退款请求”到“完成处理记录”</h2>
+      <p class="desc">这里展示业务闭环的最短路径（可审批、可追踪、可复盘）。</p>
+
+      <div class="card demo-left" style="padding:18px;">
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <div>
+              <b>识别上下文</b>
+              <span>从页面信息提取订单/退款原因/物流状态（默认脱敏），作为本次处理的上下文。</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <div>
+              <b>生成结构化方案</b>
+              <span>输出分类、风险分、推荐动作、证据清单、SLA；避免“聊天散文”。</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <div>
+              <b>落到动作</b>
+              <span>一键生成客户回复 / 创建工单 / 升级纠纷（由人确认，避免越权）。</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="num">4</div>
+            <div>
+              <b>写入记录</b>
+              <span>把最终选择与证据链写入处理记录，用于审计与复盘看板。</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEMO + MOUNT -->
+    <section class="section" id="demo">
+      <h2>在线体验：在本页直接运行 Copilot（由你的 CDN 注入）</h2>
+      <p class="desc">
+        下方区域是挂载点。你的 SDK 会把 UI 注入到这里（或以浮层呈现，取决于 data-mode="ui" 的实现）。
+      </p>
+
+      <div class="demo">
+        <div class="card demo-left">
+          <h3 style="margin:0 0 10px;">建议你在产品页引导用户怎么用（不是“随便聊”）</h3>
+          <ul class="list">
+            <li class="li">
+              <div class="t">按钮化入口</div>
+              <div class="d">给用户明确“闭环动作”：生成处理策略 / 生成客户回复 / 创建工单。</div>
+            </li>
+            <li class="li">
+              <div class="t">示例驱动</div>
+              <div class="d">给 3 条典型话术：未收到货、签收争议、质量问题。让用户马上能试。</div>
+            </li>
+            <li class="li">
+              <div class="t">强调可控</div>
+              <div class="d">“不自动执行，需人工确认”；更符合企业采购与审计要求。</div>
+            </li>
+          </ul>
+
+          <div class="actions">
+            <button class="btn primary" type="button" id="btnPrompt1">示例：未收到货</button>
+            <button class="btn" type="button" id="btnPrompt2">示例：已签收争议</button>
+            <button class="btn" type="button" id="btnPrompt3">示例：质量问题</button>
+          </div>
+
+          <p class="small" style="margin-top:12px;">
+            注：本页不依赖任何你 SDK 的内部 API（避免耦合）。这些按钮只是把示例写到页面里，SDK 可自行从 DOM 读取或在 UI 内提供“粘贴提问”入口。
+          </p>
+
+          <!-- 给 SDK 读上下文的“业务提示位”（不破坏页面，即使 SDK 不读也不影响） -->
+          <div class="mini" style="margin-top:14px;">
+            <b>本页演示上下文（可被 SDK 读取）</b>
+            <p>
+              <span data-order-id="OF-2026-0208-001">订单号：OF-2026-0208-001</span><br/>
+              <span data-refund-reason="not_received">退款原因：未收到货</span><br/>
+              <span data-shipping-status="in_transit">物流状态：运输中</span><br/>
+              <span data-amount="129.99">金额：$129.99</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="card demo-right">
+          <div class="mount">
+            <div class="mount-head">
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="font-weight:800;">Copilot 挂载区域</div>
+                <div class="small">SDK 将在此处挂载 UI（或以浮层呈现）</div>
+              </div>
+              <span class="badge">LIVE</span>
+            </div>
+
+            <!-- ====== 你的 SDK 挂载点（按你要求）====== -->
+            <div data-oliverfr-root></div>
+
+            <div class="small" style="margin-top:10px; color: rgba(255,255,255,.70);">
+              如果此处暂未显示 UI：通常是网络/域名策略/发布通道未命中。你可先切换 data-release 为 canary 做对比灰度验证。
+            </div>
+          </div>
+
+          <!-- ====== 你的 CDN Loader（按你要求，原样）====== -->
+          <script async src="https://cdn.oliverfr.com/sdk/v1.js"
+            data-project="oliverfr" data-env="prod" data-release="stable"
+            data-mount="[data-oliverfr-root]"
+            data-mode="ui" data-theme="auto"></script>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECURITY -->
+    <section class="section" id="security">
+      <h2>合规安全：企业愿意用的前提</h2>
+      <p class="desc">你做的是“业务系统嵌入式 AI”，安全与治理必须在产品页就讲清楚（这也是成交关键）。</p>
+
+      <div class="two">
+        <div class="card callout">
+          <h3 style="margin:0 0 10px;">默认最小化数据</h3>
+          <ul class="list">
+            <li class="li">
+              <div class="t">脱敏优先</div>
+              <div class="d">地址/电话/邮箱等 PII 默认不进入提示词；只在必要时以脱敏形式出现。</div>
+            </li>
+            <li class="li">
+              <div class="t">权限隔离</div>
+              <div class="d">按租户、角色授权；不同角色看到的“动作按钮”不同。</div>
+            </li>
+            <li class="li">
+              <div class="t">审计可追踪</div>
+              <div class="d">每次建议/动作都有记录：谁触发、用到哪些证据、最终做了什么决策。</div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card callout">
+          <h3 style="margin:0 0 10px;">发布治理（这就是 CDN 的价值）</h3>
+          <ul class="list">
+            <li class="li">
+              <div class="t">灰度与回滚</div>
+              <div class="d">stable/canary 快速切换；线上问题不需要改业务页代码即可回滚。</div>
+            </li>
+            <li class="li">
+              <div class="t">环境一致性</div>
+              <div class="d">同一页面可切 dev/stage/prod；避免“开发可用，上线不可用”。</div>
+            </li>
+            <li class="li">
+              <div class="t">可观测与成本</div>
+              <div class="d">按 project/env/release/tenant 维度度量效果与 token 成本（用于 ROI）。</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <h2>FAQ</h2>
+      <div class="faq">
+        <details>
+          <summary>为什么产品页必须把 Copilot “做成动作闭环”，而不是只放一个聊天框？</summary>
+          <p>
+            企业采购看的是“能否推进业务流程”：生成方案、生成回复、创建工单、证据打包、复盘记录与指标闭环。
+            只聊天无法量化收益，也无法纳入审计与权限体系。
+          </p>
+        </details>
+        <details>
+          <summary>为什么用 CDN Loader 比在每个系统里手写集成更成熟？</summary>
+          <p>
+            CDN 让你把版本、灰度、回滚、安全策略集中治理；业务系统只保留最小挂载点，不被 SDK 细节耦合。
+          </p>
+        </details>
+        <details>
+          <summary>如果我有多个产品线/多个后台系统，怎么复用？</summary>
+          <p>
+            复用同一个 Loader，按 data-project / data-env / data-release 分流；按 data-mount 选择挂载位置；
+            业务上下文由 SDK 统一采集，减少每个系统二次开发成本。
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="wrap" style="padding:0;">
+        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>© Oliverfr Copilot · Business-ready Embedded AI</div>
+          <div style="opacity:.9;">稳定发布 · 可灰度 · 可审计 · 可度量</div>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    (function(){
+      const $ = (s) => document.querySelector(s);
+      const scrollToId = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+
+      $("#btnScrollDemo")?.addEventListener("click", () => scrollToId("demo"));
+      $("#btnStart")?.addEventListener("click", () => scrollToId("demo"));
+      $("#btnUseCases")?.addEventListener("click", () => scrollToId("how"));
+      $("#btnPricing")?.addEventListener("click", () => scrollToId("security"));
+
+      // 这些示例按钮不调用 SDK 内部接口（避免耦合）。
+      // 业务上：你可以让用户复制这段话到 Copilot UI；或让 SDK 自己从 DOM 读取 data-* 字段作为上下文。
+      const setDemoContext = (reason, shipping, extraText) => {
+        const reasonEl = document.querySelector("[data-refund-reason]");
+        const shipEl = document.querySelector("[data-shipping-status]");
+        if (reasonEl) reasonEl.setAttribute("data-refund-reason", reason);
+        if (shipEl) shipEl.setAttribute("data-shipping-status", shipping);
+
+        // 在页面上给用户一个“可复制的提问”，不依赖 SDK
+        const boxId = "demoPromptBox";
+        let box = document.getElementById(boxId);
+        if (!box) {
+          box = document.createElement("div");
+          box.id = boxId;
+          box.className = "mini";
+          box.style.marginTop = "12px";
+          box.innerHTML = '<b>可复制的提问（复制后粘贴到 Copilot）</b><p id="demoPromptText" style="white-space:pre-wrap;"></p>';
+          document.querySelector("#demo .demo-left")?.appendChild(box);
+        }
+        const txt = document.getElementById("demoPromptText");
+        if (txt) txt.textContent = extraText;
+        scrollToId("demo");
+      };
+
+      $("#btnPrompt1")?.addEventListener("click", () => {
+        setDemoContext(
+          "not_received",
+          "in_transit",
+          "客户申请退款：未收到货。\n请给出：1）处理策略（是否同意/部分退款/拒绝/升级）；2）需要的证据清单；3）一段可直接发送给客户的英文回复模板（带订单号变量）。"
+        );
+      });
+      $("#btnPrompt2")?.addEventListener("click", () => {
+        setDemoContext(
+          "delivered_dispute",
+          "delivered",
+          "客户申请退款：声称未收到，但物流显示已签收。\n请给出：1）风险判断与建议动作；2）如何礼貌且坚定地回复；3）如需升级纠纷，应打包哪些证据。"
+        );
+      });
+      $("#btnPrompt3")?.addEventListener("click", () => {
+        setDemoContext(
+          "damaged_item",
+          "delivered",
+          "客户申请退款：商品损坏。\n请给出：1）需要客户补充的材料（照片/视频/外箱）；2）退款/换货策略建议；3）中文+英文双语回复模板。"
+        );
+      });
+    })();
+  </script>
+</body>
+</html>
